@@ -1,0 +1,30 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+
+
+
+
+
+
+                   ┏ Welcome to Ligus ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+                   ┃Ligus is short for ligustica, the Italian honeybee.                   ┃
+                   ┃This terminal is its own Ligus device, with its own keys.             ┃
+                   ┃Safety code    4821 0937 5512  (compare it with people you invite)    ┃
+                   ┃                                                                      ┃
+                   ┃› Your name      ▏                                                    ┃
+                   ┃                                                                      ┃
+                   ┃  (•) Create a workspace    ( ) Join with an invite                   ┃
+                   ┃                                                                      ┃
+                   ┃  Workspace name e.g. Apiary Tracker                                  ┃
+                   ┃  No server needed: it lives on this device until you invite someone. ┃
+                   ┃                                                                      ┃
+                   ┃                                                                      ┃
+                   ┃                                                                      ┃
+                   ┃tab next · ←→ create/join · enter continue · esc quit                 ┃
+                   ┃                                                                      ┃
+                   ┃                                                                      ┃
+                   ┃                                                                      ┃
+                   ┃                                                                      ┃
+                   ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛

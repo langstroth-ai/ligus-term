@@ -42,7 +42,7 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         f.render_widget(Paragraph::new(Line::styled("Nothing is waiting for review.", t.dim())).block(block), right);
         return;
     };
-    let detail_h = 6 + p.votes.len() as u16;
+    let detail_h = 7 + p.votes.len() as u16;
     let [detail, diff] = Layout::vertical([Constraint::Length(detail_h), Constraint::Min(3)]).areas(right);
     draw_detail(f, detail, s, p, t);
     draw_diff(f, diff, s, t);
@@ -59,12 +59,12 @@ fn draw_list(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         .proposals
         .iter()
         .map(|p| {
-            let pill = format!("{:<8}", p.status.label());
+            let pill = format!("{:<9}", p.status.label());
             let l1 = Line::from(vec![
                 Span::styled(pill, status_style(p.status, t)),
-                Span::styled(trunc(&p.title, w.saturating_sub(9)), t.text()),
+                Span::styled(trunc(&p.title, w.saturating_sub(10)), t.text()),
             ]);
-            let mut meta = format!("        {}/{} approvals · {} · {}", p.approvals, p.quorum, p.author, ago(s.now, p.created_at));
+            let mut meta = format!("         {}/{} approvals · {} · {}", p.approvals, p.quorum, p.author, ago(s.now, p.created_at));
             if matches!(p.apply, ApplyState::Waiting { .. }) {
                 meta.push_str(" · applying");
             }
@@ -113,9 +113,19 @@ fn draw_detail(f: &mut Frame, area: Rect, s: &State, p: &Proposal, t: &Theme) {
     }
     let vote = if p.status == ProposalStatus::Open { p.can_vote.clone() } else { Allowed::No(format!("already {}", p.status.label())) };
     let mut spans = vec![];
-    spans.extend(action(k.hint(Context::Review, Action::Approve), "Approve".into(), &vote, t));
-    spans.extend(action(k.hint(Context::Review, Action::Reject), "Reject".into(), &vote, t));
-    let host = s.default_apply_host().map(|h| h.label.clone()).unwrap_or_else(|| "a host".into());
+    let (ka, kr) = (k.hint(Context::Review, Action::Approve), k.hint(Context::Review, Action::Reject));
+    match &vote {
+        Allowed::Yes => {
+            spans.extend(action(ka, "Approve".into(), &vote, t));
+            spans.extend(action(kr, "Reject".into(), &vote, t));
+        }
+        // One reason for both buttons.
+        Allowed::No(_) => spans.extend(action(format!("{ka} Approve  {kr}"), "Reject".into(), &vote, t)),
+    }
+    let host = s
+        .default_apply_host()
+        .map(|h| if h.this_device { "this device".to_string() } else { h.label.clone() })
+        .unwrap_or_else(|| "a host".into());
     let apply_ok = match (&p.status, &p.apply) {
         (_, ApplyState::Waiting { .. }) => Allowed::No("one applier per proposal".into()),
         (ProposalStatus::Approved, _) => Allowed::Yes,
@@ -138,7 +148,7 @@ fn draw_detail(f: &mut Frame, area: Rect, s: &State, p: &Proposal, t: &Theme) {
     } else {
         lines.push(Line::styled("That host applies it once, on its checkout, and reports the result.", t.dim()));
     }
-    f.render_widget(Paragraph::new(lines).block(block), area);
+    f.render_widget(Paragraph::new(lines).wrap(ratatui::widgets::Wrap { trim: false }).block(block), area);
 }
 
 fn draw_diff(f: &mut Frame, area: Rect, s: &State, t: &Theme) {

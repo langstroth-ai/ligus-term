@@ -1,0 +1,38 @@
+# The recovery key, shown once
+
+Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
+
+```text
+
+
+
+
+
+                 ┏ “Bee Yard” is ready ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+                 ┃Write down your recovery key.                                             ┃
+                 ┃It stands in for a lost passkey: without it, a sole owner who loses their ┃
+                 ┃passkeys can't govern the workspace again. It is shown once.              ┃
+                 ┃                                                                          ┃
+                 ┃  1 queen          7 cedar         13 amber         19 basket             ┃
+                 ┃  2 resin          8 basket        14 glade         20 smoke              ┃
+                 ┃  3 ember          9 thyme         15 umber         21 orchard            ┃
+                 ┃  4 orchard       10 harbor        16 zephyr        22 nectar             ┃
+                 ┃  5 meadow        11 basket        17 drone         23 jelly              ┃
+                 ┃  6 willow        12 lantern       18 harbor        24 keel               ┃
+                 ┃                                                                          ┃
+                 ┃To confirm from a terminal without a browser later, keep the words in a   ┃
+                 ┃file only you can read (chmod 600) and give lt its path.                  ┃
+                 ┃                                                                          ┃
+                 ┃Invite code  fake-invite:Bee-Yard                                         ┃
+                 ┃                                                                          ┃
+                 ┃Press enter when you've written them down.                                ┃
+                 ┃                                                                          ┃
+                 ┃                                                                          ┃
+                 ┃                                                                          ┃
+                 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+
+                                                                                ✓ Confirmed with your passkey
+
+```

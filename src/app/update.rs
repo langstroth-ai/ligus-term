@@ -1097,6 +1097,10 @@ fn main_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
             vec![]
         }
         Invite => {
+            if let Some(Allowed::No(r)) = s.active_workspace().map(|w| w.can_invite.clone()) {
+                s.toast(ToastKind::Error, format!("Can't invite: {r}"));
+                return vec![];
+            }
             s.overlay = Some(Overlay::Invite { code: None });
             ws.map(|w| vec![Effect::CreateInvite(w, Role::Contributor)]).unwrap_or_default()
         }

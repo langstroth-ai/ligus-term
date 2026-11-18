@@ -172,7 +172,7 @@ pub const BINDINGS: &[Binding] = &[
     b!(Chat, LockChat, "lock_chat", "Lock this chat down", ["L"]),
     b!(Chat, ClearLockdown, "clear_lockdown", "Clear the lockdown", ["U"]),
     b!(Composer, Send, "send", "Send", ["enter"]),
-    b!(Composer, Newline, "newline", "New line", ["shift-enter", "alt-enter", "ctrl-j"]),
+    b!(Composer, Newline, "newline", "New line", ["alt-enter", "ctrl-j", "shift-enter"]),
     b!(Composer, CancelCompose, "cancel", "Leave the composer (keeps the draft)", ["esc"]),
     b!(Composer, Complete, "complete", "Accept the @mention", ["tab"]),
     b!(Review, Approve, "approve", "Approve", ["A"]),

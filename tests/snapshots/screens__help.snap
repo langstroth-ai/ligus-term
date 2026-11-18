@@ -1,0 +1,48 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[AT] [QR]• Apiary Tracker · owner │ Chats  Proposals  Agents  Hosts  People  Notifications 1  Settings
+┏ Chats ━━━━━━━━━┏ Help · ↑↓ scroll · any other key closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
+┃  Inspection log┃lt keybindings. Rebind any of them in the config file ([keys.<context>]). ┃                │
+┃  #dev          ┃                                                                          ┃o mites per 100 │
+┃  ⊘ Queen cell a┃Anywhere                                                                  ┃                │
+┃  #dev          ┃  ctrl-c, q                        Quit                                   ┃                │
+┃  Release notes ┃  ?, f1                            Show or hide this help                 ┃                │
+┃                ┃  esc                              Back / close                           ┃mall change.    │
+┃                ┃  w, ctrl-w                        Switch workspace                       ┃                │
+┃                ┃  +                                Create or join a workspace             ┃                │
+┃                ┃  c, 1                             Chats                                  ┃                │
+┃                ┃  p, 2                             Proposals                              ┃club uses.      │
+┃                ┃  a, 3                             Agents and runtimes                    ┃                │
+┃                ┃  h, 4                             Hosts                                  ┃                │
+┃                ┃  m, 5                             People                                 ┃                │
+┃                ┃  n, 6                             Notifications                          ┃                │
+┃                ┃  s, 7                             Settings                               ┃                │
+┃                ┃  tab                              Next pane                              ┃                │
+┃                ┃  shift-tab                        Previous pane                          ┃                │
+┃                ┃                                                                          ┃                │
+┃                ┃Lists                                                                     ┃                │
+┃                ┃  ↑, k                             Up                                     ┃                │
+┃                ┃  ↓, j                             Down                                   ┃                │
+┃                ┃  pgup, ctrl-u                     Page up                                ┃                │
+┃                ┃  pgdn, ctrl-d                     Page down                              ┃                │
+┃                ┃  home, g                          First                                  ┃                │
+┃                ┃  end, G                           Last                                   ┃                │
+┃                ┃  enter, l, →                      Open                                   ┃                │
+┃                ┃                                                                          ┃                │
+┃                ┃Chats                                                                     ┃                │
+┃                ┃  i                                Write a message                        ┃                │
+┃                ┃  N                                New chat                               ┃                │
+┃                ┃  L                                Lock this chat down                    ┃                │
+┃                ┃  U                                Clear the lockdown                     ┃                │
+┃                ┃                                                                          ┃                │
+┃                ┃Composer                                                                  ┃                │
+┃                ┃  enter                            Send                                   ┃                │
+┃                ┃  alt-enter, ctrl-j, shift-enter   New line                               ┃                │
+┃                ┃  esc                              Leave the composer (keeps the draft)   ┃────────────────╯
+┃                ┃  tab                              Accept the @mention                    ┃
+┃                ┃                                                                          ┃────────────────╮
+┃                ┃Proposals                                                                 ┃                │
+┗━━━━━━━━━━━━━━━━┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛────────────────╯
+↑↓ chats  i write  N new chat  tab pane  w workspaces  ? help                      lt on this terminal · demo

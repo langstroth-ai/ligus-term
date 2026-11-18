@@ -62,6 +62,8 @@ pub struct WorkspaceSummary {
     /// Synced through a relay, or peer-to-peer/local only.
     pub sync: SyncMode,
     pub your_role: Role,
+    /// Whether you may issue invites, and why not.
+    pub can_invite: Allowed,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -270,17 +272,18 @@ impl RuntimeKind {
             RuntimeKind::Custom => "OpenAI-compatible API",
         }
     }
-    /// Runs as a local CLI on a host (vs an HTTP provider).
-    pub fn local(self) -> bool {
-        matches!(
-            self,
+    /// Where it runs: a CLI on a host, a local model server, or a remote API.
+    pub fn place(self) -> &'static str {
+        match self {
             RuntimeKind::ClaudeCode
-                | RuntimeKind::Codex
-                | RuntimeKind::Antigravity
-                | RuntimeKind::Copilot
-                | RuntimeKind::Pi
-                | RuntimeKind::Aider
-        )
+            | RuntimeKind::Codex
+            | RuntimeKind::Antigravity
+            | RuntimeKind::Copilot
+            | RuntimeKind::Pi
+            | RuntimeKind::Aider => "local CLI",
+            RuntimeKind::Ollama => "local server",
+            _ => "API",
+        }
     }
 }
 

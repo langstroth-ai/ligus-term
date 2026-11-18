@@ -1,0 +1,489 @@
+//! Reducer tests: plain values in, state and effects out. No backend.
+
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use ligus_term::app::state::*;
+use ligus_term::app::{Effect, Msg, State, update};
+use ligus_term::backend::model::*;
+use ligus_term::backend::{BackendError, Event};
+use ligus_term::keymap::Keymap;
+
+const NOW: Millis = 1_794_992_400_000;
+
+fn device() -> DeviceInfo {
+    DeviceInfo {
+        device_name: "test".into(),
+        safety_code: "0000".into(),
+        data_dir: "/tmp/x".into(),
+        secret_store: "file".into(),
+        backend_label: "test".into(),
+    }
+}
+
+fn state() -> State {
+    State::new(device(), Keymap::default(), NOW)
+}
+
+fn key(s: &mut State, code: KeyCode) -> Vec<Effect> {
+    update(s, Msg::Key(KeyEvent::new(code, KeyModifiers::NONE)))
+}
+
+fn mods(s: &mut State, code: KeyCode, m: KeyModifiers) -> Vec<Effect> {
+    update(s, Msg::Key(KeyEvent::new(code, m)))
+}
+
+fn typed(s: &mut State, text: &str) {
+    for c in text.chars() {
+        key(s, KeyCode::Char(c));
+    }
+}
+
+fn ws(id: &str, role: Role) -> WorkspaceSummary {
+    WorkspaceSummary {
+        id: WorkspaceId::new(id),
+        name: format!("WS {id}"),
+        mentioned: false,
+        sync: SyncMode::Peer,
+        your_role: role,
+        can_invite: Allowed::Yes,
+    }
+}
+
+fn chat(id: &str) -> ChatSummary {
+    ChatSummary { id: ChatId::new(id), title: id.into(), channel: None, updated_at: NOW, unread: true, mentioned: false, lockdown: None }
+}
+
+fn proposal(id: &str, status: ProposalStatus) -> Proposal {
+    Proposal {
+        id: ProposalId::new(id),
+        chat: None,
+        title: id.into(),
+        author: "@coder".into(),
+        status,
+        files_changed: 1,
+        approvals: 0,
+        quorum: 1,
+        votes: vec![],
+        created_at: NOW,
+        needs_presence: false,
+        apply: ApplyState::NotRequested,
+        can_vote: Allowed::Yes,
+    }
+}
+
+fn host(id: &str, worker: bool, online: bool, this: bool) -> Host {
+    Host {
+        id: HostId::new(id),
+        label: id.into(),
+        kind: if worker { HostKind::Worker } else { HostKind::Device },
+        online,
+        last_seen: None,
+        this_device: this,
+    }
+}
+
+/// A started state with one workspace, two chats, the first one open.
+fn main_state() -> State {
+    let mut s = state();
+    let fx = update(
+        &mut s,
+        Msg::Startup(Ok(StartupState { your_name: Some("Mara".into()), workspaces: vec![ws("a", Role::Owner), ws("b", Role::Viewer)] })),
+    );
+    assert!(fx.contains(&Effect::LoadChats(WorkspaceId::new("a"))));
+    let fx = update(&mut s, Msg::Chats(WorkspaceId::new("a"), Ok(vec![chat("c1"), chat("c2")])));
+    assert_eq!(
+        fx,
+        vec![Effect::LoadTranscript(WorkspaceId::new("a"), ChatId::new("c1")), Effect::MarkRead(WorkspaceId::new("a"), ChatId::new("c1"))]
+    );
+    update(
+        &mut s,
+        Msg::Mentionables(
+            WorkspaceId::new("a"),
+            Ok(vec![
+                Mentionable { handle: "primary".into(), kind: "Default agent".into() },
+                Mentionable { handle: "coder".into(), kind: "Agent".into() },
+                Mentionable { handle: "Cora".into(), kind: "admin".into() },
+            ]),
+        ),
+    );
+    s
+}
+
+#[test]
+fn empty_startup_is_first_run_and_asks_for_a_name() {
+    let mut s = state();
+    update(&mut s, Msg::Startup(Ok(StartupState { your_name: None, workspaces: vec![] })));
+    let Phase::Onboarding(f) = &s.phase else { panic!("{:?}", s.phase) };
+    assert!(f.ask_name);
+    assert_eq!(f.field, FormField::Name);
+    // Enter on the value with no name: an error, no effect.
+    key(&mut s, KeyCode::Tab);
+    key(&mut s, KeyCode::Tab);
+    typed(&mut s, "Apiary");
+    assert!(key(&mut s, KeyCode::Enter).is_empty());
+    let Phase::Onboarding(f) = &s.phase else { panic!() };
+    assert_eq!(f.error.as_deref(), Some("Tell us your name first"));
+    assert_eq!(f.field, FormField::Name);
+}
+
+#[test]
+fn create_then_recovery_then_main() {
+    let mut s = state();
+    update(&mut s, Msg::Startup(Ok(StartupState { your_name: None, workspaces: vec![] })));
+    typed(&mut s, "Mara");
+    key(&mut s, KeyCode::Tab);
+    key(&mut s, KeyCode::Tab);
+    typed(&mut s, "Bee Yard");
+    let fx = key(&mut s, KeyCode::Enter);
+    assert_eq!(fx, vec![Effect::CreateWorkspace { your_name: "Mara".into(), name: "Bee Yard".into() }]);
+    // Busy: keys are ignored while the passkey is created.
+    assert!(key(&mut s, KeyCode::Enter).is_empty());
+    let created = Created { workspace: ws("new", Role::Owner), recovery_words: vec!["amber".into(); 24], invite: None };
+    update(&mut s, Msg::Created(Ok(created)));
+    assert!(matches!(s.phase, Phase::Recovery(_)));
+    let fx = key(&mut s, KeyCode::Enter);
+    assert_eq!(fx[0], Effect::ConfirmRecovery(WorkspaceId::new("new")));
+    assert!(fx.contains(&Effect::LoadChats(WorkspaceId::new("new"))));
+    assert_eq!(s.phase, Phase::Main);
+}
+
+#[test]
+fn a_cancelled_passkey_returns_to_the_form_with_a_message() {
+    let mut s = state();
+    update(&mut s, Msg::Startup(Ok(StartupState { your_name: Some("M".into()), workspaces: vec![] })));
+    key(&mut s, KeyCode::Tab);
+    typed(&mut s, "X");
+    key(&mut s, KeyCode::Enter);
+    update(&mut s, Msg::Created(Err(BackendError("cancelled".into()))));
+    let Phase::Onboarding(f) = &s.phase else { panic!() };
+    assert!(!f.busy);
+    assert_eq!(f.error.as_deref(), Some("Cancelled: the passkey wasn't created"));
+}
+
+#[test]
+fn pasting_on_the_mode_row_switches_to_join() {
+    let mut s = state();
+    update(&mut s, Msg::Startup(Ok(StartupState { your_name: Some("M".into()), workspaces: vec![] })));
+    update(&mut s, Msg::Paste("  code-123456789  \n".into()));
+    let Phase::Onboarding(f) = &s.phase else { panic!() };
+    assert_eq!(f.mode, FormMode::Join);
+    assert_eq!(f.invite.text, "code-123456789");
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::JoinWorkspace { your_name: "M".into(), invite: "code-123456789".into() }]);
+}
+
+#[test]
+fn switching_workspace_reloads_and_keeps_drafts() {
+    let mut s = main_state();
+    key(&mut s, KeyCode::Char('i'));
+    typed(&mut s, "draft");
+    key(&mut s, KeyCode::Esc);
+    key(&mut s, KeyCode::Char('w'));
+    assert!(matches!(s.overlay, Some(Overlay::Switcher { sel: 0 })));
+    let fx = key(&mut s, KeyCode::Char('2'));
+    assert_eq!(s.active, Some(WorkspaceId::new("b")));
+    assert!(fx.contains(&Effect::LoadProposals(WorkspaceId::new("b"))));
+    assert!(s.composer.text.is_empty());
+    assert_eq!(s.drafts.get(&ChatId::new("c1")).map(String::as_str), Some("draft"));
+    // Results for the old workspace are dropped.
+    update(&mut s, Msg::Chats(WorkspaceId::new("a"), Ok(vec![chat("stale")])));
+    assert!(s.chats.is_empty());
+}
+
+#[test]
+fn composer_sends_and_keeps_letters_out_of_global_keys() {
+    let mut s = main_state();
+    key(&mut s, KeyCode::Char('i'));
+    assert_eq!(s.focus, Focus::Composer);
+    // 'q' and 'w' type rather than quit or switch.
+    typed(&mut s, "qw hi");
+    assert!(!s.quit && s.overlay.is_none());
+    mods(&mut s, KeyCode::Enter, KeyModifiers::ALT);
+    typed(&mut s, "there");
+    let fx = key(&mut s, KeyCode::Enter);
+    assert_eq!(fx, vec![Effect::Send { workspace: WorkspaceId::new("a"), chat: ChatId::new("c1"), text: "qw hi\nthere".into() }]);
+    assert!(s.composer.text.is_empty());
+    // An empty composer sends nothing.
+    assert!(key(&mut s, KeyCode::Enter).is_empty());
+    // Ctrl-C quits from anywhere.
+    mods(&mut s, KeyCode::Char('c'), KeyModifiers::CONTROL);
+    assert!(s.quit);
+}
+
+#[test]
+fn mention_popup_filters_completes_and_dismisses() {
+    let mut s = main_state();
+    key(&mut s, KeyCode::Char('i'));
+    typed(&mut s, "hey @c");
+    let c: Vec<String> = s.mention_candidates().iter().map(|m| m.handle.clone()).collect();
+    assert_eq!(c, vec!["coder", "Cora"]);
+    key(&mut s, KeyCode::Down);
+    key(&mut s, KeyCode::Tab);
+    assert_eq!(s.composer.text, "hey @Cora ");
+    typed(&mut s, "@p");
+    // Enter accepts the mention instead of sending.
+    assert!(key(&mut s, KeyCode::Enter).is_empty());
+    assert_eq!(s.composer.text, "hey @Cora @primary ");
+    typed(&mut s, "@co");
+    key(&mut s, KeyCode::Esc);
+    assert!(s.mention_candidates().is_empty());
+    assert_eq!(s.focus, Focus::Composer, "Esc closes the popup first");
+}
+
+#[test]
+fn streaming_events_build_the_reply_and_typing_set() {
+    let mut s = main_state();
+    let (w, c) = (WorkspaceId::new("a"), ChatId::new("c1"));
+    update(&mut s, Msg::Event(Event::Typing { workspace: w.clone(), chat: c.clone(), who: "@coder".into(), on: true }));
+    assert!(s.typing[&c].contains("@coder"));
+    let m = Message {
+        id: MessageId::new("m"),
+        chat: c.clone(),
+        author: Author::System,
+        text: String::new(),
+        at: NOW,
+        streaming: true,
+        tools: vec![],
+    };
+    update(&mut s, Msg::Event(Event::MessageAdded { workspace: w.clone(), message: m }));
+    for d in ["a ", "b"] {
+        update(
+            &mut s,
+            Msg::Event(Event::MessageDelta { workspace: w.clone(), chat: c.clone(), message: MessageId::new("m"), delta: d.into() }),
+        );
+    }
+    update(&mut s, Msg::Event(Event::MessageDone { workspace: w.clone(), chat: c.clone(), message: MessageId::new("m"), error: None }));
+    update(&mut s, Msg::Event(Event::Typing { workspace: w.clone(), chat: c.clone(), who: "@coder".into(), on: false }));
+    assert_eq!(s.transcript[0].text, "a b");
+    assert!(!s.transcript[0].streaming);
+    assert!(s.typing[&c].is_empty());
+    // A message in another chat marks it unread instead.
+    let other = Message { id: MessageId::new("o"), chat: ChatId::new("c2"), ..s.transcript[0].clone() };
+    s.chats[1].unread = false;
+    update(&mut s, Msg::Event(Event::MessageAdded { workspace: w, message: other }));
+    assert!(s.chats[1].unread);
+    assert_eq!(s.transcript.len(), 1);
+}
+
+#[test]
+fn notifications_ring_the_bell_unless_turned_off() {
+    let mut s = main_state();
+    let n = Notification {
+        id: NotificationId::new("n"),
+        workspace: WorkspaceId::new("a"),
+        chat: None,
+        text: "hi".into(),
+        at: NOW,
+        read: false,
+    };
+    update(&mut s, Msg::Event(Event::Notification(n.clone())));
+    assert!(s.bell);
+    assert_eq!(s.unread_notifications(), 1);
+    s.bell = false;
+    update(
+        &mut s,
+        Msg::Settings(Ok(Settings {
+            your_name: "M".into(),
+            device_name: "d".into(),
+            notify_mentions: false,
+            agents_may_edit: false,
+            relay_url: None,
+        })),
+    );
+    update(&mut s, Msg::Event(Event::Notification(n)));
+    assert!(!s.bell);
+}
+
+#[test]
+fn presence_sheet_browser_recovery_file_and_cancel() {
+    let mut s = main_state();
+    let prompt = PresencePrompt {
+        id: PresenceId(7),
+        kind: "memberRemoved".into(),
+        summary: "Remove Lin".into(),
+        digest_short: "abcd".into(),
+        op: PresenceOp::Get,
+    };
+    update(&mut s, Msg::Event(Event::PresencePrompt(prompt.clone())));
+    assert!(!s.typing_text());
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::AnswerPresence(PresenceId(7), PresenceAnswer::Browser)]);
+    assert_eq!(s.presence[0].stage, PresenceStage::WaitingBrowser);
+    // Switch to the recovery-words file while waiting.
+    key(&mut s, KeyCode::Char('f'));
+    assert!(s.typing_text());
+    typed(&mut s, "/k/words");
+    assert_eq!(
+        key(&mut s, KeyCode::Enter),
+        vec![Effect::AnswerPresence(PresenceId(7), PresenceAnswer::RecoveryWordsFile("/k/words".into()))]
+    );
+    update(&mut s, Msg::Event(Event::PresenceProblem { id: PresenceId(7), error: "unreadable".into() }));
+    assert_eq!(s.presence[0].error.as_deref(), Some("unreadable"));
+    assert_eq!(key(&mut s, KeyCode::Esc), vec![Effect::AnswerPresence(PresenceId(7), PresenceAnswer::Cancel)]);
+    update(&mut s, Msg::Event(Event::PresenceDone { id: PresenceId(7), ok: false, error: Some("cancelled".into()) }));
+    assert!(s.presence.is_empty());
+    // A create prompt has no recovery-file option.
+    update(&mut s, Msg::Event(Event::PresencePrompt(PresencePrompt { id: PresenceId(8), op: PresenceOp::Create, ..prompt })));
+    key(&mut s, KeyCode::Char('f'));
+    assert_eq!(s.presence[0].stage, PresenceStage::Asking);
+}
+
+#[test]
+fn proposals_vote_apply_and_hunk_navigation() {
+    let mut s = main_state();
+    let w = WorkspaceId::new("a");
+    key(&mut s, KeyCode::Char('p'));
+    let mut refused = proposal("p0", ProposalStatus::Open);
+    refused.can_vote = Allowed::No("you already voted".into());
+    update(
+        &mut s,
+        Msg::Proposals(w.clone(), Ok(vec![proposal("p1", ProposalStatus::Open), proposal("p2", ProposalStatus::Approved), refused])),
+    );
+    update(&mut s, Msg::Hosts(w.clone(), Ok(vec![host("here", false, true, true), host("sff", true, true, false)])));
+    assert_eq!(key(&mut s, KeyCode::Char('A')), vec![Effect::Vote(w.clone(), ProposalId::new("p1"), VoteChoice::Approve)]);
+    // Applying an open proposal is refused locally with the reason.
+    assert!(key(&mut s, KeyCode::Char('O')).is_empty());
+    assert!(s.toasts.last().unwrap().text.contains("Only an approved proposal"));
+    // Approved: the host picker opens on the online worker.
+    key(&mut s, KeyCode::Down);
+    key(&mut s, KeyCode::Char('O'));
+    assert_eq!(s.overlay, Some(Overlay::HostPicker { proposal: ProposalId::new("p2"), sel: 1 }));
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::RequestApply(w.clone(), ProposalId::new("p2"), HostId::new("sff"))]);
+    // A refused vote never reaches the backend.
+    key(&mut s, KeyCode::Down);
+    assert!(key(&mut s, KeyCode::Char('R')).is_empty());
+    assert!(s.toasts.last().unwrap().text.contains("you already voted"));
+
+    // Diff: Enter loads it and focuses the viewer; ] and [ jump hunks.
+    key(&mut s, KeyCode::Up);
+    key(&mut s, KeyCode::Up);
+    let fx = key(&mut s, KeyCode::Enter);
+    assert!(fx.contains(&Effect::LoadDiff(w.clone(), ProposalId::new("p1"))) || s.diff.is_some());
+    let hunk = |h: &str, n: usize| Hunk { header: h.into(), lines: vec![DiffLine::Context("x".into()); n] };
+    let diff = Diff {
+        files: vec![
+            FileDiff { path: "a".into(), added: 0, removed: 0, hunks: vec![hunk("@@ 1", 3), hunk("@@ 2", 3)] },
+            FileDiff { path: "b".into(), added: 0, removed: 0, hunks: vec![hunk("@@ 3", 3)] },
+        ],
+    };
+    update(&mut s, Msg::Diff(w.clone(), ProposalId::new("p1"), Ok(diff)));
+    assert_eq!(s.focus, Focus::Detail);
+    let rows = |s: &State| s.diff.as_ref().unwrap().rows()[s.diff.as_ref().unwrap().scroll].clone();
+    key(&mut s, KeyCode::Char(']'));
+    assert_eq!(rows(&s), DiffRow::Hunk("@@ 1".into()));
+    key(&mut s, KeyCode::Char(']'));
+    assert_eq!(rows(&s), DiffRow::Hunk("@@ 2".into()));
+    key(&mut s, KeyCode::Char('}'));
+    assert!(matches!(rows(&s), DiffRow::File { ref path, .. } if path == "b"));
+    key(&mut s, KeyCode::Char('['));
+    assert_eq!(rows(&s), DiffRow::Hunk("@@ 2".into()));
+    key(&mut s, KeyCode::Char('G'));
+    key(&mut s, KeyCode::Char('j'));
+    assert_eq!(s.diff.as_ref().unwrap().scroll, s.diff.as_ref().unwrap().rows().len() - 1, "scroll stops at the end");
+    key(&mut s, KeyCode::Esc);
+    assert_eq!(s.focus, Focus::List);
+}
+
+fn member(id: &str, role: Role, remove: Allowed, roles: Allowed) -> Member {
+    Member {
+        id: MemberId::new(id),
+        name: id.into(),
+        role,
+        founder: false,
+        service: false,
+        you: false,
+        online: true,
+        can_remove: remove,
+        can_set_role: Role::ALL
+            .iter()
+            .map(|r| (*r, if *r == role { Allowed::No("already that role".into()) } else { roles.clone() }))
+            .collect(),
+    }
+}
+
+#[test]
+fn people_actions_follow_the_backends_refusals() {
+    let mut s = main_state();
+    let w = WorkspaceId::new("a");
+    key(&mut s, KeyCode::Char('m'));
+    let no = |r: &str| Allowed::No(r.into());
+    update(
+        &mut s,
+        Msg::Members(
+            w.clone(),
+            Ok(vec![
+                member(
+                    "founder",
+                    Role::Owner,
+                    no("nobody cuts the workspace's founder"),
+                    no("no one changes the role of a member above them"),
+                ),
+                member("lin", Role::Contributor, Allowed::Yes, Allowed::Yes),
+            ]),
+        ),
+    );
+    // Refused: no effect, a toast with the reason.
+    assert!(key(&mut s, KeyCode::Char('X')).is_empty());
+    assert!(s.toasts.last().unwrap().text.ends_with("nobody cuts the workspace's founder"));
+    assert!(key(&mut s, KeyCode::Char('r')).is_empty());
+    assert!(s.toasts.last().unwrap().text.contains("no one changes the role of a member above them"));
+    assert!(s.overlay.is_none());
+    // Allowed: confirm, then the effect.
+    key(&mut s, KeyCode::Down);
+    key(&mut s, KeyCode::Char('X'));
+    assert!(matches!(s.overlay, Some(Overlay::ConfirmRemove { .. })));
+    assert_eq!(key(&mut s, KeyCode::Char('y')), vec![Effect::RemoveMember(w.clone(), MemberId::new("lin"))]);
+    // The role picker skips refused roles with a toast.
+    key(&mut s, KeyCode::Char('r'));
+    assert!(matches!(s.overlay, Some(Overlay::RolePicker { sel: 2, .. })));
+    assert!(key(&mut s, KeyCode::Enter).is_empty(), "contributor is already their role");
+    key(&mut s, KeyCode::Up);
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::SetRole(w, MemberId::new("lin"), Role::Admin)]);
+}
+
+#[test]
+fn lockdown_clear_is_refused_with_the_reason() {
+    let mut s = main_state();
+    s.chats[0].lockdown = Some(Lockdown { reasons: vec!["locked by a member".into()], clear: Allowed::No("a member can clear it".into()) });
+    assert!(key(&mut s, KeyCode::Char('U')).is_empty());
+    assert!(s.toasts.last().unwrap().text.contains("a member can clear it"));
+    s.chats[0].lockdown.as_mut().unwrap().clear = Allowed::Yes;
+    assert_eq!(key(&mut s, KeyCode::Char('U')), vec![Effect::ClearLockdown(WorkspaceId::new("a"), ChatId::new("c1"))]);
+    assert_eq!(key(&mut s, KeyCode::Char('L')), vec![Effect::LockChat(WorkspaceId::new("a"), ChatId::new("c1"))]);
+}
+
+#[test]
+fn views_and_help_and_toasts_expire() {
+    let mut s = main_state();
+    for (k, v) in [
+        ('p', View::Proposals),
+        ('a', View::Agents),
+        ('h', View::Hosts),
+        ('m', View::People),
+        ('n', View::Notifications),
+        ('s', View::Settings),
+        ('c', View::Chats),
+    ] {
+        key(&mut s, KeyCode::Char(k));
+        assert_eq!(s.view, v);
+    }
+    key(&mut s, KeyCode::Char('?'));
+    assert!(matches!(s.overlay, Some(Overlay::Help { .. })));
+    key(&mut s, KeyCode::Char('j'));
+    assert!(matches!(s.overlay, Some(Overlay::Help { scroll: 1 })));
+    key(&mut s, KeyCode::Char('x'));
+    assert!(s.overlay.is_none());
+    s.toast(ToastKind::Info, "hello");
+    for _ in 0..16 {
+        update(&mut s, Msg::Tick(NOW));
+    }
+    assert!(s.toasts.is_empty());
+    assert_eq!(ago(NOW, NOW - 90_000), "1m");
+    assert_eq!(ago(NOW, NOW - 3 * 3_600_000), "3h");
+}
+
+#[test]
+fn errors_become_toasts_and_cancel_is_quiet() {
+    let mut s = main_state();
+    update(&mut s, Msg::Done { ok: "x".into(), result: Err(BackendError("relay unreachable".into())) });
+    assert_eq!(s.toasts.last().unwrap().kind, ToastKind::Error);
+    update(&mut s, Msg::Done { ok: "x".into(), result: Err(BackendError("cancelled".into())) });
+    assert_eq!(s.toasts.last().unwrap().text, "Cancelled");
+}

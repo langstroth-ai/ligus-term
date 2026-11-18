@@ -1,0 +1,38 @@
+# Creating a workspace asks for a passkey
+
+Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
+
+```text
+
+
+
+
+
+
+                   ┏ Welcome to Ligus ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+                   ┃Ligus is short for ligustica, the Italian honeybee.                   ┃
+                   ┃This terminal is its own Ligus device, with its own keys.             ┃
+                   ┃┏ Create a passkey ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓┃
+                   ┃┃Create a Ligus passkey for “Bee Yard”                               ┃┃
+                   ┃┃                                                                    ┃┃
+                   ┃┃Event   passkeyRegistered                                           ┃┃
+                   ┃┃Digest  575fada78451d68e                                            ┃┃
+                   ┃┃                                                                    ┃┃
+                   ┃┃Your browser opens the workspace's passkey page (ligus.ai by        ┃┃
+                   ┃┃default). Check the digest there matches, then use Touch ID, Windows┃┃
+                   ┃┃Hello, your phone or a security key.                                ┃┃
+                   ┃┃                                                                    ┃┃
+                   ┃┃enter open the browser   esc cancel                                 ┃┃
+                   ┃┃                                                                    ┃┃
+                   ┃┃                                                                    ┃┃
+                   ┃┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛┃
+                   ┃                                                                      ┃
+                   ┃                                                                      ┃
+                   ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+
+
+
+
+```

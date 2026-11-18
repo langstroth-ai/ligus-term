@@ -56,7 +56,7 @@ pub fn agents(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
                 (true, false) => Span::styled("Configured", t.fg(t.good)),
                 _ => Span::styled("Not configured", t.dim()),
             };
-            let place = if r.kind.local() { "local CLI" } else { "API" };
+            let place = r.kind.place();
             Row::new(vec![
                 Span::styled(r.id.0.clone(), t.text()),
                 Span::styled(r.kind.label(), t.text()),
@@ -69,7 +69,7 @@ pub fn agents(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     let header = Row::new(vec!["Runtime", "Kind", "Model", "Where", "Status"]).style(t.dim().add_modifier(Modifier::BOLD));
     let table = Table::new(
         rows,
-        [Constraint::Length(13), Constraint::Length(24), Constraint::Min(14), Constraint::Length(10), Constraint::Length(20)],
+        [Constraint::Length(13), Constraint::Length(24), Constraint::Min(14), Constraint::Length(13), Constraint::Length(20)],
     )
     .header(header)
     .block(pane("Runtimes", false, t));
@@ -202,10 +202,16 @@ pub fn people(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             Span::styled(format!("  {r}"), t.dim()),
         ])),
     }
-    lines.push(Line::from(vec![
-        Span::styled(k.hint(Context::People, Action::Invite), t.accent()),
-        Span::styled(" Create an invite", t.text()),
-    ]));
+    match s.active_workspace().map(|w| w.can_invite.clone()).unwrap_or(Allowed::Yes) {
+        Allowed::Yes => lines.push(Line::from(vec![
+            Span::styled(k.hint(Context::People, Action::Invite), t.accent()),
+            Span::styled(" Create an invite", t.text()),
+        ])),
+        Allowed::No(r) => lines.push(Line::from(vec![
+            Span::styled(format!("{} Create an invite", k.hint(Context::People, Action::Invite)), t.disabled()),
+            Span::styled(format!("  {r}"), t.dim()),
+        ])),
+    }
     lines.push(Line::raw(""));
     lines.push(Line::styled("Changes to who's in the workspace need your passkey.", t.dim()));
     f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }).block(pane("Member", false, t)), detail);

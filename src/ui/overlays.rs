@@ -38,7 +38,7 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
                     let state = if h.online { Span::styled(" (online)", t.fg(t.good)) } else { Span::styled(" (offline)", t.dim()) };
                     let me = if h.this_device { "  this device" } else { "" };
                     ListItem::new(Line::from(vec![
-                        Span::styled(format!("Apply on {}", h.label), t.text()),
+                        Span::styled(if h.this_device { "Apply here".to_string() } else { format!("Apply on {}", h.label) }, t.text()),
                         state,
                         Span::styled(me, t.dim()),
                     ]))
@@ -167,7 +167,7 @@ fn switcher(f: &mut Frame, area: Rect, s: &State, sel: usize, t: &Theme) {
                 Span::styled(format!("  {} · {}", w.your_role.label(), w.sync.label()), t.dim()),
             ];
             if w.mentioned {
-                spans.push(Span::styled("  • you were mentioned", t.fg(t.mention)));
+                spans.push(Span::styled("  • mentioned", t.fg(t.mention)));
             }
             ListItem::new(Line::from(spans))
         })
@@ -192,7 +192,7 @@ fn help(f: &mut Frame, area: Rect, s: &State, scroll: usize, t: &Theme) {
             let keys: Vec<String> = s.keymap.keys(ctx, b.action).iter().map(|c| c.to_string()).collect();
             let keys = if keys.is_empty() { "unbound".to_string() } else { keys.join(", ") };
             lines.push(Line::from(vec![
-                Span::styled(format!("  {keys:<22}"), t.text().add_modifier(Modifier::BOLD)),
+                Span::styled(format!("  {keys:<32} "), t.text().add_modifier(Modifier::BOLD)),
                 Span::styled(b.help, t.text()),
             ]));
         }
@@ -200,7 +200,7 @@ fn help(f: &mut Frame, area: Rect, s: &State, scroll: usize, t: &Theme) {
     }
     lines.push(Line::styled("Passkey prompt", t.accent()));
     for (k, h) in [("enter, o", "Open the browser to confirm"), ("f", "Use your recovery-words file instead"), ("esc, c", "Cancel")] {
-        lines.push(Line::from(vec![Span::styled(format!("  {k:<22}"), t.text().add_modifier(Modifier::BOLD)), Span::styled(h, t.text())]));
+        lines.push(Line::from(vec![Span::styled(format!("  {k:<32} "), t.text().add_modifier(Modifier::BOLD)), Span::styled(h, t.text())]));
     }
     let r = center(area, 76, area.height.saturating_sub(2));
     f.render_widget(Clear, r);

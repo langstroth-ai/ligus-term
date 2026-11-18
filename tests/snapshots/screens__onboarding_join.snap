@@ -1,0 +1,30 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+
+
+
+
+
+
+                   ┏ Welcome to Ligus ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+                   ┃Ligus is short for ligustica, the Italian honeybee.                   ┃
+                   ┃This terminal is its own Ligus device, with its own keys.             ┃
+                   ┃Safety code    4821 0937 5512  (compare it with people you invite)    ┃
+                   ┃                                                                      ┃
+                   ┃  Your name      Mara                                                 ┃
+                   ┃                                                                      ┃
+                   ┃  ( ) Create a workspace    (•) Join with an invite                   ┃
+                   ┃                                                                      ┃
+                   ┃› Invite code    fake-invite:Bee-Yard▏                                ┃
+                   ┃  It carries what this device needs to sync the workspace.            ┃
+                   ┃                                                                      ┃
+                   ┃                                                                      ┃
+                   ┃                                                                      ┃
+                   ┃tab next · ←→ create/join · enter continue · esc quit                 ┃
+                   ┃                                                                      ┃
+                   ┃                                                                      ┃
+                   ┃                                                                      ┃
+                   ┃                                                                      ┃
+                   ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛

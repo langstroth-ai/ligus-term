@@ -545,6 +545,7 @@ fn seed_apiary(w: &mut World) {
             mentioned: false,
             sync: SyncMode::Peer,
             your_role: Role::Owner,
+            can_invite: Allowed::Yes,
         }),
         ..Ws::default()
     };
@@ -738,6 +739,7 @@ fn seed_queens(w: &mut World) {
             mentioned: true,
             sync: SyncMode::Relay("https://relay.example.org".into()),
             your_role: Role::Viewer,
+            can_invite: Allowed::No("only an Admin or Owner issues invites".into()),
         }),
         ..Ws::default()
     };
@@ -809,8 +811,14 @@ impl Backend for FakeBackend {
         w.your_name = Some(your_name.trim().into());
         w.settings.your_name = your_name.trim().into();
         let id = WorkspaceId::new(w.next("ws-"));
-        let summary =
-            WorkspaceSummary { id: id.clone(), name: name.into(), mentioned: false, sync: SyncMode::Local, your_role: Role::Owner };
+        let summary = WorkspaceSummary {
+            id: id.clone(),
+            name: name.into(),
+            mentioned: false,
+            sync: SyncMode::Local,
+            your_role: Role::Owner,
+            can_invite: Allowed::Yes,
+        };
         let you = w.you.clone();
         let at = w.tick();
         let chat_id = ChatId::new(w.next("c-"));
@@ -861,7 +869,14 @@ impl Backend for FakeBackend {
         w.your_name = Some(your_name.trim().into());
         w.settings.your_name = your_name.trim().into();
         let id = WorkspaceId::new(w.next("ws-"));
-        let summary = WorkspaceSummary { id: id.clone(), name, mentioned: false, sync: SyncMode::Peer, your_role: Role::Contributor };
+        let summary = WorkspaceSummary {
+            id: id.clone(),
+            name,
+            mentioned: false,
+            sync: SyncMode::Peer,
+            your_role: Role::Contributor,
+            can_invite: Allowed::No("only an Admin or Owner issues invites".into()),
+        };
         let you = w.you.clone();
         let at = w.tick();
         let ws = Ws {
