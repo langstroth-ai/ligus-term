@@ -44,28 +44,75 @@ pub fn err<T>(msg: impl Into<String>) -> Result<T> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Event {
     /// A whole message (someone else's, or an agent's first chunk).
-    MessageAdded { workspace: WorkspaceId, message: Message },
+    MessageAdded {
+        workspace: WorkspaceId,
+        message: Message,
+    },
     /// More text for a streaming message.
-    MessageDelta { workspace: WorkspaceId, chat: ChatId, message: MessageId, delta: String },
+    MessageDelta {
+        workspace: WorkspaceId,
+        chat: ChatId,
+        message: MessageId,
+        delta: String,
+    },
     /// A streaming message finished (or failed with `error`).
-    MessageDone { workspace: WorkspaceId, chat: ChatId, message: MessageId, error: Option<String> },
+    MessageDone {
+        workspace: WorkspaceId,
+        chat: ChatId,
+        message: MessageId,
+        error: Option<String>,
+    },
     /// A tool call an agent made during its turn.
-    ToolActivity { workspace: WorkspaceId, chat: ChatId, message: MessageId, call: ToolCall },
+    ToolActivity {
+        workspace: WorkspaceId,
+        chat: ChatId,
+        message: MessageId,
+        call: ToolCall,
+    },
     /// Someone (or an agent, before its first token) is typing or thinking.
-    Typing { workspace: WorkspaceId, chat: ChatId, who: String, on: bool },
-    ChatsChanged { workspace: WorkspaceId },
-    ProposalChanged { workspace: WorkspaceId, proposal: Proposal },
-    MembersChanged { workspace: WorkspaceId },
-    HostsChanged { workspace: WorkspaceId },
-    AgentsChanged { workspace: WorkspaceId },
+    Typing {
+        workspace: WorkspaceId,
+        chat: ChatId,
+        who: String,
+        on: bool,
+    },
+    ChatsChanged {
+        workspace: WorkspaceId,
+    },
+    ProposalChanged {
+        workspace: WorkspaceId,
+        proposal: Proposal,
+    },
+    MembersChanged {
+        workspace: WorkspaceId,
+    },
+    HostsChanged {
+        workspace: WorkspaceId,
+    },
+    AgentsChanged {
+        workspace: WorkspaceId,
+    },
     WorkspacesChanged,
     Notification(Notification),
     /// The backend needs a passkey (or the recovery key) to go on.
     PresencePrompt(PresencePrompt),
+    /// A problem the person can fix without the ceremony ending (an
+    /// unreadable recovery-words file, say).
+    PresenceProblem {
+        id: PresenceId,
+        error: String,
+    },
     /// That ceremony ended.
-    PresenceDone { id: PresenceId, ok: bool, error: Option<String> },
+    PresenceDone {
+        id: PresenceId,
+        ok: bool,
+        error: Option<String>,
+    },
     /// Sync status, shown in the status bar.
-    Sync { workspace: WorkspaceId, status: String },
+    Sync {
+        workspace: WorkspaceId,
+        status: String,
+    },
 }
 
 /// Everything `lt` needs from Ligus.

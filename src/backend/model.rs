@@ -274,7 +274,12 @@ impl RuntimeKind {
     pub fn local(self) -> bool {
         matches!(
             self,
-            RuntimeKind::ClaudeCode | RuntimeKind::Codex | RuntimeKind::Antigravity | RuntimeKind::Copilot | RuntimeKind::Pi | RuntimeKind::Aider
+            RuntimeKind::ClaudeCode
+                | RuntimeKind::Codex
+                | RuntimeKind::Antigravity
+                | RuntimeKind::Copilot
+                | RuntimeKind::Pi
+                | RuntimeKind::Aider
         )
     }
 }

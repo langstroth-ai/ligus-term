@@ -109,15 +109,13 @@ pub fn urldecode(s: &str) -> String {
     while i < b.len() {
         match b[i] {
             b'+' => out.push(b' '),
-            b'%' if i + 2 < b.len() => {
-                match std::str::from_utf8(&b[i + 1..i + 3]).ok().and_then(|h| u8::from_str_radix(h, 16).ok()) {
-                    Some(v) => {
-                        out.push(v);
-                        i += 2;
-                    }
-                    None => out.push(b'%'),
+            b'%' if i + 2 < b.len() => match std::str::from_utf8(&b[i + 1..i + 3]).ok().and_then(|h| u8::from_str_radix(h, 16).ok()) {
+                Some(v) => {
+                    out.push(v);
+                    i += 2;
                 }
-            }
+                None => out.push(b'%'),
+            },
             c => out.push(c),
         }
         i += 1;

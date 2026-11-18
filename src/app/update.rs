@@ -1,0 +1,1265 @@
+//! The reducer: `update(state, msg)` changes the state and returns the
+//! backend calls to make. It never calls the backend itself and never
+//! draws, so it is tested with plain values.
+
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+use crate::app::input::TextBuf;
+use crate::app::state::*;
+use crate::backend::model::*;
+use crate::backend::{Event, Result};
+use crate::keymap::Action;
+
+/// Something that happened: a key, a paste, a tick, a backend event, or the
+/// answer to an [`Effect`].
+#[derive(Debug, Clone)]
+pub enum Msg {
+    Key(KeyEvent),
+    Paste(String),
+    /// Wall clock, for ages and toasts.
+    Tick(Millis),
+    Event(Event),
+    Startup(Result<StartupState>),
+    Workspaces(Result<Vec<WorkspaceSummary>>),
+    Chats(WorkspaceId, Result<Vec<ChatSummary>>),
+    Transcript(WorkspaceId, ChatId, Result<Vec<Message>>),
+    Mentionables(WorkspaceId, Result<Vec<Mentionable>>),
+    Proposals(WorkspaceId, Result<Vec<Proposal>>),
+    Diff(WorkspaceId, ProposalId, Result<Diff>),
+    Agents(WorkspaceId, Result<Vec<Agent>>),
+    Runtimes(WorkspaceId, Result<Vec<Runtime>>),
+    Hosts(WorkspaceId, Result<Vec<Host>>),
+    Members(WorkspaceId, Result<Vec<Member>>),
+    Notifications(Result<Vec<Notification>>),
+    Settings(Result<Settings>),
+    Created(Result<Created>),
+    Joined(Result<WorkspaceSummary>),
+    ChatCreated(WorkspaceId, Result<ChatSummary>),
+    Sent(Result<Message>),
+    ProposalUpdated(WorkspaceId, Result<Proposal>),
+    Invite(Result<String>),
+    /// A fire-and-report action finished; `ok` is the toast on success.
+    Done {
+        ok: String,
+        result: Result<()>,
+    },
+}
+
+/// A backend call for the runtime to make.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Effect {
+    Startup,
+    LoadWorkspaces,
+    LoadChats(WorkspaceId),
+    LoadTranscript(WorkspaceId, ChatId),
+    LoadMentionables(WorkspaceId),
+    LoadProposals(WorkspaceId),
+    LoadDiff(WorkspaceId, ProposalId),
+    LoadAgents(WorkspaceId),
+    LoadRuntimes(WorkspaceId),
+    LoadHosts(WorkspaceId),
+    LoadMembers(WorkspaceId),
+    LoadNotifications,
+    LoadSettings,
+    CreateWorkspace { your_name: String, name: String },
+    JoinWorkspace { your_name: String, invite: String },
+    ConfirmRecovery(WorkspaceId),
+    CreateChat(WorkspaceId, String),
+    Send { workspace: WorkspaceId, chat: ChatId, text: String },
+    MarkRead(WorkspaceId, ChatId),
+    LockChat(WorkspaceId, ChatId),
+    ClearLockdown(WorkspaceId, ChatId),
+    Vote(WorkspaceId, ProposalId, VoteChoice),
+    RequestApply(WorkspaceId, ProposalId, HostId),
+    WithdrawApply(WorkspaceId, ProposalId),
+    SetAgentRuntime(WorkspaceId, AgentId, RuntimeId),
+    SetRole(WorkspaceId, MemberId, Role),
+    RemoveMember(WorkspaceId, MemberId),
+    CreateInvite(WorkspaceId, Role),
+    MarkNotificationsRead,
+    SetSetting(SettingKey, bool),
+    AnswerPresence(PresenceId, PresenceAnswer),
+}
+
+/// Loads for a workspace becoming active.
+fn load_workspace(ws: &WorkspaceId) -> Vec<Effect> {
+    vec![
+        Effect::LoadChats(ws.clone()),
+        Effect::LoadMentionables(ws.clone()),
+        Effect::LoadProposals(ws.clone()),
+        Effect::LoadAgents(ws.clone()),
+        Effect::LoadRuntimes(ws.clone()),
+        Effect::LoadHosts(ws.clone()),
+        Effect::LoadMembers(ws.clone()),
+    ]
+}
+
+fn is_active(s: &State, ws: &WorkspaceId) -> bool {
+    s.active.as_ref() == Some(ws)
+}
+
+pub fn update(s: &mut State, msg: Msg) -> Vec<Effect> {
+    match msg {
+        Msg::Key(k) => key(s, k),
+        Msg::Paste(text) => paste(s, &text),
+        Msg::Tick(now) => {
+            s.now = now;
+            s.toasts.iter_mut().for_each(|t| t.ttl = t.ttl.saturating_sub(1));
+            s.toasts.retain(|t| t.ttl > 0);
+            vec![]
+        }
+        Msg::Event(e) => event(s, e),
+        Msg::Startup(Ok(st)) => {
+            s.your_name = st.your_name.clone();
+            s.workspaces = st.workspaces;
+            if s.workspaces.is_empty() {
+                s.phase = Phase::Onboarding(WorkspaceForm::new(st.your_name.is_none()));
+                vec![Effect::LoadSettings]
+            } else {
+                s.phase = Phase::Main;
+                let ws = s.workspaces[0].id.clone();
+                s.active = Some(ws.clone());
+                let mut fx = load_workspace(&ws);
+                fx.extend([Effect::LoadNotifications, Effect::LoadSettings]);
+                fx
+            }
+        }
+        Msg::Startup(Err(e)) => {
+            s.toast(ToastKind::Error, format!("couldn't start: {e}"));
+            vec![]
+        }
+        Msg::Workspaces(Ok(w)) => {
+            s.workspaces = w;
+            vec![]
+        }
+        Msg::Chats(ws, Ok(chats)) if is_active(s, &ws) => {
+            let selected = s.chats.get(s.chat_sel.index).map(|c| c.id.clone());
+            s.chats = chats;
+            if let Some(id) = selected
+                && let Some(i) = s.chats.iter().position(|c| c.id == id)
+            {
+                s.chat_sel.index = i;
+            }
+            s.chat_sel.clamp(s.chats.len());
+            if s.open_chat.is_none()
+                && let Some(c) = s.chats.get(s.chat_sel.index)
+            {
+                let id = c.id.clone();
+                return open_chat(s, id);
+            }
+            vec![]
+        }
+        Msg::Transcript(ws, chat, Ok(t)) if is_active(s, &ws) && s.open_chat.as_ref() == Some(&chat) => {
+            s.transcript = t;
+            vec![]
+        }
+        Msg::Mentionables(ws, Ok(m)) if is_active(s, &ws) => {
+            s.mentionables = m;
+            vec![]
+        }
+        Msg::Proposals(ws, Ok(p)) if is_active(s, &ws) => {
+            s.proposals = p;
+            s.proposal_sel.clamp(s.proposals.len());
+            vec![]
+        }
+        Msg::Diff(ws, p, Ok(d)) if is_active(s, &ws) => {
+            s.diff = Some(DiffState { proposal: p, diff: d, scroll: 0 });
+            vec![]
+        }
+        Msg::Agents(ws, Ok(a)) if is_active(s, &ws) => {
+            s.agents = a;
+            s.agent_sel.clamp(s.agents.len());
+            vec![]
+        }
+        Msg::Runtimes(ws, Ok(r)) if is_active(s, &ws) => {
+            s.runtimes = r;
+            vec![]
+        }
+        Msg::Hosts(ws, Ok(h)) if is_active(s, &ws) => {
+            s.hosts = h;
+            s.host_sel.clamp(s.hosts.len());
+            vec![]
+        }
+        Msg::Members(ws, Ok(m)) if is_active(s, &ws) => {
+            s.members = m;
+            s.member_sel.clamp(s.members.len());
+            vec![]
+        }
+        Msg::Notifications(Ok(n)) => {
+            s.notifications = n;
+            s.notification_sel.clamp(s.notifications.len());
+            vec![]
+        }
+        Msg::Settings(Ok(st)) => {
+            s.settings = Some(st);
+            vec![]
+        }
+        Msg::Created(Ok(c)) => {
+            s.overlay = None;
+            s.your_name = s.your_name.clone().or_else(|| Some(String::new()));
+            let ws = c.workspace.clone();
+            if !s.workspaces.iter().any(|w| w.id == ws.id) {
+                s.workspaces.push(ws);
+            }
+            s.phase = Phase::Recovery(c);
+            vec![Effect::LoadSettings]
+        }
+        Msg::Created(Err(e)) | Msg::Joined(Err(e)) => {
+            form_error(s, e.0);
+            vec![]
+        }
+        Msg::Joined(Ok(ws)) => {
+            s.overlay = None;
+            if !s.workspaces.iter().any(|w| w.id == ws.id) {
+                s.workspaces.push(ws.clone());
+            }
+            s.toast(ToastKind::Ok, format!("Joined “{}”", ws.name));
+            s.phase = Phase::Main;
+            let mut fx = switch_workspace(s, ws.id);
+            fx.push(Effect::LoadSettings);
+            fx
+        }
+        Msg::ChatCreated(ws, Ok(c)) if is_active(s, &ws) => {
+            s.chats.insert(0, c.clone());
+            s.chat_sel.index = 0;
+            let mut fx = open_chat(s, c.id);
+            s.focus = Focus::Composer;
+            fx.push(Effect::LoadChats(ws));
+            fx
+        }
+        Msg::Sent(Err(e)) => {
+            s.toast(ToastKind::Error, e.0);
+            vec![]
+        }
+        Msg::Sent(Ok(m)) => {
+            if s.open_chat.as_ref() == Some(&m.chat) && !s.transcript.iter().any(|x| x.id == m.id) {
+                s.transcript.push(m);
+            }
+            vec![]
+        }
+        Msg::ProposalUpdated(ws, Ok(p)) => {
+            upsert_proposal(s, &ws, p);
+            vec![]
+        }
+        Msg::Invite(Ok(code)) => {
+            s.overlay = Some(Overlay::Invite { code: Some(code) });
+            vec![]
+        }
+        Msg::Done { ok, result: Ok(()) } => {
+            if !ok.is_empty() {
+                s.toast(ToastKind::Ok, ok);
+            }
+            vec![]
+        }
+        Msg::Done { result: Err(e), .. }
+        | Msg::ProposalUpdated(_, Err(e))
+        | Msg::Invite(Err(e))
+        | Msg::ChatCreated(_, Err(e))
+        | Msg::Workspaces(Err(e))
+        | Msg::Chats(_, Err(e))
+        | Msg::Transcript(_, _, Err(e))
+        | Msg::Mentionables(_, Err(e))
+        | Msg::Proposals(_, Err(e))
+        | Msg::Diff(_, _, Err(e))
+        | Msg::Agents(_, Err(e))
+        | Msg::Runtimes(_, Err(e))
+        | Msg::Hosts(_, Err(e))
+        | Msg::Members(_, Err(e))
+        | Msg::Notifications(Err(e))
+        | Msg::Settings(Err(e)) => {
+            if e.0 != "cancelled" {
+                s.toast(ToastKind::Error, e.0);
+            } else {
+                s.toast(ToastKind::Info, "Cancelled");
+            }
+            vec![]
+        }
+        // Results for a workspace that is no longer active.
+        Msg::Chats(..)
+        | Msg::Transcript(..)
+        | Msg::Mentionables(..)
+        | Msg::Proposals(..)
+        | Msg::Diff(..)
+        | Msg::Agents(..)
+        | Msg::Runtimes(..)
+        | Msg::Hosts(..)
+        | Msg::Members(..)
+        | Msg::ChatCreated(..) => vec![],
+    }
+}
+
+fn form_error(s: &mut State, e: String) {
+    let form = match (&mut s.overlay, &mut s.phase) {
+        (Some(Overlay::AddWorkspace(f)), _) => Some(f),
+        (_, Phase::Onboarding(f)) => Some(f),
+        _ => None,
+    };
+    match form {
+        Some(f) => {
+            f.busy = false;
+            f.error = Some(if e == "cancelled" { "Cancelled: the passkey wasn't created".into() } else { e });
+        }
+        None => s.toast(ToastKind::Error, e),
+    }
+}
+
+fn upsert_proposal(s: &mut State, ws: &WorkspaceId, p: Proposal) {
+    if !is_active(s, ws) {
+        return;
+    }
+    match s.proposals.iter_mut().find(|x| x.id == p.id) {
+        Some(x) => *x = p,
+        None => s.proposals.insert(0, p),
+    }
+}
+
+fn event(s: &mut State, e: Event) -> Vec<Effect> {
+    match e {
+        Event::MessageAdded { workspace, message } => {
+            let mut fx = vec![];
+            if is_active(s, &workspace) {
+                if s.open_chat.as_ref() == Some(&message.chat) {
+                    if !s.transcript.iter().any(|m| m.id == message.id) {
+                        s.transcript.push(message.clone());
+                    }
+                } else if let Some(c) = s.chats.iter_mut().find(|c| c.id == message.chat) {
+                    c.unread = true;
+                }
+                if !s.chats.iter().any(|c| c.id == message.chat) {
+                    fx.push(Effect::LoadChats(workspace));
+                }
+            }
+            fx
+        }
+        Event::MessageDelta { workspace, chat, message, delta } => {
+            if is_active(s, &workspace)
+                && s.open_chat.as_ref() == Some(&chat)
+                && let Some(m) = s.transcript.iter_mut().find(|m| m.id == message)
+            {
+                m.text.push_str(&delta);
+            }
+            vec![]
+        }
+        Event::MessageDone { workspace, chat, message, error } => {
+            if is_active(s, &workspace)
+                && s.open_chat.as_ref() == Some(&chat)
+                && let Some(m) = s.transcript.iter_mut().find(|m| m.id == message)
+            {
+                m.streaming = false;
+            }
+            if let Some(e) = error {
+                s.toast(ToastKind::Error, e);
+            }
+            vec![]
+        }
+        Event::ToolActivity { workspace, chat, message, call } => {
+            if is_active(s, &workspace)
+                && s.open_chat.as_ref() == Some(&chat)
+                && let Some(m) = s.transcript.iter_mut().find(|m| m.id == message)
+            {
+                m.tools.push(call);
+            }
+            vec![]
+        }
+        Event::Typing { workspace, chat, who, on } => {
+            if is_active(s, &workspace) {
+                let set = s.typing.entry(chat).or_default();
+                if on {
+                    set.insert(who);
+                } else {
+                    set.remove(&who);
+                }
+            }
+            vec![]
+        }
+        Event::ChatsChanged { workspace } if is_active(s, &workspace) => vec![Effect::LoadChats(workspace)],
+        Event::ProposalChanged { workspace, proposal } => {
+            upsert_proposal(s, &workspace, proposal);
+            vec![]
+        }
+        Event::MembersChanged { workspace } if is_active(s, &workspace) => {
+            vec![Effect::LoadMembers(workspace.clone()), Effect::LoadMentionables(workspace)]
+        }
+        Event::HostsChanged { workspace } if is_active(s, &workspace) => vec![Effect::LoadHosts(workspace)],
+        Event::AgentsChanged { workspace } if is_active(s, &workspace) => {
+            vec![Effect::LoadAgents(workspace.clone()), Effect::LoadMentionables(workspace)]
+        }
+        Event::WorkspacesChanged => vec![Effect::LoadWorkspaces],
+        Event::Notification(n) => {
+            s.bell = s.settings.as_ref().is_none_or(|st| st.notify_mentions);
+            s.toast(ToastKind::Info, n.text.clone());
+            s.notifications.insert(0, n);
+            vec![]
+        }
+        Event::PresencePrompt(p) => {
+            s.presence.push_back(PresenceSheet { prompt: p, stage: PresenceStage::Asking, error: None });
+            vec![]
+        }
+        Event::PresenceProblem { id, error } => {
+            if let Some(p) = s.presence.iter_mut().find(|p| p.prompt.id == id) {
+                p.error = Some(error);
+                if p.stage == PresenceStage::WaitingBrowser {
+                    p.stage = PresenceStage::Asking;
+                }
+            }
+            vec![]
+        }
+        Event::PresenceDone { id, ok, error } => {
+            s.presence.retain(|p| p.prompt.id != id);
+            if ok {
+                s.toast(ToastKind::Ok, "Confirmed with your passkey");
+            } else if let Some(e) = error.filter(|e| e != "cancelled") {
+                s.toast(ToastKind::Error, e);
+            }
+            vec![]
+        }
+        Event::Sync { workspace, status } => {
+            s.sync_status.insert(workspace, status);
+            vec![]
+        }
+        Event::ChatsChanged { .. } | Event::MembersChanged { .. } | Event::HostsChanged { .. } | Event::AgentsChanged { .. } => vec![],
+    }
+}
+
+fn paste(s: &mut State, text: &str) -> Vec<Effect> {
+    if let Some(p) = s.presence.front_mut() {
+        if let PresenceStage::EnteringPath(b) = &mut p.stage {
+            b.insert_str(text.trim());
+        }
+        return vec![];
+    }
+    match (&mut s.overlay, &mut s.phase) {
+        (Some(Overlay::AddWorkspace(f)), _) | (None, Phase::Onboarding(f)) => {
+            match f.field {
+                FormField::Name => f.name.insert_str(text),
+                FormField::Value => f.value_mut().insert_str(text.trim()),
+                FormField::Mode => {
+                    // Pasting on the mode row is almost always an invite.
+                    f.mode = FormMode::Join;
+                    f.field = FormField::Value;
+                    f.invite.insert_str(text.trim());
+                }
+            }
+        }
+        (Some(Overlay::NewChat(b)), _) => b.insert_str(text),
+        (None, Phase::Main) => {
+            if s.view == View::Chats && s.open_chat.is_some() {
+                s.focus = Focus::Composer;
+                s.composer.insert_str(text);
+            }
+        }
+        _ => {}
+    }
+    vec![]
+}
+
+fn key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
+    // Ctrl-C always quits, whatever has focus.
+    if k.code == KeyCode::Char('c') && k.modifiers.contains(KeyModifiers::CONTROL) {
+        s.quit = true;
+        return vec![];
+    }
+    if !s.presence.is_empty() {
+        return presence_key(s, k);
+    }
+    if s.overlay.is_some() {
+        return overlay_key(s, k);
+    }
+    match s.phase.clone() {
+        Phase::Loading => vec![],
+        Phase::Onboarding(_) => {
+            let Phase::Onboarding(f) = &mut s.phase else { unreachable!() };
+            let your = f.name.text.trim().to_string();
+            match form_key(f, &k) {
+                FormOutcome::Submit => submit_form(s, Some(your)),
+                FormOutcome::Cancel => {
+                    s.quit = true;
+                    vec![]
+                }
+                FormOutcome::None => vec![],
+            }
+        }
+        Phase::Recovery(c) => match k.code {
+            KeyCode::Enter | KeyCode::Char('y') => {
+                s.phase = Phase::Main;
+                let mut fx = vec![Effect::ConfirmRecovery(c.workspace.id.clone())];
+                fx.extend(switch_workspace(s, c.workspace.id));
+                fx.push(Effect::LoadNotifications);
+                fx
+            }
+            _ => vec![],
+        },
+        Phase::Main => main_key(s, k),
+    }
+}
+
+enum FormOutcome {
+    None,
+    Submit,
+    Cancel,
+}
+
+fn form_key(f: &mut WorkspaceForm, k: &KeyEvent) -> FormOutcome {
+    if f.busy {
+        return FormOutcome::None;
+    }
+    let fields = f.fields();
+    let i = fields.iter().position(|x| *x == f.field).unwrap_or(0);
+    match k.code {
+        KeyCode::Esc => return FormOutcome::Cancel,
+        KeyCode::Tab | KeyCode::Down => f.field = fields[(i + 1) % fields.len()],
+        KeyCode::BackTab | KeyCode::Up => f.field = fields[(i + fields.len() - 1) % fields.len()],
+        KeyCode::Enter => {
+            if f.field == FormField::Value {
+                return FormOutcome::Submit;
+            }
+            f.field = fields[(i + 1) % fields.len()];
+        }
+        _ => match f.field {
+            FormField::Name => {
+                f.name.handle(k);
+            }
+            FormField::Mode => match k.code {
+                KeyCode::Left | KeyCode::Right | KeyCode::Char(' ') | KeyCode::Char('h') | KeyCode::Char('l') => {
+                    f.mode = if f.mode == FormMode::Create { FormMode::Join } else { FormMode::Create };
+                    f.error = None;
+                }
+                KeyCode::Char('c') => f.mode = FormMode::Create,
+                KeyCode::Char('j') => f.mode = FormMode::Join,
+                _ => {}
+            },
+            FormField::Value => {
+                f.value_mut().handle(k);
+            }
+        },
+    }
+    FormOutcome::None
+}
+
+fn submit_form(s: &mut State, your_name: Option<String>) -> Vec<Effect> {
+    let your_name = your_name.filter(|n| !n.is_empty()).or_else(|| s.your_name.clone()).unwrap_or_default();
+    let form = match (&mut s.overlay, &mut s.phase) {
+        (Some(Overlay::AddWorkspace(f)), _) => f,
+        (_, Phase::Onboarding(f)) => f,
+        _ => return vec![],
+    };
+    if form.ask_name && your_name.is_empty() {
+        form.error = Some("Tell us your name first".into());
+        form.field = FormField::Name;
+        return vec![];
+    }
+    let value = form.value().text.trim().to_string();
+    if value.is_empty() {
+        form.error = Some(match form.mode {
+            FormMode::Create => "Give the workspace a name".into(),
+            FormMode::Join => "Paste an invite code".into(),
+        });
+        return vec![];
+    }
+    form.error = None;
+    form.busy = true;
+    match form.mode {
+        FormMode::Create => vec![Effect::CreateWorkspace { your_name, name: value }],
+        FormMode::Join => vec![Effect::JoinWorkspace { your_name, invite: value }],
+    }
+}
+
+fn presence_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
+    let Some(p) = s.presence.front_mut() else { return vec![] };
+    let id = p.prompt.id;
+    let confirm = p.prompt.op == PresenceOp::Get;
+    match &mut p.stage {
+        PresenceStage::EnteringPath(buf) => match k.code {
+            KeyCode::Esc => {
+                p.stage = PresenceStage::Asking;
+                vec![]
+            }
+            KeyCode::Enter => {
+                let path = expand_tilde(buf.text.trim());
+                if path.is_empty() {
+                    p.error = Some("Type the path to your recovery-words file".into());
+                    return vec![];
+                }
+                p.error = None;
+                p.stage = PresenceStage::WaitingBrowser;
+                vec![Effect::AnswerPresence(id, PresenceAnswer::RecoveryWordsFile(path))]
+            }
+            _ => {
+                buf.handle(&k);
+                vec![]
+            }
+        },
+        PresenceStage::Asking | PresenceStage::WaitingBrowser => match k.code {
+            KeyCode::Esc | KeyCode::Char('c') => vec![Effect::AnswerPresence(id, PresenceAnswer::Cancel)],
+            KeyCode::Enter | KeyCode::Char('o') if p.stage == PresenceStage::Asking => {
+                p.stage = PresenceStage::WaitingBrowser;
+                p.error = None;
+                vec![Effect::AnswerPresence(id, PresenceAnswer::Browser)]
+            }
+            KeyCode::Char('f') if confirm => {
+                p.stage = PresenceStage::EnteringPath(TextBuf::single());
+                vec![]
+            }
+            _ => vec![],
+        },
+    }
+}
+
+fn expand_tilde(p: &str) -> String {
+    match (p.strip_prefix("~/"), std::env::var("HOME")) {
+        (Some(rest), Ok(home)) => format!("{home}/{rest}"),
+        _ => p.to_string(),
+    }
+}
+
+fn list_nav(sel: &mut Sel, len: usize, a: crate::keymap::Action) -> bool {
+    use crate::keymap::Action::*;
+    match a {
+        Up => sel.up(1),
+        Down => sel.down(1, len),
+        PageUp => sel.up(10),
+        PageDown => sel.down(10, len),
+        Top => sel.index = 0,
+        Bottom => sel.index = len.saturating_sub(1),
+        _ => return false,
+    }
+    true
+}
+
+fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
+    let nav = s.keymap.resolve(&[crate::keymap::Context::Nav], &k, false);
+    let ws = s.active.clone();
+    let Some(overlay) = s.overlay.as_mut() else { return vec![] };
+    match overlay {
+        Overlay::Help { scroll } => {
+            match nav {
+                Some(Action::Down) => *scroll += 1,
+                Some(Action::Up) => *scroll = scroll.saturating_sub(1),
+                Some(Action::PageDown) => *scroll += 10,
+                Some(Action::PageUp) => *scroll = scroll.saturating_sub(10),
+                _ => s.overlay = None,
+            }
+            vec![]
+        }
+        Overlay::Switcher { sel } => {
+            let len = s.workspaces.len();
+            let mut i = Sel { index: *sel };
+            if let Some(a) = nav
+                && a != Action::Select
+                && list_nav(&mut i, len, a)
+            {
+                *sel = i.index;
+                return vec![];
+            }
+            match k.code {
+                KeyCode::Esc | KeyCode::Char('w') | KeyCode::Char('q') => {
+                    s.overlay = None;
+                    vec![]
+                }
+                KeyCode::Char('+') => {
+                    s.overlay = Some(Overlay::AddWorkspace(WorkspaceForm::new(false)));
+                    vec![]
+                }
+                KeyCode::Enter | KeyCode::Char('l') => {
+                    let id = s.workspaces.get(*sel).map(|w| w.id.clone());
+                    s.overlay = None;
+                    id.map(|id| switch_workspace(s, id)).unwrap_or_default()
+                }
+                KeyCode::Char(c) if c.is_ascii_digit() && c != '0' => {
+                    let i = c as usize - '1' as usize;
+                    let id = s.workspaces.get(i).map(|w| w.id.clone());
+                    s.overlay = None;
+                    id.map(|id| switch_workspace(s, id)).unwrap_or_default()
+                }
+                _ => vec![],
+            }
+        }
+        Overlay::AddWorkspace(f) => match form_key(f, &k) {
+            FormOutcome::Submit => submit_form(s, None),
+            FormOutcome::Cancel => {
+                s.overlay = None;
+                vec![]
+            }
+            FormOutcome::None => vec![],
+        },
+        Overlay::NewChat(buf) => match k.code {
+            KeyCode::Esc => {
+                s.overlay = None;
+                vec![]
+            }
+            KeyCode::Enter => {
+                let title = buf.text.trim().to_string();
+                s.overlay = None;
+                ws.map(|w| vec![Effect::CreateChat(w, title)]).unwrap_or_default()
+            }
+            _ => {
+                buf.handle(&k);
+                vec![]
+            }
+        },
+        Overlay::HostPicker { proposal, sel } => {
+            let len = s.hosts.len();
+            let mut i = Sel { index: *sel };
+            if let Some(a) = nav
+                && a != Action::Select
+                && list_nav(&mut i, len, a)
+            {
+                *sel = i.index;
+                return vec![];
+            }
+            match k.code {
+                KeyCode::Esc => {
+                    s.overlay = None;
+                    vec![]
+                }
+                KeyCode::Enter => {
+                    let p = proposal.clone();
+                    let host = s.hosts.get(*sel).cloned();
+                    s.overlay = None;
+                    match (ws, host) {
+                        (Some(w), Some(h)) => vec![Effect::RequestApply(w, p, h.id)],
+                        _ => vec![],
+                    }
+                }
+                _ => vec![],
+            }
+        }
+        Overlay::RolePicker { member, sel } => {
+            let len = Role::ALL.len();
+            let mut i = Sel { index: *sel };
+            if let Some(a) = nav
+                && a != Action::Select
+                && list_nav(&mut i, len, a)
+            {
+                *sel = i.index;
+                return vec![];
+            }
+            match k.code {
+                KeyCode::Esc => {
+                    s.overlay = None;
+                    vec![]
+                }
+                KeyCode::Enter => {
+                    let member = member.clone();
+                    let role = Role::ALL[*sel];
+                    let allowed = s
+                        .members
+                        .iter()
+                        .find(|m| m.id == member)
+                        .and_then(|m| m.can_set_role.iter().find(|(r, _)| *r == role).map(|(_, a)| a.clone()))
+                        .unwrap_or(Allowed::No("not a member".into()));
+                    match allowed {
+                        Allowed::Yes => {
+                            s.overlay = None;
+                            ws.map(|w| vec![Effect::SetRole(w, member, role)]).unwrap_or_default()
+                        }
+                        Allowed::No(r) => {
+                            s.toast(ToastKind::Error, format!("Can't make them {}: {r}", role.label()));
+                            vec![]
+                        }
+                    }
+                }
+                _ => vec![],
+            }
+        }
+        Overlay::RuntimePicker { agent, sel } => {
+            let configured: Vec<RuntimeId> = s.runtimes.iter().filter(|r| r.configured).map(|r| r.id.clone()).collect();
+            let mut i = Sel { index: *sel };
+            if let Some(a) = nav
+                && a != Action::Select
+                && list_nav(&mut i, configured.len(), a)
+            {
+                *sel = i.index;
+                return vec![];
+            }
+            match k.code {
+                KeyCode::Esc => {
+                    s.overlay = None;
+                    vec![]
+                }
+                KeyCode::Enter => {
+                    let agent = agent.clone();
+                    let rt = configured.get(*sel).cloned();
+                    s.overlay = None;
+                    match (ws, rt) {
+                        (Some(w), Some(r)) => vec![Effect::SetAgentRuntime(w, agent, r)],
+                        _ => vec![],
+                    }
+                }
+                _ => vec![],
+            }
+        }
+        Overlay::ConfirmRemove { member, .. } => match k.code {
+            KeyCode::Char('y') | KeyCode::Enter => {
+                let m = member.clone();
+                s.overlay = None;
+                ws.map(|w| vec![Effect::RemoveMember(w, m)]).unwrap_or_default()
+            }
+            _ => {
+                s.overlay = None;
+                vec![]
+            }
+        },
+        Overlay::Invite { .. } => {
+            s.overlay = None;
+            vec![]
+        }
+    }
+}
+
+pub fn switch_workspace(s: &mut State, id: WorkspaceId) -> Vec<Effect> {
+    if s.active.as_ref() == Some(&id) && !s.chats.is_empty() {
+        return vec![];
+    }
+    save_draft(s);
+    s.active = Some(id.clone());
+    s.chats.clear();
+    s.chat_sel = Sel::default();
+    s.open_chat = None;
+    s.transcript.clear();
+    s.transcript_scroll = 0;
+    s.proposals.clear();
+    s.proposal_sel = Sel::default();
+    s.diff = None;
+    s.agents.clear();
+    s.runtimes.clear();
+    s.hosts.clear();
+    s.members.clear();
+    s.mentionables.clear();
+    s.focus = Focus::List;
+    load_workspace(&id)
+}
+
+fn save_draft(s: &mut State) {
+    if let Some(c) = s.open_chat.clone() {
+        let text = s.composer.take();
+        if text.is_empty() {
+            s.drafts.remove(&c);
+        } else {
+            s.drafts.insert(c, text);
+        }
+    }
+}
+
+fn open_chat(s: &mut State, id: ChatId) -> Vec<Effect> {
+    let Some(ws) = s.active.clone() else { return vec![] };
+    if s.open_chat.as_ref() != Some(&id) {
+        save_draft(s);
+        s.transcript.clear();
+        s.transcript_scroll = 0;
+        if let Some(d) = s.drafts.remove(&id) {
+            s.composer.set(&d);
+        }
+    }
+    s.open_chat = Some(id.clone());
+    if let Some(c) = s.chats.iter_mut().find(|c| c.id == id) {
+        c.unread = false;
+        c.mentioned = false;
+    }
+    vec![Effect::LoadTranscript(ws.clone(), id.clone()), Effect::MarkRead(ws, id)]
+}
+
+fn go(s: &mut State, v: View) -> Vec<Effect> {
+    s.view = v;
+    s.focus = Focus::List;
+    match v {
+        View::Notifications => vec![Effect::LoadNotifications],
+        View::Settings => vec![Effect::LoadSettings],
+        _ => s
+            .active
+            .clone()
+            .map(|w| match v {
+                View::Proposals => vec![Effect::LoadProposals(w)],
+                View::People => vec![Effect::LoadMembers(w)],
+                View::Hosts => vec![Effect::LoadHosts(w)],
+                View::Agents => vec![Effect::LoadAgents(w.clone()), Effect::LoadRuntimes(w)],
+                _ => vec![],
+            })
+            .unwrap_or_default(),
+    }
+}
+
+fn main_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
+    let typing = s.typing_text();
+    // The mention popup takes ↑/↓/Tab/Enter/Esc while it is open.
+    if s.focus == Focus::Composer && s.view == View::Chats {
+        let n = s.mention_candidates().len();
+        if n > 0 {
+            match k.code {
+                KeyCode::Up => {
+                    s.mention_sel = (s.mention_sel + n - 1) % n;
+                    return vec![];
+                }
+                KeyCode::Down => {
+                    s.mention_sel = (s.mention_sel + 1) % n;
+                    return vec![];
+                }
+                KeyCode::Tab | KeyCode::Enter if k.modifiers.is_empty() => {
+                    let h = s.mention_candidates()[s.mention_sel.min(n - 1)].handle.clone();
+                    s.composer.complete_mention(&h);
+                    s.mention_sel = 0;
+                    return vec![];
+                }
+                KeyCode::Esc => {
+                    s.mention_dismissed = Some(s.composer.text.clone());
+                    return vec![];
+                }
+                _ => {}
+            }
+        }
+    }
+    let contexts = s.contexts();
+    let action = s.keymap.resolve(&contexts, &k, typing);
+    let Some(action) = action else {
+        if s.focus == Focus::Composer && s.view == View::Chats && s.composer.handle(&k) {
+            s.mention_sel = 0;
+        }
+        return vec![];
+    };
+    let ws = s.active.clone();
+    use Action::*;
+    match action {
+        Quit => {
+            s.quit = true;
+            vec![]
+        }
+        Help => {
+            s.overlay = Some(Overlay::Help { scroll: 0 });
+            vec![]
+        }
+        Back => {
+            match (s.view, s.focus) {
+                (View::Proposals, Focus::Detail) => s.focus = Focus::List,
+                (View::Chats, Focus::Detail) => s.focus = Focus::List,
+                (View::Chats, Focus::List) => {}
+                _ => s.view = View::Chats,
+            }
+            vec![]
+        }
+        SwitchWorkspace => {
+            let sel = s.active.as_ref().and_then(|a| s.workspaces.iter().position(|w| &w.id == a)).unwrap_or(0);
+            s.overlay = Some(Overlay::Switcher { sel });
+            vec![]
+        }
+        AddWorkspace => {
+            s.overlay = Some(Overlay::AddWorkspace(WorkspaceForm::new(false)));
+            vec![]
+        }
+        GoChats => go(s, View::Chats),
+        GoProposals => go(s, View::Proposals),
+        GoAgents => go(s, View::Agents),
+        GoHosts => go(s, View::Hosts),
+        GoPeople => go(s, View::People),
+        GoNotifications => go(s, View::Notifications),
+        GoSettings => go(s, View::Settings),
+        FocusNext | FocusPrev => {
+            s.focus = match (s.view, s.focus, action) {
+                (View::Chats, Focus::List, FocusNext) => Focus::Detail,
+                (View::Chats, Focus::Detail, FocusNext) => Focus::Composer,
+                (View::Chats, Focus::Composer, FocusNext) => Focus::List,
+                (View::Chats, Focus::List, _) => Focus::Composer,
+                (View::Chats, Focus::Detail, _) => Focus::List,
+                (View::Chats, Focus::Composer, _) => Focus::Detail,
+                (View::Proposals, Focus::List, _) if s.diff.is_some() => Focus::Detail,
+                _ => Focus::List,
+            };
+            vec![]
+        }
+        Up | Down | PageUp | PageDown | Top | Bottom => nav_action(s, action),
+        Select => select(s),
+        Compose => {
+            if s.open_chat.is_some() {
+                s.focus = Focus::Composer;
+            }
+            vec![]
+        }
+        NewChat => {
+            s.overlay = Some(Overlay::NewChat(TextBuf::single()));
+            vec![]
+        }
+        LockChat => match (ws, s.open_chat.clone()) {
+            (Some(w), Some(c)) => vec![Effect::LockChat(w, c)],
+            _ => vec![],
+        },
+        ClearLockdown => {
+            let Some(c) = s.open_chat_summary() else { return vec![] };
+            match &c.lockdown {
+                None => {
+                    s.toast(ToastKind::Info, "This chat isn't locked down");
+                    vec![]
+                }
+                Some(Lockdown { clear: Allowed::No(r), .. }) => {
+                    let r = r.clone();
+                    s.toast(ToastKind::Error, format!("Can't clear the lockdown: {r}"));
+                    vec![]
+                }
+                Some(_) => {
+                    let c = c.id.clone();
+                    ws.map(|w| vec![Effect::ClearLockdown(w, c)]).unwrap_or_default()
+                }
+            }
+        }
+        Send => {
+            let (Some(w), Some(c)) = (ws, s.open_chat.clone()) else { return vec![] };
+            if s.composer.is_empty() {
+                return vec![];
+            }
+            let text = s.composer.take();
+            s.mention_dismissed = None;
+            s.transcript_scroll = 0;
+            vec![Effect::Send { workspace: w, chat: c, text }]
+        }
+        Newline => {
+            s.composer.insert('\n');
+            vec![]
+        }
+        CancelCompose => {
+            s.focus = Focus::List;
+            vec![]
+        }
+        Complete => vec![],
+        Approve | Reject => {
+            let Some(p) = s.selected_proposal() else { return vec![] };
+            if let Allowed::No(r) = &p.can_vote {
+                let r = r.clone();
+                s.toast(ToastKind::Error, format!("Can't vote: {r}"));
+                return vec![];
+            }
+            let choice = if action == Approve { VoteChoice::Approve } else { VoteChoice::Reject };
+            let id = p.id.clone();
+            ws.map(|w| vec![Effect::Vote(w, id, choice)]).unwrap_or_default()
+        }
+        ApplyOnHost => {
+            let Some(p) = s.selected_proposal() else { return vec![] };
+            if p.status != ProposalStatus::Approved {
+                let st = p.status.label();
+                s.toast(ToastKind::Error, format!("Only an approved proposal can be applied (this one is {st})"));
+                return vec![];
+            }
+            if matches!(p.apply, ApplyState::Waiting { .. }) {
+                s.toast(ToastKind::Error, "One applier per proposal: withdraw that request first");
+                return vec![];
+            }
+            let id = p.id.clone();
+            if s.hosts.len() == 1 {
+                let h = s.hosts[0].id.clone();
+                return ws.map(|w| vec![Effect::RequestApply(w, id, h)]).unwrap_or_default();
+            }
+            let sel = s.default_apply_host().and_then(|d| s.hosts.iter().position(|h| h.id == d.id)).unwrap_or(0);
+            s.overlay = Some(Overlay::HostPicker { proposal: id, sel });
+            vec![]
+        }
+        WithdrawApply => {
+            let Some(p) = s.selected_proposal() else { return vec![] };
+            let id = p.id.clone();
+            ws.map(|w| vec![Effect::WithdrawApply(w, id)]).unwrap_or_default()
+        }
+        NextHunk | PrevHunk | NextFile | PrevFile => {
+            if let Some(d) = s.diff.as_mut() {
+                let rows = d.rows();
+                let is_target = |r: &DiffRow| match action {
+                    NextHunk | PrevHunk => matches!(r, DiffRow::Hunk(_)),
+                    _ => matches!(r, DiffRow::File { .. }),
+                };
+                let next = if matches!(action, NextHunk | NextFile) {
+                    rows.iter().enumerate().skip(d.scroll + 1).find(|(_, r)| is_target(r)).map(|(i, _)| i)
+                } else {
+                    rows.iter().enumerate().take(d.scroll).rev().find(|(_, r)| is_target(r)).map(|(i, _)| i)
+                };
+                if let Some(i) = next {
+                    d.scroll = i;
+                }
+            }
+            vec![]
+        }
+        ChangeRole => {
+            let Some(m) = s.selected_member() else { return vec![] };
+            if m.can_set_role.iter().all(|(_, a)| !a.is_yes()) {
+                let reason =
+                    m.can_set_role.iter().find(|(r, _)| *r != m.role).and_then(|(_, a)| a.reason()).unwrap_or("not allowed").to_string();
+                let name = m.name.clone();
+                s.toast(ToastKind::Error, format!("You can't change {name}'s role: {reason}"));
+                return vec![];
+            }
+            let sel = Role::ALL.iter().position(|r| *r == m.role).unwrap_or(0);
+            s.overlay = Some(Overlay::RolePicker { member: m.id.clone(), sel });
+            vec![]
+        }
+        RemoveMember => {
+            let Some(m) = s.selected_member() else { return vec![] };
+            match &m.can_remove {
+                Allowed::No(r) => {
+                    let msg = format!("Can't remove {}: {r}", m.name);
+                    s.toast(ToastKind::Error, msg);
+                }
+                Allowed::Yes => s.overlay = Some(Overlay::ConfirmRemove { member: m.id.clone(), name: m.name.clone() }),
+            }
+            vec![]
+        }
+        Invite => {
+            s.overlay = Some(Overlay::Invite { code: None });
+            ws.map(|w| vec![Effect::CreateInvite(w, Role::Contributor)]).unwrap_or_default()
+        }
+        ChangeRuntime => {
+            let Some(a) = s.agents.get(s.agent_sel.index) else { return vec![] };
+            let configured: Vec<&Runtime> = s.runtimes.iter().filter(|r| r.configured).collect();
+            let sel = configured.iter().position(|r| r.id == a.runtime).unwrap_or(0);
+            s.overlay = Some(Overlay::RuntimePicker { agent: a.id.clone(), sel });
+            vec![]
+        }
+        Toggle => {
+            let Some(st) = &s.settings else { return vec![] };
+            match s.settings_sel.index {
+                0 => vec![Effect::SetSetting(SettingKey::NotifyMentions, !st.notify_mentions)],
+                1 => vec![Effect::SetSetting(SettingKey::AgentsMayEdit, !st.agents_may_edit)],
+                _ => vec![],
+            }
+        }
+        MarkAllRead => {
+            s.notifications.iter_mut().for_each(|n| n.read = true);
+            vec![Effect::MarkNotificationsRead]
+        }
+    }
+}
+
+/// Settings rows that can be toggled.
+pub const SETTINGS_TOGGLES: usize = 2;
+
+fn nav_action(s: &mut State, a: Action) -> Vec<Effect> {
+    match s.view {
+        View::Chats => match s.focus {
+            Focus::Detail => {
+                use Action::*;
+                match a {
+                    Up => s.transcript_scroll += 1,
+                    Down => s.transcript_scroll = s.transcript_scroll.saturating_sub(1),
+                    PageUp => s.transcript_scroll += 10,
+                    PageDown => s.transcript_scroll = s.transcript_scroll.saturating_sub(10),
+                    Top => s.transcript_scroll = usize::MAX / 2,
+                    Bottom => s.transcript_scroll = 0,
+                    _ => {}
+                }
+                vec![]
+            }
+            _ => {
+                let before = s.chat_sel.index;
+                list_nav(&mut s.chat_sel, s.chats.len(), a);
+                if before != s.chat_sel.index
+                    && let Some(c) = s.chats.get(s.chat_sel.index)
+                {
+                    let id = c.id.clone();
+                    return open_chat(s, id);
+                }
+                vec![]
+            }
+        },
+        View::Proposals => {
+            if s.focus == Focus::Detail {
+                if let Some(d) = s.diff.as_mut() {
+                    let max = d.rows().len().saturating_sub(1);
+                    use Action::*;
+                    d.scroll = match a {
+                        Up => d.scroll.saturating_sub(1),
+                        Down => (d.scroll + 1).min(max),
+                        PageUp => d.scroll.saturating_sub(10),
+                        PageDown => (d.scroll + 10).min(max),
+                        Top => 0,
+                        Bottom => max,
+                        _ => d.scroll,
+                    };
+                }
+                return vec![];
+            }
+            let before = s.proposal_sel.index;
+            list_nav(&mut s.proposal_sel, s.proposals.len(), a);
+            if before != s.proposal_sel.index {
+                return load_selected_diff(s);
+            }
+            vec![]
+        }
+        View::Agents => {
+            list_nav(&mut s.agent_sel, s.agents.len(), a);
+            vec![]
+        }
+        View::Hosts => {
+            list_nav(&mut s.host_sel, s.hosts.len(), a);
+            vec![]
+        }
+        View::People => {
+            list_nav(&mut s.member_sel, s.members.len(), a);
+            vec![]
+        }
+        View::Notifications => {
+            list_nav(&mut s.notification_sel, s.notifications.len(), a);
+            vec![]
+        }
+        View::Settings => {
+            list_nav(&mut s.settings_sel, SETTINGS_TOGGLES, a);
+            vec![]
+        }
+    }
+}
+
+fn load_selected_diff(s: &mut State) -> Vec<Effect> {
+    let (Some(w), Some(p)) = (s.active.clone(), s.selected_proposal().map(|p| p.id.clone())) else { return vec![] };
+    if s.diff.as_ref().is_some_and(|d| d.proposal == p) {
+        return vec![];
+    }
+    s.diff = None;
+    vec![Effect::LoadDiff(w, p)]
+}
+
+fn select(s: &mut State) -> Vec<Effect> {
+    match s.view {
+        View::Chats => {
+            match s.focus {
+                Focus::List => {
+                    if let Some(c) = s.chats.get(s.chat_sel.index) {
+                        let id = c.id.clone();
+                        let fx = open_chat(s, id);
+                        s.focus = Focus::Composer;
+                        return fx;
+                    }
+                }
+                Focus::Detail => s.focus = Focus::Composer,
+                Focus::Composer => {}
+            }
+            vec![]
+        }
+        View::Proposals => {
+            let fx = load_selected_diff(s);
+            if s.selected_proposal().is_some() {
+                s.focus = Focus::Detail;
+            }
+            fx
+        }
+        View::Notifications => {
+            let Some(n) = s.notifications.get(s.notification_sel.index).cloned() else { return vec![] };
+            let mut fx = vec![];
+            if s.active.as_ref() != Some(&n.workspace) {
+                fx.extend(switch_workspace(s, n.workspace.clone()));
+            }
+            s.view = View::Chats;
+            if let Some(c) = n.chat {
+                // Open it once the chat list arrives, or now if it's here.
+                if let Some(i) = s.chats.iter().position(|x| x.id == c) {
+                    s.chat_sel.index = i;
+                }
+                fx.extend(open_chat(s, c));
+            }
+            if let Some(x) = s.notifications.get_mut(s.notification_sel.index) {
+                x.read = true;
+            }
+            fx
+        }
+        View::Settings => {
+            let Some(st) = &s.settings else { return vec![] };
+            match s.settings_sel.index {
+                0 => vec![Effect::SetSetting(SettingKey::NotifyMentions, !st.notify_mentions)],
+                1 => vec![Effect::SetSetting(SettingKey::AgentsMayEdit, !st.agents_may_edit)],
+                _ => vec![],
+            }
+        }
+        View::People | View::Agents | View::Hosts => vec![],
+    }
+}

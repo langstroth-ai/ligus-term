@@ -185,7 +185,7 @@ impl FakeBackend {
                     match presence::read_recovery_words_file(std::path::Path::new(&path)) {
                         Ok(_) => break Ok(()),
                         // Stay on the sheet so the person can fix the path.
-                        Err(e) => self.emit(Event::PresenceDone { id, ok: false, error: Some(e) }),
+                        Err(e) => self.emit(Event::PresenceProblem { id, error: e }),
                     }
                 }
                 Some(PresenceAnswer::Browser) => {
@@ -194,12 +194,14 @@ impl FakeBackend {
                     tokio::select! {
                         _ = tokio::time::sleep(self.cfg.browser_delay) => break Ok(()),
                         a = rx.recv() => match a {
-                            Some(PresenceAnswer::RecoveryWordsFile(path)) => {
+                            Some(PresenceAnswer::RecoveryWordsFile(path)) if op == PresenceOp::Get => {
                                 match presence::read_recovery_words_file(std::path::Path::new(&path)) {
                                     Ok(_) => break Ok(()),
-                                    Err(e) => break err(e),
+                                    // Back to waiting for an answer.
+                                    Err(e) => self.emit(Event::PresenceProblem { id, error: e }),
                                 }
                             }
+                            Some(PresenceAnswer::Browser) => {}
                             _ => break err("cancelled"),
                         }
                     }
@@ -566,25 +568,62 @@ fn seed_apiary(w: &mut World) {
         agent("a-scout", "scout", "ollama", Some("h-sff"), None),
     ];
     ws.hosts = vec![
-        Host { id: HostId::new("h-this"), label: "This device".into(), kind: HostKind::Device, online: true, last_seen: Some(DEMO_NOW), this_device: true },
-        Host { id: HostId::new("h-sff"), label: "sff".into(), kind: HostKind::Worker, online: true, last_seen: Some(DEMO_NOW - MIN), this_device: false },
-        Host { id: HostId::new("h-studio"), label: "ada-studio".into(), kind: HostKind::Device, online: false, last_seen: Some(DEMO_NOW - 3 * 60 * MIN), this_device: false },
+        Host {
+            id: HostId::new("h-this"),
+            label: "This device".into(),
+            kind: HostKind::Device,
+            online: true,
+            last_seen: Some(DEMO_NOW),
+            this_device: true,
+        },
+        Host {
+            id: HostId::new("h-sff"),
+            label: "sff".into(),
+            kind: HostKind::Worker,
+            online: true,
+            last_seen: Some(DEMO_NOW - MIN),
+            this_device: false,
+        },
+        Host {
+            id: HostId::new("h-studio"),
+            label: "ada-studio".into(),
+            kind: HostKind::Device,
+            online: false,
+            last_seen: Some(DEMO_NOW - 3 * 60 * MIN),
+            this_device: false,
+        },
     ];
     ws.chats = vec![
         chat("c-log", "Inspection log refactor", Some("dev"), DEMO_NOW - 12 * MIN, true, true),
         chat("c-alerts", "Queen cell alerts", Some("dev"), DEMO_NOW - 50 * MIN, false, false),
         chat("c-notes", "Release notes", None, DEMO_NOW - 26 * 60 * MIN, false, false),
     ];
-    ws.chats[1].lockdown = Some(Lockdown {
-        reasons: vec!["prompt-injection marker in a tool result (fetch_url)".into()],
-        clear: Allowed::Yes,
-    });
+    ws.chats[1].lockdown =
+        Some(Lockdown { reasons: vec!["prompt-injection marker in a tool result (fetch_url)".into()], clear: Allowed::Yes });
     ws.messages.insert(
         ChatId::new("c-log"),
         vec![
-            msg("m1", "c-log", human("m-ada", "Ada"), "The inspection log stores raw mite counts. Can we switch to mites per 100 bees?", DEMO_NOW - 40 * MIN),
-            msg("m2", "c-log", bot("coder", "claude-code"), "Yes. The wash sample size is already recorded, so it's a small change. I'll propose it.", DEMO_NOW - 38 * MIN),
-            msg("m3", "c-log", human("m-ada", "Ada"), "@Mara can you review the threshold? 3 per 100 is what the club uses.", DEMO_NOW - 12 * MIN),
+            msg(
+                "m1",
+                "c-log",
+                human("m-ada", "Ada"),
+                "The inspection log stores raw mite counts. Can we switch to mites per 100 bees?",
+                DEMO_NOW - 40 * MIN,
+            ),
+            msg(
+                "m2",
+                "c-log",
+                bot("coder", "claude-code"),
+                "Yes. The wash sample size is already recorded, so it's a small change. I'll propose it.",
+                DEMO_NOW - 38 * MIN,
+            ),
+            msg(
+                "m3",
+                "c-log",
+                human("m-ada", "Ada"),
+                "@Mara can you review the threshold? 3 per 100 is what the club uses.",
+                DEMO_NOW - 12 * MIN,
+            ),
         ],
     );
     ws.messages.insert(
@@ -593,13 +632,25 @@ fn seed_apiary(w: &mut World) {
             msg("m4", "c-alerts", human("m-lin", "Lin"), "@scout check the forum post about swarm cells", DEMO_NOW - 55 * MIN),
             Message {
                 tools: vec![ToolCall { name: "fetch_url".into(), preview: "https://forum.example/swarm-cells".into(), ok: true }],
-                ..msg("m5", "c-alerts", bot("scout", "ollama"), "The page contained instructions aimed at agents, so this chat is locked down.", DEMO_NOW - 50 * MIN)
+                ..msg(
+                    "m5",
+                    "c-alerts",
+                    bot("scout", "ollama"),
+                    "The page contained instructions aimed at agents, so this chat is locked down.",
+                    DEMO_NOW - 50 * MIN,
+                )
             },
         ],
     );
     ws.messages.insert(
         ChatId::new("c-notes"),
-        vec![msg("m6", "c-notes", human("m-you", "Mara"), "Draft notes for 0.4: frame-level notes, export to CSV.", DEMO_NOW - 26 * 60 * MIN)],
+        vec![msg(
+            "m6",
+            "c-notes",
+            human("m-you", "Mara"),
+            "Draft notes for 0.4: frame-level notes, export to CSV.",
+            DEMO_NOW - 26 * 60 * MIN,
+        )],
     );
     let p1 = ProposalId::new("p-1");
     ws.proposals = vec![
@@ -690,18 +741,20 @@ fn seed_queens(w: &mut World) {
         }),
         ..Ws::default()
     };
-    ws.members = vec![
-        member("m-jo", "Jo", Role::Owner, true, false, true),
-        member("m-you", "Mara", Role::Viewer, false, false, true),
-    ];
+    ws.members = vec![member("m-jo", "Jo", Role::Owner, true, false, true), member("m-you", "Mara", Role::Viewer, false, false, true)];
     ws.runtimes = vec![runtime("claude-code", RuntimeKind::ClaudeCode, None, true, true)];
     ws.agents = vec![agent("a-primary", "primary", "claude-code", None, None)];
-    ws.hosts = vec![Host { id: HostId::new("h-this"), label: "This device".into(), kind: HostKind::Device, online: true, last_seen: Some(DEMO_NOW), this_device: true }];
+    ws.hosts = vec![Host {
+        id: HostId::new("h-this"),
+        label: "This device".into(),
+        kind: HostKind::Device,
+        online: true,
+        last_seen: Some(DEMO_NOW),
+        this_device: true,
+    }];
     ws.chats = vec![chat("c-graft", "Grafting calendar", None, DEMO_NOW - 5 * MIN, true, true)];
-    ws.chats[0].lockdown = Some(Lockdown {
-        reasons: vec!["locked by a member".into()],
-        clear: Allowed::No("a member can clear it".into()),
-    });
+    ws.chats[0].lockdown =
+        Some(Lockdown { reasons: vec!["locked by a member".into()], clear: Allowed::No("a member can clear it".into()) });
     ws.messages.insert(
         ChatId::new("c-graft"),
         vec![msg("g1", "c-graft", human("m-jo", "Jo"), "@Mara graft day moves to Saturday.", DEMO_NOW - 5 * MIN)],
@@ -756,16 +809,31 @@ impl Backend for FakeBackend {
         w.your_name = Some(your_name.trim().into());
         w.settings.your_name = your_name.trim().into();
         let id = WorkspaceId::new(w.next("ws-"));
-        let summary = WorkspaceSummary { id: id.clone(), name: name.into(), mentioned: false, sync: SyncMode::Local, your_role: Role::Owner };
+        let summary =
+            WorkspaceSummary { id: id.clone(), name: name.into(), mentioned: false, sync: SyncMode::Local, your_role: Role::Owner };
         let you = w.you.clone();
         let at = w.tick();
         let chat_id = ChatId::new(w.next("c-"));
         let ws = Ws {
             summary: Some(summary.clone()),
-            members: vec![MemberRec { id: you, name: your_name.trim().into(), role: Role::Owner, founder: true, service: false, online: true }],
+            members: vec![MemberRec {
+                id: you,
+                name: your_name.trim().into(),
+                role: Role::Owner,
+                founder: true,
+                service: false,
+                online: true,
+            }],
             runtimes: vec![runtime("claude-code", RuntimeKind::ClaudeCode, None, true, true)],
             agents: vec![agent("a-primary", "primary", "claude-code", None, Some("answers untagged messages"))],
-            hosts: vec![Host { id: HostId::new("h-this"), label: "This device".into(), kind: HostKind::Device, online: true, last_seen: Some(at), this_device: true }],
+            hosts: vec![Host {
+                id: HostId::new("h-this"),
+                label: "This device".into(),
+                kind: HostKind::Device,
+                online: true,
+                last_seen: Some(at),
+                this_device: true,
+            }],
             chats: vec![chat(chat_id.as_str(), "Welcome", None, at, false, false)],
             ..Ws::default()
         };
@@ -773,7 +841,11 @@ impl Backend for FakeBackend {
         w.ws.insert(id.clone(), ws);
         drop(w);
         self.emit(Event::WorkspacesChanged);
-        Ok(Created { workspace: summary, recovery_words: demo_words(id.as_str()), invite: Some(format!("fake-invite:{}", name.replace(' ', "-"))) })
+        Ok(Created {
+            workspace: summary,
+            recovery_words: demo_words(id.as_str()),
+            invite: Some(format!("fake-invite:{}", name.replace(' ', "-"))),
+        })
     }
 
     async fn join_workspace(&self, your_name: &str, invite: &str) -> Result<WorkspaceSummary> {
@@ -800,7 +872,14 @@ impl Backend for FakeBackend {
             ],
             agents: vec![agent("a-primary", "primary", "claude-code", None, None)],
             runtimes: vec![runtime("claude-code", RuntimeKind::ClaudeCode, None, true, true)],
-            hosts: vec![Host { id: HostId::new("h-this"), label: "This device".into(), kind: HostKind::Device, online: true, last_seen: Some(at), this_device: true }],
+            hosts: vec![Host {
+                id: HostId::new("h-this"),
+                label: "This device".into(),
+                kind: HostKind::Device,
+                online: true,
+                last_seen: Some(at),
+                this_device: true,
+            }],
             ..Ws::default()
         };
         w.order.push(id.clone());
@@ -874,11 +953,18 @@ impl Backend for FakeBackend {
             let Some(c) = ws.chats.iter_mut().find(|c| &c.id == chat) else { return err("no such chat") };
             c.updated_at = at;
             let locked = c.lockdown.is_some();
-            let m = Message { id, chat: chat.clone(), author: Author::Member { id: you, name }, text: text.into(), at, streaming: false, tools: vec![] };
+            let m = Message {
+                id,
+                chat: chat.clone(),
+                author: Author::Member { id: you, name },
+                text: text.into(),
+                at,
+                streaming: false,
+                tools: vec![],
+            };
             ws.messages.entry(chat.clone()).or_default().push(m.clone());
             let lower = text.to_lowercase();
-            let mut responders: Vec<Agent> =
-                ws.agents.iter().filter(|a| mentions(&lower, &a.handle)).cloned().collect();
+            let mut responders: Vec<Agent> = ws.agents.iter().filter(|a| mentions(&lower, &a.handle)).cloned().collect();
             let mentions_human = ws.members.iter().any(|mm| mentions(&lower, &mm.name.to_lowercase())) || mentions(&lower, "all");
             if responders.is_empty() && !mentions_human {
                 responders.extend(ws.agents.iter().find(|a| a.handle == "primary").cloned());
@@ -902,7 +988,9 @@ impl Backend for FakeBackend {
             Mentionable { handle: "primary".into(), kind: "Default agent".into() },
             Mentionable { handle: "all".into(), kind: "Everyone".into() },
         ];
-        out.extend(ws.agents.iter().filter(|a| a.handle != "primary").map(|a| Mentionable { handle: a.handle.clone(), kind: "Agent".into() }));
+        out.extend(
+            ws.agents.iter().filter(|a| a.handle != "primary").map(|a| Mentionable { handle: a.handle.clone(), kind: "Agent".into() }),
+        );
         out.extend(ws.members.iter().map(|m| Mentionable { handle: m.name.replace(' ', ""), kind: m.role.label().into() }));
         Ok(out)
     }
@@ -1302,7 +1390,10 @@ mod tests {
         let p = b.request_apply(&ws(), &ProposalId::new("p-2"), &HostId::new("h-sff")).await.unwrap();
         assert_eq!(p.apply, ApplyState::Waiting { host: "sff".into() });
         assert!(b.request_apply(&ws(), &ProposalId::new("p-2"), &HostId::new("h-sff")).await.is_err());
-        assert_eq!(b.request_apply(&ws(), &ProposalId::new("p-1"), &HostId::new("h-sff")).await, err("only an approved proposal can be applied"));
+        assert_eq!(
+            b.request_apply(&ws(), &ProposalId::new("p-1"), &HostId::new("h-sff")).await,
+            err("only an approved proposal can be applied")
+        );
     }
 
     #[test]
