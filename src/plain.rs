@@ -79,7 +79,7 @@ pub fn event_line(e: &Event, names: &dyn Fn(&WorkspaceId) -> String) -> Option<S
         }
         Event::Typing { .. } => return None,
         Event::ProposalChanged { proposal: p, .. } => {
-            format!("proposal\t{}\t{}\t{}/{}\t{}", p.id, p.status.label(), p.approvals, p.quorum, esc(&p.title))
+            format!("proposal-changed\t{}\t{}\t{}/{}\t{}", p.id, p.status.label(), p.approvals, p.quorum, esc(&p.title))
         }
         Event::Notification(n) => format!("notification\t{}\t{}", esc(&names(&n.workspace)), esc(&n.text)),
         Event::PresencePrompt(p) => {
@@ -412,7 +412,7 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                     let c = if cmd == "approve" { VoteChoice::Approve } else { VoteChoice::Reject };
                     match b.vote(&w, &p.id, c).await {
                         Ok(p) => {
-                            say(format!("proposal\t{}\t{}\t{}/{}\t{}", p.id, p.status.label(), p.approvals, p.quorum, esc(&p.title))).await
+                            say(format!("voted\t{}\t{}\t{}/{}\t{}", p.id, p.status.label(), p.approvals, p.quorum, esc(&p.title))).await
                         }
                         Err(e) => fail(e.0).await,
                     }
