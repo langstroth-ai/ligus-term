@@ -157,12 +157,12 @@ dependencies pinned to a release tag:
 
 ```toml
 [dependencies]
-ligus-core    = { git = "https://github.com/langstroth-ai/ligus", tag = "v2.0.0" }
-ligus-proto   = { git = "https://github.com/langstroth-ai/ligus", tag = "v2.0.0" }
-ligus-runtime = { git = "https://github.com/langstroth-ai/ligus", tag = "v2.0.0", features = ["p2p"] }
+ligus-core    = { git = "https://github.com/langstroth-ai/ligus", tag = "v0.1.0" }
+ligus-proto   = { git = "https://github.com/langstroth-ai/ligus", tag = "v0.1.0" }
+ligus-runtime = { git = "https://github.com/langstroth-ai/ligus", tag = "v0.1.0", features = ["p2p"] }
 ```
 
-- **Tag first.** The reference tree (branch `release/v2.0.0`) has no tags
+- **Tag first.** The reference tree (branch `release/v0.1.0`) has no tags
   yet and its crates still say `0.1.0`. Cut the tag before wiring, and
   never depend on a branch.
 - **Toolchain.** The crates are edition 2021 with `rust-version = 1.91`,
@@ -193,7 +193,7 @@ At startup (`RealBackend::open(data_dir)`), mirroring the CLI's
 
 ### Method mapping
 
-Paths are inside the crate named in each row, on `release/v2.0.0`.
+Paths are inside the crate named in each row, on `release/v0.1.0`.
 `ChatService` is `runtime/src/chat_service.rs`.
 
 | `Backend` method | Crate API | Notes |
