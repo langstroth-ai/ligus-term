@@ -1,0 +1,4 @@
+/target
+/.netlify
+*.snap.new
+.DS_Store
