@@ -37,9 +37,11 @@ commands (N is a number from the last list, or an id):
   approve N / reject N vote                     apply N [H]  apply on host H (default: first online worker)
   agents / runtimes / hosts / members / notifications / settings
   role M ROLE          change a member's role   remove M     remove a member
-  invite               create an invite code    admit [REQUEST]  admit a box (ligusjoin1:, or none: a bearer code)
-  check CODE           who an invite is from    connect RELAY ROOM KEY [TOKEN]  found a deployment's workspace
-                       (KEY and TOKEN may be @FILE to read them from a file)
+  invite               create an invite code    admit [REQUEST] [--out FILE]  admit a box (ligusjoin1:,
+                       or none: a bearer code, written owner-only to FILE, never printed)
+  check CODE           who an invite is from    connect RELAY ROOM KEY [TOKEN] [--out FILE]  found a deployment's
+                       workspace (KEY and TOKEN may be @FILE, owner-only; one-shot: only @FILE, and the
+                       recovery words go to the owner-only FILE; so does create NAME --out FILE)
   workflows            list workflows           runs         list runs
   run W [INPUT]        start workflow W and follow it until it ends
   start W [INPUT]      start workflow W         watch R      follow run R until it ends
@@ -68,6 +70,8 @@ struct Session {
     hosts: Vec<Host>,
     workflows: Vec<Workflow>,
     runs: Vec<Run>,
+    /// One-shot (`lt --plain COMMAND`): a secret never rides argv or stdout.
+    one_shot: bool,
 }
 
 struct Output {
@@ -78,7 +82,32 @@ struct Output {
 
 type Out = Arc<Output>;
 
+/// Bidi controls: they reorder what a terminal shows (U+061C, U+200E/F,
+/// U+202A..U+202E, U+2066..U+2069).
+fn is_bidi(c: char) -> bool {
+    matches!(c, '\u{061C}' | '\u{200E}' | '\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}')
+}
+
+/// A record as it may reach a terminal: tabs separate fields; a line break
+/// inside a field is written `\n` (it would forge a record); every other
+/// control character (escape sequences: ANSI, OSC, C1) and every bidi
+/// control becomes U+FFFD. Much of a record comes from the network.
+pub fn clean(line: &str) -> String {
+    let mut out = String::with_capacity(line.len());
+    for c in line.chars() {
+        match c {
+            '\t' => out.push('\t'),
+            '\n' | '\u{2028}' | '\u{2029}' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            c if c.is_control() || is_bidi(c) => out.push('\u{FFFD}'),
+            c => out.push(c),
+        }
+    }
+    out
+}
+
 async fn emit(out: &Out, line: String) {
+    let line = clean(&line);
     if line.starts_with("error\t") {
         out.failed.store(true, std::sync::atomic::Ordering::SeqCst);
     }
@@ -275,6 +304,7 @@ where
         hosts: vec![],
         workflows: vec![],
         runs: vec![],
+        one_shot,
     }));
     if !one_shot {
         if st.workspaces.is_empty() {
@@ -293,8 +323,11 @@ where
     let ev_task = {
         let (out, backend, session, last) = (out.clone(), backend.clone(), session.clone(), last_event.clone());
         let presence_answer = presence_answer.clone();
+        // Subscribe now, not when the task first runs: a one-shot command
+        // starts at once, and a passkey prompt it raises before the task
+        // subscribed would never be answered (the command would hang).
+        let mut events = backend.events();
         tokio::spawn(async move {
-            let mut events = backend.events();
             // Streaming replies are collected and printed whole when done.
             let mut streaming: std::collections::HashMap<MessageId, (WorkspaceId, Message)> = Default::default();
             while let Some(e) = events.next().await {
@@ -446,6 +479,78 @@ fn pick<'a, T>(items: &'a [T], arg: &str, id: impl Fn(&T) -> &str) -> Option<&'a
     items.iter().find(|x| id(x) == arg)
 }
 
+/// `ARGS --out FILE`: the args without the option, and the file.
+fn take_out(arg: &str) -> (String, Option<std::path::PathBuf>) {
+    let parts: Vec<&str> = arg.split_whitespace().collect();
+    match parts.iter().position(|p| *p == "--out") {
+        Some(i) => {
+            let file = parts.get(i + 1).map(std::path::PathBuf::from);
+            let rest: Vec<&str> = parts.iter().enumerate().filter(|(j, _)| *j != i && *j != i + 1).map(|(_, p)| *p).collect();
+            (rest.join(" "), file)
+        }
+        None => (arg.to_string(), None),
+    }
+}
+
+/// Write a secret to a new owner-only file. An existing path (or a link)
+/// is refused, never overwritten or followed.
+pub fn write_private(path: &std::path::Path, text: &str) -> std::result::Result<(), String> {
+    use std::io::Write;
+    let mut o = std::fs::OpenOptions::new();
+    o.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        o.mode(0o600);
+    }
+    let mut f = o.open(path).map_err(|e| format!("writing {}: {e} (give a new file)", path.display()))?;
+    f.write_all(text.as_bytes()).and_then(|_| f.write_all(b"\n")).map_err(|e| format!("writing {}: {e}", path.display()))
+}
+
+/// Refuse an `--out FILE` that already exists, before anything is made.
+fn fresh_out(file: Option<&std::path::Path>) -> std::result::Result<(), String> {
+    match file {
+        Some(f) if std::fs::symlink_metadata(f).is_ok() => Err(format!("{} already exists: give --out a new file", f.display())),
+        _ => Ok(()),
+    }
+}
+
+/// Read a secret from `@FILE`: owner-only, small.
+pub fn read_secret_file(path: &str) -> std::result::Result<String, String> {
+    let meta = std::fs::metadata(path).map_err(|e| format!("reading {path}: {e}"))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if meta.permissions().mode() & 0o077 != 0 {
+            return Err(format!("others can read {path}: a key file must be owner-only (chmod 600 {path})"));
+        }
+    }
+    if meta.len() > 64 * 1024 {
+        return Err(format!("{path} is too big for a key"));
+    }
+    std::fs::read_to_string(path).map(|t| t.trim().to_string()).map_err(|e| format!("reading {path}: {e}"))
+}
+
+/// Where a new workspace's recovery words go: printed for a person at the
+/// terminal, written owner-only to `--out FILE` by a one-shot command.
+async fn recovery_words(out: &Out, words: &[String], file: Option<&std::path::Path>) {
+    let words = words.join(" ");
+    match file {
+        None => emit(out, format!("recovery-key\t{words}\twrite these 24 words down; they are shown once")).await,
+        Some(f) => match write_private(f, &words) {
+            Ok(()) => {
+                emit(
+                    out,
+                    format!("recovery-key\t@{}\tthe 24 words are in this owner-only file: keep them offline, then delete it", f.display()),
+                )
+                .await
+            }
+            // The only copy: better on the terminal than lost.
+            Err(e) => emit(out, format!("recovery-key\t{words}\t{e}; write these 24 words down")).await,
+        },
+    }
+}
+
 async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line: &str) {
     let (cmd, arg) = line.split_once(' ').map(|(c, a)| (c, a.trim())).unwrap_or((line, ""));
     let say = |l: String| emit(out, l);
@@ -467,12 +572,22 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
             say(format!("ok\tname\t{}", esc(arg))).await;
         }
         "create" | "join" => {
-            let your = { s.lock().await.your_name.clone().unwrap_or_default() };
+            let (your, one_shot) = {
+                let g = s.lock().await;
+                (g.your_name.clone().unwrap_or_default(), g.one_shot)
+            };
             if cmd == "create" {
-                match b.create_workspace(&your, arg).await {
+                let (name, file) = take_out(arg);
+                if one_shot && file.is_none() {
+                    return fail("a one-shot create writes the recovery words to a file: create NAME --out FILE".into()).await;
+                }
+                if let Err(e) = fresh_out(file.as_deref()) {
+                    return fail(e).await;
+                }
+                match b.create_workspace(&your, &name).await {
                     Ok(c) => {
                         say(format!("created\t{}\t{}", c.workspace.id, esc(&c.workspace.name))).await;
-                        say(format!("recovery-key\t{}\twrite these 24 words down; they are shown once", c.recovery_words.join(" "))).await;
+                        recovery_words(out, &c.recovery_words, file.as_deref()).await;
                         if let Some(i) = &c.invite {
                             say(format!("invite\t{i}")).await;
                         }
@@ -531,26 +646,40 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
             Err(e) => fail(e.0).await,
         },
         "connect" => {
+            let one_shot = s.lock().await.one_shot;
+            let (arg, file) = take_out(arg);
             let parts: Vec<&str> = arg.split_whitespace().collect();
             let [relay, room, key, rest @ ..] = parts.as_slice() else {
-                return fail("usage: connect RELAY ROOM KEY [TOKEN] (KEY and TOKEN may be @FILE)".into()).await;
+                return fail("usage: connect RELAY ROOM KEY [TOKEN] [--out FILE] (KEY and TOKEN may be @FILE)".into()).await;
             };
+            // A one-shot's arguments are its argv, which every local process
+            // can list: the key and token come from owner-only files there.
             let read = |v: &str| -> std::result::Result<String, String> {
                 match v.strip_prefix('@') {
-                    Some(path) => std::fs::read_to_string(path).map(|t| t.trim().to_string()).map_err(|e| format!("reading {path}: {e}")),
+                    Some(path) => read_secret_file(path),
+                    None if one_shot => {
+                        Err("a one-shot connect takes the key and token as @FILE (owner-only), never in its arguments".into())
+                    }
                     None => Ok(v.to_string()),
                 }
             };
+
             let (key, token) = match (read(key), rest.first().map(|t| read(t)).transpose()) {
                 (Ok(k), Ok(t)) => (k, t),
                 (Err(e), _) | (_, Err(e)) => return fail(e).await,
             };
+            if one_shot && file.is_none() {
+                return fail("a one-shot connect writes the recovery words to a file: add --out FILE".into()).await;
+            }
+            if let Err(e) = fresh_out(file.as_deref()) {
+                return fail(e).await;
+            }
             let your = { s.lock().await.your_name.clone().unwrap_or_default() };
             let spec = DeploymentSpec { name: String::new(), relay_url: relay.to_string(), room: room.to_string(), key, token };
             match b.connect_deployment(&your, spec).await {
                 Ok(c) => {
                     say(format!("connected\t{}\t{}\t{}", c.workspace.id, esc(&c.workspace.name), c.workspace.sync.label())).await;
-                    say(format!("recovery-key\t{}\twrite these 24 words down; they are shown once", c.recovery_words.join(" "))).await;
+                    recovery_words(out, &c.recovery_words, file.as_deref()).await;
                     let _ = b.confirm_recovery_saved(&c.workspace.id).await;
                     let mut g = s.lock().await;
                     g.ws = Some(c.workspace.id.clone());
@@ -560,19 +689,38 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
             }
         }
         _ if ws.is_none() && cmd != "notifications" && cmd != "settings" && cmd != "confirm" && cmd != "cancel" => need_ws().await,
-        "admit" => match b.admit_box(ws.as_ref().unwrap(), Some(arg).filter(|a| !a.is_empty())).await {
-            Ok(a) => {
-                say(format!(
-                    "admission\t{}\t{}\t{}\t{}",
-                    if a.sealed { "sealed" } else { "bearer" },
-                    a.fingerprint.as_deref().unwrap_or(""),
-                    esc(a.label.as_deref().unwrap_or("")),
-                    a.code
-                ))
-                .await
+        "admit" => {
+            let (request, file) = take_out(arg);
+            // A bearer code carries the workspace key: it goes to an
+            // owner-only file, never to the terminal or a log.
+            if request.is_empty() && file.is_none() {
+                return fail("a bearer code carries the workspace key, so it isn't printed: admit --out FILE writes it owner-only".into())
+                    .await;
             }
-            Err(e) => fail(e.0).await,
-        },
+            if let Err(e) = fresh_out(file.as_deref()) {
+                return fail(e).await;
+            }
+            match b.admit_box(ws.as_ref().unwrap(), Some(request.as_str()).filter(|a| !a.is_empty())).await {
+                Ok(a) => {
+                    let code = match &file {
+                        Some(f) => match write_private(f, &a.code) {
+                            Ok(()) => format!("@{}", f.display()),
+                            Err(e) => return fail(e).await,
+                        },
+                        None => a.code.clone(),
+                    };
+                    say(format!(
+                        "admission\t{}\t{}\t{}\t{}",
+                        if a.sealed { "sealed" } else { "bearer" },
+                        a.fingerprint.as_deref().unwrap_or(""),
+                        esc(a.label.as_deref().unwrap_or("")),
+                        code
+                    ))
+                    .await
+                }
+                Err(e) => fail(e.0).await,
+            }
+        }
         "workflows" => match b.workflows(ws.as_ref().unwrap()).await {
             Ok(w) => {
                 for (i, d) in w.iter().enumerate() {
@@ -1120,5 +1268,102 @@ mod tests {
         assert!(out.contains("remove: refused (nobody cuts the workspace's founder)"), "{out}");
         assert!(out.contains("error\tnobody cuts the workspace's founder"), "{out}");
         assert!(out.contains("error\tno one grants a role above their own"), "{out}");
+    }
+
+    /// Nothing from the network reaches the terminal raw: no escape
+    /// sequences (ANSI, OSC), no bidi overrides, no stray line breaks
+    /// that would forge a record.
+    #[tokio::test]
+    async fn network_text_is_sanitised_before_printing() {
+        let out = run_script(
+            FakeBackend::demo(FakeConfig::instant()),
+            "open 1\nsay hi \u{1b}]52;c;cm0gLXJmIH4=\u{7} \u{1b}[2J\u{202e}gnp.exe\r\u{9b}31m\u{2066}x\nopen 1\n",
+        )
+        .await;
+        assert!(out.contains("hi "), "{out}");
+        for bad in ['\u{1b}', '\u{7}', '\u{202e}', '\u{2066}', '\u{9b}', '\r'] {
+            assert!(!out.contains(bad), "{bad:?} reached the terminal: {out:?}");
+        }
+    }
+
+    fn private(dir: &std::path::Path, name: &str, text: &str, mode: u32) -> std::path::PathBuf {
+        let p = dir.join(name);
+        std::fs::write(&p, text).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&p, std::fs::Permissions::from_mode(mode)).unwrap();
+        }
+        let _ = mode;
+        p
+    }
+
+    #[cfg(unix)]
+    fn mode_of(p: &std::path::Path) -> u32 {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::metadata(p).unwrap().permissions().mode() & 0o777
+    }
+
+    /// One-shot `connect`: the key never rides argv (only @FILE), a key file
+    /// others can read is refused, and the recovery words go to an
+    /// owner-only file, never to stdout.
+    #[tokio::test]
+    async fn one_shot_connect_keeps_the_key_and_words_off_argv_and_stdout() {
+        let tmp = tempfile::tempdir().unwrap();
+        let demo = || FakeBackend::demo(FakeConfig::instant());
+        let (code, out) = one_shot(demo(), "connect http://127.0.0.1:18443 k8s-room the-workspace-key").await;
+        assert_eq!(code, 1, "{out}");
+        assert!(out.contains("@FILE"), "{out}");
+        #[cfg(unix)]
+        {
+            let open = private(tmp.path(), "open-key", "the-workspace-key\n", 0o644);
+            let (code, out) =
+                one_shot(demo(), &format!("connect http://127.0.0.1:18443 k8s-room @{} --out {}/w1", open.display(), tmp.path().display()))
+                    .await;
+            assert_eq!(code, 1, "{out}");
+            assert!(out.contains("others can read"), "{out}");
+        }
+        let key = private(tmp.path(), "key", "the-workspace-key\n", 0o600);
+        let (code, out) = one_shot(demo(), &format!("connect http://127.0.0.1:18443 k8s-room @{}", key.display())).await;
+        assert_eq!(code, 1, "{out}");
+        assert!(out.contains("--out"), "{out}");
+        let words = tmp.path().join("words.txt");
+        let (code, out) =
+            one_shot(demo(), &format!("connect http://127.0.0.1:18443 k8s-room @{} --out {}", key.display(), words.display())).await;
+        assert_eq!(code, 0, "{out}");
+        let saved = std::fs::read_to_string(&words).unwrap();
+        assert_eq!(saved.split_whitespace().count(), 24);
+        assert!(!out.contains(saved.trim()), "{out}");
+        assert!(!out.contains("the-workspace-key"), "{out}");
+        #[cfg(unix)]
+        assert_eq!(mode_of(&words), 0o600);
+        // An existing file is never overwritten (or followed).
+        let (code, out) =
+            one_shot(demo(), &format!("connect http://127.0.0.1:18443 other-room @{} --out {}", key.display(), words.display())).await;
+        assert_eq!(code, 1, "{out}");
+    }
+
+    /// A bearer admission carries the workspace key: plain mode never prints
+    /// it, it writes it owner-only where `--out` says.
+    #[tokio::test]
+    async fn a_bearer_admission_is_never_printed() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (code, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "admit").await;
+        assert_eq!(code, 1, "{out}");
+        assert!(!out.contains("fake-bearer-admission"), "{out}");
+        let out_script = run_script(FakeBackend::demo(FakeConfig::instant()), "admit\nwait 1\n").await;
+        assert!(!out_script.contains("fake-bearer-admission"), "{out_script}");
+        let file = tmp.path().join("admission");
+        let (code, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), &format!("admit --out {}", file.display())).await;
+        assert_eq!(code, 0, "{out}");
+        assert!(!out.contains("fake-bearer-admission"), "{out}");
+        assert!(out.lines().any(|l| l.starts_with("admission\tbearer\t")), "{out}");
+        assert_eq!(std::fs::read_to_string(&file).unwrap().trim(), "hivews1:fake-bearer-admission");
+        #[cfg(unix)]
+        assert_eq!(mode_of(&file), 0o600);
+        // A sealed code opens only on its box: printed as before.
+        let (code, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "admit ligusjoin1:abc").await;
+        assert_eq!(code, 0, "{out}");
+        assert!(out.contains("ligusadmit1:sealed-for-"), "{out}");
     }
 }

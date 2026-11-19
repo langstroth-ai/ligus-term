@@ -100,8 +100,11 @@ deployment's relay and then **admits** each box.
    deployment**, fill in the relay URL, room, key and (if any) token. `lt`
    refuses when the relay already holds that workspace (then ask one of its
    Admins for an invite). In plain mode:
-   `lt --plain connect http://127.0.0.1:18443 k8s-trial-… @key.txt` (`@FILE`
-   reads a value from a file, so the key stays off the command line).
+   `lt --plain connect http://127.0.0.1:18443 k8s-trial-… @key.txt --out words.txt`.
+   A one-shot command's arguments are visible to every local process, so
+   the key (and token) must be `@FILE`, and the file must be owner-only
+   (`chmod 600`); the recovery words go to the new owner-only `--out` file,
+   not to stdout. (`create NAME --out FILE` works the same way.)
 3. **Admit the boxes.** People (`m`), then `B`. Paste the box's join
    request (`ligusjoin1:…`, which `ligus serve` or `ligus worker` prints
    when it isn't a member yet, with a fingerprint) and check the
@@ -111,7 +114,8 @@ deployment's relay and then **admits** each box.
    `LIGUS_ADMISSION_FILE`:
 
    ```sh
-   lt --plain admit | cut -f5 > serve.code      # bearer: it carries the workspace key
+   lt --plain admit --out serve.code            # bearer: it carries the workspace key, so it is
+                                                # written owner-only to a new file, never printed
    kubectl -n NS create secret generic <release>-serve-admission --from-file=admission=serve.code
    # chart values: serve.admission.existingSecret: <release>-serve-admission
    #               worker.instances[].admission.existingSecret: one Secret per worker
@@ -205,7 +209,10 @@ this device's data dir, never synced.
 terminal) reads one command per line and writes one record per line: a
 keyword, tab-separated fields, text last. New messages, run changes,
 proposals and passkey prompts print as they happen, so a screen reader
-announces them.
+announces them. Text from the network (messages, names, run outputs) is
+printed with control characters, escape sequences and bidi overrides
+replaced by `�`, and line breaks inside a field written as `\n`, so it
+can't drive the terminal or forge a record.
 
 ```sh
 printf 'chats\nopen 1\nsay @coder fix the threshold\nwait\nproposals\n' | lt --demo --plain
