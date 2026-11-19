@@ -38,6 +38,8 @@ const MAX_LINE: u64 = 4 * 1024;
 const MAX_HEADERS: usize = 64;
 const MAX_HEAD: u64 = 16 * 1024;
 const MAX_BODY: usize = 64 * 1024;
+/// Loopback connections read at once; more are dropped unread.
+const MAX_CONNECTIONS: usize = 16;
 
 /// What the hand-off page submits.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -207,11 +209,27 @@ pub async fn hand_off(
         let _ = std::fs::remove_file(&page);
         return Err(HandOffError::Browser(e.to_string()));
     }
+    // Each connection is read on its own task (each capped at 5 s), so a
+    // local process holding idle connections open can't keep the browser's
+    // submission waiting; at most MAX_CONNECTIONS are read at once.
     let accept = async {
+        let nonce: std::sync::Arc<str> = nonce.as_str().into();
+        let slots = std::sync::Arc::new(tokio::sync::Semaphore::new(MAX_CONNECTIONS));
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<HandOff>(1);
         loop {
-            let (stream, _) = listener.accept().await.map_err(io)?;
-            if let Some(r) = read_submission(stream, &nonce).await {
-                return Ok(r);
+            tokio::select! {
+                Some(r) = rx.recv() => return Ok(r),
+                accepted = listener.accept() => {
+                    let (stream, _) = accepted.map_err(io)?;
+                    let Ok(slot) = slots.clone().try_acquire_owned() else { continue };
+                    let (tx, nonce) = (tx.clone(), nonce.clone());
+                    tokio::spawn(async move {
+                        if let Some(r) = read_submission(stream, &nonce).await {
+                            let _ = tx.send(r).await;
+                        }
+                        drop(slot);
+                    });
+                }
             }
         }
     };
@@ -397,6 +415,33 @@ mod tests {
         assert_eq!(r, Err(HandOffError::Cancelled));
         let r = hand_off(dir.path(), DEFAULT_PAGE_URL, "op=get", &NoBrowser, std::future::pending(), Duration::from_millis(20)).await;
         assert_eq!(r, Err(HandOffError::TimedOut));
+    }
+
+    /// A local process that connects and sends nothing must not hold up the
+    /// browser's submission (each stalled connection used to cost the whole
+    /// wait 5 s, one after another).
+    #[tokio::test]
+    async fn a_stalled_connection_doesnt_block_the_submission() {
+        struct Staller(FakeBrowser);
+        impl Opener for Staller {
+            fn open(&self, page: &Path) -> io::Result<()> {
+                let html = std::fs::read_to_string(page)?;
+                let port = html.split("&p=").nth(1).unwrap().split('&').next().unwrap().to_string();
+                // Three idle connections first, held open.
+                let idle: Vec<_> = (0..3).map(|_| std::net::TcpStream::connect(format!("127.0.0.1:{port}")).unwrap()).collect();
+                std::thread::spawn(move || {
+                    std::thread::sleep(Duration::from_secs(8));
+                    drop(idle);
+                });
+                std::thread::sleep(Duration::from_millis(100));
+                self.0.open(page)
+            }
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let browser = Staller(FakeBrowser { seen_url: Mutex::new(None), wrong_nonce_first: false });
+        let started = std::time::Instant::now();
+        let r = hand_off(dir.path(), DEFAULT_PAGE_URL, "op=get", &browser, std::future::pending(), Duration::from_secs(4)).await;
+        assert_eq!(r.map(|h| h.credential_id), Ok("abc".to_string()), "after {:?}", started.elapsed());
     }
 
     #[tokio::test]
