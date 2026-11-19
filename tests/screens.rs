@@ -355,3 +355,31 @@ async fn light_and_mono_themes_change_styles_not_text() {
     let fg = term.backend().buffer().content().iter().find(|c| c.symbol() == "A").map(|c| c.fg);
     assert_eq!(fg, Some(Theme::LIGHT.accent), "the active workspace name uses the light accent");
 }
+
+/// Remote text reaches the terminal as text: no escape sequences (ratatui
+/// drops control characters) and no bidi controls or other invisible
+/// format characters that would reorder or hide what is shown.
+#[tokio::test]
+async fn remote_text_cannot_reorder_or_hide_what_is_shown() {
+    let mut h = demo().await;
+    let ws = WorkspaceId::new("ws-apiary");
+    let chat = ChatId::new("c-log");
+    let bad = "ok \u{1b}]52;c;eA==\u{7}\u{1b}[2J \u{202e}gnp.exe\u{202c} \u{2067}x\u{2069} a\u{200b}b \u{feff}\u{9b}";
+    let message = Message {
+        id: MessageId::new("hostile"),
+        chat: chat.clone(),
+        author: Author::Agent { id: AgentId::new("a-coder"), handle: format!("coder\u{202e}{bad}"), runtime: "claude-code".into() },
+        text: bad.into(),
+        at: ligus_term::backend::fake::DEMO_NOW,
+        streaming: false,
+        tools: vec![ToolCall { name: format!("read\u{202e}{bad}"), preview: bad.into(), ok: true }],
+    };
+    h.send(Msg::Event(Event::MessageAdded { workspace: ws.clone(), message })).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("gnp.exe"), "{screen}");
+    for c in screen.chars() {
+        let format_or_control = c.is_control() && c != '\n'
+            || matches!(c, '\u{061c}' | '\u{200b}'..='\u{200f}' | '\u{202a}'..='\u{202e}' | '\u{2060}'..='\u{206f}' | '\u{feff}');
+        assert!(!format_or_control, "{c:?} reached the terminal: {screen:?}");
+    }
+}
