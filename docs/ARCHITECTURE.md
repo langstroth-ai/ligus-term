@@ -126,6 +126,8 @@ a separate device (`src/paths.rs`):
 - So is one that overlaps the CLI's (`$LIGUS_DATA_DIR`, `$HOME/.ligus`, in
   either direction): two programs on one device identity would sign from the
   same per-device chain and equivocate.
+- Both checks compare the paths as written and again with links resolved,
+  so a symlink to another program's data dir is refused too.
 - When wired, `lt` also calls the crates' `compat::claim_data_dir`, as the
   CLI does: it refuses directories holding older-app data and marks the
   dir as a Ligus one.

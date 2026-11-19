@@ -54,10 +54,17 @@ pub fn data_dir(flag: Option<&Path>, env: impl Fn(&str) -> Option<String>) -> Re
         (PathBuf::from("./ligus-term-data"), "default")
     };
     let norm = normalize(&path);
+    // Lexically, and again with links resolved: a link to another program's
+    // data dir is that dir.
+    let overlaps = |other: &Path| {
+        let (a, b) = (normalize(other), resolve(&norm));
+        let o = resolve(&a);
+        [(&norm, &a), (&b, &o)].iter().any(|(x, y)| x.starts_with(y) || y.starts_with(x))
+    };
     if let Some(h) = &home {
         for base in ["Library/Application Support", ".local/share", ".config"] {
             let desktop = normalize(&h.join(base).join(DESKTOP_APP_ID));
-            if norm.starts_with(&desktop) || desktop.starts_with(&norm) {
+            if overlaps(&desktop) {
                 return Err(format!(
                     "{} overlaps the desktop app's data at {}: lt is its own device, so give it its own data dir (--data-dir or LT_DATA_DIR)",
                     path.display(),
@@ -70,7 +77,7 @@ pub fn data_dir(flag: Option<&Path>, env: impl Fn(&str) -> Option<String>) -> Re
     if let Some(h) = &home {
         cli_dirs.push(h.join(CLI_HOME_DATA_DIR));
     }
-    if let Some(d) = cli_dirs.iter().map(|d| normalize(d)).find(|d| norm.starts_with(d) || d.starts_with(&norm)) {
+    if let Some(d) = cli_dirs.iter().map(|d| normalize(d)).find(|d| overlaps(d)) {
         return Err(format!(
             "{} overlaps the ligus CLI's data at {}: lt is its own device, so give it its own data dir (--data-dir or LT_DATA_DIR)",
             path.display(),
@@ -90,6 +97,25 @@ pub fn config_file(flag: Option<&Path>, env: impl Fn(&str) -> Option<String>) ->
         return Some(PathBuf::from(p));
     }
     dirs::config_dir().map(|d| d.join(CONFIG_DIR_NAME).join("config.toml"))
+}
+
+/// `p` with links resolved: its longest existing ancestor canonicalized,
+/// the rest appended (lexically normalized `p` when nothing resolves).
+fn resolve(p: &Path) -> PathBuf {
+    let mut rest = Vec::new();
+    let mut cur = p.to_path_buf();
+    loop {
+        if let Ok(c) = std::fs::canonicalize(&cur) {
+            return rest.iter().rev().fold(c, |acc, part| acc.join(part));
+        }
+        match (cur.file_name().map(|n| n.to_os_string()), cur.parent()) {
+            (Some(name), Some(parent)) => {
+                rest.push(name);
+                cur = parent.to_path_buf();
+            }
+            _ => return normalize(p),
+        }
+    }
 }
 
 /// Lexical normalization (no filesystem access): drops `.`, folds `..`.
@@ -159,6 +185,29 @@ mod tests {
             assert!(r.as_ref().is_err_and(|m| m.contains("ligus CLI")), "{p}: {r:?}");
         }
         assert!(data_dir(Some(Path::new("/Users/a/.ligus-term")), &e).is_ok());
+    }
+
+    /// A link (or `..` through one) to the CLI's or the desktop's data dir is
+    /// the same directory: refused like the path itself.
+    #[cfg(unix)]
+    #[test]
+    fn refuses_a_link_to_another_programs_data_dir() {
+        let tmp = tempfile::tempdir().unwrap();
+        let home = std::fs::canonicalize(tmp.path()).unwrap();
+        std::fs::create_dir_all(home.join(".ligus")).unwrap();
+        std::fs::create_dir_all(home.join("Library/Application Support/ai.ligus.desktop")).unwrap();
+        std::os::unix::fs::symlink(home.join(".ligus"), home.join("alias")).unwrap();
+        std::os::unix::fs::symlink(home.join("Library/Application Support/ai.ligus.desktop"), home.join("desk")).unwrap();
+        let h = home.display().to_string();
+        let pairs = [("HOME", h.as_str())];
+        let e = env(&pairs);
+        let r = data_dir(Some(&home.join("alias")), &e);
+        assert!(r.as_ref().is_err_and(|m| m.contains("ligus CLI")), "{r:?}");
+        let r = data_dir(Some(&home.join("alias/lt")), &e);
+        assert!(r.as_ref().is_err_and(|m| m.contains("ligus CLI")), "{r:?}");
+        let r = data_dir(Some(&home.join("desk/x")), &e);
+        assert!(r.as_ref().is_err_and(|m| m.contains("desktop app's data")), "{r:?}");
+        assert!(data_dir(Some(&home.join(".ligus-term")), &e).is_ok());
     }
 
     #[test]
