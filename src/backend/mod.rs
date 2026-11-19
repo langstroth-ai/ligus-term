@@ -16,6 +16,7 @@
 pub mod fake;
 pub mod model;
 pub mod presence;
+pub mod real;
 
 use async_trait::async_trait;
 use futures::stream::BoxStream;
