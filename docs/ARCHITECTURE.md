@@ -103,7 +103,9 @@ a separate device (`src/paths.rs`):
   `lt` the CLI's device.
 - A data dir that overlaps the desktop app's (`<app data>/ai.ligus.desktop`,
   in either direction) is refused.
-- Pointing `lt` at the CLI's dir gets a warning.
+- So is one that overlaps the CLI's (`$LIGUS_DATA_DIR`, `$HOME/.ligus`, in
+  either direction): two programs on one device identity would sign from the
+  same per-device chain and equivocate.
 - When wired, `lt` also calls the crates' `compat::claim_data_dir`, as the
   CLI does: it refuses directories holding older-app data and marks the
   dir as a Ligus one.

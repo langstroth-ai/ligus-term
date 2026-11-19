@@ -142,7 +142,7 @@ CLI:
 
 `lt` doesn't read `LIGUS_DATA_DIR`, so a shell set up for the CLI doesn't
 make `lt` the same device. It refuses a data dir that overlaps the desktop
-app's.
+app's or the CLI's.
 
 ## Develop
 

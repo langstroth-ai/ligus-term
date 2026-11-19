@@ -15,8 +15,10 @@
 //!
 //! `LIGUS_DATA_DIR` is deliberately not read: a shell that exports it for
 //! the CLI would otherwise make `lt` the same device as the CLI. A data dir
-//! that overlaps the desktop app's (`<app data>/ai.ligus.desktop`) is
-//! refused outright.
+//! that overlaps the desktop app's (`<app data>/ai.ligus.desktop`) or the
+//! CLI's (`$LIGUS_DATA_DIR`, `$HOME/.ligus`) is refused outright: two
+//! programs on one device identity would sign from the same per-device
+//! chain and equivocate.
 
 use std::path::{Component, Path, PathBuf};
 
@@ -34,7 +36,8 @@ pub struct DataDir {
     pub path: PathBuf,
     /// Where it came from ("--data-dir", "LT_DATA_DIR", "default").
     pub source: &'static str,
-    /// A warning to show (e.g. it is also the CLI's data dir).
+    /// A warning to show (none today: an overlap with another program's
+    /// data dir is refused instead).
     pub warning: Option<String>,
 }
 
@@ -67,12 +70,14 @@ pub fn data_dir(flag: Option<&Path>, env: impl Fn(&str) -> Option<String>) -> Re
     if let Some(h) = &home {
         cli_dirs.push(h.join(CLI_HOME_DATA_DIR));
     }
-    let warning = cli_dirs
-        .iter()
-        .map(|d| normalize(d))
-        .find(|d| *d == norm)
-        .map(|d| format!("{} is also the ligus CLI's data dir: lt and the CLI would be the same device", d.display()));
-    Ok(DataDir { path, source, warning })
+    if let Some(d) = cli_dirs.iter().map(|d| normalize(d)).find(|d| norm.starts_with(d) || d.starts_with(&norm)) {
+        return Err(format!(
+            "{} overlaps the ligus CLI's data at {}: lt is its own device, so give it its own data dir (--data-dir or LT_DATA_DIR)",
+            path.display(),
+            d.display()
+        ));
+    }
+    Ok(DataDir { path, source, warning: None })
 }
 
 /// The config file: `--config`, else `LT_CONFIG`, else
@@ -135,16 +140,25 @@ mod tests {
     }
 
     #[test]
-    fn refuses_the_desktop_dir_and_warns_on_the_cli_dir() {
+    fn refuses_the_desktop_dir() {
         let e = env(&[("HOME", "/Users/a"), ("LIGUS_DATA_DIR", "/srv/ligus")]);
         let r = data_dir(Some(Path::new("/Users/a/Library/Application Support/ai.ligus.desktop/sub")), &e);
         assert!(r.unwrap_err().contains("desktop app's data"));
         let r = data_dir(Some(Path::new("/Users/a/.local/share")), &e);
         assert!(r.is_err(), "a parent of the desktop dir overlaps it too");
-        let d = data_dir(Some(Path::new("/Users/a/.ligus")), &e).unwrap();
-        assert!(d.warning.unwrap().contains("same device"));
-        let d = data_dir(Some(Path::new("/srv/./ligus")), &e).unwrap();
-        assert!(d.warning.is_some());
+    }
+
+    /// Two programs on one device identity sign from the same per-device
+    /// chain and equivocate; lt never shares the CLI's data dir (exact or
+    /// nested either way), as it never shares the desktop's.
+    #[test]
+    fn refuses_the_cli_dir_and_anything_overlapping_it() {
+        let e = env(&[("HOME", "/Users/a"), ("LIGUS_DATA_DIR", "/srv/ligus")]);
+        for p in ["/Users/a/.ligus", "/Users/a/.ligus/lt", "/srv/./ligus", "/srv/ligus/x", "/srv"] {
+            let r = data_dir(Some(Path::new(p)), &e);
+            assert!(r.as_ref().is_err_and(|m| m.contains("ligus CLI")), "{p}: {r:?}");
+        }
+        assert!(data_dir(Some(Path::new("/Users/a/.ligus-term")), &e).is_ok());
     }
 
     #[test]
