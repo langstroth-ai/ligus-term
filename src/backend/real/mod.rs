@@ -126,6 +126,8 @@ pub(crate) struct Inner {
     beats: ligus_runtime::HostPresence,
     /// The workflow runs this device drives.
     drivers: Mutex<HashMap<Uuid, workflows::Driving>>,
+    /// Per workspace, this device's Ligus MCP server for its agents' turns.
+    ligus: Mutex<HashMap<Uuid, Arc<ligus_runtime::ligus_mcp::LigusMcp>>>,
 }
 
 /// The open device.
@@ -196,6 +198,7 @@ impl RealBackend {
             emitted: Mutex::new(HashMap::new()),
             beats: ligus_runtime::HostPresence::new(),
             drivers: Mutex::new(HashMap::new()),
+            ligus: Mutex::new(HashMap::new()),
             cfg,
             tx,
         });

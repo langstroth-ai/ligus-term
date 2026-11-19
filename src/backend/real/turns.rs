@@ -7,33 +7,37 @@
 //! person in it, always answers here. A turn that runs here is claimed first
 //! (`claim_turn`), so only one of the owner's devices answers.
 //!
-//! Before a turn runs, [`guard_turn`] applies what every Ligus host applies:
-//! the author-role gate (H1: below the floor a CLI runs read-only, or not at
-//! all), the chat's sandbox envelope (a lockdown or dearth mode narrows
-//! egress, or refuses a runtime it can't confine), and this host's OS
-//! sandbox (no sandbox: no CLI agent). The reply then streams inside
-//! `executor::with_turn`, so any agent child is spawned under that policy.
+//! Before a turn runs, [`guard_turn`] applies what every Ligus host applies
+//! (`turn_engine::decide_gate_with`): the author-role gate (H1: below the
+//! floor a CLI runs read-only, or not at all), the shell rule (the workspace
+//! Owner's, or granted), the chat's sandbox envelope (a lockdown or dearth
+//! mode narrows egress, or refuses a runtime it can't confine), and this
+//! host's OS sandbox (no sandbox: no CLI agent). The repo gate names the
+//! checkout (`turn_engine::repo_checkout`).
 //!
-//! The runner streams the reply from the responder's runtime
-//! (`provider::dispatch::stream`) into `begin_assistant_message` /
-//! `append_chunk` / `complete_assistant_message`; the change feed turns each
-//! append into `MessageAdded` / `MessageDelta` / `MessageDone` events.
+//! The turn then runs in the shared engine (`ligus_runtime::turn_engine`),
+//! with this device as its host ([`TermHost`]): tools, edits in a per-turn
+//! worktree filed as a proposal, hand-offs through this device's Ligus MCP
+//! server, every child under the turn's policy. The reply streams as
+//! `MessageDelta` events, tool calls as `ToolActivity`; the change feed
+//! turns each append into `MessageAdded` / `MessageDelta` / `MessageDone`.
 
-use std::sync::Arc;
+use std::future::Future;
+use std::sync::{Arc, Mutex};
 
 use ligus_core::{ChatSession, ModelProviderKind, WorkspaceAgent, WorkspaceRole, WorkspaceRuntime};
-use ligus_runtime::author_gate::GatePlan;
-use ligus_runtime::executor::{HostKind, TurnPolicy};
+use ligus_runtime::ChatService;
+use ligus_runtime::ResolvedRuntime;
+use ligus_runtime::executor::HostKind;
+use ligus_runtime::ligus_mcp::{LigusHost, LigusMcp};
+use ligus_runtime::provider::dispatch::StreamActivity;
 use ligus_runtime::turn_dispatch::{DispatchTarget, HostBinding, dispatch_target, host_binding, runs_here_linked, synced_user_triggers};
-use ligus_runtime::{ResolvedRuntime, dispatch};
+use ligus_runtime::turn_engine::{self, Checkout, EngineOptions, Gated, Responder, ToolOptions, TurnHost, TurnInput};
 use uuid::Uuid;
 
 use super::{Inner, one_line, views};
-use crate::backend::model::Message;
+use crate::backend::model::{ChatId, Message, MessageId, ToolCall, WorkspaceId};
 use crate::backend::{BackendError, Event, Result};
-
-/// Most tokens one reply may take.
-const MAX_TOKENS: u32 = 4096;
 
 /// A turn this device will run.
 pub struct Plan {
@@ -177,7 +181,28 @@ fn resolved(wr: &WorkspaceRuntime) -> Result<ResolvedRuntime> {
     if api_key.is_none() && needs_key(wr.provider, &wr.endpoint) {
         return Err(BackendError(format!("the runtime '{}' has no key on this device", wr.name)));
     }
-    Ok(base_runtime(wr.provider, wr.model.clone(), wr.endpoint.clone(), api_key, wr.driver))
+    let mut rt = base_runtime(wr.provider, wr.model.clone(), wr.endpoint.clone(), api_key, wr.driver);
+    // Workspace runtimes carry no "Supports tools" switch (it is
+    // device-local on the desktop): like `ligus worker`, this device opts its
+    // local-capable runtimes into the tool loop unless `LT_AGENT_TOOLS=0`.
+    // Hosted APIs never get it (`ResolvedRuntime::runs_agent_tools`), and
+    // the file tools go only to a private endpoint.
+    rt.tools = agent_tools_enabled();
+    Ok(rt)
+}
+
+/// `LT_AGENT_TOOLS` (default on): whether agents' turns here may use tools.
+fn agent_tools_enabled() -> bool {
+    env_on("LT_AGENT_TOOLS", true)
+}
+
+/// A yes/no environment switch.
+fn env_on(name: &str, default: bool) -> bool {
+    match std::env::var(name).map(|v| v.trim().to_ascii_lowercase()).as_deref() {
+        Ok("1" | "true" | "on" | "yes") => true,
+        Ok("0" | "false" | "off" | "no") => false,
+        _ => default,
+    }
 }
 
 fn base_runtime(
@@ -225,28 +250,22 @@ fn runtime_for(i: &Inner, ws: Uuid, runtime_id: &str) -> Result<(ResolvedRuntime
     }
 }
 
-/// The runtime and sandbox policy a turn runs under, as the desktop and the
-/// worker decide them: the author gate on `rt`'s args for the trigger's
-/// author (`author_role`, the role they held when they posted; `None`
-/// fails closed), the chat's envelope (its extra flags for `rt`, or a
-/// refusal), and this host's OS sandbox. `Err` is why the turn doesn't run.
+/// The runtime and policy a turn runs under, as the desktop and the worker
+/// decide them (`turn_engine::decide_gate_with`): the author gate on `rt`'s
+/// args for the trigger's author (`author_role`, the role they held when
+/// they posted; `None` fails closed), the shell rule (the workspace Owner's:
+/// `shell_role`, or granted to the agent), the chat's envelope (its extra
+/// flags for `rt`, or a refusal), and this host's OS sandbox. `Err` is why
+/// the turn doesn't run.
 pub fn guard_turn(
     session: &ChatSession,
-    mut rt: ResolvedRuntime,
+    rt: ResolvedRuntime,
     author_role: Option<WorkspaceRole>,
-) -> std::result::Result<(ResolvedRuntime, TurnPolicy), String> {
-    let gate = ligus_runtime::author_gate::gate_turn(rt.provider, &mut rt.args, author_role);
-    let envelope = ligus_core::sandbox::envelope_for_session(session);
-    let enforcement = ligus_runtime::sandbox::enforce(rt.provider, &envelope, &Vec::new());
-    if let Some(reason) = enforcement.refuse {
-        return Err(reason);
-    }
-    if let GatePlan::Refuse(reason) = &gate {
-        return Err(reason.clone());
-    }
-    ligus_runtime::executor::turn_allowed(rt.provider)?;
-    rt.args.extend(enforcement.extra_args);
-    Ok((rt, TurnPolicy::new(HostKind::Desktop, envelope, gate)))
+    shell_role: Option<WorkspaceRole>,
+    shell_granted: bool,
+    grants: ligus_core::sandbox::PathGrants,
+) -> std::result::Result<Gated, String> {
+    turn_engine::decide_gate_with(session, rt, author_role, shell_role, shell_granted, grants)
 }
 
 /// Run `plan` in the background.
@@ -271,103 +290,306 @@ async fn blocking<T: Send + 'static>(inner: &Arc<Inner>, f: impl FnOnce(&Inner) 
 }
 
 /// Run `plan` here; the reply's id and its final body.
+///
+/// The turn runs in the shared engine (`ligus_runtime::turn_engine`), as on
+/// the desktop and the worker: tools (Ligus's built-in file tools for a
+/// runtime that runs the tool loop, the folded Ligus tools), edits in a
+/// per-turn worktree of this device's checkout filed as a proposal,
+/// hand-offs, and every child confined by this host's sandbox.
 pub async fn run_turn(inner: &Arc<Inner>, plan: &Plan) -> Result<(Uuid, String)> {
     let (ws, sid, trigger) = (plan.ws, plan.sid, plan.trigger);
     let agent = plan.agent.clone();
     let runtime_id = plan.runtime_id.clone();
     let who = agent.as_ref().map(|a| format!("@{}", a.name)).unwrap_or_else(|| "@primary".into());
-    let wsid = crate::backend::model::WorkspaceId::new(ws.to_string());
-    let chat = crate::backend::model::ChatId::new(sid.to_string());
+    let wsid = WorkspaceId::new(ws.to_string());
+    let chat = ChatId::new(sid.to_string());
     inner.emit(Event::Thinking { workspace: wsid.clone(), chat: chat.clone(), agent: who.clone(), on: true });
-    let prepared = blocking(inner, move |i| {
-        let (rt, rt_id) = runtime_for(i, ws, &runtime_id)?;
-        let author = agent.as_ref().map(|a| a.name.clone()).unwrap_or_else(|| "Hive".into());
-        let agent_id = agent.as_ref().map(|a| a.id);
-        let s = i.read(ws, |svc| svc.load(sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
-        // The author's role is recognized from the signed log, never from
-        // the message's self-asserted identity.
-        let role = i.read(ws, |svc| svc.trigger_author_role(sid, trigger))?;
-        let provider = rt.provider;
-        let (rt, policy) = match guard_turn(&s, rt, role) {
-            Ok(g) => g,
+    let prepared = blocking(inner, move |i| prepare(i, ws, sid, trigger, agent.as_ref(), &runtime_id)).await;
+    let (input, checkout) = match prepared {
+        Ok(p) => p,
+        Err(e) => {
+            inner.emit(Event::Thinking { workspace: wsid, chat, agent: who, on: false });
+            return Err(e);
+        }
+    };
+    let host = TermHost {
+        inner: inner.clone(),
+        ws,
+        svc: inner.core()?.svc.clone(),
+        founder: inner.founder(ws),
+        ligus: ligus_server(inner, ws),
+        checkout,
+        wsid: wsid.clone(),
+        chat: chat.clone(),
+        who,
+        calls: Default::default(),
+    };
+    let result = turn_engine::run(&host, input).await;
+    host.thinking(false);
+    match result {
+        Ok(o) => Ok((o.message_id, o.body)),
+        // A stopped turn's reply is empty; a failed one says why.
+        Err(e) if e.stopped => Ok((e.message_id.unwrap_or_default(), String::new())),
+        Err(e) => match e.message_id {
+            Some(mid) => Ok((mid, if e.message.starts_with("[error]") { e.message } else { format!("[error] {}", e.message) })),
+            None => Err(BackendError(e.message)),
+        },
+    }
+}
+
+/// Everything the engine needs, decided here: the runtime, the gate and
+/// the shell rule, the context, the checkout.
+fn prepare(
+    i: &Inner,
+    ws: Uuid,
+    sid: Uuid,
+    trigger: Uuid,
+    agent: Option<&WorkspaceAgent>,
+    runtime_id: &str,
+) -> Result<(TurnInput, Checkout)> {
+    let (rt, rt_id) = runtime_for(i, ws, runtime_id)?;
+    let author = agent.map(|a| a.name.clone()).unwrap_or_else(|| "Hive".into());
+    let agent_id = agent.map(|a| a.id);
+    let s = i.read(ws, |svc| svc.load(sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
+    let provider = rt.provider;
+    // The author's role is recognized from the signed log, never from the
+    // message's self-asserted identity; so is the shell rule's.
+    let (role, shell_role, grants) = i.read(ws, |svc| {
+        Ok((
+            svc.trigger_author_role(sid, trigger)?,
+            svc.trigger_shell_role(sid, trigger)?,
+            svc.sandbox_grants_here(ws, ligus_runtime::sandbox::grants_setting_from_env()).0,
+        ))
+    })?;
+    let granted = agent_id.is_some_and(|id| grants.shell_granted(id));
+    let gated = match guard_turn(&s, rt, role, shell_role, granted, grants.paths_for(agent_id)) {
+        Ok(g) => g,
+        Err(reason) => {
+            let _ = i.write(ws, |svc| svc.post_system_note(sid, ws, format!("A {provider:?} turn was not run: {reason}")));
+            return Err(BackendError(reason));
+        }
+    };
+    // The repo gate: a chat with a repo runs only in this device's checkout
+    // of it; one without, in the checkout bound for the workspace (if any).
+    let legacy = super::lock(&i.local).checkouts.get(&ws.to_string()).map(std::path::PathBuf::from);
+    let checkout = {
+        let core = i.core()?;
+        core.svc.lock().unwrap_or_else(|e| e.into_inner()).set_trusted_founder(i.founder(ws));
+        match turn_engine::repo_checkout(&core.svc, &s, &i.cfg.device_name, legacy) {
+            Ok(c) => c,
             Err(reason) => {
-                let _ = i.write(ws, |svc| svc.post_system_note(sid, ws, format!("A {provider:?} turn was not run: {reason}")));
+                let _ = i.write(ws, |svc| svc.post_system_note(sid, ws, format!("{author} did not run: {reason}")));
                 return Err(BackendError(reason));
             }
-        };
-        let through = s.messages.iter().position(|m| m.id == trigger).map(|n| n + 1).unwrap_or(s.messages.len());
-        let mut upto = s.clone();
-        upto.messages.truncate(through);
-        let turns = ligus_runtime::turns_for(&upto, agent_id, &author);
-        let system = match &agent {
-            Some(a) if !a.role.is_empty() => format!("You are @{}, an agent in a Ligus workspace chat. Your role: {}.", a.name, a.role),
-            Some(a) => format!("You are @{}, an agent in a Ligus workspace chat.", a.name),
-            None => "You are the assistant in a Ligus workspace chat.".to_string(),
-        };
-        let mid = i.write(ws, |svc| svc.begin_assistant_message(sid, ws, author, rt_id, agent_id, Some(trigger)))?;
-        let placeholder =
-            i.read(ws, |svc| svc.load(sid))?.and_then(|s| s.messages.iter().find(|m| m.id == mid).map(|m| views::message(&s, m)));
-        Ok((rt, policy, turns, system, mid, placeholder))
-    })
-    .await;
-    inner.emit(Event::Thinking { workspace: wsid.clone(), chat: chat.clone(), agent: who, on: false });
-    let (rt, policy, turns, system, mid, placeholder) = prepared?;
-    // Stream to the UI as the model answers; the log gets the same text
-    // (redacted, a little behind) through `append_chunk`.
-    inner.emitted.lock().unwrap_or_else(|e| e.into_inner()).entry(mid).or_insert(0);
-    if let Some(m) = placeholder {
-        inner.emit(Event::MessageAdded { workspace: wsid.clone(), message: m });
+        }
+    };
+    let through = s.messages.iter().position(|m| m.id == trigger).map(|n| n + 1).unwrap_or(s.messages.len());
+    let mut upto = s.clone();
+    upto.messages.truncate(through);
+    let turns = ligus_runtime::turns_for(&upto, agent_id, &author);
+    let system = match agent {
+        Some(a) if !a.role.is_empty() => format!("You are @{}, an agent in a Ligus workspace chat. Your role: {}.", a.name, a.role),
+        Some(a) => format!("You are @{}, an agent in a Ligus workspace chat.", a.name),
+        None => "You are the assistant in a Ligus workspace chat.".to_string(),
+    };
+    let system = match ligus_runtime::prompt::requester_guidance(&upto, Some(trigger)) {
+        g if g.is_empty() => system,
+        g => format!("{system}\n\n{g}"),
+    };
+    // A CLI agent writes only at a raised tier, and only in a worktree.
+    let write_capable = gated.gate.allows_writes() && ligus_runtime::author_gate::turn_writes(gated.runtime.provider, &gated.runtime.args);
+    let input = TurnInput {
+        workspace_id: ws,
+        chat_id: sid,
+        session: upto,
+        reply_to: Some(trigger),
+        responder: Responder { author: author.clone(), effect_author: author, runtime_id: rt_id, agent_id, runtime: gated.runtime.clone() },
+        system,
+        turns,
+        gate: gated.gate.clone(),
+        envelope: gated.envelope.clone(),
+        shell_allowed: gated.shell_allowed,
+        policy: gated.policy(HostKind::Desktop),
+        executor: ligus_runtime::executor::default_executor(),
+        // `run_command` is a shell: opt-in (`LT_RUN_COMMAND=1`), and only
+        // where the envelope and the shell rule allow one.
+        tools: ToolOptions {
+            builtin: true,
+            write_in_place: false,
+            run_command: env_on("LT_RUN_COMMAND", false) && gated.allow_run_command && gated.shell_allowed,
+            ..Default::default()
+        },
+        write_capable,
+        require_isolation: true,
+        stop: None,
+        timeout: turn_engine::turn_timeout(),
+        options: EngineOptions { empty_reply_notice: true, scan_injections: true, detailed_report: true, ..Default::default() },
+    };
+    Ok((input, checkout))
+}
+
+/// This device's Ligus MCP server for `ws` (one per workspace, so its
+/// effects are judged under that workspace's founder pin).
+fn ligus_server(inner: &Arc<Inner>, ws: Uuid) -> Option<Arc<LigusMcp>> {
+    let mut map = super::lock(&inner.ligus);
+    let s = map.entry(ws).or_insert_with(|| LigusMcp::new(Arc::new(TermLigusHost { inner: Arc::downgrade(inner), ws })));
+    Some(s.clone())
+}
+
+/// `lt` as the Ligus MCP server's host: agent effects go through the write
+/// service pinned to the workspace's founder; a hand-off runs the receiver
+/// here when it is this device's to answer.
+struct TermLigusHost {
+    inner: std::sync::Weak<Inner>,
+    ws: Uuid,
+}
+
+impl LigusHost for TermLigusHost {
+    fn with_service(&self, f: &mut dyn FnMut(&mut ChatService)) {
+        let Some(inner) = self.inner.upgrade() else { return };
+        let Ok(core) = inner.core() else { return };
+        let mut svc = core.svc.lock().unwrap_or_else(|e| e.into_inner());
+        svc.set_trusted_founder(inner.founder(self.ws));
+        f(&mut svc);
     }
 
-    // Chunks go to the log through one writer, in order.
-    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<String>();
-    let writer = {
-        let inner = inner.clone();
+    fn start_turn(&self, chat: Uuid, agent: Uuid, trigger: Uuid) {
+        let Some(inner) = self.inner.upgrade() else { return };
+        let ws = self.ws;
+        let i = inner.clone();
         tokio::spawn(async move {
-            while let Some(first) = rx.recv().await {
-                let mut chunk = first;
-                while let Ok(more) = rx.try_recv() {
-                    chunk.push_str(&more);
-                }
-                let _ = blocking(&inner, move |i| i.write(ws, |svc| svc.append_chunk(sid, ws, mid, chunk))).await;
+            match blocking(&i, move |i| plan_handoff(i, ws, chat, agent, trigger)).await {
+                Ok(Some(plan)) => spawn_turn(inner, plan),
+                Ok(None) => {}
+                Err(e) => inner.emit(Event::Sync { workspace: WorkspaceId::new(ws.to_string()), status: format!("hand-off failed: {e}") }),
             }
-        })
-    };
-    let message = crate::backend::model::MessageId::new(mid.to_string());
-    // Every agent child this turn spawns runs under its policy.
-    let result = ligus_runtime::executor::with_turn(
-        policy,
-        dispatch::stream(
-            &rt,
-            Some(&system),
-            &turns,
-            None,
-            &[],
-            MAX_TOKENS,
-            |d| {
-                *inner.emitted.lock().unwrap_or_else(|e| e.into_inner()).entry(mid).or_insert(0) += d.len();
-                inner.emit(Event::MessageDelta { workspace: wsid.clone(), chat: chat.clone(), message: message.clone(), delta: d.clone() });
-                let _ = tx.send(d);
-            },
-            |_| {},
-        ),
-    )
-    .await;
-    drop(tx);
-    let _ = writer.await;
-    let body = match result {
-        Ok(text) => text,
-        Err(e) => format!("[error] {e}"),
-    };
-    let done = body.clone();
-    blocking(inner, move |i| i.write(ws, |svc| svc.complete_assistant_message(sid, ws, mid, done))).await?;
-    Ok((mid, body))
+        });
+    }
+
+    fn ask_posted(&self, chat: Uuid, _ask: &ligus_core::flow::HumanAsk) {
+        if let Some(inner) = self.inner.upgrade() {
+            let _ = chat;
+            inner.emit(Event::ChatsChanged { workspace: WorkspaceId::new(self.ws.to_string()) });
+        }
+    }
+}
+
+/// A hand-off's receiver runs here when it is this device's to answer (the
+/// same rule as a mention: its host binding, or its owner here), claimed
+/// first so no other device answers it too.
+fn plan_handoff(i: &Inner, ws: Uuid, sid: Uuid, agent_id: Uuid, trigger: Uuid) -> Result<Option<Plan>> {
+    let core = i.core()?;
+    let local = core.identity.actor().id;
+    let device = core.identity.device.id.to_string();
+    let (session, links) = i.read(ws, |svc| Ok((svc.load(sid)?, svc.device_links(ws).unwrap_or_default())))?;
+    let Some(session) = session else { return Ok(None) };
+    let Some(agent) = session.workspace_agents.iter().find(|a| a.id == agent_id).cloned() else { return Ok(None) };
+    if !runs_here_linked(i.local_only(ws), &links, &session, &local, &agent.owner_actor_id, host_binding(&agent.host_id, &device)) {
+        return Ok(None);
+    }
+    if !i.write(ws, |svc| svc.claim_turn(sid, ws, trigger))? {
+        return Ok(None);
+    }
+    let runtime_id = agent.runtime_id.clone();
+    Ok(Some(Plan { ws, sid, trigger, agent: Some(agent), runtime_id }))
+}
+
+/// `lt` as the turn engine's host: the write service pinned to the
+/// workspace's founder, the repo gate's checkout, and the live events the
+/// UI renders (the streamed reply and the agent's tool calls).
+struct TermHost {
+    inner: Arc<Inner>,
+    ws: Uuid,
+    svc: Arc<Mutex<ChatService>>,
+    founder: Option<String>,
+    ligus: Option<Arc<LigusMcp>>,
+    checkout: Checkout,
+    wsid: WorkspaceId,
+    chat: ChatId,
+    who: String,
+    /// Tool calls in flight: call id → (name, input preview).
+    calls: Mutex<std::collections::HashMap<String, (String, String)>>,
+}
+
+impl TermHost {
+    fn thinking(&self, on: bool) {
+        self.inner.emit(Event::Thinking { workspace: self.wsid.clone(), chat: self.chat.clone(), agent: self.who.clone(), on });
+    }
+}
+
+/// A tool call's input, one line, short.
+fn preview(input_json: &str) -> String {
+    let one: String = input_json.split_whitespace().collect::<Vec<_>>().join(" ");
+    if one.chars().count() > 80 { format!("{}…", one.chars().take(79).collect::<String>()) } else { one }
+}
+
+impl TurnHost for TermHost {
+    fn service(&self) -> &Mutex<ChatService> {
+        &self.svc
+    }
+    fn pin(&self, svc: &mut ChatService) {
+        svc.set_trusted_founder(self.founder.clone());
+    }
+    fn ligus(&self) -> Option<Arc<LigusMcp>> {
+        self.ligus.clone()
+    }
+    fn checkout(&self, _session: &ChatSession, _message_id: Uuid) -> impl Future<Output = std::result::Result<Checkout, String>> + Send {
+        // The repo gate ran before the turn started.
+        let c = self.checkout.clone();
+        async move { Ok(c) }
+    }
+    fn begun(&self, mid: Uuid) {
+        self.thinking(false);
+        super::lock(&self.inner.emitted).entry(mid).or_insert(0);
+        let s = self.inner.read(self.ws, |svc| svc.load(self.chat_uuid()));
+        if let Some(m) = s.ok().flatten().and_then(|s| s.messages.iter().find(|m| m.id == mid).map(|m| views::message(&s, m))) {
+            self.inner.emit(Event::MessageAdded { workspace: self.wsid.clone(), message: m });
+        }
+    }
+    fn delta(&self, mid: Uuid, text: &str) {
+        *super::lock(&self.inner.emitted).entry(mid).or_insert(0) += text.len();
+        self.inner.emit(Event::MessageDelta {
+            workspace: self.wsid.clone(),
+            chat: self.chat.clone(),
+            message: MessageId::new(mid.to_string()),
+            delta: text.to_string(),
+        });
+    }
+    fn activity(&self, mid: Uuid, act: &StreamActivity) {
+        let call = match act {
+            StreamActivity::Tool { id, name, input_json } => {
+                super::lock(&self.calls).insert(id.clone(), (name.clone(), preview(input_json)));
+                return;
+            }
+            StreamActivity::ToolResult { call_id, is_error, .. } => {
+                let (name, preview) = super::lock(&self.calls).remove(call_id).unwrap_or_else(|| ("tool".into(), String::new()));
+                ToolCall { name, preview, ok: !is_error }
+            }
+            _ => return,
+        };
+        self.inner.emit(Event::ToolActivity {
+            workspace: self.wsid.clone(),
+            chat: self.chat.clone(),
+            message: MessageId::new(mid.to_string()),
+            call,
+        });
+    }
+    fn proposal_filed(&self, _svc: &mut ChatService, _proposal: Uuid) {
+        self.inner.emit(Event::ChatsChanged { workspace: self.wsid.clone() });
+    }
+}
+
+impl TermHost {
+    fn chat_uuid(&self) -> Uuid {
+        Uuid::parse_str(self.chat.as_str()).unwrap_or_default()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use ligus_core::{ActorIdentity, ActorKind, SigningKeypair};
+    use ligus_runtime::author_gate::GatePlan;
     use ligus_runtime::{ChatService, EventStore};
 
     fn claude() -> ResolvedRuntime {
@@ -395,15 +617,21 @@ mod tests {
         ligus_runtime::executor::refuses_writes()
     }
 
+    fn guard(s: &ChatSession, rt: ResolvedRuntime, role: Option<WorkspaceRole>) -> std::result::Result<Gated, String> {
+        guard_turn(s, rt, role, role, false, Default::default())
+    }
+
     #[test]
     fn an_owner_runs_claude_code_inside_the_sandbox_policy() {
         let (open, _) = chats();
-        match guard_turn(&open, claude(), Some(WorkspaceRole::Owner)) {
-            Ok((rt, policy)) => {
+        match guard(&open, claude(), Some(WorkspaceRole::Owner)) {
+            Ok(g) => {
                 assert!(!no_sandbox());
-                assert_eq!(policy.gate, GatePlan::Full);
-                assert!(policy.envelope.egress.is_open());
-                assert!(rt.args.iter().any(|a| a == "--strict-mcp-config"), "{:?}", rt.args);
+                assert_eq!(g.gate, GatePlan::Full);
+                assert!(g.envelope.egress.is_open());
+                assert!(g.shell_allowed, "the workspace Owner keeps the shell");
+                assert!(g.policy(HostKind::Desktop).shell_allowed);
+                assert!(g.runtime.args.iter().any(|a| a == "--strict-mcp-config"), "{:?}", g.runtime.args);
             }
             Err(e) => assert!(no_sandbox(), "refused on a host with a sandbox: {e}"),
         }
@@ -416,15 +644,34 @@ mod tests {
     fn a_low_or_unknown_author_never_gets_the_configured_tier() {
         let (open, _) = chats();
         for role in [None, Some(WorkspaceRole::Viewer)] {
-            if let Ok((_, policy)) = guard_turn(&open, claude(), role) {
-                assert_ne!(policy.gate, GatePlan::Full, "{role:?}");
+            if let Ok(g) = guard(&open, claude(), role) {
+                assert_ne!(g.gate, GatePlan::Full, "{role:?}");
+                assert!(!g.shell_allowed);
             }
         }
         let mut writing = claude();
         writing.args = vec!["--permission-mode".into(), "acceptEdits".into()];
-        if let Ok((rt, policy)) = guard_turn(&open, writing, Some(WorkspaceRole::Contributor)) {
-            assert_eq!(policy.gate, GatePlan::ReadOnly);
-            assert!(!rt.args.iter().any(|a| a == "acceptEdits"), "{:?}", rt.args);
+        if let Ok(g) = guard(&open, writing, Some(WorkspaceRole::Contributor)) {
+            assert_eq!(g.gate, GatePlan::ReadOnly);
+            assert!(!g.runtime.args.iter().any(|a| a == "acceptEdits"), "{:?}", g.runtime.args);
+        }
+    }
+
+    /// The shell is the workspace Owner's: an Admin's turn runs at its tier
+    /// but without the shell (bypass capped at accepting edits), unless an
+    /// Owner granted it to the agent.
+    #[test]
+    fn an_admins_turn_has_no_shell_unless_granted() {
+        let (open, _) = chats();
+        let mut bypass = claude();
+        bypass.args = vec!["--permission-mode".into(), "bypassPermissions".into()];
+        if let Ok(g) = guard(&open, bypass.clone(), Some(WorkspaceRole::Admin)) {
+            assert!(!g.shell_allowed);
+            assert!(!g.policy(HostKind::Desktop).shell_allowed);
+            assert!(!g.runtime.args.iter().any(|a| a == "bypassPermissions"), "{:?}", g.runtime.args);
+        }
+        if let Ok(g) = guard_turn(&open, bypass, Some(WorkspaceRole::Admin), Some(WorkspaceRole::Admin), true, Default::default()) {
+            assert!(g.shell_allowed, "an Owner's grant gives the agent the shell");
         }
     }
 
@@ -433,10 +680,10 @@ mod tests {
     #[test]
     fn a_lockdown_closes_egress_for_the_turn() {
         let (_, locked) = chats();
-        match guard_turn(&locked, claude(), Some(WorkspaceRole::Owner)) {
-            Ok((rt, policy)) => {
-                assert!(!policy.envelope.egress.is_open());
-                assert!(rt.args.windows(2).any(|w| w[0] == "--disallowedTools" && w[1] == "WebFetch"), "{:?}", rt.args);
+        match guard(&locked, claude(), Some(WorkspaceRole::Owner)) {
+            Ok(g) => {
+                assert!(!g.envelope.egress.is_open());
+                assert!(g.runtime.args.windows(2).any(|w| w[0] == "--disallowedTools" && w[1] == "WebFetch"), "{:?}", g.runtime.args);
             }
             Err(e) => assert!(no_sandbox(), "{e}"),
         }
