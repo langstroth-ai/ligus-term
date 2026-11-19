@@ -630,28 +630,37 @@ async fn a_held_workspace_is_never_rejoined_from_another_invite() {
 
 /// The deferred-claim fallback re-resolves who answers when it fires, as
 /// the desktop's does: an agent removed while the turn waited isn't run.
+///
+/// Deterministic on a slow runner: the wait is long enough that the
+/// removal reaches Ben first (checked, not assumed), and a second agent's
+/// turn, armed at the same time and left in place, shows the fallback has
+/// fired before anything is asserted about the removed one.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn the_fallback_re_resolves_its_responder_when_it_fires() {
+    const WAIT: Duration = Duration::from_secs(20);
     let tmp = tempfile::tempdir().unwrap();
     let relay = serve(ligus_runtime::test_relay::router()).await;
     let model = fake_model().await;
     let a = device(&tmp.path().join("ana"), "lt Ana", &relay);
-    let b = device_with(&tmp.path().join("ben"), "lt Ben", &relay, |c| c.deferred_timeout = Duration::from_secs(3));
+    let b = device_with(&tmp.path().join("ben"), "lt Ben", &relay, |c| c.deferred_timeout = WAIT);
     let created = a.b.create_workspace("Ana", "Bee Yard").await.unwrap();
     let ws = created.workspace.id.clone();
     let wsu = Uuid::parse_str(ws.as_str()).unwrap();
-    // Ana's agent lives on a worker that is offline: nobody answers it, so
-    // Ben's device would after the wait.
+    // Ana's agents live on workers that are offline: nobody answers them,
+    // so Ben's device would after the wait.
     let coder = on_service(&a, move |svc| {
         let mut rt = WorkspaceRuntime::new("gw", "Lab gateway", ModelProviderKind::Custom, "test-model");
         rt.endpoint = model;
         svc.add_workspace_runtime(wsu, rt).unwrap();
-        let mut agent = WorkspaceAgent::new("coder", "gw");
-        agent.owner_actor_id = svc.author().id.clone();
-        agent.host_id = Uuid::new_v4().to_string();
-        let id = agent.id;
-        svc.add_agent(workspace_config_session_id(wsu), wsu, agent).unwrap();
-        id
+        let mut ids = vec![];
+        for name in ["coder", "scout"] {
+            let mut agent = WorkspaceAgent::new(name, "gw");
+            agent.owner_actor_id = svc.author().id.clone();
+            agent.host_id = Uuid::new_v4().to_string();
+            ids.push(agent.id);
+            svc.add_agent(workspace_config_session_id(wsu), wsu, agent).unwrap();
+        }
+        ids[0]
     })
     .await;
     let words = tmp.path().join("words.txt");
@@ -665,21 +674,33 @@ async fn the_fallback_re_resolves_its_responder_when_it_fires() {
     let invite = a.b.create_invite(&ws, Role::Contributor).await.unwrap();
     b.b.join_workspace("Ben", &invite).await.unwrap();
     let chat = a.b.create_chat(&ws, "Varroa").await.unwrap();
-    until("Ben to see the chat and the agent", || async {
+    let has = |agents: &[Agent], h: &str| agents.iter().any(|x| x.handle == h);
+    until("Ben to see the chat and the agents", || async {
         let c = b.b.chats(&ws).await.unwrap().into_iter().any(|c| c.id == chat.id);
-        let ag = b.b.agents(&ws).await.unwrap().into_iter().any(|x| x.handle == "coder");
-        (c && ag).then_some(())
+        let ag = b.b.agents(&ws).await.unwrap();
+        (c && has(&ag, "coder") && has(&ag, "scout")).then_some(())
     })
     .await;
 
+    let armed = tokio::time::Instant::now();
     b.b.send_message(&ws, &chat.id, "@coder are the mites under 3?").await.unwrap();
-    // While the turn waits, Ana removes the agent.
+    b.b.send_message(&ws, &chat.id, "@scout any queen cells?").await.unwrap();
+    // While the turns wait, Ana removes the coder.
     on_service(&a, move |svc| svc.remove_agent(workspace_config_session_id(wsu), wsu, coder).unwrap()).await;
-    until("Ben to see the agent gone", || async { (!b.b.agents(&ws).await.unwrap().iter().any(|x| x.handle == "coder")).then_some(()) })
-        .await;
-    tokio::time::sleep(Duration::from_secs(5)).await;
+    until("Ben to see the coder gone", || async { (!has(&b.b.agents(&ws).await.unwrap(), "coder")).then_some(()) }).await;
+    assert!(armed.elapsed() < WAIT, "the removal took longer than the fallback wait to reach Ben: nothing to test");
+    let agent_replies = |t: &[Message], h: &str| {
+        t.iter().filter(|m| matches!(&m.author, Author::Agent { handle, .. } if handle == h)).cloned().collect::<Vec<_>>()
+    };
+    // The scout's fallback fired (and the coder's, armed first, with it).
+    tokio::time::sleep(WAIT.saturating_sub(armed.elapsed())).await;
+    until("the scout's fallback to answer", || async {
+        let t = b.b.transcript(&ws, &chat.id).await.unwrap();
+        agent_replies(&t, "scout").iter().any(|m| !m.streaming).then_some(())
+    })
+    .await;
     let t = b.b.transcript(&ws, &chat.id).await.unwrap();
-    assert!(!t.iter().any(|m| matches!(m.author, Author::Agent { .. })), "a removed agent answered: {t:?}");
+    assert!(agent_replies(&t, "coder").is_empty(), "a removed agent answered: {t:?}");
     a.b.shutdown();
     b.b.shutdown();
 }
