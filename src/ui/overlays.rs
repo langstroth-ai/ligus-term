@@ -19,6 +19,87 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         Some(Overlay::Help { scroll }) => help(f, area, s, *scroll, t),
         Some(Overlay::Switcher { sel }) => switcher(f, area, s, *sel, t),
         Some(Overlay::AddWorkspace(form)) => onboarding::draw_form(f, area, s, form, t, false),
+        Some(Overlay::StartRun { name, label, input, .. }) => {
+            let r = center(area, 64, 6);
+            f.render_widget(Clear, r);
+            let title = format!("Start “{name}”");
+            let block = pane(&title, true, t);
+            let inner = block.inner(r);
+            f.render_widget(block, r);
+            let ask = label.clone().unwrap_or_else(|| "Input (optional)".into());
+            let lines = vec![
+                Line::styled(ask, t.dim()),
+                Line::styled(input.text.clone(), t.text()),
+                Line::styled("enter start · esc cancel · this device drives the run", t.dim()),
+            ];
+            f.render_widget(Paragraph::new(lines), inner);
+            f.set_cursor_position(Position::new(inner.x + input.cursor_pos().1 as u16, inner.y + 1));
+        }
+        Some(Overlay::BindCheckout(buf)) => {
+            let r = center(area, 72, 7);
+            f.render_widget(Clear, r);
+            let block = pane("This device's checkout", true, t);
+            let inner = block.inner(r);
+            f.render_widget(block, r);
+            let lines = vec![
+                Line::styled("The git checkout approved proposals are applied in when a host asks this device.", t.dim()),
+                Line::styled(buf.text.clone(), t.text()),
+                Line::raw(""),
+                Line::styled("enter save · empty to unbind · esc cancel", t.dim()),
+            ];
+            f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
+            f.set_cursor_position(Position::new(inner.x + buf.cursor_pos().1 as u16, inner.y + 1));
+        }
+        Some(Overlay::AdmitBox { request, busy, result }) => {
+            let r = center(area, 84, 11);
+            f.render_widget(Clear, r);
+            let block = pane("Admit a box", true, t);
+            let inner = block.inner(r);
+            f.render_widget(block, r);
+            let mut lines = vec![];
+            match result {
+                None => {
+                    lines.push(Line::styled(
+                        "A ligus serve or ligus worker box joins as its own service member (Contributor). Paste the join request it printed (ligusjoin1:…), or leave it empty for a code to put in a Kubernetes Secret or LIGUS_ADMISSION_FILE.",
+                        t.text(),
+                    ));
+                    lines.push(Line::raw(""));
+                    lines.push(Line::styled(format!("› {}", super::trunc(&request.text, inner.width as usize - 4)), t.accent()));
+                    lines.push(Line::raw(""));
+                    if *busy {
+                        lines.push(Line::styled("Admitting… confirm the passkey prompt", t.fg(t.warn)));
+                    } else {
+                        lines.push(Line::styled("enter admit · esc cancel", t.dim()));
+                    }
+                }
+                Some(a) => {
+                    if a.sealed {
+                        let fp = a.fingerprint.clone().unwrap_or_default();
+                        let label = a.label.clone().map(|l| format!(" ({l})")).unwrap_or_default();
+                        lines.push(Line::from(vec![
+                            Span::styled("Sealed to the box", t.fg(t.good)),
+                            Span::styled(format!("{label}: check its fingerprint matches "), t.text()),
+                            Span::styled(fp, t.accent()),
+                        ]));
+                        lines.push(Line::styled("On the box: ligus admit redeem <code>, then start it again.", t.dim()));
+                    } else {
+                        lines.push(Line::styled(
+                            "A bearer code: it carries the workspace key. Hand it over privately and delete it once the box joined.",
+                            t.fg(t.warn),
+                        ));
+                        lines.push(Line::styled(
+                            "kubectl create secret generic <release>-serve-admission --from-file=admission=<file>, or LIGUS_ADMISSION_FILE.",
+                            t.dim(),
+                        ));
+                    }
+                    lines.push(Line::raw(""));
+                    lines.push(Line::styled(a.code.clone(), t.text()));
+                    lines.push(Line::raw(""));
+                    lines.push(Line::styled("any key closes", t.dim()));
+                }
+            }
+            f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
+        }
         Some(Overlay::NewChat(buf)) => {
             let r = center(area, 56, 5);
             f.render_widget(Clear, r);

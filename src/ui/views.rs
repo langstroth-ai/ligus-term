@@ -1,4 +1,5 @@
-//! Agents and runtimes, hosts, people, notifications and settings.
+//! Agents and runtimes, hosts, people, notifications, settings, workflows
+//! and memory.
 
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
@@ -7,8 +8,9 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{List, ListItem, ListState, Paragraph, Row, Table, TableState, Wrap};
 
 use super::{pane, trunc};
+use crate::app::state::WorkflowItem;
 use crate::app::state::{State, ago};
-use crate::backend::model::{Allowed, HostKind, Role};
+use crate::backend::model::{AgentStatus, Allowed, HostKind, Role, RunStatus, StageStatus};
 use crate::keymap::{Action, Context};
 use crate::theme::Theme;
 
@@ -21,25 +23,31 @@ fn host_badge(s: &State, host: Option<&crate::backend::model::HostId>) -> (Strin
 }
 
 pub fn agents(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
-    let [top, bottom] = Layout::vertical([Constraint::Percentage(55), Constraint::Percentage(45)]).areas(area);
+    let [top, ho, bottom] = Layout::vertical([Constraint::Percentage(50), Constraint::Length(5), Constraint::Min(4)]).areas(area);
     let rows: Vec<Row> = s
         .agents
         .iter()
         .map(|a| {
             let (badge, ok) = host_badge(s, a.host.as_ref());
+            let status = match a.status {
+                AgentStatus::Busy => Span::styled("busy", t.fg(t.warn).add_modifier(Modifier::BOLD)),
+                AgentStatus::Idle => Span::styled("idle", t.fg(t.good)),
+                AgentStatus::Offline => Span::styled("offline", t.dim()),
+            };
+            let doing = a.doing.clone().or_else(|| a.role.clone()).unwrap_or_default();
             Row::new(vec![
                 Span::styled(format!("@{}", a.handle), t.fg(t.agent).add_modifier(Modifier::BOLD)),
+                status,
                 Span::styled(a.runtime.0.clone(), t.text()),
-                Span::styled(a.role.clone().unwrap_or_else(|| "agent".into()), t.dim()),
                 Span::styled(badge, if ok { t.fg(t.good) } else { t.fg(t.warn) }),
-                Span::styled(if a.shared { "workspace" } else { "personal" }, t.dim()),
+                Span::styled(doing, if a.doing.is_some() { t.text() } else { t.dim() }),
             ])
         })
         .collect();
-    let header = Row::new(vec!["Agent", "Runtime", "Role", "Runs on", "Scope"]).style(t.dim().add_modifier(Modifier::BOLD));
+    let header = Row::new(vec!["Agent", "Status", "Runtime", "Runs on", "Doing"]).style(t.dim().add_modifier(Modifier::BOLD));
     let table = Table::new(
         rows,
-        [Constraint::Length(14), Constraint::Length(13), Constraint::Min(16), Constraint::Length(16), Constraint::Length(10)],
+        [Constraint::Length(12), Constraint::Length(8), Constraint::Length(12), Constraint::Length(18), Constraint::Min(16)],
     )
     .header(header)
     .block(pane("Agents", true, t))
@@ -74,6 +82,23 @@ pub fn agents(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     .header(header)
     .block(pane("Runtimes", false, t));
     f.render_widget(table, bottom);
+    let w = ho.width.saturating_sub(4) as usize;
+    let lines: Vec<Line> = if s.handoffs.is_empty() {
+        vec![Line::styled("No hand-offs yet.", t.dim())]
+    } else {
+        s.handoffs
+            .iter()
+            .take(ho.height.saturating_sub(2) as usize)
+            .map(|h| {
+                Line::from(vec![
+                    Span::styled(format!("@{} → @{} ", h.from, h.to), t.fg(t.agent)),
+                    Span::styled(trunc(&h.task, w.saturating_sub(h.from.len() + h.to.len() + 12)), t.text()),
+                    Span::styled(format!(" {}", ago(s.now, h.at)), t.dim()),
+                ])
+            })
+            .collect()
+    };
+    f.render_widget(Paragraph::new(lines).block(pane("Hand-offs", false, t)), ho);
 }
 
 pub fn hosts(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
@@ -91,43 +116,61 @@ pub fn hosts(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
                 HostKind::Device => "DEVICE",
                 HostKind::Worker => "WORKER",
             };
-            let agents: Vec<String> = s
-                .agents
-                .iter()
-                .filter(|a| match &a.host {
-                    Some(id) => id == &h.id,
-                    None => h.this_device,
-                })
-                .map(|a| format!("@{}", a.handle))
-                .collect();
+            let agents: Vec<String> = h.agents.iter().map(|a| format!("@{a}")).collect();
             let label = if h.this_device && h.label != "This device" { format!("{} (this device)", h.label) } else { h.label.clone() };
+            let work = if h.busy { Span::styled("busy", t.fg(t.warn).add_modifier(Modifier::BOLD)) } else { Span::styled("idle", t.dim()) };
             Row::new(vec![
                 dot,
                 Span::styled(label, t.text().add_modifier(Modifier::BOLD)),
                 Span::styled(kind, t.dim()),
                 Span::styled(seen, if h.online { t.fg(t.good) } else { t.dim() }),
+                work,
                 Span::styled(agents.join(" "), t.fg(t.agent)),
+                Span::styled(h.repos.join(" "), t.dim()),
             ])
         })
         .collect();
-    let header = Row::new(vec!["", "Host", "Kind", "Status", "Agents"]).style(t.dim().add_modifier(Modifier::BOLD));
+    let header = Row::new(vec!["", "Host", "Kind", "Status", "Work", "Agents", "Repos"]).style(t.dim().add_modifier(Modifier::BOLD));
     let table = Table::new(
         rows,
-        [Constraint::Length(1), Constraint::Length(20), Constraint::Length(7), Constraint::Length(10), Constraint::Min(10)],
+        [
+            Constraint::Length(1),
+            Constraint::Length(20),
+            Constraint::Length(7),
+            Constraint::Length(10),
+            Constraint::Length(5),
+            Constraint::Min(10),
+            Constraint::Length(12),
+        ],
     )
     .header(header)
     .block(pane("Workers & hosts", true, t))
     .row_highlight_style(t.selected());
     let mut st = TableState::default().with_selected(if s.hosts.is_empty() { None } else { Some(s.host_sel.index) });
-    let [table_area, note] = Layout::vertical([Constraint::Min(3), Constraint::Length(2)]).areas(area);
+    let [table_area, note] = Layout::vertical([Constraint::Min(3), Constraint::Length(3)]).areas(area);
     if s.hosts.is_empty() {
         f.render_widget(Paragraph::new(Line::styled("No hosts registered.", t.dim())).block(pane("Workers & hosts", true, t)), table_area);
     } else {
         f.render_stateful_widget(table, table_area, &mut st);
     }
+    let bind = s.keymap.hint(Context::Hosts, Action::BindCheckout);
+    let checkout = match &s.checkout {
+        Some(p) => Line::from(vec![
+            Span::styled(" This device applies approved proposals in ", t.dim()),
+            Span::styled(p.clone(), t.text()),
+            Span::styled(format!("  ({bind} change)"), t.dim()),
+        ]),
+        None => Line::from(vec![
+            Span::styled(" No checkout bound: this device can't apply proposals here. ", t.dim()),
+            Span::styled(format!("{bind} bind one"), t.accent()),
+        ]),
+    };
     f.render_widget(
-        Paragraph::new(Line::styled(" A host runs agents and applies approved proposals on its checkout. A worker is headless.", t.dim()))
-            .wrap(Wrap { trim: true }),
+        Paragraph::new(vec![
+            checkout,
+            Line::styled(" A host runs agents and applies approved proposals on its checkout. A worker is headless.", t.dim()),
+        ])
+        .wrap(Wrap { trim: true }),
         note,
     );
 }
@@ -211,6 +254,18 @@ pub fn people(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             Span::styled(format!("  {r}"), t.dim()),
         ])),
     }
+    let admit = k.hint(Context::People, Action::AdmitBox);
+    if s.active_workspace().is_some_and(|w| w.your_role >= Role::Admin) {
+        lines.push(Line::from(vec![
+            Span::styled(admit, t.accent()),
+            Span::styled(" Admit a box (ligus serve or a worker) as a service member", t.text()),
+        ]));
+    } else {
+        lines.push(Line::from(vec![
+            Span::styled(format!("{admit} Admit a box"), t.disabled()),
+            Span::styled("  only an Admin or Owner admits a box", t.dim()),
+        ]));
+    }
     lines.push(Line::raw(""));
     lines.push(Line::styled("Changes to who's in the workspace need your passkey.", t.dim()));
     f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }).block(pane("Member", false, t)), detail);
@@ -282,4 +337,217 @@ pub fn settings(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         Line::styled("  Change the theme and rebind keys in the config file; lt --print-config shows every default.", t.dim()),
     ];
     f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }).block(block), area);
+}
+
+fn run_status_style(st: RunStatus, t: &Theme) -> ratatui::style::Style {
+    match st {
+        RunStatus::Running => t.fg(t.accent),
+        RunStatus::AwaitingGate => t.fg(t.warn).add_modifier(Modifier::BOLD),
+        RunStatus::Completed => t.fg(t.good),
+        RunStatus::Failed | RunStatus::Halted => t.fg(t.bad),
+        RunStatus::Canceled => t.dim(),
+    }
+}
+
+fn stage_mark(st: StageStatus, t: &Theme) -> Span<'static> {
+    match st {
+        StageStatus::Pending => Span::styled("○", t.dim()),
+        StageStatus::Running => Span::styled("◐", t.fg(t.accent)),
+        StageStatus::AwaitingApproval => Span::styled("◆", t.fg(t.warn)),
+        StageStatus::Succeeded => Span::styled("●", t.fg(t.good)),
+        StageStatus::Failed | StageStatus::Rejected => Span::styled("✗", t.fg(t.bad)),
+        StageStatus::Skipped => Span::styled("–", t.dim()),
+    }
+}
+
+/// Workflow definitions and runs (live), with the selected one's detail.
+pub fn workflows(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
+    let [list, detail] = Layout::horizontal([Constraint::Percentage(45), Constraint::Percentage(55)]).areas(area);
+    let w = list.width.saturating_sub(4) as usize;
+    let mut items: Vec<ListItem> = s
+        .workflows
+        .iter()
+        .map(|d| {
+            let style = if d.enabled { t.text().add_modifier(Modifier::BOLD) } else { t.disabled() };
+            ListItem::new(Line::from(vec![
+                Span::styled("▸ ", t.accent()),
+                Span::styled(trunc(&d.name, w.saturating_sub(d.chat_title.len() + 6)), style),
+                Span::styled(format!("  {}", d.chat_title), t.dim()),
+            ]))
+        })
+        .collect();
+    items.extend(s.runs.iter().map(|r| {
+        let marks: Vec<Span> = r.stages.iter().map(|st| stage_mark(st.status, t)).collect();
+        let mut spans = vec![Span::styled(format!("  {} ", trunc(&r.name, 22)), t.text())];
+        spans.extend(marks);
+        spans.push(Span::styled(format!(" {}", r.status.label()), run_status_style(r.status, t)));
+        spans.push(Span::styled(format!(" {}", ago(s.now, r.updated_at)), t.dim()));
+        ListItem::new(Line::from(spans))
+    }));
+    let title = format!("Workflows {} · Runs {}", s.workflows.len(), s.runs.len());
+    if items.is_empty() {
+        f.render_widget(
+            Paragraph::new(vec![
+                Line::styled("No workflows yet.", t.dim()),
+                Line::styled("Agents propose them (approve under Proposals); the Ligus app's editor makes them too.", t.dim()),
+            ])
+            .wrap(Wrap { trim: false })
+            .block(pane(&title, true, t)),
+            list,
+        );
+    } else {
+        let lw = List::new(items).block(pane(&title, true, t)).highlight_style(t.selected());
+        let mut st = ListState::default().with_selected(Some(s.workflow_sel.index));
+        f.render_stateful_widget(lw, list, &mut st);
+    }
+    let k = &s.keymap;
+    let hint = |a| k.hint(Context::Workflows, a);
+    let dw = detail.width.saturating_sub(4) as usize;
+    let mut lines: Vec<Line> = vec![];
+    match s.selected_workflow_item() {
+        None => lines.push(Line::styled("Select a workflow or a run.", t.dim())),
+        Some(WorkflowItem::Def(d)) => {
+            lines.push(Line::styled(d.name.clone(), t.accent()));
+            lines.push(Line::styled(format!("in {}", d.chat_title), t.dim()));
+            if !d.description.is_empty() {
+                lines.push(Line::raw(""));
+                lines.extend(super::wrap(&d.description, dw).into_iter().map(|l| Line::styled(l, t.text())));
+            }
+            lines.push(Line::raw(""));
+            for st in &d.stages {
+                let after = if st.depends_on.is_empty() { String::new() } else { format!("  after {}", st.depends_on.join(", ")) };
+                lines.push(Line::from(vec![
+                    Span::styled(format!("  {} ", st.name), t.text().add_modifier(Modifier::BOLD)),
+                    Span::styled(st.what.clone(), t.fg(t.agent)),
+                    Span::styled(after, t.dim()),
+                ]));
+            }
+            lines.push(Line::raw(""));
+            match &d.can_start {
+                Allowed::Yes => lines.push(Line::from(vec![
+                    Span::styled(hint(Action::StartRun), t.accent()),
+                    Span::styled(" Start a run: this device drives it; stages go to their agents' hosts", t.text()),
+                ])),
+                Allowed::No(r) => lines.push(Line::from(vec![
+                    Span::styled(format!("{} Start a run", hint(Action::StartRun)), t.disabled()),
+                    Span::styled(format!("  {r}"), t.dim()),
+                ])),
+            }
+        }
+        Some(WorkflowItem::Run(r)) => {
+            lines.push(Line::from(vec![
+                Span::styled(r.name.clone(), t.accent()),
+                Span::styled(format!("  {}", r.status.label()), run_status_style(r.status, t)),
+            ]));
+            let driver = r.driver.clone().unwrap_or_else(|| "no device".into());
+            lines.push(Line::styled(format!("started by {} {} ago · driven by {driver}", r.started_by, ago(s.now, r.started_at)), t.dim()));
+            if !r.input.is_empty() {
+                lines
+                    .push(Line::from(vec![Span::styled("input ", t.dim()), Span::styled(trunc(&r.input, dw.saturating_sub(6)), t.text())]));
+            }
+            lines.push(Line::raw(""));
+            for st in &r.stages {
+                lines.push(Line::from(vec![
+                    Span::raw("  "),
+                    stage_mark(st.status, t),
+                    Span::styled(format!(" {} ", st.name), t.text().add_modifier(Modifier::BOLD)),
+                    Span::styled(st.what.clone(), t.fg(t.agent)),
+                    Span::styled(format!("  {}", st.status.label()), t.dim()),
+                ]));
+                let note = if !st.error.is_empty() { Some((st.error.clone(), t.fg(t.bad))) } else { Some((st.excerpt.clone(), t.dim())) };
+                if let Some((text, style)) = note.filter(|(n, _)| !n.is_empty()) {
+                    lines.push(Line::styled(format!("      {}", trunc(&text.replace('\n', " "), dw.saturating_sub(6))), style));
+                }
+            }
+            lines.push(Line::raw(""));
+            if r.stages.iter().any(|st| st.status == StageStatus::AwaitingApproval) {
+                lines.push(Line::from(vec![
+                    Span::styled(hint(Action::ApproveGate), t.accent()),
+                    Span::styled(" approve the gate  ", t.text()),
+                    Span::styled(hint(Action::RejectGate), t.accent()),
+                    Span::styled(" reject it", t.text()),
+                ]));
+            }
+            if !r.status.is_terminal() {
+                lines.push(Line::from(vec![Span::styled(hint(Action::CancelRun), t.accent()), Span::styled(" cancel the run", t.text())]));
+            }
+            lines.push(Line::from(vec![
+                Span::styled(k.hint(Context::Nav, Action::Select), t.accent()),
+                Span::styled(" open its chat", t.text()),
+            ]));
+        }
+    }
+    f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }).block(pane("Detail", false, t)), detail);
+}
+
+/// Agents' live task state, then the workspace memory.
+pub fn memory(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
+    let [list, detail] = Layout::horizontal([Constraint::Percentage(45), Constraint::Percentage(55)]).areas(area);
+    let w = list.width.saturating_sub(4) as usize;
+    let mut items: Vec<ListItem> = s
+        .tasks
+        .iter()
+        .map(|ts| {
+            let pct = ts.progress.map(|p| format!(" {p}%")).unwrap_or_default();
+            let style = if ts.active { t.text() } else { t.dim() };
+            ListItem::new(Line::from(vec![
+                Span::styled(format!("@{} ", ts.agent), t.fg(t.agent).add_modifier(Modifier::BOLD)),
+                Span::styled(format!("{}{pct} ", ts.status), if ts.active { t.fg(t.warn) } else { t.dim() }),
+                Span::styled(trunc(&ts.summary, w.saturating_sub(ts.agent.len() + 16)), style),
+            ]))
+        })
+        .collect();
+    items.extend(s.memory.entries.iter().map(|e| {
+        ListItem::new(Line::from(vec![
+            Span::styled("◇ ", t.accent()),
+            Span::styled(trunc(&e.title, w.saturating_sub(20)), t.text().add_modifier(Modifier::BOLD)),
+            Span::styled(format!("  {}", e.tags.join(" ")), t.dim()),
+        ]))
+    }));
+    let pending = if s.memory.open_proposals > 0 { format!(" · {} proposed", s.memory.open_proposals) } else { String::new() };
+    let title = format!("Task state {} · Memory {}{pending}", s.tasks.len(), s.memory.entries.len());
+    if items.is_empty() {
+        f.render_widget(Paragraph::new(Line::styled("No task state or memory yet.", t.dim())).block(pane(&title, true, t)), list);
+    } else {
+        let lw = List::new(items).block(pane(&title, true, t)).highlight_style(t.selected());
+        let mut st = ListState::default().with_selected(Some(s.memory_sel.index));
+        f.render_stateful_widget(lw, list, &mut st);
+    }
+    let dw = detail.width.saturating_sub(4) as usize;
+    let i = s.memory_sel.index;
+    let mut lines: Vec<Line> = vec![];
+    if let Some(ts) = s.tasks.get(i) {
+        let chat = s.chats.iter().find(|c| c.id == ts.chat).map(|c| c.title.clone()).unwrap_or_default();
+        lines.push(Line::from(vec![
+            Span::styled(format!("@{}", ts.agent), t.fg(t.agent).add_modifier(Modifier::BOLD)),
+            Span::styled(format!("  {}", ts.status), t.accent()),
+        ]));
+        lines.push(Line::styled(format!("in {chat} · {} ago", ago(s.now, ts.at)), t.dim()));
+        lines.push(Line::raw(""));
+        lines.extend(super::wrap(&ts.summary, dw).into_iter().map(|l| Line::styled(l, t.text())));
+        if let Some(p) = ts.progress {
+            let filled = (p as usize * 20 / 100).min(20);
+            lines.push(Line::styled(format!("[{}{}] {p}%", "█".repeat(filled), "░".repeat(20 - filled)), t.fg(t.good)));
+        }
+        if !ts.open_questions.is_empty() {
+            lines.push(Line::raw(""));
+            lines.push(Line::styled("Open questions", t.accent()));
+            for q in &ts.open_questions {
+                lines.push(Line::styled(format!("  ? {q}"), t.text()));
+            }
+        }
+    } else if let Some(e) = s.memory.entries.get(i - s.tasks.len().min(i)) {
+        lines.push(Line::styled(e.title.clone(), t.accent()));
+        let revs = if e.revisions > 1 { format!(" · {} revisions", e.revisions) } else { String::new() };
+        lines.push(Line::styled(format!("by {} · {} ago{revs}", e.author, ago(s.now, e.at)), t.dim()));
+        lines.push(Line::raw(""));
+        lines.extend(super::wrap(&e.body, dw).into_iter().map(|l| Line::styled(l, t.text())));
+        if !e.tags.is_empty() {
+            lines.push(Line::raw(""));
+            lines.push(Line::styled(format!("tags: {}", e.tags.join(", ")), t.dim()));
+        }
+    } else {
+        lines.push(Line::styled("Agents' task state and the workspace's shared memory. Read-only here.", t.dim()));
+    }
+    f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }).block(pane("Detail", false, t)), detail);
 }

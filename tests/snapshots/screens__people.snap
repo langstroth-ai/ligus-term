@@ -2,7 +2,7 @@
 source: tests/screens.rs
 expression: screen
 ---
-[AT] [QR]• Apiary Tracker · owner │ Chats  Proposals  Agents  Hosts  People  Notifications 1  Settings
+[AT] [QR]• Apiary Tracker · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Member ──────────────────────────────────────────────────╮
 ┃  Mara · you  owner  founder                    ┃│Lin  contributor                                          │
 ┃  Ada  admin                                    ┃│                                                          │
@@ -14,6 +14,8 @@ expression: screen
 ┃                                                ┃│                                                          │
 ┃                                                ┃│X Remove from the workspace                               │
 ┃                                                ┃│I Create an invite                                        │
+┃                                                ┃│B Admit a box (ligus serve or a worker) as a service      │
+┃                                                ┃│member                                                    │
 ┃                                                ┃│                                                          │
 ┃                                                ┃│Changes to who's in the workspace need your passkey.      │
 ┃                                                ┃│                                                          │
@@ -30,7 +32,5 @@ expression: screen
 ┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
-┃                                                ┃│                                                          │
-┃                                                ┃│                                                          │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────╯
-↑↓ people  r role  X remove  I invite  ? help                                      lt on this terminal · demo
+↑↓ people  r role  X remove  I invite  B admit box  ? help                         lt on this terminal · demo

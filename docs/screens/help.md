@@ -3,7 +3,7 @@
 Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 
 ```text
-[AT] [QR]• Apiary Tracker · owner │ Chats  Proposals  Agents  Hosts  People  Notifications 1  Settings
+[AT] [QR]• Apiary Tracker · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Chats ━━━━━━━━━┏ Help · ↑↓ scroll · any other key closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
 ┃  Inspection log┃lt keybindings. Rebind any of them in the config file ([keys.<context>]). ┃                │
 ┃  #dev          ┃                                                                          ┃o mites per 100 │
@@ -14,12 +14,14 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                ┃  w, ctrl-w                        Switch workspace                       ┃                │
 ┃                ┃  +                                Create or join a workspace             ┃                │
 ┃                ┃  c, 1                             Chats                                  ┃                │
-┃                ┃  p, 2                             Proposals                              ┃club uses.      │
-┃                ┃  a, 3                             Agents and runtimes                    ┃                │
-┃                ┃  h, 4                             Hosts                                  ┃                │
-┃                ┃  m, 5                             People                                 ┃                │
-┃                ┃  n, 6                             Notifications                          ┃                │
-┃                ┃  s, 7                             Settings                               ┃                │
+┃                ┃  f, 2                             Workflows and runs                     ┃club uses.      │
+┃                ┃  p, 3                             Proposals                              ┃                │
+┃                ┃  a, 4                             Agents, runtimes and hand-offs         ┃                │
+┃                ┃  h, 5                             Hosts and workers                      ┃                │
+┃                ┃  y, 6                             Task state and memory                  ┃                │
+┃                ┃  m, 7                             People                                 ┃                │
+┃                ┃  n, 8                             Notifications                          ┃                │
+┃                ┃  s, 9                             Settings                               ┃                │
 ┃                ┃  tab                              Next pane                              ┃                │
 ┃                ┃  shift-tab                        Previous pane                          ┃                │
 ┃                ┃                                                                          ┃                │
@@ -39,12 +41,10 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                ┃  U                                Clear the lockdown                     ┃                │
 ┃                ┃                                                                          ┃                │
 ┃                ┃Composer                                                                  ┃                │
-┃                ┃  enter                            Send                                   ┃                │
-┃                ┃  alt-enter, ctrl-j, shift-enter   New line                               ┃                │
-┃                ┃  esc                              Leave the composer (keeps the draft)   ┃────────────────╯
-┃                ┃  tab                              Accept the @mention                    ┃
-┃                ┃                                                                          ┃────────────────╮
-┃                ┃Proposals                                                                 ┃                │
+┃                ┃  enter                            Send                                   ┃────────────────╯
+┃                ┃  alt-enter, ctrl-j, shift-enter   New line                               ┃
+┃                ┃  esc                              Leave the composer (keeps the draft)   ┃────────────────╮
+┃                ┃  tab                              Accept the @mention                    ┃                │
 ┗━━━━━━━━━━━━━━━━┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛────────────────╯
 ↑↓ chats  i write  N new chat  tab pane  w workspaces  ? help                      lt on this terminal · demo
 ```

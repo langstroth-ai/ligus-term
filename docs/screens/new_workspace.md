@@ -3,7 +3,7 @@
 Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 
 ```text
-[BY] Bee Yard · owner │ Chats  Proposals  Agents  Hosts  People  Notifications  Settings
+[BY] Bee Yard · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications  Settings
 ┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Welcome ───────────────────────────────────────────────────────────────────╮
 ┃  Welcome                now  ┃│                                                                            │
 ┃                              ┃│                                                                            │

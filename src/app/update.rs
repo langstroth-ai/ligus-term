@@ -38,6 +38,16 @@ pub enum Msg {
     Sent(Result<Message>),
     ProposalUpdated(WorkspaceId, Result<Proposal>),
     Invite(Result<String>),
+    /// The invite (as typed) and what it says about its sender.
+    InviteChecked(String, Result<InviteCheck>),
+    Admitted(Result<BoxAdmission>),
+    Workflows(WorkspaceId, Result<Vec<Workflow>>),
+    Runs(WorkspaceId, Result<Vec<Run>>),
+    RunUpdated(WorkspaceId, Result<Run>),
+    Memory(WorkspaceId, Result<Memory>),
+    Tasks(WorkspaceId, Result<Vec<TaskState>>),
+    Handoffs(WorkspaceId, Result<Vec<Handoff>>),
+    Checkout(WorkspaceId, Result<Option<String>>),
     /// A fire-and-report action finished; `ok` is the toast on success.
     Done {
         ok: String,
@@ -79,6 +89,19 @@ pub enum Effect {
     MarkNotificationsRead,
     SetSetting(SettingKey, bool),
     AnswerPresence(PresenceId, PresenceAnswer),
+    InspectInvite(String),
+    ConnectDeployment { your_name: String, spec: DeploymentSpec },
+    AdmitBox(WorkspaceId, Option<String>),
+    LoadWorkflows(WorkspaceId),
+    LoadRuns(WorkspaceId),
+    StartRun(WorkspaceId, WorkflowId, String),
+    CancelRun(WorkspaceId, RunId),
+    DecideGate(WorkspaceId, RunId, String, bool),
+    LoadMemory(WorkspaceId),
+    LoadTasks(WorkspaceId),
+    LoadHandoffs(WorkspaceId),
+    LoadCheckout(WorkspaceId),
+    SetCheckout(WorkspaceId, Option<String>),
 }
 
 /// Loads for a workspace becoming active.
@@ -91,6 +114,9 @@ fn load_workspace(ws: &WorkspaceId) -> Vec<Effect> {
         Effect::LoadRuntimes(ws.clone()),
         Effect::LoadHosts(ws.clone()),
         Effect::LoadMembers(ws.clone()),
+        Effect::LoadWorkflows(ws.clone()),
+        Effect::LoadRuns(ws.clone()),
+        Effect::LoadCheckout(ws.clone()),
     ]
 }
 
@@ -245,6 +271,79 @@ pub fn update(s: &mut State, msg: Msg) -> Vec<Effect> {
             s.overlay = Some(Overlay::Invite { code: Some(code) });
             vec![]
         }
+        Msg::InviteChecked(invite, r) => {
+            let form = match (&mut s.overlay, &mut s.phase) {
+                (Some(Overlay::AddWorkspace(f)), _) => f,
+                (_, Phase::Onboarding(f)) => f,
+                _ => return vec![],
+            };
+            form.busy = false;
+            match r {
+                Ok(c) => {
+                    form.error = (c.trust == InviteTrust::Mismatch)
+                        .then(|| "Not joining: the founder's key doesn't match the one your workspaces know".to_string());
+                    form.checked = Some((invite, c));
+                }
+                Err(e) => form.error = Some(e.0),
+            }
+            vec![]
+        }
+        Msg::Admitted(r) => {
+            match (&mut s.overlay, r) {
+                (Some(Overlay::AdmitBox { busy, result, .. }), Ok(a)) => {
+                    *busy = false;
+                    *result = Some(a);
+                }
+                (Some(Overlay::AdmitBox { busy, .. }), Err(e)) => {
+                    *busy = false;
+                    if e.0 != "cancelled" {
+                        s.toast(ToastKind::Error, format!("Couldn't admit the box: {e}"));
+                    }
+                }
+                (_, Err(e)) => s.toast(ToastKind::Error, e.0),
+                _ => {}
+            }
+            vec![]
+        }
+        Msg::Workflows(ws, Ok(w)) if is_active(s, &ws) => {
+            s.workflows = w;
+            s.workflow_sel.clamp(s.workflow_rows());
+            vec![]
+        }
+        Msg::Runs(ws, Ok(r)) if is_active(s, &ws) => {
+            s.runs = r;
+            s.workflow_sel.clamp(s.workflow_rows());
+            vec![]
+        }
+        Msg::RunUpdated(ws, Ok(r)) => {
+            let id = r.id.clone();
+            upsert_run(s, &ws, r);
+            // Follow the run just started or decided.
+            if s.view == View::Workflows
+                && let Some(i) = s.runs.iter().position(|x| x.id == id)
+            {
+                s.workflow_sel.index = s.workflows.len() + i;
+            }
+            vec![]
+        }
+        Msg::Memory(ws, Ok(m)) if is_active(s, &ws) => {
+            s.memory = m;
+            s.memory_sel.clamp(s.memory_rows());
+            vec![]
+        }
+        Msg::Tasks(ws, Ok(t)) if is_active(s, &ws) => {
+            s.tasks = t;
+            s.memory_sel.clamp(s.memory_rows());
+            vec![]
+        }
+        Msg::Handoffs(ws, Ok(h)) if is_active(s, &ws) => {
+            s.handoffs = h;
+            vec![]
+        }
+        Msg::Checkout(ws, Ok(c)) if is_active(s, &ws) => {
+            s.checkout = c;
+            vec![]
+        }
         Msg::Done { ok, result: Ok(()) } => {
             if !ok.is_empty() {
                 s.toast(ToastKind::Ok, ok);
@@ -266,6 +365,13 @@ pub fn update(s: &mut State, msg: Msg) -> Vec<Effect> {
         | Msg::Hosts(_, Err(e))
         | Msg::Members(_, Err(e))
         | Msg::Notifications(Err(e))
+        | Msg::Workflows(_, Err(e))
+        | Msg::Runs(_, Err(e))
+        | Msg::RunUpdated(_, Err(e))
+        | Msg::Memory(_, Err(e))
+        | Msg::Tasks(_, Err(e))
+        | Msg::Handoffs(_, Err(e))
+        | Msg::Checkout(_, Err(e))
         | Msg::Settings(Err(e)) => {
             if e.0 != "cancelled" {
                 s.toast(ToastKind::Error, e.0);
@@ -284,8 +390,31 @@ pub fn update(s: &mut State, msg: Msg) -> Vec<Effect> {
         | Msg::Runtimes(..)
         | Msg::Hosts(..)
         | Msg::Members(..)
+        | Msg::Workflows(..)
+        | Msg::Runs(..)
+        | Msg::Memory(..)
+        | Msg::Tasks(..)
+        | Msg::Handoffs(..)
+        | Msg::Checkout(..)
         | Msg::ChatCreated(..) => vec![],
     }
+}
+
+fn upsert_run(s: &mut State, ws: &WorkspaceId, r: Run) {
+    if !is_active(s, ws) {
+        return;
+    }
+    match s.runs.iter_mut().find(|x| x.id == r.id) {
+        Some(x) => *x = r,
+        None => {
+            s.runs.insert(0, r);
+            // Keep the selection on the row it was on.
+            if s.workflow_sel.index >= s.workflows.len() && s.view == View::Workflows {
+                s.workflow_sel.index += 1;
+            }
+        }
+    }
+    s.workflow_sel.clamp(s.workflow_rows());
 }
 
 fn form_error(s: &mut State, e: String) {
@@ -380,11 +509,25 @@ fn event(s: &mut State, e: Event) -> Vec<Effect> {
         Event::MembersChanged { workspace } if is_active(s, &workspace) => {
             vec![Effect::LoadMembers(workspace.clone()), Effect::LoadMentionables(workspace)]
         }
-        Event::HostsChanged { workspace } if is_active(s, &workspace) => vec![Effect::LoadHosts(workspace)],
+        Event::HostsChanged { workspace } if is_active(s, &workspace) => {
+            vec![Effect::LoadHosts(workspace.clone()), Effect::LoadCheckout(workspace)]
+        }
         Event::AgentsChanged { workspace } if is_active(s, &workspace) => {
             vec![Effect::LoadAgents(workspace.clone()), Effect::LoadMentionables(workspace)]
         }
         Event::WorkspacesChanged => vec![Effect::LoadWorkspaces],
+        Event::WorkflowsChanged { workspace } if is_active(s, &workspace) => vec![Effect::LoadWorkflows(workspace)],
+        Event::RunChanged { workspace, run } => {
+            upsert_run(s, &workspace, run);
+            vec![]
+        }
+        Event::MemoryChanged { workspace } if is_active(s, &workspace) => {
+            if matches!(s.view, View::Memory | View::Agents) {
+                vec![Effect::LoadMemory(workspace.clone()), Effect::LoadTasks(workspace.clone()), Effect::LoadHandoffs(workspace)]
+            } else {
+                vec![]
+            }
+        }
         Event::Notification(n) => {
             s.bell = s.settings.as_ref().is_none_or(|st| st.notify_mentions);
             s.toast(ToastKind::Info, n.text.clone());
@@ -417,7 +560,12 @@ fn event(s: &mut State, e: Event) -> Vec<Effect> {
             s.sync_status.insert(workspace, status);
             vec![]
         }
-        Event::ChatsChanged { .. } | Event::MembersChanged { .. } | Event::HostsChanged { .. } | Event::AgentsChanged { .. } => vec![],
+        Event::ChatsChanged { .. }
+        | Event::MembersChanged { .. }
+        | Event::HostsChanged { .. }
+        | Event::AgentsChanged { .. }
+        | Event::WorkflowsChanged { .. }
+        | Event::MemoryChanged { .. } => vec![],
     }
 }
 
@@ -432,7 +580,12 @@ fn paste(s: &mut State, text: &str) -> Vec<Effect> {
         (Some(Overlay::AddWorkspace(f)), _) | (None, Phase::Onboarding(f)) => {
             match f.field {
                 FormField::Name => f.name.insert_str(text),
-                FormField::Value => f.value_mut().insert_str(text.trim()),
+                FormField::Value | FormField::Relay | FormField::Room | FormField::Key | FormField::Token => {
+                    let field = f.field;
+                    if let Some(b) = f.buf_mut(field) {
+                        b.insert_str(text.trim());
+                    }
+                }
                 FormField::Mode => {
                     // Pasting on the mode row is almost always an invite.
                     f.mode = FormMode::Join;
@@ -441,7 +594,9 @@ fn paste(s: &mut State, text: &str) -> Vec<Effect> {
                 }
             }
         }
-        (Some(Overlay::NewChat(b)), _) => b.insert_str(text),
+        (Some(Overlay::NewChat(b)), _) | (Some(Overlay::BindCheckout(b)), _) => b.insert_str(text.trim()),
+        (Some(Overlay::StartRun { input, .. }), _) => input.insert_str(text),
+        (Some(Overlay::AdmitBox { request, result: None, .. }), _) => request.insert_str(text.trim()),
         (None, Phase::Main) => {
             if s.view == View::Chats && s.open_chat.is_some() {
                 s.focus = Focus::Composer;
@@ -516,20 +671,28 @@ fn form_key(f: &mut WorkspaceForm, k: &KeyEvent) -> FormOutcome {
             f.field = fields[(i + 1) % fields.len()];
         }
         _ => match f.field {
-            FormField::Name => {
-                f.name.handle(k);
-            }
-            FormField::Mode => match k.code {
-                KeyCode::Left | KeyCode::Right | KeyCode::Char(' ') | KeyCode::Char('h') | KeyCode::Char('l') => {
-                    f.mode = if f.mode == FormMode::Create { FormMode::Join } else { FormMode::Create };
+            FormField::Mode => {
+                let mode = match k.code {
+                    KeyCode::Right | KeyCode::Char(' ') | KeyCode::Char('l') => Some(f.mode.next()),
+                    KeyCode::Left | KeyCode::Char('h') => Some(f.mode.prev()),
+                    KeyCode::Char('c') => Some(FormMode::Create),
+                    KeyCode::Char('j') => Some(FormMode::Join),
+                    KeyCode::Char('d') => Some(FormMode::Connect),
+                    _ => None,
+                };
+                if let Some(m) = mode {
+                    f.mode = m;
                     f.error = None;
+                    f.checked = None;
                 }
-                KeyCode::Char('c') => f.mode = FormMode::Create,
-                KeyCode::Char('j') => f.mode = FormMode::Join,
-                _ => {}
-            },
-            FormField::Value => {
-                f.value_mut().handle(k);
+            }
+            field => {
+                if let Some(b) = f.buf_mut(field)
+                    && b.handle(k)
+                    && field == FormField::Value
+                {
+                    f.checked = None;
+                }
             }
         },
     }
@@ -549,9 +712,33 @@ fn submit_form(s: &mut State, your_name: Option<String>) -> Vec<Effect> {
         return vec![];
     }
     let value = form.value().text.trim().to_string();
+    if form.mode == FormMode::Connect {
+        let spec = DeploymentSpec {
+            name: value,
+            relay_url: form.relay.text.trim().to_string(),
+            room: form.room.text.trim().to_string(),
+            key: form.key.text.trim().to_string(),
+            token: Some(form.token.text.trim().to_string()).filter(|t| !t.is_empty()),
+        };
+        let missing = [
+            (spec.relay_url.is_empty(), FormField::Relay, "Give the deployment's relay URL"),
+            (spec.room.is_empty(), FormField::Room, "Give the workspace room"),
+            (spec.key.is_empty(), FormField::Key, "Give the workspace key"),
+        ]
+        .into_iter()
+        .find(|(m, _, _)| *m);
+        if let Some((_, field, msg)) = missing {
+            form.error = Some(msg.into());
+            form.field = field;
+            return vec![];
+        }
+        form.error = None;
+        form.busy = true;
+        return vec![Effect::ConnectDeployment { your_name, spec }];
+    }
     if value.is_empty() {
         form.error = Some(match form.mode {
-            FormMode::Create => "Give the workspace a name".into(),
+            FormMode::Create | FormMode::Connect => "Give the workspace a name".into(),
             FormMode::Join => "Paste an invite code".into(),
         });
         return vec![];
@@ -559,8 +746,19 @@ fn submit_form(s: &mut State, your_name: Option<String>) -> Vec<Effect> {
     form.error = None;
     form.busy = true;
     match form.mode {
-        FormMode::Create => vec![Effect::CreateWorkspace { your_name, name: value }],
-        FormMode::Join => vec![Effect::JoinWorkspace { your_name, invite: value }],
+        FormMode::Create | FormMode::Connect => vec![Effect::CreateWorkspace { your_name, name: value }],
+        FormMode::Join => match &form.checked {
+            // First check who the invite is from; join on the second Enter.
+            Some((checked, c)) if *checked == value => {
+                if c.trust == InviteTrust::Mismatch {
+                    form.busy = false;
+                    form.error = Some("Not joining: the founder's key doesn't match the one your workspaces know".into());
+                    return vec![];
+                }
+                vec![Effect::JoinWorkspace { your_name, invite: value }]
+            }
+            _ => vec![Effect::InspectInvite(value)],
+        },
     }
 }
 
@@ -804,6 +1002,60 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
             s.overlay = None;
             vec![]
         }
+        Overlay::AdmitBox { request, busy, result } => {
+            if *busy {
+                return vec![];
+            }
+            if result.is_some() {
+                s.overlay = None;
+                return vec![];
+            }
+            match k.code {
+                KeyCode::Esc => {
+                    s.overlay = None;
+                    vec![]
+                }
+                KeyCode::Enter => {
+                    let r = Some(request.text.trim().to_string()).filter(|r| !r.is_empty());
+                    *busy = true;
+                    ws.map(|w| vec![Effect::AdmitBox(w, r)]).unwrap_or_default()
+                }
+                _ => {
+                    request.handle(&k);
+                    vec![]
+                }
+            }
+        }
+        Overlay::StartRun { workflow, input, .. } => match k.code {
+            KeyCode::Esc => {
+                s.overlay = None;
+                vec![]
+            }
+            KeyCode::Enter => {
+                let (wf, text) = (workflow.clone(), input.text.trim().to_string());
+                s.overlay = None;
+                ws.map(|w| vec![Effect::StartRun(w, wf, text)]).unwrap_or_default()
+            }
+            _ => {
+                input.handle(&k);
+                vec![]
+            }
+        },
+        Overlay::BindCheckout(buf) => match k.code {
+            KeyCode::Esc => {
+                s.overlay = None;
+                vec![]
+            }
+            KeyCode::Enter => {
+                let path = Some(expand_tilde(buf.text.trim())).filter(|p| !p.is_empty());
+                s.overlay = None;
+                ws.map(|w| vec![Effect::SetCheckout(w, path)]).unwrap_or_default()
+            }
+            _ => {
+                buf.handle(&k);
+                vec![]
+            }
+        },
     }
 }
 
@@ -826,6 +1078,14 @@ pub fn switch_workspace(s: &mut State, id: WorkspaceId) -> Vec<Effect> {
     s.hosts.clear();
     s.members.clear();
     s.mentionables.clear();
+    s.workflows.clear();
+    s.runs.clear();
+    s.workflow_sel = Sel::default();
+    s.memory = Memory::default();
+    s.tasks.clear();
+    s.memory_sel = Sel::default();
+    s.handoffs.clear();
+    s.checkout = None;
     s.focus = Focus::List;
     load_workspace(&id)
 }
@@ -871,8 +1131,10 @@ fn go(s: &mut State, v: View) -> Vec<Effect> {
             .map(|w| match v {
                 View::Proposals => vec![Effect::LoadProposals(w)],
                 View::People => vec![Effect::LoadMembers(w)],
-                View::Hosts => vec![Effect::LoadHosts(w)],
-                View::Agents => vec![Effect::LoadAgents(w.clone()), Effect::LoadRuntimes(w)],
+                View::Hosts => vec![Effect::LoadHosts(w.clone()), Effect::LoadCheckout(w)],
+                View::Agents => vec![Effect::LoadAgents(w.clone()), Effect::LoadRuntimes(w.clone()), Effect::LoadHandoffs(w)],
+                View::Workflows => vec![Effect::LoadWorkflows(w.clone()), Effect::LoadRuns(w)],
+                View::Memory => vec![Effect::LoadTasks(w.clone()), Effect::LoadMemory(w)],
                 _ => vec![],
             })
             .unwrap_or_default(),
@@ -916,6 +1178,10 @@ fn main_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
         }
         return vec![];
     };
+    main_action(s, action)
+}
+
+fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
     let ws = s.active.clone();
     use Action::*;
     match action {
@@ -952,6 +1218,8 @@ fn main_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
         GoPeople => go(s, View::People),
         GoNotifications => go(s, View::Notifications),
         GoSettings => go(s, View::Settings),
+        GoWorkflows => go(s, View::Workflows),
+        GoMemory => go(s, View::Memory),
         FocusNext | FocusPrev => {
             s.focus = match (s.view, s.focus, action) {
                 (View::Chats, Focus::List, FocusNext) => Focus::Detail,
@@ -1123,6 +1391,60 @@ fn main_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
             s.notifications.iter_mut().for_each(|n| n.read = true);
             vec![Effect::MarkNotificationsRead]
         }
+        StartRun => {
+            let def = match s.selected_workflow_item() {
+                Some(WorkflowItem::Def(d)) => d.clone(),
+                Some(WorkflowItem::Run(r)) => match s.workflows.iter().find(|d| d.id == r.workflow) {
+                    Some(d) => d.clone(),
+                    None => return vec![],
+                },
+                None => return vec![],
+            };
+            if let Allowed::No(r) = &def.can_start {
+                s.toast(ToastKind::Error, format!("Can't start “{}”: {r}", def.name));
+                return vec![];
+            }
+            s.overlay = Some(Overlay::StartRun { workflow: def.id, name: def.name, label: def.input_label, input: TextBuf::single() });
+            vec![]
+        }
+        ApproveGate | RejectGate => {
+            let Some(WorkflowItem::Run(r)) = s.selected_workflow_item() else {
+                s.toast(ToastKind::Info, "Select a run to decide its gate");
+                return vec![];
+            };
+            let Some(gate) = r.stages.iter().find(|st| st.status == StageStatus::AwaitingApproval) else {
+                s.toast(ToastKind::Info, "This run isn't waiting on a gate");
+                return vec![];
+            };
+            let (run, stage) = (r.id.clone(), gate.id.clone());
+            ws.map(|w| vec![Effect::DecideGate(w, run, stage, action == ApproveGate)]).unwrap_or_default()
+        }
+        CancelRun => {
+            let Some(WorkflowItem::Run(r)) = s.selected_workflow_item() else { return vec![] };
+            if r.status.is_terminal() {
+                let st = r.status.label();
+                s.toast(ToastKind::Info, format!("This run already {st}"));
+                return vec![];
+            }
+            let run = r.id.clone();
+            ws.map(|w| vec![Effect::CancelRun(w, run)]).unwrap_or_default()
+        }
+        BindCheckout => {
+            let mut buf = TextBuf::single();
+            if let Some(c) = &s.checkout {
+                buf.set(c);
+            }
+            s.overlay = Some(Overlay::BindCheckout(buf));
+            vec![]
+        }
+        AdmitBox => {
+            if s.active_workspace().is_some_and(|w| w.your_role < Role::Admin) {
+                s.toast(ToastKind::Error, "Can't admit a box: only an Admin or Owner admits one");
+                return vec![];
+            }
+            s.overlay = Some(Overlay::AdmitBox { request: TextBuf::single(), busy: false, result: None });
+            vec![]
+        }
     }
 }
 
@@ -1201,6 +1523,16 @@ fn nav_action(s: &mut State, a: Action) -> Vec<Effect> {
             list_nav(&mut s.settings_sel, SETTINGS_TOGGLES, a);
             vec![]
         }
+        View::Workflows => {
+            let n = s.workflow_rows();
+            list_nav(&mut s.workflow_sel, n, a);
+            vec![]
+        }
+        View::Memory => {
+            let n = s.memory_rows();
+            list_nav(&mut s.memory_sel, n, a);
+            vec![]
+        }
     }
 }
 
@@ -1264,6 +1596,21 @@ fn select(s: &mut State) -> Vec<Effect> {
                 _ => vec![],
             }
         }
-        View::People | View::Agents | View::Hosts => vec![],
+        View::Workflows => {
+            // Enter on a run opens its chat; on a definition, starts a run.
+            match s.selected_workflow_item() {
+                Some(WorkflowItem::Run(r)) => {
+                    let chat = r.chat.clone();
+                    s.view = View::Chats;
+                    if let Some(i) = s.chats.iter().position(|c| c.id == chat) {
+                        s.chat_sel.index = i;
+                    }
+                    open_chat(s, chat)
+                }
+                Some(WorkflowItem::Def(_)) => main_action(s, Action::StartRun),
+                None => vec![],
+            }
+        }
+        View::People | View::Agents | View::Hosts | View::Memory => vec![],
     }
 }

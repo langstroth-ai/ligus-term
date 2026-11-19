@@ -24,7 +24,7 @@ use std::sync::Arc;
 use ligus_core::{ChatSession, ModelProviderKind, WorkspaceAgent, WorkspaceRole, WorkspaceRuntime};
 use ligus_runtime::author_gate::GatePlan;
 use ligus_runtime::executor::{HostKind, TurnPolicy};
-use ligus_runtime::turn_dispatch::{DispatchTarget, dispatch_target, host_binding, runs_here_linked, synced_user_triggers};
+use ligus_runtime::turn_dispatch::{DispatchTarget, HostBinding, dispatch_target, host_binding, runs_here_linked, synced_user_triggers};
 use ligus_runtime::{ResolvedRuntime, dispatch};
 use uuid::Uuid;
 
@@ -58,34 +58,85 @@ fn responder(s: &ChatSession, target: DispatchTarget) -> Option<(Option<Workspac
     }
 }
 
+/// What the gate decided about a message.
+pub enum Gate {
+    /// Nobody answers it (no agent addressed, or someone else's to answer
+    /// on a host that is online).
+    None,
+    /// This device answers it (the turn is claimed).
+    Run(Plan),
+    /// Its owner's device should answer; if none has after
+    /// `DEFERRED_CLAIM_TIMEOUT`, this device may (the deferred-claim
+    /// fallback). Not claimed.
+    Defer(Plan),
+}
+
 /// The gate both paths share: what `message` triggers, and whether it runs
 /// here. Claims the turn when it does.
-fn gate(i: &Inner, ws: Uuid, sid: Uuid, trigger: Uuid, body: &str) -> Result<Option<Plan>> {
+fn gate(i: &Inner, ws: Uuid, sid: Uuid, trigger: Uuid, body: &str) -> Result<Gate> {
     let core = i.core()?;
     let local = core.identity.actor().id;
     let device = core.identity.device.id.to_string();
     let local_only = i.local_only(ws);
     let (session, links) = i.read(ws, |svc| Ok((svc.load(sid)?, svc.device_links(ws).unwrap_or_default())))?;
-    let Some(session) = session else { return Ok(None) };
-    let Some(target) = dispatch_target(body, &session, local_only, &links) else { return Ok(None) };
-    let Some((agent, runtime_id, owner, host)) = responder(&session, target) else { return Ok(None) };
-    if !runs_here_linked(local_only, &links, &session, &local, &owner, host_binding(&host, &device)) {
-        return Ok(None);
+    let Some(session) = session else { return Ok(Gate::None) };
+    let Some(target) = dispatch_target(body, &session, local_only, &links) else { return Ok(Gate::None) };
+    let Some((agent, runtime_id, owner, host)) = responder(&session, target) else { return Ok(Gate::None) };
+    let binding = host_binding(&host, &device);
+    if !runs_here_linked(local_only, &links, &session, &local, &owner, binding) {
+        // The desktop arms the fallback only for a top-level turn whose
+        // host isn't bound elsewhere and online (that host will answer).
+        let host_online = binding == HostBinding::Elsewhere && i.host_online(ws, &host);
+        if session.cascade_depth() == 0 && !host_online {
+            return Ok(Gate::Defer(Plan { ws, sid, trigger, agent, runtime_id }));
+        }
+        return Ok(Gate::None);
     }
     if !i.write(ws, |svc| svc.claim_turn(sid, ws, trigger))? {
-        return Ok(None);
+        return Ok(Gate::None);
     }
-    Ok(Some(Plan { ws, sid, trigger, agent, runtime_id }))
+    Ok(Gate::Run(Plan { ws, sid, trigger, agent, runtime_id }))
 }
 
 /// The local-send gate: post the person's message, then decide whether this
 /// device answers it.
-pub fn post_and_plan(i: &Inner, ws: Uuid, sid: Uuid, text: &str) -> Result<(Message, Option<Plan>)> {
+pub fn post_and_plan(i: &Inner, ws: Uuid, sid: Uuid, text: &str) -> Result<(Message, Gate)> {
     let posted = i.write(ws, |svc| svc.post_user_message(sid, ws, text))?;
     let s = i.read(ws, |svc| svc.load(sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
     let message = views::message(&s, &posted);
     let plan = gate(i, ws, sid, posted.id, text)?;
     Ok((message, plan))
+}
+
+/// The deferred-claim fallback (the desktop's `arm_deferred_claim_fallback`):
+/// wait `deferred_timeout`; if the turn is still unanswered and unclaimed
+/// (`turn_dispatch::deferred_turn_unanswered`) and its host still isn't
+/// online elsewhere, claim it and answer here.
+pub fn arm_fallback(inner: Arc<Inner>, plan: Plan) {
+    tokio::spawn(async move {
+        tokio::time::sleep(inner.cfg.deferred_timeout).await;
+        let claimed = blocking(&inner, move |i| {
+            let Some(s) = i.read(plan.ws, |svc| svc.load(plan.sid))? else { return Ok(None) };
+            if !ligus_runtime::turn_dispatch::deferred_turn_unanswered(&s, plan.trigger) {
+                return Ok(None);
+            }
+            let device = i.core()?.identity.device.id.to_string();
+            let host = plan.agent.as_ref().map(|a| a.host_id.clone()).unwrap_or_default();
+            if host_binding(&host, &device) == HostBinding::Elsewhere && i.host_online(plan.ws, &host) {
+                return Ok(None);
+            }
+            if !i.write(plan.ws, |svc| svc.claim_turn(plan.sid, plan.ws, plan.trigger))? {
+                return Ok(None);
+            }
+            Ok(Some(plan))
+        })
+        .await;
+        if let Ok(Some(plan)) = claimed
+            && let Err(e) = run_turn(&inner, &plan).await
+        {
+            tracing_like(&inner, &plan, &e.0);
+        }
+    });
 }
 
 /// The relay-sync gate: a user message that arrived through sync, answered
@@ -97,7 +148,11 @@ pub fn plan_synced(i: &Inner, ws: Uuid, sid: Uuid, trigger: Uuid) -> Result<Opti
         return Ok(None);
     }
     let Some(m) = s.messages.iter().find(|m| m.id == trigger) else { return Ok(None) };
-    gate(i, ws, sid, trigger, &m.body.clone())
+    Ok(match gate(i, ws, sid, trigger, &m.body.clone())? {
+        Gate::Run(plan) => Some(plan),
+        // The fallback is armed by the device the message was sent from.
+        Gate::Defer(_) | Gate::None => None,
+    })
 }
 
 /// Whether a workspace runtime can be dispatched here (its key resolves, or
@@ -215,7 +270,8 @@ async fn blocking<T: Send + 'static>(inner: &Arc<Inner>, f: impl FnOnce(&Inner) 
     tokio::task::spawn_blocking(move || f(&i)).await.map_err(one_line)?
 }
 
-async fn run_turn(inner: &Arc<Inner>, plan: &Plan) -> Result<()> {
+/// Run `plan` here; the reply's id and its final body.
+pub async fn run_turn(inner: &Arc<Inner>, plan: &Plan) -> Result<(Uuid, String)> {
     let (ws, sid, trigger) = (plan.ws, plan.sid, plan.trigger);
     let agent = plan.agent.clone();
     let runtime_id = plan.runtime_id.clone();
@@ -303,7 +359,9 @@ async fn run_turn(inner: &Arc<Inner>, plan: &Plan) -> Result<()> {
         Ok(text) => text,
         Err(e) => format!("[error] {e}"),
     };
-    blocking(inner, move |i| i.write(ws, |svc| svc.complete_assistant_message(sid, ws, mid, body))).await
+    let done = body.clone();
+    blocking(inner, move |i| i.write(ws, |svc| svc.complete_assistant_message(sid, ws, mid, done))).await?;
+    Ok((mid, body))
 }
 
 #[cfg(test)]

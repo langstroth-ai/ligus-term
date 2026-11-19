@@ -3,7 +3,7 @@
 Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 
 ```text
-[AT] [QR]• Apiary Tracker · owner │ Chats  Proposals  Agents  Hosts  People  Notifications 1  Settings
+[AT] [QR]• Apiary Tracker · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓ Locked down  prompt-injection marker in a tool result (fetch_url)
 ┃  Inspection log refact… 12m  ┃ no network for agents · every proposal needs a human · U clear lockdown
 ┃  #dev                        ┃╭ Queen cell alerts ─────────────────────────────────────────────────────────╮

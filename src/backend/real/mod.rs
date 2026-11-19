@@ -17,11 +17,13 @@
 //! run in [`turns`], behind the same dispatch gates as the desktop
 //! (`ligus_runtime::turn_dispatch`).
 
+mod deploy;
 mod local;
 mod term_presence;
 mod turns;
 pub mod views;
 mod watch;
+mod workflows;
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -71,6 +73,14 @@ pub struct RealConfig {
     /// Answer with the Claude Code CLI when a chat or agent names no
     /// workspace runtime (the desktop's keyless fallback). Off in tests.
     pub cli_fallback: bool,
+    /// How often this device publishes its host heartbeat (and the leases
+    /// of the runs it drives) and reads everyone else's.
+    pub beat_every: Duration,
+    /// How long a workflow stage waits for its agent's host to reply.
+    pub stage_timeout: Duration,
+    /// How long a turn deferred to its owner's device waits before this
+    /// device may answer it (the deferred-claim fallback).
+    pub deferred_timeout: Duration,
 }
 
 impl RealConfig {
@@ -84,6 +94,9 @@ impl RealConfig {
             opener: Arc::new(presence::SystemOpener),
             presence_wait: presence::WAIT,
             cli_fallback: true,
+            beat_every: Duration::from_secs(ligus_runtime::host_presence::HOST_BEAT_EVERY_SECS as u64),
+            stage_timeout: Duration::from_secs(300),
+            deferred_timeout: ligus_runtime::turn_dispatch::DEFERRED_CLAIM_TIMEOUT,
         }
     }
 }
@@ -109,6 +122,10 @@ pub(crate) struct Inner {
     /// (by the turn runner as it streams, or by the translator from the log),
     /// so the two never send the same text twice.
     emitted: Mutex<HashMap<Uuid, usize>>,
+    /// Host heartbeats read from the relay's presence channel.
+    beats: ligus_runtime::HostPresence,
+    /// The workflow runs this device drives.
+    drivers: Mutex<HashMap<Uuid, workflows::Driving>>,
 }
 
 /// The open device.
@@ -177,6 +194,8 @@ impl RealBackend {
             loops: Mutex::new(HashMap::new()),
             snaps: Mutex::new(watch::Snaps::default()),
             emitted: Mutex::new(HashMap::new()),
+            beats: ligus_runtime::HostPresence::new(),
+            drivers: Mutex::new(HashMap::new()),
             cfg,
             tx,
         });
@@ -198,9 +217,7 @@ impl RealBackend {
     /// Bind the git checkout this device applies proposals in, for
     /// `workspace` (the apply-on-host loop uses its per-chat worktrees).
     pub fn bind_checkout(&self, workspace: &WorkspaceId, repo: &Path) -> Result<()> {
-        let mut l = lock(&self.inner.local);
-        l.checkouts.insert(workspace.0.clone(), repo.display().to_string());
-        l.save(&self.inner.cfg.data_dir).map_err(one_line)
+        self.inner.bind(workspace, Some(repo)).map(|_| ())
     }
 
     /// The write service (integration tests seed runtimes and agents).
@@ -542,7 +559,14 @@ impl Backend for RealBackend {
     async fn join_workspace(&self, your_name: &str, invite: &str) -> Result<WorkspaceSummary> {
         let mut conn = decode_workspace_invite(invite).map_err(BackendError)?;
         if conn.dm_account.is_some() {
-            return err("that's a direct-message invite; lt doesn't do direct messages (open it in the Ligus app)");
+            return err(deploy::NO_DMS);
+        }
+        // The desktop's rule: an invite whose founder key contradicts the one
+        // this device's workspaces register for that person isn't from them.
+        let checked = conn.clone();
+        let (trust, _) = self.call(move |i| Ok(i.invite_trust(&checked))).await?;
+        if trust == InviteTrust::Mismatch {
+            return err(deploy::MISMATCH);
         }
         if let Some(problem) = invite_relay_problem(&conn.relay_url) {
             return Err(BackendError(problem));
@@ -648,9 +672,11 @@ impl Backend for RealBackend {
         if text.trim().is_empty() {
             return err("nothing to send");
         }
-        let (message, plan) = self.call(move |i| turns::post_and_plan(i, ws, sid, &text)).await?;
-        if let Some(plan) = plan {
-            turns::spawn_turn(self.inner.clone(), plan);
+        let (message, gate) = self.call(move |i| turns::post_and_plan(i, ws, sid, &text)).await?;
+        match gate {
+            turns::Gate::Run(plan) => turns::spawn_turn(self.inner.clone(), plan),
+            turns::Gate::Defer(plan) => turns::arm_fallback(self.inner.clone(), plan),
+            turns::Gate::None => {}
         }
         Ok(message)
     }
@@ -768,18 +794,36 @@ impl Backend for RealBackend {
         let ws = ws_uuid(workspace)?;
         self.call(move |i| {
             let device = i.core()?.identity.device.id.to_string();
-            let config = i.read(ws, |svc| svc.load(workspace_config_session_id(ws)))?;
-            Ok(config
-                .map(|c| c.workspace_agents)
-                .unwrap_or_default()
-                .into_iter()
-                .map(|a| Agent {
-                    id: AgentId::new(a.id.to_string()),
-                    handle: a.name.clone(),
-                    runtime: RuntimeId::new(a.runtime_id.clone()),
-                    role: Some(a.role.clone()).filter(|r| !r.is_empty()),
-                    host: Some(a.host_id.clone()).filter(|h| !h.is_empty() && *h != device).map(HostId::new),
-                    shared: a.owner_actor_id.is_empty(),
+            let activity = i.activity(ws)?;
+            let hosts = i.read(ws, |svc| svc.list_hosts(ws))?;
+            let now = Timestamp::now();
+            Ok(activity
+                .agents
+                .iter()
+                .map(|a| {
+                    let host = i.agent_host(a, &activity.me);
+                    let online = host == device || hosts.iter().any(|h| h.id == host && i.beats.is_online(h, &now));
+                    let status = if activity.busy.contains(&a.id) {
+                        AgentStatus::Busy
+                    } else if !host.is_empty() && !online {
+                        AgentStatus::Offline
+                    } else {
+                        AgentStatus::Idle
+                    };
+                    let doing = activity.tasks.iter().filter(|t| t.active && t.agent == a.name).max_by_key(|t| t.at).map(|t| {
+                        let pct = t.progress.map(|p| format!(" {p}%")).unwrap_or_default();
+                        format!("{}{pct}: {}", t.status, t.summary)
+                    });
+                    Agent {
+                        id: AgentId::new(a.id.to_string()),
+                        handle: a.name.clone(),
+                        runtime: RuntimeId::new(a.runtime_id.clone()),
+                        role: Some(a.role.clone()).filter(|r| !r.is_empty()),
+                        host: Some(host).filter(|h| !h.is_empty() && *h != device).map(HostId::new),
+                        shared: a.owner_actor_id.is_empty(),
+                        status,
+                        doing,
+                    }
                 })
                 .collect())
         })
@@ -811,20 +855,28 @@ impl Backend for RealBackend {
         self.call(move |i| {
             let device = i.core()?.identity.device.id.to_string();
             let hosts = i.read(ws, |svc| svc.list_hosts(ws))?;
-            let presence = ligus_runtime::HostPresence::new();
             let now = Timestamp::now();
+            let activity = i.activity(ws)?;
             Ok(hosts
                 .iter()
-                .map(|h| Host {
-                    id: HostId::new(h.id.clone()),
-                    label: if h.id == device { "This device".into() } else { h.label.clone() },
-                    kind: match h.kind {
-                        ligus_core::HostKind::Device => HostKind::Device,
-                        ligus_core::HostKind::Worker => HostKind::Worker,
-                    },
-                    online: h.id == device || presence.is_online(h, &now),
-                    last_seen: Some(views::ms(&presence.last_seen(h))),
-                    this_device: h.id == device,
+                .map(|h| {
+                    let agents: Vec<&ligus_core::WorkspaceAgent> =
+                        activity.agents.iter().filter(|a| i.agent_host(a, &activity.me) == h.id).collect();
+                    Host {
+                        id: HostId::new(h.id.clone()),
+                        label: if h.id == device { "This device".into() } else { h.label.clone() },
+                        kind: match h.kind {
+                            ligus_core::HostKind::Device => HostKind::Device,
+                            ligus_core::HostKind::Worker => HostKind::Worker,
+                        },
+                        online: h.id == device || i.beats.is_online(h, &now),
+                        last_seen: Some(views::ms(&i.beats.last_seen(h))),
+                        this_device: h.id == device,
+                        busy: agents.iter().any(|a| activity.busy.contains(&a.id)),
+                        agents: agents.iter().map(|a| a.name.clone()).collect(),
+                        // Hosts don't publish repo coverage in their beats yet.
+                        repos: Vec::new(),
+                    }
                 })
                 .collect())
         })
@@ -915,6 +967,171 @@ impl Backend for RealBackend {
             }
             i.save_local();
             Ok(i.settings())
+        })
+        .await
+    }
+
+    async fn inspect_invite(&self, invite: &str) -> Result<InviteCheck> {
+        let invite = invite.to_string();
+        self.call(move |i| i.inspect(&invite)).await
+    }
+
+    async fn connect_deployment(&self, your_name: &str, spec: DeploymentSpec) -> Result<Created> {
+        let your_name = your_name.trim().to_string();
+        // Check what can be checked before touching the identity or the relay.
+        deploy::deployment_conn(&spec, String::new(), String::new())?;
+        let saved = self
+            .call({
+                let your_name = your_name.clone();
+                let spec = spec.clone();
+                move |i| {
+                    let core = i.ensure_core(&your_name)?;
+                    let fk = ligus_runtime::envelope_verifier::FounderPin::fingerprint_hex(&core.identity.account.signing_public_key);
+                    let conn = deploy::deployment_conn(&spec, core.identity.actor().id, fk)?;
+                    if lock(&i.list).get(conn.id()).is_some() {
+                        return err("this device already has that workspace");
+                    }
+                    Ok(SavedWorkspace::from_conn(&conn, spec.token.clone().filter(|t| !t.trim().is_empty())))
+                }
+            })
+            .await?;
+        // A box never founds a workspace, and neither does lt over one that
+        // exists: that needs an invite from its Admin.
+        if deploy::relay_has_workspace(&self.inner, &saved).await? {
+            return err("the relay already holds this workspace: join it with an invite from one of its Admins");
+        }
+        let created = self
+            .call(move |i| {
+                let core = i.core()?;
+                let passkey = i.create_passkey(&core, &your_name, &saved.name)?;
+                let account = core.identity.account.id;
+                let ws = saved.id();
+                lock(&i.list).upsert(saved.clone());
+                i.save_list()?;
+                let key = RecoveryKey::generate().map_err(|e| BackendError(e.0))?;
+                i.write(ws, |svc| {
+                    let config = svc.ensure_workspace_config(ws)?;
+                    svc.ensure_self_member(config, ws)?;
+                    svc.register_passkey(ws, key.credential(account, "Recovery key"), &|req| Ok(key.assert(&req.challenge)))?;
+                    svc.register_passkey(ws, passkey, &|req| Ok(key.assert(&req.challenge)))?;
+                    Ok(())
+                })?;
+                i.activate(ws);
+                let summary = i.summary(&i.saved(ws)?);
+                Ok((ws, summary, key.words()))
+            })
+            .await?;
+        let (ws, summary, words) = created;
+        self.inner.start_loops(ws);
+        self.inner.emit(Event::WorkspacesChanged);
+        Ok(Created { workspace: summary, recovery_words: words.split_whitespace().map(str::to_string).collect(), invite: None })
+    }
+
+    async fn admit_box(&self, workspace: &WorkspaceId, join_request: Option<&str>) -> Result<BoxAdmission> {
+        let ws = ws_uuid(workspace)?;
+        let request = join_request.map(str::to_string);
+        self.call(move |i| i.admit(ws, request.as_deref())).await
+    }
+
+    async fn handoffs(&self, workspace: &WorkspaceId) -> Result<Vec<Handoff>> {
+        let ws = ws_uuid(workspace)?;
+        self.call(move |i| {
+            let mut out: Vec<Handoff> = i.chat_sessions(ws)?.iter().flat_map(views::handoffs).collect();
+            out.sort_by(|a, b| b.at.cmp(&a.at));
+            out.truncate(50);
+            Ok(out)
+        })
+        .await
+    }
+
+    async fn checkout(&self, workspace: &WorkspaceId) -> Result<Option<String>> {
+        let id = workspace.0.clone();
+        self.call(move |i| Ok(lock(&i.local).checkouts.get(&id).cloned())).await
+    }
+
+    async fn set_checkout(&self, workspace: &WorkspaceId, path: Option<&str>) -> Result<Option<String>> {
+        ws_uuid(workspace)?;
+        let (workspace, path) = (workspace.clone(), path.map(str::to_string));
+        let bound = self.call(move |i| i.bind(&workspace, path.as_deref().map(Path::new))).await?;
+        Ok(bound)
+    }
+
+    async fn workflows(&self, workspace: &WorkspaceId) -> Result<Vec<Workflow>> {
+        let ws = ws_uuid(workspace)?;
+        self.call(move |i| {
+            let me = i.me();
+            let mut out: Vec<Workflow> = i
+                .chat_sessions(ws)?
+                .iter()
+                .flat_map(|s| s.workflow_definitions.iter().map(|d| views::workflow(s, d, &me)).collect::<Vec<_>>())
+                .collect();
+            out.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+            Ok(out)
+        })
+        .await
+    }
+
+    async fn runs(&self, workspace: &WorkspaceId) -> Result<Vec<Run>> {
+        let ws = ws_uuid(workspace)?;
+        self.call(move |i| {
+            let mut out: Vec<Run> =
+                i.chat_sessions(ws)?.iter().flat_map(|s| s.workflow_runs.iter().map(|r| i.run_view(s, r)).collect::<Vec<_>>()).collect();
+            out.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+            Ok(out)
+        })
+        .await
+    }
+
+    async fn start_run(&self, workspace: &WorkspaceId, workflow: &WorkflowId, input: &str) -> Result<Run> {
+        let (ws, def) = (ws_uuid(workspace)?, uuid_of(workflow.as_str(), "workflow")?);
+        let input = input.to_string();
+        self.call(move |i| workflows::start(i, ws, def, &input)).await
+    }
+
+    async fn cancel_run(&self, workspace: &WorkspaceId, run: &RunId) -> Result<Run> {
+        let (ws, rid) = (ws_uuid(workspace)?, uuid_of(run.as_str(), "run")?);
+        self.call(move |i| workflows::cancel(i, ws, rid)).await?;
+        // The driver settles it on its next round.
+        for _ in 0..50 {
+            let r = self.call(move |i| workflows::find_run(i, ws, rid).map(|(r, s)| i.run_view(&s, &r))).await?;
+            if r.status.is_terminal() {
+                return Ok(r);
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        self.call(move |i| workflows::find_run(i, ws, rid).map(|(r, s)| i.run_view(&s, &r))).await
+    }
+
+    async fn decide_gate(&self, workspace: &WorkspaceId, run: &RunId, stage: &str, approve: bool) -> Result<Run> {
+        let (ws, rid) = (ws_uuid(workspace)?, uuid_of(run.as_str(), "run")?);
+        let stage = stage.to_string();
+        self.call(move |i| {
+            let (r, s) = workflows::find_run(i, ws, rid)?;
+            let node = r.nodes.iter().find(|n| n.node_id == stage).ok_or_else(|| BackendError("no such stage".into()))?;
+            let pid = match (node.proposal_id, node.status) {
+                (Some(p), ligus_core::workflow::NodeRunStatus::AwaitingApproval) => p,
+                _ => return err("that stage isn't a gate waiting for a decision"),
+            };
+            i.write(ws, |svc| svc.vote_on_proposal(s.id, ws, pid, approve))?;
+            workflows::wake_all(i, ws);
+            let (r, s) = workflows::find_run(i, ws, rid)?;
+            Ok(i.run_view(&s, &r))
+        })
+        .await
+    }
+
+    async fn memory(&self, workspace: &WorkspaceId) -> Result<Memory> {
+        let ws = ws_uuid(workspace)?;
+        self.call(move |i| Ok(views::memory(&i.read(ws, |svc| svc.memory(ws))?))).await
+    }
+
+    async fn task_state(&self, workspace: &WorkspaceId) -> Result<Vec<TaskState>> {
+        let ws = ws_uuid(workspace)?;
+        self.call(move |i| {
+            let now = ligus_core::flow::now_ms();
+            let mut out: Vec<TaskState> = i.chat_sessions(ws)?.iter().flat_map(|s| views::task_state(s, now)).collect();
+            out.sort_by(|a, b| b.at.cmp(&a.at));
+            Ok(out)
         })
         .await
     }
@@ -1032,6 +1249,89 @@ impl Inner {
         let p = s.proposals.iter().find(|p| p.id == pid).ok_or_else(|| BackendError("no such proposal".into()))?;
         Ok(views::proposal(&s, p, &me, &hosts))
     }
+}
+
+impl Inner {
+    /// Who is busy and what agents say they are doing, in `ws`.
+    fn activity(&self, ws: Uuid) -> Result<Activity> {
+        let now = ligus_core::flow::now_ms();
+        let config = self.read(ws, |svc| svc.load(workspace_config_session_id(ws)))?;
+        let agents = config.map(|c| c.workspace_agents).unwrap_or_default();
+        let mut busy = std::collections::HashSet::new();
+        let mut tasks = Vec::new();
+        let cutoff = views::ms(&Timestamp::now()) - 600_000;
+        for s in self.chat_sessions(ws)? {
+            // serve's rule: a reply streaming for under ten minutes.
+            for m in s.messages.iter().rev().take(20) {
+                if m.is_streaming
+                    && views::ms(&m.created_at) >= cutoff
+                    && let Some(r) = m.responder_id
+                {
+                    busy.insert(r);
+                }
+            }
+            tasks.extend(views::task_state(&s, now));
+        }
+        Ok(Activity { me: self.me(), agents, busy, tasks })
+    }
+
+    /// The host an agent's turns run on: its bound host, else its owner's
+    /// device when that is this device (empty: some other owner's device).
+    fn agent_host(&self, a: &ligus_core::WorkspaceAgent, me: &str) -> String {
+        if !a.host_id.is_empty() {
+            return a.host_id.clone();
+        }
+        if a.owner_actor_id.is_empty() || a.owner_actor_id == me {
+            return self.core().map(|c| c.identity.device.id.to_string()).unwrap_or_default();
+        }
+        String::new()
+    }
+
+    /// Whether `host` (a host id) has a heartbeat inside the online window.
+    pub(crate) fn host_online(&self, ws: Uuid, host: &str) -> bool {
+        let now = Timestamp::now();
+        self.read(ws, |svc| svc.list_hosts(ws)).unwrap_or_default().iter().any(|h| h.id == host && self.beats.is_online(h, &now))
+    }
+
+    /// Bind (or unbind) the checkout this device applies `workspace`'s
+    /// proposals in. A bound path must be a git checkout.
+    fn bind(&self, workspace: &WorkspaceId, repo: Option<&Path>) -> Result<Option<String>> {
+        let path = match repo {
+            Some(p) => {
+                let p = expand_home(p);
+                if !p.join(".git").exists() {
+                    return err(format!("{} isn't a git checkout", p.display()));
+                }
+                Some(std::fs::canonicalize(&p).unwrap_or(p).display().to_string())
+            }
+            None => None,
+        };
+        {
+            let mut l = lock(&self.local);
+            match &path {
+                Some(p) => l.checkouts.insert(workspace.0.clone(), p.clone()),
+                None => l.checkouts.remove(&workspace.0),
+            };
+            l.save(&self.cfg.data_dir).map_err(one_line)?;
+        }
+        self.emit(Event::HostsChanged { workspace: workspace.clone() });
+        Ok(path)
+    }
+}
+
+/// `~/x` as `$HOME/x`.
+fn expand_home(p: &Path) -> PathBuf {
+    match (p.strip_prefix("~"), std::env::var_os("HOME")) {
+        (Ok(rest), Some(home)) => PathBuf::from(home).join(rest),
+        _ => p.to_path_buf(),
+    }
+}
+
+struct Activity {
+    me: String,
+    agents: Vec<ligus_core::WorkspaceAgent>,
+    busy: std::collections::HashSet<Uuid>,
+    tasks: Vec<TaskState>,
 }
 
 #[cfg(test)]

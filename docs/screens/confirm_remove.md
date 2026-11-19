@@ -3,7 +3,7 @@
 Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 
 ```text
-[AT] [QR]• Apiary Tracker · owner │ Chats  Proposals  Agents  Hosts  People  Notifications 1  Settings
+[AT] [QR]• Apiary Tracker · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Member ──────────────────────────────────────────────────╮
 ┃  Mara · you  owner  founder                    ┃│Lin  contributor                                          │
 ┃  Ada  admin                                    ┃│                                                          │
@@ -15,10 +15,10 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                                ┃│                                                          │
 ┃                                                ┃│X Remove from the workspace                               │
 ┃                                                ┃│I Create an invite                                        │
-┃                      ┏ Remove member ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                      │
-┃                      ┃Remove Lin from the workspace?                                ┃ed your passkey.      │
+┃                      ┏ Remove member ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓er) as a service      │
+┃                      ┃Remove Lin from the workspace?                                ┃                      │
 ┃                      ┃                                                              ┃                      │
-┃                      ┃y confirm (needs your passkey) · any other key cancels        ┃                      │
+┃                      ┃y confirm (needs your passkey) · any other key cancels        ┃ed your passkey.      │
 ┃                      ┃                                                              ┃                      │
 ┃                      ┃                                                              ┃                      │
 ┃                      ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                      │
@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────╯
-↑↓ people  r role  X remove  I invite  ? help                                      lt on this terminal · demo
+↑↓ people  r role  X remove  I invite  B admit box  ? help                         lt on this terminal · demo
 ```

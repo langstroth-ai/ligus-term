@@ -8,10 +8,10 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 
 
 
-
                    ┏ Welcome to Ligus ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
                    ┃Ligus is short for ligustica, the Italian honeybee.                   ┃
                    ┃This terminal is its own Ligus device, with its own keys.             ┃
+                   ┃Safety code    4821 0937 5512  (compare it with people you invite)    ┃
                    ┃┏ Create a passkey ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓┃
                    ┃┃Create a Ligus passkey for “Bee Yard”                               ┃┃
                    ┃┃                                                                    ┃┃
@@ -28,8 +28,8 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
                    ┃┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛┃
                    ┃                                                                      ┃
                    ┃                                                                      ┃
+                   ┃                                                                      ┃
                    ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-
 
 
 

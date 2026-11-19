@@ -15,13 +15,36 @@ pub enum View {
     People,
     Notifications,
     Settings,
+    Workflows,
+    Memory,
 }
 
 impl View {
-    pub const ALL: [View; 7] = [View::Chats, View::Proposals, View::Agents, View::Hosts, View::People, View::Notifications, View::Settings];
+    /// In the top bar's order (and the number keys').
+    pub const ALL: [View; 9] = [
+        View::Chats,
+        View::Workflows,
+        View::Proposals,
+        View::Agents,
+        View::Hosts,
+        View::Memory,
+        View::People,
+        View::Notifications,
+        View::Settings,
+    ];
+    /// The top bar's label when space is short.
+    pub fn short(self) -> &'static str {
+        match self {
+            View::Notifications => "Notifs",
+            View::Proposals => "Props",
+            v => v.title(),
+        }
+    }
     pub fn title(self) -> &'static str {
         match self {
             View::Chats => "Chats",
+            View::Workflows => "Workflows",
+            View::Memory => "Memory",
             View::Proposals => "Proposals",
             View::Agents => "Agents",
             View::Hosts => "Hosts",
@@ -40,6 +63,8 @@ pub enum Focus {
     Composer,
 }
 
+// One of each lives at a time; boxing the form would only add noise.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Phase {
     Loading,
@@ -53,13 +78,37 @@ pub enum Phase {
 pub enum FormMode {
     Create,
     Join,
+    /// Found the workspace a deployment (ligus-local, Kubernetes) serves.
+    Connect,
+}
+
+impl FormMode {
+    pub fn next(self) -> Self {
+        match self {
+            FormMode::Create => FormMode::Join,
+            FormMode::Join => FormMode::Connect,
+            FormMode::Connect => FormMode::Create,
+        }
+    }
+    pub fn prev(self) -> Self {
+        match self {
+            FormMode::Create => FormMode::Connect,
+            FormMode::Join => FormMode::Create,
+            FormMode::Connect => FormMode::Join,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FormField {
     Name,
     Mode,
+    /// The workspace name (create, connect) or the invite (join).
     Value,
+    Relay,
+    Room,
+    Key,
+    Token,
 }
 
 /// Create a workspace or join one: first run, and "+" later.
@@ -71,9 +120,15 @@ pub struct WorkspaceForm {
     pub mode: FormMode,
     pub ws_name: TextBuf,
     pub invite: TextBuf,
+    pub relay: TextBuf,
+    pub room: TextBuf,
+    pub key: TextBuf,
+    pub token: TextBuf,
     pub field: FormField,
     pub error: Option<String>,
     pub busy: bool,
+    /// The checked invite (join asks before joining).
+    pub checked: Option<(String, InviteCheck)>,
 }
 
 impl WorkspaceForm {
@@ -84,9 +139,14 @@ impl WorkspaceForm {
             mode: FormMode::Create,
             ws_name: TextBuf::single(),
             invite: TextBuf::single(),
+            relay: TextBuf::single(),
+            room: TextBuf::single(),
+            key: TextBuf::single(),
+            token: TextBuf::single(),
             field: if ask_name { FormField::Name } else { FormField::Mode },
             error: None,
             busy: false,
+            checked: None,
         }
     }
     pub fn fields(&self) -> Vec<FormField> {
@@ -95,18 +155,33 @@ impl WorkspaceForm {
             f.push(FormField::Name);
         }
         f.push(FormField::Mode);
+        if self.mode == FormMode::Connect {
+            f.extend([FormField::Relay, FormField::Room, FormField::Key, FormField::Token]);
+        }
         f.push(FormField::Value);
         f
     }
+    /// The text field `field` edits (none for the mode row).
+    pub fn buf_mut(&mut self, field: FormField) -> Option<&mut TextBuf> {
+        Some(match field {
+            FormField::Name => &mut self.name,
+            FormField::Mode => return None,
+            FormField::Value => self.value_mut(),
+            FormField::Relay => &mut self.relay,
+            FormField::Room => &mut self.room,
+            FormField::Key => &mut self.key,
+            FormField::Token => &mut self.token,
+        })
+    }
     pub fn value_mut(&mut self) -> &mut TextBuf {
         match self.mode {
-            FormMode::Create => &mut self.ws_name,
+            FormMode::Create | FormMode::Connect => &mut self.ws_name,
             FormMode::Join => &mut self.invite,
         }
     }
     pub fn value(&self) -> &TextBuf {
         match self.mode {
-            FormMode::Create => &self.ws_name,
+            FormMode::Create | FormMode::Connect => &self.ws_name,
             FormMode::Join => &self.invite,
         }
     }
@@ -126,17 +201,52 @@ pub struct PresenceSheet {
     pub error: Option<String>,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Overlay {
-    Help { scroll: usize },
-    Switcher { sel: usize },
+    Help {
+        scroll: usize,
+    },
+    Switcher {
+        sel: usize,
+    },
     AddWorkspace(WorkspaceForm),
     NewChat(TextBuf),
-    HostPicker { proposal: ProposalId, sel: usize },
-    RolePicker { member: MemberId, sel: usize },
-    RuntimePicker { agent: AgentId, sel: usize },
-    ConfirmRemove { member: MemberId, name: String },
-    Invite { code: Option<String> },
+    HostPicker {
+        proposal: ProposalId,
+        sel: usize,
+    },
+    RolePicker {
+        member: MemberId,
+        sel: usize,
+    },
+    RuntimePicker {
+        agent: AgentId,
+        sel: usize,
+    },
+    ConfirmRemove {
+        member: MemberId,
+        name: String,
+    },
+    Invite {
+        code: Option<String>,
+    },
+    /// Admit a box: paste its join request (or leave it empty for a bearer
+    /// code), then the code to hand it.
+    AdmitBox {
+        request: TextBuf,
+        busy: bool,
+        result: Option<BoxAdmission>,
+    },
+    /// The input for a workflow run.
+    StartRun {
+        workflow: WorkflowId,
+        name: String,
+        label: Option<String>,
+        input: TextBuf,
+    },
+    /// The checkout this device applies the workspace's proposals in.
+    BindCheckout(TextBuf),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -256,6 +366,18 @@ pub struct State {
     pub settings: Option<Settings>,
     pub settings_sel: Sel,
 
+    pub workflows: Vec<Workflow>,
+    pub runs: Vec<Run>,
+    /// Over the definitions, then the runs.
+    pub workflow_sel: Sel,
+    pub memory: Memory,
+    pub tasks: Vec<TaskState>,
+    /// Over the task states, then the memory entries.
+    pub memory_sel: Sel,
+    pub handoffs: Vec<Handoff>,
+    /// This device's checkout for the active workspace (apply on host).
+    pub checkout: Option<String>,
+
     pub toasts: Vec<Toast>,
     pub sync_status: HashMap<WorkspaceId, String>,
     /// Where the config file is (for Settings).
@@ -305,6 +427,14 @@ impl State {
             notification_sel: Sel::default(),
             settings: None,
             settings_sel: Sel::default(),
+            workflows: vec![],
+            runs: vec![],
+            workflow_sel: Sel::default(),
+            memory: Memory::default(),
+            tasks: vec![],
+            memory_sel: Sel::default(),
+            handoffs: vec![],
+            checkout: None,
             toasts: vec![],
             sync_status: HashMap::new(),
             config_path: None,
@@ -330,6 +460,23 @@ impl State {
 
     pub fn selected_member(&self) -> Option<&Member> {
         self.members.get(self.member_sel.index)
+    }
+
+    /// The selected workflow row: a definition or a run.
+    pub fn selected_workflow_item(&self) -> Option<WorkflowItem<'_>> {
+        let i = self.workflow_sel.index;
+        match self.workflows.get(i) {
+            Some(w) => Some(WorkflowItem::Def(w)),
+            None => self.runs.get(i - self.workflows.len()).map(WorkflowItem::Run),
+        }
+    }
+
+    pub fn workflow_rows(&self) -> usize {
+        self.workflows.len() + self.runs.len()
+    }
+
+    pub fn memory_rows(&self) -> usize {
+        self.tasks.len() + self.memory.entries.len()
     }
 
     pub fn unread_notifications(&self) -> usize {
@@ -359,7 +506,8 @@ impl State {
         }
         match &self.overlay {
             Some(Overlay::AddWorkspace(f)) => f.field != FormField::Mode,
-            Some(Overlay::NewChat(_)) => true,
+            Some(Overlay::NewChat(_)) | Some(Overlay::StartRun { .. }) | Some(Overlay::BindCheckout(_)) => true,
+            Some(Overlay::AdmitBox { result: None, .. }) => true,
             Some(_) => false,
             None => match &self.phase {
                 Phase::Onboarding(f) => f.field != FormField::Mode,
@@ -380,7 +528,9 @@ impl State {
             View::Proposals if self.focus == Focus::Detail => vec![Diff, Review, Nav, Global],
             View::Proposals => vec![Review, Nav, Global],
             View::Agents => vec![Agents, Nav, Global],
-            View::Hosts => vec![Nav, Global],
+            View::Hosts => vec![Hosts, Nav, Global],
+            View::Workflows => vec![Workflows, Nav, Global],
+            View::Memory => vec![Nav, Global],
             View::People => vec![People, Nav, Global],
             View::Notifications => vec![Notifications, Nav, Global],
             View::Settings => vec![Settings, Nav, Global],
@@ -393,6 +543,13 @@ impl State {
             self.toasts.remove(0);
         }
     }
+}
+
+/// A row of the Workflows view.
+#[derive(Debug, Clone, Copy)]
+pub enum WorkflowItem<'a> {
+    Def(&'a Workflow),
+    Run(&'a Run),
 }
 
 /// "now", "5m", "3h", "2d": how long ago `at` was.

@@ -34,10 +34,12 @@ pub enum Context {
     Agents,
     Settings,
     Notifications,
+    Workflows,
+    Hosts,
 }
 
 impl Context {
-    pub const ALL: [Context; 10] = [
+    pub const ALL: [Context; 12] = [
         Context::Global,
         Context::Nav,
         Context::Chat,
@@ -48,6 +50,8 @@ impl Context {
         Context::Agents,
         Context::Settings,
         Context::Notifications,
+        Context::Workflows,
+        Context::Hosts,
     ];
     pub fn name(self) -> &'static str {
         match self {
@@ -61,6 +65,8 @@ impl Context {
             Context::Agents => "agents",
             Context::Settings => "settings",
             Context::Notifications => "notifications",
+            Context::Workflows => "workflows",
+            Context::Hosts => "hosts",
         }
     }
     pub fn title(self) -> &'static str {
@@ -75,6 +81,8 @@ impl Context {
             Context::Agents => "Agents",
             Context::Settings => "Settings",
             Context::Notifications => "Notifications",
+            Context::Workflows => "Workflows",
+            Context::Hosts => "Hosts",
         }
     }
     pub fn from_name(s: &str) -> Option<Context> {
@@ -96,6 +104,8 @@ pub enum Action {
     GoPeople,
     GoNotifications,
     GoSettings,
+    GoWorkflows,
+    GoMemory,
     FocusNext,
     FocusPrev,
     Up,
@@ -127,6 +137,12 @@ pub enum Action {
     ChangeRuntime,
     Toggle,
     MarkAllRead,
+    StartRun,
+    ApproveGate,
+    RejectGate,
+    CancelRun,
+    BindCheckout,
+    AdmitBox,
 }
 
 /// One row of the binding table: the single source for defaults, config
@@ -152,12 +168,14 @@ pub const BINDINGS: &[Binding] = &[
     b!(Global, SwitchWorkspace, "switch_workspace", "Switch workspace", ["w", "ctrl-w"]),
     b!(Global, AddWorkspace, "add_workspace", "Create or join a workspace", ["+"]),
     b!(Global, GoChats, "go_chats", "Chats", ["c", "1"]),
-    b!(Global, GoProposals, "go_proposals", "Proposals", ["p", "2"]),
-    b!(Global, GoAgents, "go_agents", "Agents and runtimes", ["a", "3"]),
-    b!(Global, GoHosts, "go_hosts", "Hosts", ["h", "4"]),
-    b!(Global, GoPeople, "go_people", "People", ["m", "5"]),
-    b!(Global, GoNotifications, "go_notifications", "Notifications", ["n", "6"]),
-    b!(Global, GoSettings, "go_settings", "Settings", ["s", "7"]),
+    b!(Global, GoWorkflows, "go_workflows", "Workflows and runs", ["f", "2"]),
+    b!(Global, GoProposals, "go_proposals", "Proposals", ["p", "3"]),
+    b!(Global, GoAgents, "go_agents", "Agents, runtimes and hand-offs", ["a", "4"]),
+    b!(Global, GoHosts, "go_hosts", "Hosts and workers", ["h", "5"]),
+    b!(Global, GoMemory, "go_memory", "Task state and memory", ["y", "6"]),
+    b!(Global, GoPeople, "go_people", "People", ["m", "7"]),
+    b!(Global, GoNotifications, "go_notifications", "Notifications", ["n", "8"]),
+    b!(Global, GoSettings, "go_settings", "Settings", ["s", "9"]),
     b!(Global, FocusNext, "focus_next", "Next pane", ["tab"]),
     b!(Global, FocusPrev, "focus_prev", "Previous pane", ["backtab"]),
     b!(Nav, Up, "up", "Up", ["up", "k"]),
@@ -186,9 +204,15 @@ pub const BINDINGS: &[Binding] = &[
     b!(People, ChangeRole, "change_role", "Change role", ["r"]),
     b!(People, RemoveMember, "remove_member", "Remove from the workspace", ["X"]),
     b!(People, Invite, "invite", "Create an invite", ["I"]),
+    b!(People, AdmitBox, "admit_box", "Admit a box (ligus serve or worker)", ["B"]),
     b!(Agents, ChangeRuntime, "change_runtime", "Change the agent's runtime", ["r"]),
     b!(Settings, Toggle, "toggle", "Toggle", ["space", "enter"]),
     b!(Notifications, MarkAllRead, "mark_all_read", "Mark all read", ["R"]),
+    b!(Workflows, StartRun, "start_run", "Start a run of this workflow", ["S"]),
+    b!(Workflows, ApproveGate, "approve_gate", "Approve the run's waiting gate", ["A"]),
+    b!(Workflows, RejectGate, "reject_gate", "Reject the run's waiting gate", ["R"]),
+    b!(Workflows, CancelRun, "cancel_run", "Cancel the run", ["X"]),
+    b!(Hosts, BindCheckout, "bind_checkout", "Set this device's checkout for apply", ["b"]),
 ];
 
 /// A key with modifiers, as written in config (`ctrl-c`, `alt-enter`, `G`).

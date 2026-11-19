@@ -3,7 +3,7 @@
 Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 
 ```text
-[AT] [QR] queen-rearing · viewer │ Chats  Proposals  Agents  Hosts  People  Notifications 1  Settings
+[AT] [QR] queen-rearing · viewer │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Member ──────────────────────────────────────────────────╮
 ┃  Jo  owner  founder                            ┃│Jo  owner                                                 │
 ┃  Mara · you  viewer                            ┃│                                                          │
@@ -18,6 +18,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                                ┃│X Remove from the workspace  nobody cuts the workspace's  │
 ┃                                                ┃│founder                                                   │
 ┃                                                ┃│I Create an invite  only an Admin or Owner issues invites │
+┃                                                ┃│B Admit a box  only an Admin or Owner admits a box        │
 ┃                                                ┃│                                                          │
 ┃                                                ┃│Changes to who's in the workspace need your passkey.      │
 ┃                                                ┃│                                                          │
@@ -32,7 +33,6 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
-┃                                                ┃│                                                          │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────╯
-↑↓ people  r role  X remove  I invite  ? help                                      lt on this terminal · demo
+↑↓ people  r role  X remove  I invite  B admit box  ? help                         lt on this terminal · demo
 ```

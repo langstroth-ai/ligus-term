@@ -3,7 +3,7 @@
 Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 
 ```text
-[AT] [QR]• Apiary Tracker · owner │ Chats  Proposals  Agents  Hosts  People  Notifications 1  Settings
+[AT] [QR]• Apiary Tracker · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ╭ Proposals ───────────────────────────────╮╭ Record mites per 100 bees ─────────────────────────────────────╮
 │open     Record mites per 100 bees        ││open  by @coder · 2 files changed · 1/2 approvals               │
 │         1/2 approvals · @coder · 37m     ││✓ Ada approved · admin                                          │
@@ -11,10 +11,10 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 │         2/2 approvals · @coder · 1d      ││That host applies it once, on its checkout, and reports the     │
 │applied  Bump the frame schema version    ││result.                                                         │
 │         2/2 approvals · @reviewer · 2d   ││                                                                │
-│                                          │╰────────────────────────────────────────────────────────────────╯
-│                                          │┏ Diff · 2 files · hunk 1/3 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-│                                          │┃▌src/inspections.rs +9 −3                                       ┃
-│                                          │┃@@ -12,7 +12,9 @@ pub struct Inspection {                       ┃
+│open     Sign-off: count mites per 100…   │╰────────────────────────────────────────────────────────────────╯
+│         0/1 approvals · workflow · 4m    │┏ Diff · 2 files · hunk 1/3 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+│open     Workflow: Swarm check before …   │┃▌src/inspections.rs +9 −3                                       ┃
+│         0/1 approvals · @scout · 20m     │┃@@ -12,7 +12,9 @@ pub struct Inspection {                       ┃
 │                                          │┃     pub colony: ColonyId,                                      ┃
 │                                          │┃     pub frames: Vec<FrameNote>,                                ┃
 │                                          │┃-    pub mites: u32,                                            ┃

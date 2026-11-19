@@ -2,7 +2,7 @@
 source: tests/screens.rs
 expression: screen
 ---
-[BY] Bee Yard · owner │ Chats  Proposals  Agents  Hosts  People  Notifications  Settings
+[BY] Bee Yard · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications  Settings
 ┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Welcome ───────────────────────────────────────────────────────────────────╮
 ┃  Welcome                now  ┃│                                                                            │
 ┃                              ┃│                                                                            │

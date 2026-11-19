@@ -3,7 +3,7 @@
 Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 
 ```text
-[AT] [QR]• Apiary Tracker · owner │ Chats  Proposals  Agents  Hosts  People  Notifications 1  Settings
+[AT] [QR]• Apiary Tracker · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Member ──────────────────────────────────────────────────╮
 ┃  Mara · you  owner  founder                    ┃│Lin  contributor                                          │
 ┃  Ada  admin                                    ┃│                                                          │
@@ -15,10 +15,10 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                   ┃Remove Lin from the workspace                                       ┃                   │
 ┃                   ┃                                                                    ┃                   │
 ┃                   ┃Event   memberRemoved                                               ┃                   │
-┃                   ┃Digest  405d68465fd0fa10                                            ┃                   │
-┃                   ┃                                                                    ┃your passkey.      │
+┃                   ┃Digest  405d68465fd0fa10                                            ┃ as a service      │
+┃                   ┃                                                                    ┃                   │
 ┃                   ┃Path to a file holding your 24 recovery words (chmod 600):          ┃                   │
-┃                   ┃› ~/ligus-words.txt▏                                                ┃                   │
+┃                   ┃› ~/ligus-words.txt▏                                                ┃your passkey.      │
 ┃                   ┃                                                                    ┃                   │
 ┃                   ┃enter confirm   esc back                                            ┃                   │
 ┃                   ┃                                                                    ┃                   │
@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────╯
-↑↓ people  r role  X remove  I invite  ? help                                      lt on this terminal · demo
+↑↓ people  r role  X remove  I invite  B admit box  ? help                         lt on this terminal · demo
 ```

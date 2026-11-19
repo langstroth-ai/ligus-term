@@ -56,6 +56,7 @@ fn proposal(id: &str, status: ProposalStatus) -> Proposal {
     Proposal {
         id: ProposalId::new(id),
         chat: None,
+        kind: ProposalKind::Change,
         title: id.into(),
         author: "@coder".into(),
         status,
@@ -78,6 +79,9 @@ fn host(id: &str, worker: bool, online: bool, this: bool) -> Host {
         online,
         last_seen: None,
         this_device: this,
+        busy: false,
+        agents: vec![],
+        repos: vec![],
     }
 }
 
@@ -167,7 +171,75 @@ fn pasting_on_the_mode_row_switches_to_join() {
     let Phase::Onboarding(f) = &s.phase else { panic!() };
     assert_eq!(f.mode, FormMode::Join);
     assert_eq!(f.invite.text, "code-123456789");
+    // Enter first checks who the invite is from; a second Enter joins.
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::InspectInvite("code-123456789".into())]);
+    update(&mut s, Msg::InviteChecked("code-123456789".into(), Ok(check(InviteTrust::Known))));
     assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::JoinWorkspace { your_name: "M".into(), invite: "code-123456789".into() }]);
+}
+
+fn check(trust: InviteTrust) -> InviteCheck {
+    InviteCheck {
+        workspace_name: "Bee Yard".into(),
+        relay_url: "https://relay.example".into(),
+        founder_name: Some("Ana".into()),
+        safety_code: Some("aaaa-bbbb".into()),
+        trust,
+        already_joined: false,
+    }
+}
+
+/// An invite whose founder key contradicts this device's logs is never
+/// joined; editing the code checks again.
+#[test]
+fn a_mismatched_invite_is_refused_before_joining() {
+    let mut s = state();
+    update(&mut s, Msg::Startup(Ok(StartupState { your_name: Some("M".into()), workspaces: vec![] })));
+    update(&mut s, Msg::Paste("code-forged-12345".into()));
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::InspectInvite("code-forged-12345".into())]);
+    update(&mut s, Msg::InviteChecked("code-forged-12345".into(), Ok(check(InviteTrust::Mismatch))));
+    let Phase::Onboarding(f) = &s.phase else { panic!() };
+    assert!(f.error.as_deref().is_some_and(|e| e.contains("doesn't match")));
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![]);
+    typed(&mut s, "x");
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::InspectInvite("code-forged-12345x".into())]);
+}
+
+/// Connect: the deployment's relay, room and key, then found it.
+#[test]
+fn connect_mode_founds_a_deployments_workspace() {
+    let mut s = state();
+    update(&mut s, Msg::Startup(Ok(StartupState { your_name: Some("M".into()), workspaces: vec![] })));
+    key(&mut s, KeyCode::Char('d'));
+    let Phase::Onboarding(f) = &s.phase else { panic!() };
+    assert_eq!(f.mode, FormMode::Connect);
+    // Down to the relay field; Enter on an empty form points at what's missing.
+    key(&mut s, KeyCode::Tab);
+    for _ in 0..4 {
+        key(&mut s, KeyCode::Tab);
+    }
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![]);
+    let Phase::Onboarding(f) = &s.phase else { panic!() };
+    assert_eq!(f.field, FormField::Relay);
+    typed(&mut s, "http://127.0.0.1:18443");
+    key(&mut s, KeyCode::Tab);
+    typed(&mut s, "k8s-trial-1");
+    key(&mut s, KeyCode::Tab);
+    typed(&mut s, "secret");
+    key(&mut s, KeyCode::Tab);
+    key(&mut s, KeyCode::Tab);
+    assert_eq!(
+        key(&mut s, KeyCode::Enter),
+        vec![Effect::ConnectDeployment {
+            your_name: "M".into(),
+            spec: DeploymentSpec {
+                name: String::new(),
+                relay_url: "http://127.0.0.1:18443".into(),
+                room: "k8s-trial-1".into(),
+                key: "secret".into(),
+                token: None,
+            }
+        }]
+    );
 }
 
 #[test]
@@ -485,4 +557,136 @@ fn errors_become_toasts_and_cancel_is_quiet() {
     assert_eq!(s.toasts.last().unwrap().kind, ToastKind::Error);
     update(&mut s, Msg::Done { ok: "x".into(), result: Err(BackendError("cancelled".into())) });
     assert_eq!(s.toasts.last().unwrap().text, "Cancelled");
+}
+
+fn run_waiting(id: &str) -> Run {
+    let stage = |id: &str, status, gate: Option<&str>| StageRun {
+        id: id.into(),
+        name: id.into(),
+        what: if gate.is_some() { "gate (1 approval)".into() } else { "@coder".into() },
+        status,
+        gate: gate.map(ProposalId::new),
+        excerpt: String::new(),
+        error: String::new(),
+        attempts: 1,
+    };
+    Run {
+        id: RunId::new(id),
+        workflow: WorkflowId::new("wf"),
+        chat: ChatId::new("c1"),
+        name: "Ship".into(),
+        input: "v1".into(),
+        status: RunStatus::AwaitingGate,
+        stages: vec![stage("build", StageStatus::Succeeded, None), stage("signoff", StageStatus::AwaitingApproval, Some("p-g"))],
+        started_by: "Mara".into(),
+        started_at: NOW,
+        updated_at: NOW,
+        driver: Some("This device".into()),
+    }
+}
+
+fn workflow_def(id: &str, can_start: Allowed) -> Workflow {
+    Workflow {
+        id: WorkflowId::new(id),
+        chat: ChatId::new("c1"),
+        chat_title: "c1".into(),
+        name: "Ship".into(),
+        description: String::new(),
+        input_label: Some("What".into()),
+        stages: vec![],
+        enabled: true,
+        can_start,
+    }
+}
+
+/// The Workflows view: start a run (with its input), decide a waiting gate,
+/// cancel; live run changes land in place; refusals come from the backend.
+#[test]
+fn workflows_view_starts_runs_and_decides_gates() {
+    let mut s = main_state();
+    let w = WorkspaceId::new("a");
+    let fx = key(&mut s, KeyCode::Char('f'));
+    assert_eq!(s.view, View::Workflows);
+    assert_eq!(fx, vec![Effect::LoadWorkflows(w.clone()), Effect::LoadRuns(w.clone())]);
+    update(
+        &mut s,
+        Msg::Workflows(w.clone(), Ok(vec![workflow_def("wf", Allowed::Yes), workflow_def("off", Allowed::No("turned off".into()))])),
+    );
+    update(&mut s, Msg::Runs(w.clone(), Ok(vec![run_waiting("r1")])));
+    assert_eq!(s.workflow_rows(), 3);
+
+    // Start: the input overlay, then the effect.
+    key(&mut s, KeyCode::Char('S'));
+    assert!(matches!(s.overlay, Some(Overlay::StartRun { .. })));
+    typed(&mut s, "v2");
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::StartRun(w.clone(), WorkflowId::new("wf"), "v2".into())]);
+    // A refused definition says why, and asks nothing.
+    key(&mut s, KeyCode::Down);
+    assert!(key(&mut s, KeyCode::Char('S')).is_empty());
+    assert!(s.overlay.is_none());
+    assert!(s.toasts.last().is_some_and(|t| t.text.contains("turned off")));
+
+    // The run: approve its waiting gate.
+    key(&mut s, KeyCode::Down);
+    assert_eq!(key(&mut s, KeyCode::Char('A')), vec![Effect::DecideGate(w.clone(), RunId::new("r1"), "signoff".into(), true)]);
+    assert_eq!(key(&mut s, KeyCode::Char('R')), vec![Effect::DecideGate(w.clone(), RunId::new("r1"), "signoff".into(), false)]);
+    assert_eq!(key(&mut s, KeyCode::Char('X')), vec![Effect::CancelRun(w.clone(), RunId::new("r1"))]);
+
+    // A change from the driver lands in place; a settled run has no gate.
+    let mut done = run_waiting("r1");
+    done.status = RunStatus::Completed;
+    done.stages[1].status = StageStatus::Succeeded;
+    update(&mut s, Msg::Event(Event::RunChanged { workspace: w.clone(), run: done }));
+    assert_eq!(s.runs.len(), 1);
+    assert!(key(&mut s, KeyCode::Char('A')).is_empty());
+    assert!(key(&mut s, KeyCode::Char('X')).is_empty());
+    // A run from another workspace is ignored.
+    update(&mut s, Msg::Event(Event::RunChanged { workspace: WorkspaceId::new("b"), run: run_waiting("r9") }));
+    assert_eq!(s.runs.len(), 1);
+}
+
+/// Admitting a box: Admin only; the request (or none) goes to the backend.
+#[test]
+fn admitting_a_box_asks_for_its_request() {
+    let mut s = main_state();
+    key(&mut s, KeyCode::Char('m'));
+    key(&mut s, KeyCode::Char('B'));
+    assert!(matches!(s.overlay, Some(Overlay::AdmitBox { .. })));
+    update(&mut s, Msg::Paste(" ligusjoin1:abc ".into()));
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::AdmitBox(WorkspaceId::new("a"), Some("ligusjoin1:abc".into()))]);
+    update(
+        &mut s,
+        Msg::Admitted(Ok(BoxAdmission {
+            code: "ligusadmit1:x".into(),
+            sealed: true,
+            fingerprint: Some("AAAA".into()),
+            label: None,
+            expires_at: NOW,
+        })),
+    );
+    assert!(matches!(&s.overlay, Some(Overlay::AdmitBox { result: Some(a), .. }) if a.code == "ligusadmit1:x"));
+    key(&mut s, KeyCode::Esc);
+    assert!(s.overlay.is_none());
+    // A Viewer is told no before anything is asked.
+    let fx = update(&mut s, Msg::Key(crossterm::event::KeyEvent::new(KeyCode::Char('w'), crossterm::event::KeyModifiers::NONE)));
+    assert!(fx.is_empty());
+    key(&mut s, KeyCode::Char('2'));
+    key(&mut s, KeyCode::Char('m'));
+    key(&mut s, KeyCode::Char('B'));
+    assert!(s.overlay.is_none());
+}
+
+/// The checkout binding: the overlay starts from the current path.
+#[test]
+fn binding_a_checkout() {
+    let mut s = main_state();
+    let w = WorkspaceId::new("a");
+    key(&mut s, KeyCode::Char('h'));
+    update(&mut s, Msg::Checkout(w.clone(), Ok(Some("/srv/apiary".into()))));
+    key(&mut s, KeyCode::Char('b'));
+    assert!(matches!(&s.overlay, Some(Overlay::BindCheckout(b)) if b.text == "/srv/apiary"));
+    for _ in 0.."/srv/apiary".len() {
+        key(&mut s, KeyCode::Backspace);
+    }
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::SetCheckout(w, None)]);
 }

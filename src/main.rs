@@ -41,6 +41,18 @@ struct Args {
     /// Print a config file with every default and exit.
     #[arg(long)]
     print_config: bool,
+    /// The workspace plain mode uses (a name, an id or a number; default the
+    /// first).
+    #[arg(long, value_name = "WORKSPACE")]
+    workspace: Option<String>,
+    /// Answer passkey confirmations in plain mode with this recovery-words
+    /// file (owner-only), instead of the browser.
+    #[arg(long, value_name = "PATH")]
+    recovery_words_file: Option<PathBuf>,
+    /// With --plain: run this one command and exit (0 ok, 1 an error or an
+    /// unfinished run, 2 an unknown command), e.g. lt --plain run 1 "fix the tests".
+    #[arg(trailing_var_arg = true, value_name = "COMMAND")]
+    command: Vec<String>,
 }
 
 fn env(k: &str) -> Option<String> {
@@ -76,18 +88,39 @@ async fn run() -> anyhow::Result<()> {
     let choice = args.theme.or(config.theme).unwrap_or(ThemeChoice::Auto);
     let theme = Theme::resolve(choice, env);
 
+    let mut real = None;
     let backend: Arc<dyn Backend> = if args.demo {
         let cfg = FakeConfig { data_dir: "(in memory: the demo keeps nothing)".into(), ..FakeConfig::default() };
         Arc::new(FakeBackend::demo(cfg))
     } else {
         let mut cfg = RealConfig::new(data.path.clone());
         cfg.relay_url = env("LT_RELAY_URL").map(|u| u.trim().to_string()).filter(|u| !u.is_empty());
-        Arc::new(RealBackend::open(cfg).unwrap_or_else(|e| fail(e)))
+        let b = RealBackend::open(cfg).unwrap_or_else(|e| fail(e));
+        real = Some(b.clone());
+        Arc::new(b)
     };
 
+    if !args.command.is_empty() && !args.plain {
+        fail("a command runs in plain mode: lt --plain COMMAND");
+    }
     if args.plain || !std::io::stdout().is_terminal() || !std::io::stdin().is_terminal() {
+        let opts = plain::PlainOpts {
+            one_shot: (!args.command.is_empty()).then(|| args.command.join(" ")),
+            workspace: args.workspace.clone(),
+            presence: args
+                .recovery_words_file
+                .as_ref()
+                .map(|p| ligus_term::backend::model::PresenceAnswer::RecoveryWordsFile(p.display().to_string())),
+        };
         let stdin = tokio::io::BufReader::new(tokio::io::stdin());
-        return plain::run(backend, stdin, Box::new(tokio::io::stdout())).await;
+        let code = plain::run_with(backend.clone(), stdin, Box::new(tokio::io::stdout()), opts).await?;
+        if let Some(real) = &real {
+            real.shutdown();
+        }
+        if code != 0 {
+            std::process::exit(code);
+        }
+        return Ok(());
     }
 
     let mut state = State::new(backend.device(), keymap, app::runtime::now_ms());

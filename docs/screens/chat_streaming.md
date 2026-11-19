@@ -3,7 +3,7 @@
 Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 
 ```text
-[AT] [QR]• Apiary Tracker · owner │ Chats  Proposals  Agents  Hosts  People  Notifications 1  Settings
+[AT] [QR]• Apiary Tracker · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Inspection log refactor ───────────────────────────────────────────────────╮
 ┃  Inspection log refact… 12m  ┃│Ada  40m                                                                    │
 ┃  #dev                        ┃│  The inspection log stores raw mite counts. Can we switch to mites per 100 │

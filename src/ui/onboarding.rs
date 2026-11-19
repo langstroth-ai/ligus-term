@@ -11,7 +11,7 @@ use ratatui::widgets::{Clear, Paragraph, Wrap};
 use super::{center, pane};
 use crate::app::input::TextBuf;
 use crate::app::state::{FormField, FormMode, State, WorkspaceForm};
-use crate::backend::model::Created;
+use crate::backend::model::{Created, InviteTrust};
 use crate::theme::Theme;
 
 fn field_line<'a>(label: &'a str, buf: &TextBuf, focused: bool, width: usize, placeholder: &'a str, t: &Theme) -> Line<'a> {
@@ -29,7 +29,13 @@ fn field_line<'a>(label: &'a str, buf: &TextBuf, focused: bool, width: usize, pl
 }
 
 pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: &Theme, first_run: bool) {
-    let h = if first_run { 20 } else { 14 };
+    let connect = form.mode == FormMode::Connect;
+    let h = match (first_run, connect) {
+        (true, true) => 24,
+        (true, false) => 22,
+        (false, true) => 18,
+        (false, false) => 16,
+    };
     let r = center(area, 72, h);
     f.render_widget(Clear, r);
     let title = if first_run { "Welcome to Ligus" } else { "Add a workspace" };
@@ -58,9 +64,11 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
     };
     lines.push(Line::from(vec![
         Span::styled(if mode_focus { "› " } else { "  " }, t.accent()),
-        opt("Create a workspace", form.mode == FormMode::Create),
-        Span::raw("    "),
+        opt("Create", form.mode == FormMode::Create),
+        Span::raw("   "),
         opt("Join with an invite", form.mode == FormMode::Join),
+        Span::raw("   "),
+        opt("Connect a deployment", form.mode == FormMode::Connect),
     ]));
     lines.push(Line::raw(""));
     let vf = form.field == FormField::Value;
@@ -71,13 +79,38 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
         }
         FormMode::Join => {
             lines.push(field_line("Invite code", &form.invite, vf, w, "paste the code you were sent", t));
-            lines.push(Line::styled("  It carries what this device needs to sync the workspace.", t.dim()));
+            match form.checked.as_ref().filter(|(i, _)| *i == form.invite.text.trim()) {
+                Some((_, c)) => {
+                    let who = c.founder_name.clone().unwrap_or_else(|| "its founder".into());
+                    let code = c.safety_code.clone().unwrap_or_else(|| "none".into());
+                    let style = match c.trust {
+                        InviteTrust::Known => t.fg(t.good),
+                        InviteTrust::Mismatch => t.fg(t.bad),
+                        _ => t.fg(t.warn),
+                    };
+                    lines.push(Line::styled(format!("  “{}”, founded by {who}", c.workspace_name), t.text()));
+                    lines.push(Line::styled(format!("  {}", c.trust.describe()), style));
+                    lines.push(Line::styled(format!("  Founder's safety code {code}"), t.dim()));
+                    lines.push(Line::styled(format!("  Relay {}", c.relay_url), t.dim()));
+                }
+                None => lines.push(Line::styled("  Enter checks who it's from (its founder's signature); enter again joins.", t.dim())),
+            }
+        }
+        FormMode::Connect => {
+            lines.push(field_line("Relay URL", &form.relay, form.field == FormField::Relay, w, "http://127.0.0.1:18443", t));
+            lines.push(field_line("Room", &form.room, form.field == FormField::Room, w, "LIGUS_WORKSPACE / Secret key room", t));
+            lines.push(field_line("Key", &form.key, form.field == FormField::Key, w, "the workspace key / Secret key key", t));
+            lines.push(field_line("Relay token", &form.token, form.field == FormField::Token, w, "only for a gated relay (hrt1…)", t));
+            lines.push(field_line("Workspace name", &form.ws_name, vf, w, "defaults to the room", t));
+            lines.push(Line::styled("  Founds the workspace a ligus-local or Kubernetes deployment serves;", t.dim()));
+            lines.push(Line::styled("  then admit its boxes from People (B).", t.dim()));
         }
     }
     lines.push(Line::raw(""));
     if form.busy {
         let msg = match form.mode {
-            FormMode::Create => "Creating… confirm the passkey prompt",
+            FormMode::Create | FormMode::Connect => "Creating… confirm the passkey prompt",
+            FormMode::Join if form.checked.is_none() => "Checking the invite…",
             FormMode::Join => "Joining…",
         };
         lines.push(Line::styled(format!("  {msg}"), t.fg(t.warn)));
@@ -88,7 +121,7 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
     }
     lines.push(Line::raw(""));
     let esc = if first_run { "quit" } else { "close" };
-    lines.push(Line::styled(format!("tab next · ←→ create/join · enter continue · esc {esc}"), t.dim()));
+    lines.push(Line::styled(format!("tab next · ←→ create/join/connect · enter continue · esc {esc}"), t.dim()));
     f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
 }
 

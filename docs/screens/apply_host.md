@@ -3,7 +3,7 @@
 Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 
 ```text
-[AT] [QR]• Apiary Tracker · owner │ Chats  Proposals  Agents  Hosts  People  Notifications 1  Settings
+[AT] [QR]• Apiary Tracker · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Proposals ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Export inspections to CSV ─────────────────────────────────────╮
 ┃open     Record mites per 100 bees        ┃│approved  by @coder · 1 file changed · 2/2 approvals            │
 ┃         1/2 approvals · @coder · 37m     ┃│✓ Mara approved · owner                                         │
@@ -11,10 +11,10 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃         2/2 approvals · @coder · 1d      ┃│A Approve  R Reject (already approved)   O Apply on sff…        │
 ┃applied  Bump the frame schema version    ┃│That host applies it once, on its checkout, and reports the     │
 ┃         2/2 approvals · @reviewer · 2d   ┃│result.                                                         │
-┃                                          ┃│                                                                │
-┃                                          ┃╰────────────────────────────────────────────────────────────────╯
-┃                                          ┃╭ Diff · 1 file · hunk 1/1 ──────────────────────────────────────╮
-┃                      ┏ Apply on… ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                      │
+┃open     Sign-off: count mites per 100…   ┃│                                                                │
+┃         0/1 approvals · workflow · 4m    ┃╰────────────────────────────────────────────────────────────────╯
+┃open     Workflow: Swarm check before …   ┃╭ Diff · 1 file · hunk 1/1 ──────────────────────────────────────╮
+┃         0/1 approvals┏ Apply on… ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                      │
 ┃                      ┃  Apply here (online)  this device                            ┃                      │
 ┃                      ┃› Apply on sff (online)                                       ┃                      │
 ┃                      ┃  Apply on ada-studio (offline)                               ┃ing {                 │

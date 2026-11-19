@@ -39,6 +39,12 @@ pub struct Snap {
     lockdowns: usize,
     /// For the config log: members, agents, hosts.
     config: (String, String, String),
+    /// Workflow runs: id to (status, stages, epoch).
+    runs: HashMap<Uuid, String>,
+    /// Workflow definitions.
+    workflows: String,
+    /// Memory (config log) and task state and hand-offs (chats).
+    flow: String,
 }
 
 #[derive(Default)]
@@ -55,6 +61,29 @@ fn snap_of(s: &ChatSession) -> Snap {
             format!("{:?}", s.members.iter().map(|m| (&m.id, m.role)).collect::<Vec<_>>()),
             format!("{:?}", s.workspace_agents.iter().map(|a| (a.id, &a.runtime_id, &a.host_id, &a.name)).collect::<Vec<_>>()),
             format!("{:?}", s.workspace_hosts.iter().map(|h| (&h.id, &h.label, h.last_seen.inner().unix_timestamp())).collect::<Vec<_>>()),
+        ),
+        runs: s
+            .workflow_runs
+            .iter()
+            .map(|r| {
+                (
+                    r.id,
+                    format!(
+                        "{:?}/{:?}/{:?}",
+                        r.status,
+                        r.nodes.iter().map(|n| (n.status, n.proposal_id)).collect::<Vec<_>>(),
+                        r.lease_epoch
+                    ),
+                )
+            })
+            .collect(),
+        workflows: format!("{:?}", s.workflow_definitions.iter().map(|d| (d.id, d.disabled, d.nodes.len())).collect::<Vec<_>>()),
+        flow: format!(
+            "{}/{:?}/{}/{}",
+            s.flow.memory.entries.len(),
+            s.flow.memory.entries.values().map(|e| e.current.rev).collect::<Vec<_>>(),
+            s.flow.tasks.iter().map(|t| t.rev.to_string()).collect::<String>(),
+            s.flow.handoffs.len()
         ),
     }
 }
@@ -135,6 +164,10 @@ fn diff(inner: &Inner, batch: HashMap<Uuid, (Uuid, bool)>) -> Vec<(Uuid, Uuid, U
         let old = lock(&inner.snaps).0.get(&sid).cloned();
         let new = snap_of(&s);
         lock(&inner.snaps).0.insert(sid, new.clone());
+        let old_flow = old.as_ref().map(|o| o.flow.clone()).unwrap_or_default();
+        for d in lock(&inner.drivers).values().filter(|d| d.sid == sid) {
+            d.wake.notify_one();
+        }
         if sid == workspace_config_session_id(ws) {
             let o = old.map(|o| o.config).unwrap_or_default();
             if o.0 != new.config.0 {
@@ -146,6 +179,9 @@ fn diff(inner: &Inner, batch: HashMap<Uuid, (Uuid, bool)>) -> Vec<(Uuid, Uuid, U
             }
             if o.2 != new.config.2 {
                 inner.emit(Event::HostsChanged { workspace: wsid.clone() });
+            }
+            if old_flow != new.flow {
+                inner.emit(Event::MemoryChanged { workspace: wsid.clone() });
             }
             continue;
         }
@@ -206,12 +242,29 @@ fn diff(inner: &Inner, batch: HashMap<Uuid, (Uuid, bool)>) -> Vec<(Uuid, Uuid, U
                         if synced && m.actor_identity.as_ref().is_none_or(|a| a.id != me) {
                             notify_if_mentioned(inner, &s, m, &me);
                         }
+                        inner.emit(Event::AgentsChanged { workspace: wsid.clone() });
                     }
                 }
             }
         }
         if any_new && !fresh {
             inner.emit(Event::ChatsChanged { workspace: wsid.clone() });
+        }
+        if old.workflows != new.workflows {
+            inner.emit(Event::WorkflowsChanged { workspace: wsid.clone() });
+        }
+        if !fresh && old_flow != new.flow {
+            inner.emit(Event::MemoryChanged { workspace: wsid.clone() });
+            inner.emit(Event::AgentsChanged { workspace: wsid.clone() });
+        }
+        for r in &s.workflow_runs {
+            if old.runs.get(&r.id) != new.runs.get(&r.id) {
+                inner.emit(Event::RunChanged { workspace: wsid.clone(), run: inner.run_view(&s, r) });
+            }
+        }
+        if any_new {
+            // A reply starting or ending changes who is busy.
+            inner.emit(Event::AgentsChanged { workspace: wsid.clone() });
         }
         let hosts = inner.host_labels(ws);
         for p in &s.proposals {
@@ -303,6 +356,10 @@ impl Inner {
                 Err(e) => self.emit(Event::Sync { workspace: wsid.clone(), status: format!("sync off: {}", e.0) }),
             }
         }
+        if let Some(url) = saved.relay() {
+            let relay = ligus_runtime::RelayClient::new(url).with_auth(saved.secrets.token.clone());
+            tokio::spawn(presence_loop(self.clone(), saved.clone(), relay, stop_rx.clone()));
+        }
         let me = self.clone();
         let mut stop = stop_rx;
         tokio::spawn(async move {
@@ -323,6 +380,100 @@ impl Inner {
                 let _ = tokio::task::spawn_blocking(move || host_tick(&i, ws, touch)).await;
             }
         });
+    }
+}
+
+/// The relay's presence channel for `saved`: publish this host's beat and the
+/// leases of the runs it drives, read every host's beat. A changed online
+/// set reloads the host and agent views.
+async fn presence_loop(
+    inner: Arc<Inner>,
+    saved: ligus_runtime::connection_settings::SavedWorkspace,
+    relay: ligus_runtime::RelayClient,
+    mut stop: tokio::sync::watch::Receiver<bool>,
+) {
+    use ligus_core::lease::{DEFAULT_LEASE_MS, LeaseScope};
+    use ligus_runtime::host_presence::{fetch_host_beats, publish_host_beat};
+    use ligus_runtime::lease_presence::{LeaseBeat, publish_lease_beat};
+    let ws = saved.id();
+    let wsid = WorkspaceId::new(ws.to_string());
+    let room = saved.room.clone();
+    let mut online: Vec<String> = Vec::new();
+    loop {
+        let i = inner.clone();
+        let w = saved.clone();
+        let prepared = tokio::task::spawn_blocking(move || -> Option<_> {
+            let core = i.core().ok()?;
+            let device = core.identity.device.id;
+            let src = i.key_source(&w).ok()?;
+            let store = ligus_runtime::EventStore::open(i.db()).ok()?;
+            let ring = ligus_runtime::keyring::KeyringEngine::from_store(&store, ws, &src);
+            let now_ms = ligus_core::flow::now_ms();
+            // The leases of the runs this device drives, signed by it.
+            let leases: Vec<LeaseBeat> = {
+                let mut drivers = lock(&i.drivers);
+                let reader = lock(&core.reader);
+                drivers
+                    .iter_mut()
+                    .filter(|(_, d)| d.ws == ws)
+                    .map(|(run, d)| {
+                        d.beat += 1;
+                        reader.sign_lease_beat(LeaseBeat {
+                            scope: LeaseScope::WorkflowRun,
+                            scope_id: run.to_string(),
+                            holder: device,
+                            epoch: d.epoch,
+                            beat: d.beat,
+                            lease_ms: DEFAULT_LEASE_MS,
+                            at_ms: now_ms,
+                            signature: Vec::new(),
+                        })
+                    })
+                    .collect()
+            };
+            Some((device, ring, leases))
+        })
+        .await
+        .ok()
+        .flatten();
+        if let Some((device, ring, leases)) = prepared {
+            let device = device.to_string();
+            inner.beats.record(&device, ligus_core::Timestamp::now().inner().unix_timestamp());
+            let _ = publish_host_beat(&relay, &room, &ring, &device).await;
+            for beat in &leases {
+                let _ = publish_lease_beat(&relay, &room, &ring, beat).await;
+            }
+            if let Ok(beats) = fetch_host_beats(&relay, &room, &ring).await {
+                inner.beats.merge(beats);
+            }
+            let i = inner.clone();
+            let now_online = tokio::task::spawn_blocking(move || {
+                let now = ligus_core::Timestamp::now();
+                let mut ids: Vec<String> = i
+                    .read(ws, |svc| svc.list_hosts(ws))
+                    .unwrap_or_default()
+                    .iter()
+                    .filter(|h| i.beats.is_online(h, &now))
+                    .map(|h| h.id.clone())
+                    .collect();
+                ids.sort();
+                ids
+            })
+            .await
+            .unwrap_or_default();
+            if now_online != online {
+                online = now_online;
+                inner.emit(Event::HostsChanged { workspace: wsid.clone() });
+                inner.emit(Event::AgentsChanged { workspace: wsid.clone() });
+            }
+        }
+        tokio::select! {
+            _ = stop.changed() => {}
+            _ = tokio::time::sleep(inner.cfg.beat_every) => {}
+        }
+        if *stop.borrow() {
+            return;
+        }
     }
 }
 

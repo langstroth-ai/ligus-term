@@ -95,6 +95,19 @@ pub enum Event {
     AgentsChanged {
         workspace: WorkspaceId,
     },
+    /// Workflow definitions changed (one added, approved or removed).
+    WorkflowsChanged {
+        workspace: WorkspaceId,
+    },
+    /// A workflow run started or moved (a stage, a gate, its status).
+    RunChanged {
+        workspace: WorkspaceId,
+        run: Run,
+    },
+    /// Workspace memory or an agent's task state changed.
+    MemoryChanged {
+        workspace: WorkspaceId,
+    },
     WorkspacesChanged,
     Notification(Notification),
     /// The backend needs a passkey (or the recovery key) to go on.
@@ -132,14 +145,25 @@ pub trait Backend: Send + Sync {
     /// Create a workspace (no server needed); hands back the recovery words
     /// to show once. Creating the founder's passkey raises a presence prompt.
     async fn create_workspace(&self, your_name: &str, name: &str) -> Result<Created>;
-    /// Join with a pasted invite code.
+    /// What an invite says about who sent it (its founder's signature,
+    /// checked against the workspaces this device shares with them).
+    async fn inspect_invite(&self, invite: &str) -> Result<InviteCheck>;
+    /// Join with a pasted invite code. An invite whose founder key
+    /// contradicts what this device knows is refused.
     async fn join_workspace(&self, your_name: &str, invite: &str) -> Result<WorkspaceSummary>;
+    /// Found a deployment's workspace (`ligus-local`, the Kubernetes chart):
+    /// its relay, room and key, with this device as the founder. Refused
+    /// when the relay already holds that workspace (join it with an invite).
+    async fn connect_deployment(&self, your_name: &str, spec: DeploymentSpec) -> Result<Created>;
     /// The person confirmed they wrote the recovery words down.
     async fn confirm_recovery_saved(&self, workspace: &WorkspaceId) -> Result<()>;
 
     // ── Workspaces and chats ───────────────────────────────────────────
     async fn workspaces(&self) -> Result<Vec<WorkspaceSummary>>;
     async fn create_invite(&self, workspace: &WorkspaceId, role: Role) -> Result<String>;
+    /// Admit a box as a service member (Admin, with a passkey): seal to its
+    /// `ligusjoin1:` request, or (none) a bearer code for a Secret or file.
+    async fn admit_box(&self, workspace: &WorkspaceId, join_request: Option<&str>) -> Result<BoxAdmission>;
     async fn chats(&self, workspace: &WorkspaceId) -> Result<Vec<ChatSummary>>;
     async fn create_chat(&self, workspace: &WorkspaceId, title: &str) -> Result<ChatSummary>;
     async fn transcript(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<Vec<Message>>;
@@ -165,6 +189,27 @@ pub trait Backend: Send + Sync {
     async fn runtimes(&self, workspace: &WorkspaceId) -> Result<Vec<Runtime>>;
     async fn hosts(&self, workspace: &WorkspaceId) -> Result<Vec<Host>>;
     async fn set_agent_runtime(&self, workspace: &WorkspaceId, agent: &AgentId, runtime: &RuntimeId) -> Result<()>;
+    /// Recent hand-offs between agents, newest first.
+    async fn handoffs(&self, workspace: &WorkspaceId) -> Result<Vec<Handoff>>;
+    /// The git checkout this device applies proposals in, for the workspace.
+    async fn checkout(&self, workspace: &WorkspaceId) -> Result<Option<String>>;
+    /// Bind (or with `None`, unbind) that checkout.
+    async fn set_checkout(&self, workspace: &WorkspaceId, path: Option<&str>) -> Result<Option<String>>;
+
+    // ── Workflows ──────────────────────────────────────────────────────
+    async fn workflows(&self, workspace: &WorkspaceId) -> Result<Vec<Workflow>>;
+    /// Runs, newest first.
+    async fn runs(&self, workspace: &WorkspaceId) -> Result<Vec<Run>>;
+    /// Start a run; this device drives it (stages go to their agents' hosts).
+    async fn start_run(&self, workspace: &WorkspaceId, workflow: &WorkflowId, input: &str) -> Result<Run>;
+    async fn cancel_run(&self, workspace: &WorkspaceId, run: &RunId) -> Result<Run>;
+    /// Approve or reject a run's gate (a vote on its proposal).
+    async fn decide_gate(&self, workspace: &WorkspaceId, run: &RunId, stage: &str, approve: bool) -> Result<Run>;
+
+    // ── Memory and task state ──────────────────────────────────────────
+    async fn memory(&self, workspace: &WorkspaceId) -> Result<Memory>;
+    /// Agents' task state across the workspace's chats, newest first.
+    async fn task_state(&self, workspace: &WorkspaceId) -> Result<Vec<TaskState>>;
 
     // ── People ─────────────────────────────────────────────────────────
     async fn members(&self, workspace: &WorkspaceId) -> Result<Vec<Member>>;

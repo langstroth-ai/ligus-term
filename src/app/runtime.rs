@@ -55,6 +55,19 @@ pub async fn run_effect(b: Arc<dyn Backend>, fx: Effect) -> Msg {
         MarkNotificationsRead => done("", b.mark_notifications_read().await),
         SetSetting(k, on) => Msg::Settings(b.set_setting(k, on).await),
         AnswerPresence(id, a) => done("", b.answer_presence(id, a).await),
+        InspectInvite(i) => Msg::InviteChecked(i.clone(), b.inspect_invite(&i).await),
+        ConnectDeployment { your_name, spec } => Msg::Created(b.connect_deployment(&your_name, spec).await),
+        AdmitBox(w, r) => Msg::Admitted(b.admit_box(&w, r.as_deref()).await),
+        LoadWorkflows(w) => Msg::Workflows(w.clone(), b.workflows(&w).await),
+        LoadRuns(w) => Msg::Runs(w.clone(), b.runs(&w).await),
+        StartRun(w, wf, input) => Msg::RunUpdated(w.clone(), b.start_run(&w, &wf, &input).await),
+        CancelRun(w, r) => Msg::RunUpdated(w.clone(), b.cancel_run(&w, &r).await),
+        DecideGate(w, r, stage, approve) => Msg::RunUpdated(w.clone(), b.decide_gate(&w, &r, &stage, approve).await),
+        LoadMemory(w) => Msg::Memory(w.clone(), b.memory(&w).await),
+        LoadTasks(w) => Msg::Tasks(w.clone(), b.task_state(&w).await),
+        LoadHandoffs(w) => Msg::Handoffs(w.clone(), b.handoffs(&w).await),
+        LoadCheckout(w) => Msg::Checkout(w.clone(), b.checkout(&w).await),
+        SetCheckout(w, p) => Msg::Checkout(w.clone(), b.set_checkout(&w, p.as_deref()).await),
     }
 }
 

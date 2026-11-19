@@ -5,6 +5,7 @@
 //! `ligus_runtime::lockdown_view`.
 
 use ligus_core::authz::{MemberAction, RosterState, member_action_refusal};
+use ligus_core::workflow::{self as wf, NodeRunStatus, WorkflowNodeKind, WorkflowRunStatus};
 use ligus_core::workspace_repo::ApplyOutcome;
 use ligus_core::{ActionProposal, ActorKind, ChatMessage, ChatSession, MessageRole, ModelProviderKind, Timestamp, WorkspaceRole};
 use uuid::Uuid;
@@ -113,16 +114,25 @@ pub fn proposal(s: &ChatSession, p: &ActionProposal, me: &str, hosts: &[(String,
         Allowed::Yes
     };
     let name_of = |id: &str| s.members.iter().find(|m| m.id == id).map(|m| m.actor.display_name.clone());
-    let author = s
-        .workspace_agents
-        .iter()
-        .find(|a| Some(a.id) == p.producing_agent_id)
-        .map(|a| format!("@{}", a.name))
+    let gate = s.workflow_runs.iter().any(|r| r.nodes.iter().any(|n| n.proposal_id == Some(p.id)));
+    let kind = if p.workflow.is_some() {
+        ProposalKind::Workflow
+    } else if gate {
+        ProposalKind::Gate
+    } else if p.kind == ligus_core::ProposalKind::Decision {
+        ProposalKind::Decision
+    } else {
+        ProposalKind::Change
+    };
+    let author = if gate { Some("workflow".to_string()) } else { None };
+    let author = author
+        .or_else(|| s.workspace_agents.iter().find(|a| Some(a.id) == p.producing_agent_id).map(|a| format!("@{}", a.name)))
         .or_else(|| name_of(&p.author_actor_id))
         .unwrap_or_else(|| p.author_actor_id.clone());
     Proposal {
         id: ProposalId::new(p.id.to_string()),
         chat: Some(ChatId::new(s.id.to_string())),
+        kind,
         title: p.title.clone(),
         author,
         status: match p.status {
@@ -242,6 +252,166 @@ pub fn runtime_kind(p: ModelProviderKind) -> RuntimeKind {
         ModelProviderKind::OpenRouter => RuntimeKind::OpenRouter,
         _ => RuntimeKind::Custom,
     }
+}
+
+// ── Workflows ───────────────────────────────────────────────────────────
+
+fn stage_what(s: &ChatSession, kind: &WorkflowNodeKind) -> String {
+    match kind {
+        WorkflowNodeKind::Agent { agent_id: Some(id), .. } => {
+            s.workspace_agents.iter().find(|a| a.id == *id).map(|a| format!("@{}", a.name)).unwrap_or_else(|| "@(removed agent)".into())
+        }
+        WorkflowNodeKind::Agent { agent_id: None, .. } => "@primary".into(),
+        WorkflowNodeKind::Gate { required_approvals, .. } => {
+            let n = (*required_approvals).max(1);
+            format!("gate ({n} approval{})", if n == 1 { "" } else { "s" })
+        }
+    }
+}
+
+/// A chat's workflow definition. `can_start` is the backend's: Contributor
+/// and above, an enabled, valid definition.
+pub fn workflow(s: &ChatSession, d: &wf::WorkflowDefinition, me: &str) -> Workflow {
+    let can_start = if d.disabled {
+        Allowed::No("this workflow is turned off".into())
+    } else if s.role_of(me).rank() < WorkspaceRole::Contributor.rank() {
+        Allowed::No("a Viewer can't start a workflow".into())
+    } else if let Err(e) = wf::validate(d) {
+        Allowed::No(e)
+    } else {
+        Allowed::Yes
+    };
+    Workflow {
+        id: WorkflowId::new(d.id.to_string()),
+        chat: ChatId::new(s.id.to_string()),
+        chat_title: s.title.clone(),
+        name: d.name.clone(),
+        description: d.description.clone(),
+        input_label: d.input_label.clone().filter(|l| !l.is_empty()),
+        stages: d
+            .nodes
+            .iter()
+            .map(|n| StageDef { id: n.id.clone(), name: n.name.clone(), what: stage_what(s, &n.kind), depends_on: n.depends_on.clone() })
+            .collect(),
+        enabled: !d.disabled,
+        can_start,
+    }
+}
+
+pub fn run_status(st: WorkflowRunStatus) -> RunStatus {
+    match st {
+        WorkflowRunStatus::Running => RunStatus::Running,
+        WorkflowRunStatus::AwaitingGate => RunStatus::AwaitingGate,
+        WorkflowRunStatus::Completed => RunStatus::Completed,
+        WorkflowRunStatus::Failed => RunStatus::Failed,
+        WorkflowRunStatus::Halted => RunStatus::Halted,
+        WorkflowRunStatus::Canceled => RunStatus::Canceled,
+    }
+}
+
+fn stage_status(st: NodeRunStatus) -> StageStatus {
+    match st {
+        NodeRunStatus::Pending => StageStatus::Pending,
+        NodeRunStatus::Running => StageStatus::Running,
+        NodeRunStatus::AwaitingApproval => StageStatus::AwaitingApproval,
+        NodeRunStatus::Succeeded => StageStatus::Succeeded,
+        NodeRunStatus::Failed => StageStatus::Failed,
+        NodeRunStatus::Rejected => StageStatus::Rejected,
+        NodeRunStatus::Skipped => StageStatus::Skipped,
+    }
+}
+
+/// A run as it stands; `driver` is the label of the device holding its lease.
+pub fn run(s: &ChatSession, r: &wf::WorkflowRun, driver: Option<String>) -> Run {
+    let name_of = |id: &str| s.members.iter().find(|m| m.id == id).map(|m| m.actor.display_name.clone());
+    Run {
+        id: RunId::new(r.id.to_string()),
+        workflow: WorkflowId::new(r.definition_id.to_string()),
+        chat: ChatId::new(s.id.to_string()),
+        name: r.definition.name.clone(),
+        input: r.input.clone(),
+        status: run_status(r.status),
+        stages: r
+            .nodes
+            .iter()
+            .map(|n| {
+                let def = r.definition.nodes.iter().find(|d| d.id == n.node_id);
+                StageRun {
+                    id: n.node_id.clone(),
+                    name: def.map(|d| d.name.clone()).unwrap_or_else(|| n.node_id.clone()),
+                    what: def.map(|d| stage_what(s, &d.kind)).unwrap_or_default(),
+                    status: stage_status(n.status),
+                    gate: n.proposal_id.map(|p| ProposalId::new(p.to_string())),
+                    excerpt: n.output_excerpt.clone(),
+                    error: n.error.clone(),
+                    attempts: n.attempts,
+                }
+            })
+            .collect(),
+        started_by: name_of(&r.initiator_actor_id).unwrap_or_else(|| r.initiator_actor_id.clone()),
+        started_at: ms(&r.started_at),
+        updated_at: ms(&r.updated_at),
+        driver,
+    }
+}
+
+// ── Memory, task state, hand-offs ───────────────────────────────────────
+
+pub fn memory(m: &ligus_core::memory::MemoryState) -> Memory {
+    let mut entries: Vec<MemoryEntry> = m
+        .live()
+        .map(|e| MemoryEntry {
+            id: MemoryId::new(e.id.to_string()),
+            title: e.current.title.clone(),
+            body: e.current.body.clone(),
+            tags: e.current.tags.clone(),
+            author: e.current.author.name.clone(),
+            at: e.current.at_ms,
+            revisions: e.revision_count,
+        })
+        .collect();
+    entries.sort_by(|a, b| b.at.cmp(&a.at));
+    Memory { entries, open_proposals: m.open_proposals().count() }
+}
+
+/// An agent key (`agent:<uuid>` or the primary) as a handle.
+pub fn agent_name(s: &ChatSession, key: &str) -> String {
+    match ligus_core::flow::agent_from_key(key) {
+        Some(id) => s.workspace_agents.iter().find(|a| a.id == id).map(|a| a.name.clone()).unwrap_or_else(|| key.to_string()),
+        None => "primary".into(),
+    }
+}
+
+pub fn task_state(s: &ChatSession, now_ms: i64) -> Vec<TaskState> {
+    s.flow
+        .tasks
+        .iter()
+        .filter(|t| !t.stale(now_ms))
+        .map(|t| TaskState {
+            chat: ChatId::new(s.id.to_string()),
+            agent: agent_name(s, &t.update.agent_key),
+            status: t.update.status.as_str().to_string(),
+            summary: t.update.summary.clone(),
+            progress: t.update.progress,
+            open_questions: t.update.open_questions.clone(),
+            at: t.at_ms,
+            active: t.active(now_ms),
+        })
+        .collect()
+}
+
+pub fn handoffs(s: &ChatSession) -> Vec<Handoff> {
+    s.flow
+        .handoffs
+        .iter()
+        .map(|h| Handoff {
+            chat: ChatId::new(s.id.to_string()),
+            from: if h.from_name.is_empty() { h.from.clone() } else { h.from_name.clone() },
+            to: if h.to_name.is_empty() { h.to.clone() } else { h.to_name.clone() },
+            task: h.task.clone(),
+            at: h.at_ms,
+        })
+        .collect()
 }
 
 #[cfg(test)]

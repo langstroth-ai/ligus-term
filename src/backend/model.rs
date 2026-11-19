@@ -22,7 +22,7 @@ macro_rules! id_type {
     )*};
 }
 
-id_type!(WorkspaceId, ChatId, MessageId, ProposalId, MemberId, AgentId, HostId, RuntimeId, NotificationId);
+id_type!(WorkspaceId, ChatId, MessageId, ProposalId, MemberId, AgentId, HostId, RuntimeId, NotificationId, WorkflowId, RunId, MemoryId);
 
 /// A pending passkey ceremony, numbered by the backend.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -228,6 +228,40 @@ pub struct Agent {
     pub host: Option<HostId>,
     /// Shared with the workspace, or owned by one member.
     pub shared: bool,
+    /// Busy on a reply, idle, or its host is offline.
+    pub status: AgentStatus,
+    /// What it says it is doing (its live task state), if anything.
+    pub doing: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AgentStatus {
+    /// Streaming a reply now.
+    Busy,
+    Idle,
+    /// Its host isn't online.
+    Offline,
+}
+
+impl AgentStatus {
+    pub fn label(self) -> &'static str {
+        match self {
+            AgentStatus::Busy => "busy",
+            AgentStatus::Idle => "idle",
+            AgentStatus::Offline => "offline",
+        }
+    }
+}
+
+/// One agent handing work to another (a cascade, a tool hand-off or a
+/// workflow stage).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Handoff {
+    pub chat: ChatId,
+    pub from: String,
+    pub to: String,
+    pub task: String,
+    pub at: Millis,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -291,10 +325,17 @@ pub struct Host {
     pub id: HostId,
     pub label: String,
     pub kind: HostKind,
+    /// A heartbeat within the online window.
     pub online: bool,
     pub last_seen: Option<Millis>,
     /// This device.
     pub this_device: bool,
+    /// One of its agents is streaming a reply.
+    pub busy: bool,
+    /// The agents that run here.
+    pub agents: Vec<String>,
+    /// The workspace repos it covers (from its heartbeat).
+    pub repos: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -326,6 +367,7 @@ impl ProposalStatus {
 pub struct Proposal {
     pub id: ProposalId,
     pub chat: Option<ChatId>,
+    pub kind: ProposalKind,
     pub title: String,
     pub author: String,
     pub status: ProposalStatus,
@@ -338,6 +380,30 @@ pub struct Proposal {
     pub apply: ApplyState,
     /// Whether you may vote, and why not.
     pub can_vote: Allowed,
+}
+
+/// What a proposal asks for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProposalKind {
+    /// A code change (a diff), applied on a host.
+    Change,
+    /// A decision to vote on.
+    Decision,
+    /// An agent-authored workflow: approving it adds the definition.
+    Workflow,
+    /// A workflow run's approval gate.
+    Gate,
+}
+
+impl ProposalKind {
+    pub fn label(self) -> &'static str {
+        match self {
+            ProposalKind::Change => "change",
+            ProposalKind::Decision => "decision",
+            ProposalKind::Workflow => "workflow",
+            ProposalKind::Gate => "gate",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -453,4 +519,223 @@ pub struct Settings {
 pub enum SettingKey {
     NotifyMentions,
     AgentsMayEdit,
+}
+
+// ── Deployments ─────────────────────────────────────────────────────────
+
+/// A deployment's workspace, as `ligus-local` or the Kubernetes chart
+/// configure it: the relay, the room and its key (the chart's workspace
+/// Secret), and a relay access token when the relay is gated.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct DeploymentSpec {
+    /// The name to show for the workspace.
+    pub name: String,
+    pub relay_url: String,
+    pub room: String,
+    pub key: String,
+    pub token: Option<String>,
+}
+
+/// What an invite says about who sent it, checked before joining.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InviteCheck {
+    pub workspace_name: String,
+    pub relay_url: String,
+    pub founder_name: Option<String>,
+    /// The founder's safety code as the invite carries it.
+    pub safety_code: Option<String>,
+    pub trust: InviteTrust,
+    pub already_joined: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InviteTrust {
+    /// A co-member whose device signed it, with the key your workspaces know.
+    Known,
+    /// Names a co-member and their key but isn't signed by their device.
+    Claimed,
+    /// A co-member with a different key: not from them (joining is refused).
+    Mismatch,
+    /// Someone you share no workspace with: compare the safety code.
+    Unknown,
+    /// The invite carries no founder fingerprint.
+    NoFingerprint,
+}
+
+impl InviteTrust {
+    pub fn label(self) -> &'static str {
+        match self {
+            InviteTrust::Known => "known",
+            InviteTrust::Claimed => "claimed",
+            InviteTrust::Mismatch => "mismatch",
+            InviteTrust::Unknown => "unknown",
+            InviteTrust::NoFingerprint => "none",
+        }
+    }
+    pub fn describe(self) -> &'static str {
+        match self {
+            InviteTrust::Known => "signed by the founder's device, and the key matches the one your workspaces know",
+            InviteTrust::Claimed => "it says it's from them, but their device didn't sign it",
+            InviteTrust::Mismatch => "the founder's key doesn't match the one your workspaces know: not from them",
+            InviteTrust::Unknown => "you share no workspace with them yet: compare the safety code",
+            InviteTrust::NoFingerprint => "the invite carries no founder fingerprint",
+        }
+    }
+}
+
+/// An admission for a box (`ligus serve` or `ligus worker`): it joins as
+/// its own service member (Contributor).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BoxAdmission {
+    /// `ligusadmit1:` (sealed to the box's join request) or a bearer
+    /// `hivews1:` code (for a Kubernetes Secret or `LIGUS_ADMISSION_FILE`).
+    pub code: String,
+    pub sealed: bool,
+    /// The join request's fingerprint, to compare with the box's terminal.
+    pub fingerprint: Option<String>,
+    pub label: Option<String>,
+    pub expires_at: Millis,
+}
+
+// ── Workflows ───────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Workflow {
+    pub id: WorkflowId,
+    /// Definitions belong to the chat they were made in.
+    pub chat: ChatId,
+    pub chat_title: String,
+    pub name: String,
+    pub description: String,
+    /// What the run's input is for, if it asks for one.
+    pub input_label: Option<String>,
+    pub stages: Vec<StageDef>,
+    pub enabled: bool,
+    /// Whether you may start it, and why not.
+    pub can_start: Allowed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StageDef {
+    pub id: String,
+    pub name: String,
+    /// `@agent`, or `gate (N approvals)`.
+    pub what: String,
+    pub depends_on: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RunStatus {
+    Running,
+    AwaitingGate,
+    Completed,
+    Failed,
+    Halted,
+    Canceled,
+}
+
+impl RunStatus {
+    pub fn label(self) -> &'static str {
+        match self {
+            RunStatus::Running => "running",
+            RunStatus::AwaitingGate => "awaiting-gate",
+            RunStatus::Completed => "completed",
+            RunStatus::Failed => "failed",
+            RunStatus::Halted => "halted",
+            RunStatus::Canceled => "canceled",
+        }
+    }
+    pub fn is_terminal(self) -> bool {
+        !matches!(self, RunStatus::Running | RunStatus::AwaitingGate)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StageStatus {
+    Pending,
+    Running,
+    AwaitingApproval,
+    Succeeded,
+    Failed,
+    Rejected,
+    Skipped,
+}
+
+impl StageStatus {
+    pub fn label(self) -> &'static str {
+        match self {
+            StageStatus::Pending => "pending",
+            StageStatus::Running => "running",
+            StageStatus::AwaitingApproval => "awaiting-approval",
+            StageStatus::Succeeded => "succeeded",
+            StageStatus::Failed => "failed",
+            StageStatus::Rejected => "rejected",
+            StageStatus::Skipped => "skipped",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Run {
+    pub id: RunId,
+    pub workflow: WorkflowId,
+    pub chat: ChatId,
+    pub name: String,
+    pub input: String,
+    pub status: RunStatus,
+    pub stages: Vec<StageRun>,
+    pub started_by: String,
+    pub started_at: Millis,
+    pub updated_at: Millis,
+    /// The device driving it (its coordinator lease), if known.
+    pub driver: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StageRun {
+    pub id: String,
+    pub name: String,
+    pub what: String,
+    pub status: StageStatus,
+    /// A gate's proposal (vote on it to decide the gate).
+    pub gate: Option<ProposalId>,
+    /// The start of the stage's output.
+    pub excerpt: String,
+    pub error: String,
+    pub attempts: u32,
+}
+
+// ── Memory and task state ───────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MemoryEntry {
+    pub id: MemoryId,
+    pub title: String,
+    pub body: String,
+    pub tags: Vec<String>,
+    pub author: String,
+    pub at: Millis,
+    pub revisions: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Memory {
+    pub entries: Vec<MemoryEntry>,
+    /// Agents' proposed edits waiting for a person.
+    pub open_proposals: usize,
+}
+
+/// An agent's live task state in a chat ("working, 40%: …").
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TaskState {
+    pub chat: ChatId,
+    pub agent: String,
+    /// working, blocked, waiting, done or abandoned.
+    pub status: String,
+    pub summary: String,
+    pub progress: Option<u8>,
+    pub open_questions: Vec<String>,
+    pub at: Millis,
+    /// Still within its time to live and not finished.
+    pub active: bool,
 }

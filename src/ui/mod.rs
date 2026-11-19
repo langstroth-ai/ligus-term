@@ -47,6 +47,8 @@ fn draw_main(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         View::People => views::people(f, body, s, t),
         View::Notifications => views::notifications(f, body, s, t),
         View::Settings => views::settings(f, body, s, t),
+        View::Workflows => views::workflows(f, body, s, t),
+        View::Memory => views::memory(f, body, s, t),
     }
     draw_status(f, status, s, t);
 }
@@ -72,17 +74,25 @@ fn draw_top_bar(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         spans.push(Span::styled(format!("· {} ", w.your_role.label()), t.dim()));
     }
     spans.push(Span::styled("│ ", t.dim()));
-    for v in View::ALL {
-        let mut label = v.title().to_string();
+    let used: usize = spans.iter().map(|s| s.content.width()).sum();
+    let label = |v: View, short: bool| {
+        let mut l = if short { v.short() } else { v.title() }.to_string();
         if v == View::Notifications {
             let n = s.unread_notifications();
             if n > 0 {
-                label = format!("{label} {n}");
+                l = format!("{l} {n}");
             }
         }
+        l
+    };
+    // Full titles two apart when they fit, else shorter ones one apart.
+    let fits =
+        |short: bool, gap: usize| View::ALL.iter().map(|v| label(*v, short).width() + gap).sum::<usize>() + used <= area.width as usize;
+    let (short, gap) = [(false, 2), (false, 1), (true, 1)].into_iter().find(|(s, g)| fits(*s, *g)).unwrap_or((true, 1));
+    for v in View::ALL {
         let style = if v == s.view { t.accent().add_modifier(Modifier::UNDERLINED) } else { t.text() };
-        spans.push(Span::styled(label, style));
-        spans.push(Span::raw("  "));
+        spans.push(Span::styled(label(v, short), style));
+        spans.push(Span::raw(" ".repeat(gap)));
     }
     f.render_widget(Paragraph::new(Line::from(spans)), area);
 }
@@ -129,6 +139,7 @@ fn draw_status(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             h(C::People, ChangeRole, "role"),
             h(C::People, RemoveMember, "remove"),
             h(C::People, Invite, "invite"),
+            h(C::People, AdmitBox, "admit box"),
             h(C::Global, Help, "help"),
         ],
         (View::Agents, _) => vec!["↑↓ agents".into(), h(C::Agents, ChangeRuntime, "runtime"), h(C::Global, Help, "help")],
@@ -136,7 +147,16 @@ fn draw_status(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             vec!["↑↓".into(), h(C::Nav, Select, "open"), h(C::Notifications, MarkAllRead, "mark all read"), h(C::Global, Help, "help")]
         }
         (View::Settings, _) => vec!["↑↓".into(), h(C::Settings, Toggle, "toggle"), h(C::Global, Help, "help")],
-        (View::Hosts, _) => vec!["↑↓ hosts".into(), h(C::Global, Help, "help")],
+        (View::Hosts, _) => vec!["↑↓ hosts".into(), h(C::Hosts, BindCheckout, "bind checkout"), h(C::Global, Help, "help")],
+        (View::Workflows, _) => vec![
+            "↑↓".into(),
+            h(C::Workflows, StartRun, "start"),
+            h(C::Workflows, ApproveGate, "approve gate"),
+            h(C::Workflows, RejectGate, "reject"),
+            h(C::Workflows, CancelRun, "cancel"),
+            h(C::Global, Help, "help"),
+        ],
+        (View::Memory, _) => vec!["↑↓ task state and memory".into(), h(C::Global, Help, "help")],
     };
     let right = format!("{} · {}", s.device.device_name, s.device.backend_label);
     let left = hints.join("  ");

@@ -62,6 +62,12 @@ struct Ws {
     agents: Vec<Agent>,
     runtimes: Vec<Runtime>,
     hosts: Vec<Host>,
+    workflows: Vec<Workflow>,
+    runs: Vec<Run>,
+    memory: Memory,
+    tasks: Vec<TaskState>,
+    handoffs: Vec<Handoff>,
+    checkout: Option<String>,
 }
 
 #[derive(Clone)]
@@ -156,6 +162,110 @@ impl FakeBackend {
 
     fn emit(&self, e: Event) {
         let _ = self.tx.send(e);
+    }
+
+    /// A gate's vote settled (or not): fold it into its run, which the run's
+    /// driver then carries on.
+    fn settle_gate(&self, workspace: &WorkspaceId, p: &Proposal) {
+        let outcome = match p.status {
+            ProposalStatus::Approved | ProposalStatus::Applied => StageStatus::Succeeded,
+            ProposalStatus::Rejected => StageStatus::Rejected,
+            ProposalStatus::Open => return,
+        };
+        let changed = {
+            let mut w = self.lock();
+            let at = w.tick();
+            let Ok(ws) = w.ws(workspace) else { return };
+            let Some(r) = ws.runs.iter_mut().find(|r| r.stages.iter().any(|st| st.gate.as_ref() == Some(&p.id))) else { return };
+            for st in r.stages.iter_mut().filter(|st| st.gate.as_ref() == Some(&p.id)) {
+                st.status = outcome;
+            }
+            if outcome == StageStatus::Rejected {
+                for st in r.stages.iter_mut().filter(|st| st.status == StageStatus::Pending) {
+                    st.status = StageStatus::Skipped;
+                }
+                r.status = RunStatus::Halted;
+            } else if r.stages.iter().all(|st| st.status == StageStatus::Succeeded) {
+                r.status = RunStatus::Completed;
+            } else {
+                r.status = RunStatus::Running;
+            }
+            r.updated_at = at;
+            r.clone()
+        };
+        self.emit(Event::RunChanged { workspace: workspace.clone(), run: changed });
+    }
+
+    /// Drive a run the demo's way: stages in order, each agent stage after a
+    /// pause, each gate waiting for a vote.
+    fn spawn_run(&self, workspace: WorkspaceId, run: RunId) {
+        let me = self.clone();
+        tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(me.cfg.stream_delay * 6 + Duration::from_millis(5)).await;
+                let next = {
+                    let mut w = me.lock();
+                    let at = w.tick();
+                    let gate_id = ProposalId::new(w.next("p-gate-"));
+                    let Ok(ws) = w.ws(&workspace) else { return };
+                    let Some(r) = ws.runs.iter_mut().find(|r| r.id == run) else { return };
+                    if r.status.is_terminal() {
+                        return;
+                    }
+                    if r.stages.iter().any(|st| st.status == StageStatus::AwaitingApproval) {
+                        continue;
+                    }
+                    let Some(i) = r.stages.iter().position(|st| st.status != StageStatus::Succeeded) else {
+                        r.status = RunStatus::Completed;
+                        r.updated_at = at;
+                        let done = r.clone();
+                        drop(w);
+                        me.emit(Event::RunChanged { workspace: workspace.clone(), run: done });
+                        return;
+                    };
+                    let mut gate = None;
+                    let st = &mut r.stages[i];
+                    if st.what.starts_with("gate") {
+                        st.status = StageStatus::AwaitingApproval;
+                        st.gate = Some(gate_id.clone());
+                        r.status = RunStatus::AwaitingGate;
+                        gate = Some(Proposal {
+                            id: gate_id.clone(),
+                            chat: Some(r.chat.clone()),
+                            kind: ProposalKind::Gate,
+                            title: format!("{}: {}", st.name, r.input),
+                            author: "workflow".into(),
+                            status: ProposalStatus::Open,
+                            files_changed: 0,
+                            approvals: 0,
+                            quorum: 1,
+                            votes: vec![],
+                            created_at: at,
+                            needs_presence: false,
+                            apply: ApplyState::NotRequested,
+                            can_vote: Allowed::Yes,
+                        });
+                    } else if st.status == StageStatus::Running {
+                        st.status = StageStatus::Succeeded;
+                        st.excerpt = format!("{} finished: {}", st.what, r.input);
+                    } else {
+                        st.status = StageStatus::Running;
+                        st.attempts += 1;
+                    }
+                    r.updated_at = at;
+                    let snapshot = r.clone();
+                    if let Some(g) = &gate {
+                        ws.proposals.insert(0, g.clone());
+                        ws.diffs.insert(gate_id, Diff { files: vec![] });
+                    }
+                    (snapshot, gate)
+                };
+                if let Some(g) = next.1 {
+                    me.emit(Event::ProposalChanged { workspace: workspace.clone(), proposal: g });
+                }
+                me.emit(Event::RunChanged { workspace: workspace.clone(), run: next.0 });
+            }
+        });
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, World> {
@@ -305,6 +415,7 @@ impl FakeBackend {
                         chat: Some(chat.clone()),
                         title: "Tighten the varroa threshold check".into(),
                         author: format!("@{}", agent.handle),
+                        kind: ProposalKind::Change,
                         status: ProposalStatus::Open,
                         files_changed: 1,
                         approvals: 0,
@@ -429,6 +540,8 @@ fn agent(id: &str, handle: &str, runtime: &str, host: Option<&str>, role: Option
         role: role.map(Into::into),
         host: host.map(HostId::new),
         shared: true,
+        status: AgentStatus::Idle,
+        doing: None,
     }
 }
 
@@ -574,6 +687,9 @@ fn seed_apiary(w: &mut World) {
             online: true,
             last_seen: Some(DEMO_NOW),
             this_device: true,
+            busy: false,
+            agents: vec![],
+            repos: vec![],
         },
         Host {
             id: HostId::new("h-sff"),
@@ -582,6 +698,9 @@ fn seed_apiary(w: &mut World) {
             online: true,
             last_seen: Some(DEMO_NOW - MIN),
             this_device: false,
+            busy: false,
+            agents: vec![],
+            repos: vec![],
         },
         Host {
             id: HostId::new("h-studio"),
@@ -590,6 +709,9 @@ fn seed_apiary(w: &mut World) {
             online: false,
             last_seen: Some(DEMO_NOW - 3 * 60 * MIN),
             this_device: false,
+            busy: false,
+            agents: vec![],
+            repos: vec![],
         },
     ];
     ws.chats = vec![
@@ -658,6 +780,7 @@ fn seed_apiary(w: &mut World) {
             chat: Some(ChatId::new("c-log")),
             title: "Record mites per 100 bees".into(),
             author: "@coder".into(),
+            kind: ProposalKind::Change,
             status: ProposalStatus::Open,
             files_changed: 2,
             approvals: 1,
@@ -673,6 +796,7 @@ fn seed_apiary(w: &mut World) {
             chat: Some(ChatId::new("c-notes")),
             title: "Export inspections to CSV".into(),
             author: "@coder".into(),
+            kind: ProposalKind::Change,
             status: ProposalStatus::Approved,
             files_changed: 1,
             approvals: 2,
@@ -691,6 +815,7 @@ fn seed_apiary(w: &mut World) {
             chat: Some(ChatId::new("c-notes")),
             title: "Bump the frame schema version".into(),
             author: "@reviewer".into(),
+            kind: ProposalKind::Change,
             status: ProposalStatus::Applied,
             files_changed: 1,
             approvals: 2,
@@ -724,8 +849,206 @@ fn seed_apiary(w: &mut World) {
         },
     );
     ws.diffs.insert(ProposalId::new("p-3"), Diff { files: vec![] });
+    seed_orchestration(&mut ws);
     w.order.push(id.clone());
     w.ws.insert(id, ws);
+}
+
+/// The demo's orchestration: hosts at work, workflows and their runs, a
+/// gate waiting, an agent-authored workflow, memory and task state.
+fn seed_orchestration(ws: &mut Ws) {
+    if let Some(h) = ws.hosts.iter_mut().find(|h| h.id.as_str() == "h-sff") {
+        h.busy = true;
+        h.agents = vec!["coder".into(), "scout".into()];
+        h.repos = vec!["apiary".into()];
+    }
+    if let Some(h) = ws.hosts.iter_mut().find(|h| h.this_device) {
+        h.agents = vec!["primary".into(), "reviewer".into()];
+    }
+    if let Some(a) = ws.agents.iter_mut().find(|a| a.handle == "coder") {
+        a.status = AgentStatus::Busy;
+        a.doing = Some("working 40%: wiring the CSV export".into());
+    }
+    let review = workflow_def(
+        "wf-review",
+        "c-log",
+        "Inspection log refactor",
+        "Implement, review, ship",
+        "The coder implements, the reviewer checks it, a person signs off.",
+        Some("What to change"),
+        vec![
+            stage("implement", "Implement", "@coder", &[]),
+            stage("review", "Review", "@reviewer", &["implement"]),
+            stage("signoff", "Sign-off", "gate (1 approval)", &["review"]),
+        ],
+    );
+    let report = workflow_def(
+        "wf-report",
+        "c-alerts",
+        "Queen cell alerts",
+        "Weekly swarm report",
+        "The scout summarizes the week's alerts.",
+        None,
+        vec![stage("summarize", "Summarize", "@scout", &[])],
+    );
+    ws.runs = vec![
+        Run {
+            id: RunId::new("run-7"),
+            workflow: review.id.clone(),
+            chat: review.chat.clone(),
+            name: review.name.clone(),
+            input: "count mites per 100 bees".into(),
+            status: RunStatus::AwaitingGate,
+            stages: vec![
+                stage_run("implement", "Implement", "@coder", StageStatus::Succeeded, "Changed the inspection struct and the threshold."),
+                stage_run("review", "Review", "@reviewer", StageStatus::Succeeded, "Looks right; the wash sample is validated."),
+                StageRun {
+                    gate: Some(ProposalId::new("p-gate-7")),
+                    ..stage_run("signoff", "Sign-off", "gate (1 approval)", StageStatus::AwaitingApproval, "")
+                },
+            ],
+            started_by: "Mara".into(),
+            started_at: DEMO_NOW - 30 * MIN,
+            updated_at: DEMO_NOW - 4 * MIN,
+            driver: Some("This device".into()),
+        },
+        Run {
+            id: RunId::new("run-6"),
+            workflow: report.id.clone(),
+            chat: report.chat.clone(),
+            name: report.name.clone(),
+            input: String::new(),
+            status: RunStatus::Completed,
+            stages: vec![stage_run("summarize", "Summarize", "@scout", StageStatus::Succeeded, "Two queen cells, both capped.")],
+            started_by: "Ada".into(),
+            started_at: DEMO_NOW - 26 * 60 * MIN,
+            updated_at: DEMO_NOW - 26 * 60 * MIN + 3 * MIN,
+            driver: Some("ada-studio".into()),
+        },
+    ];
+    ws.workflows = vec![review, report];
+    ws.proposals.push(Proposal {
+        id: ProposalId::new("p-gate-7"),
+        chat: Some(ChatId::new("c-log")),
+        kind: ProposalKind::Gate,
+        title: "Sign-off: count mites per 100 bees".into(),
+        author: "workflow".into(),
+        status: ProposalStatus::Open,
+        files_changed: 0,
+        approvals: 0,
+        quorum: 1,
+        votes: vec![],
+        created_at: DEMO_NOW - 4 * MIN,
+        needs_presence: false,
+        apply: ApplyState::NotRequested,
+        can_vote: Allowed::Yes,
+    });
+    ws.proposals.push(Proposal {
+        id: ProposalId::new("p-wf-1"),
+        chat: Some(ChatId::new("c-alerts")),
+        kind: ProposalKind::Workflow,
+        title: "Workflow: Swarm check before inspections".into(),
+        author: "@scout".into(),
+        status: ProposalStatus::Open,
+        files_changed: 0,
+        approvals: 0,
+        quorum: 1,
+        votes: vec![],
+        created_at: DEMO_NOW - 20 * MIN,
+        needs_presence: true,
+        apply: ApplyState::NotRequested,
+        can_vote: Allowed::Yes,
+    });
+    ws.diffs.insert(ProposalId::new("p-gate-7"), Diff { files: vec![] });
+    ws.diffs.insert(ProposalId::new("p-wf-1"), Diff { files: vec![] });
+    ws.memory = Memory {
+        entries: vec![
+            memory_entry("mem-1", "Treatment threshold", "3 mites per 100 bees in late summer; 2 in spring.", &["varroa"], "Ada", 3),
+            memory_entry("mem-2", "Wash sample", "Half a cup of bees is about 300; record the count.", &["inspections"], "@coder", 1),
+            memory_entry("mem-3", "Release cadence", "Tag a release after each inspection season.", &["process"], "Mara", 2),
+        ],
+        open_proposals: 1,
+    };
+    ws.tasks = vec![
+        TaskState {
+            chat: ChatId::new("c-log"),
+            agent: "coder".into(),
+            status: "working".into(),
+            summary: "wiring the CSV export".into(),
+            progress: Some(40),
+            open_questions: vec!["include colonies with no inspection?".into()],
+            at: DEMO_NOW - 2 * MIN,
+            active: true,
+        },
+        TaskState {
+            chat: ChatId::new("c-alerts"),
+            agent: "scout".into(),
+            status: "done".into(),
+            summary: "checked the swarm-cell post".into(),
+            progress: Some(100),
+            open_questions: vec![],
+            at: DEMO_NOW - 50 * MIN,
+            active: false,
+        },
+    ];
+    ws.handoffs = vec![Handoff {
+        chat: ChatId::new("c-log"),
+        from: "coder".into(),
+        to: "reviewer".into(),
+        task: "review the mites-per-100 change".into(),
+        at: DEMO_NOW - 20 * MIN,
+    }];
+}
+
+fn workflow_def(
+    id: &str,
+    chat: &str,
+    chat_title: &str,
+    name: &str,
+    description: &str,
+    input_label: Option<&str>,
+    stages: Vec<StageDef>,
+) -> Workflow {
+    Workflow {
+        id: WorkflowId::new(id),
+        chat: ChatId::new(chat),
+        chat_title: chat_title.into(),
+        name: name.into(),
+        description: description.into(),
+        input_label: input_label.map(Into::into),
+        stages,
+        enabled: true,
+        can_start: Allowed::Yes,
+    }
+}
+
+fn stage(id: &str, name: &str, what: &str, deps: &[&str]) -> StageDef {
+    StageDef { id: id.into(), name: name.into(), what: what.into(), depends_on: deps.iter().map(|d| d.to_string()).collect() }
+}
+
+fn stage_run(id: &str, name: &str, what: &str, status: StageStatus, excerpt: &str) -> StageRun {
+    StageRun {
+        id: id.into(),
+        name: name.into(),
+        what: what.into(),
+        status,
+        gate: None,
+        excerpt: excerpt.into(),
+        error: String::new(),
+        attempts: u32::from(status != StageStatus::Pending),
+    }
+}
+
+fn memory_entry(id: &str, title: &str, body: &str, tags: &[&str], author: &str, revisions: u32) -> MemoryEntry {
+    MemoryEntry {
+        id: MemoryId::new(id),
+        title: title.into(),
+        body: body.into(),
+        tags: tags.iter().map(|t| t.to_string()).collect(),
+        author: author.into(),
+        at: DEMO_NOW - 3 * 24 * 60 * MIN,
+        revisions,
+    }
 }
 
 fn seed_queens(w: &mut World) {
@@ -751,6 +1074,9 @@ fn seed_queens(w: &mut World) {
         online: true,
         last_seen: Some(DEMO_NOW),
         this_device: true,
+        busy: false,
+        agents: vec![],
+        repos: vec![],
     }];
     ws.chats = vec![chat("c-graft", "Grafting calendar", None, DEMO_NOW - 5 * MIN, true, true)];
     ws.chats[0].lockdown =
@@ -832,6 +1158,9 @@ impl Backend for FakeBackend {
                 online: true,
                 last_seen: Some(at),
                 this_device: true,
+                busy: false,
+                agents: vec![],
+                repos: vec![],
             }],
             chats: vec![chat(chat_id.as_str(), "Welcome", None, at, false, false)],
             ..Ws::default()
@@ -854,6 +1183,9 @@ impl Backend for FakeBackend {
         }
         if invite.len() < 12 || invite.contains(char::is_whitespace) {
             return err("that doesn't look like an invite code");
+        }
+        if invite.contains("forged") {
+            return err("the invite's founder key doesn't match the one your shared workspaces have for that person");
         }
         let name = invite.strip_prefix("fake-invite:").map(|n| n.replace('-', " ")).unwrap_or_else(|| "Joined workspace".into());
         let mut w = self.lock();
@@ -885,6 +1217,9 @@ impl Backend for FakeBackend {
                 online: true,
                 last_seen: Some(at),
                 this_device: true,
+                busy: false,
+                agents: vec![],
+                repos: vec![],
             }],
             ..Ws::default()
         };
@@ -1102,8 +1437,28 @@ impl Backend for FakeBackend {
                 p.status = ProposalStatus::Rejected;
             }
             p.can_vote = Allowed::No("you already voted".into());
-            p.clone()
+            let p = p.clone();
+            if p.kind == ProposalKind::Workflow && p.status == ProposalStatus::Approved {
+                let name = p.title.trim_start_matches("Workflow: ").to_string();
+                let def = workflow_def(
+                    &format!("wf-{}", p.id),
+                    p.chat.as_ref().map(|c| c.as_str()).unwrap_or_default(),
+                    "Queen cell alerts",
+                    &name,
+                    "Proposed by an agent and approved.",
+                    None,
+                    vec![stage("check", "Check", "@scout", &[])],
+                );
+                ws.workflows.push(def);
+            }
+            p
         };
+        if p.kind == ProposalKind::Workflow && p.status == ProposalStatus::Approved {
+            self.emit(Event::WorkflowsChanged { workspace: workspace.clone() });
+        }
+        if p.kind == ProposalKind::Gate {
+            self.settle_gate(workspace, &p);
+        }
         self.emit(Event::ProposalChanged { workspace: workspace.clone(), proposal: p.clone() });
         Ok(p)
     }
@@ -1259,6 +1614,196 @@ impl Backend for FakeBackend {
             SettingKey::AgentsMayEdit => w.settings.agents_may_edit = on,
         }
         Ok(w.settings.clone())
+    }
+
+    async fn inspect_invite(&self, invite: &str) -> Result<InviteCheck> {
+        let invite = invite.trim();
+        if invite.len() < 12 || invite.contains(char::is_whitespace) {
+            return err("that doesn't look like an invite code");
+        }
+        let name = invite.strip_prefix("fake-invite:").map(|n| n.replace('-', " ")).unwrap_or_else(|| "Joined workspace".into());
+        let trust = if invite.contains("forged") {
+            InviteTrust::Mismatch
+        } else if invite.contains("signed") {
+            InviteTrust::Known
+        } else {
+            InviteTrust::Unknown
+        };
+        Ok(InviteCheck {
+            workspace_name: name,
+            relay_url: "https://relay.example.org".into(),
+            founder_name: (trust == InviteTrust::Known).then(|| "Ada".into()),
+            safety_code: Some("7d41-09ac-5be2-3310".into()),
+            trust,
+            already_joined: false,
+        })
+    }
+
+    async fn connect_deployment(&self, your_name: &str, spec: DeploymentSpec) -> Result<Created> {
+        if your_name.trim().is_empty() {
+            return err("tell us your name first");
+        }
+        let relay = spec.relay_url.trim();
+        if !(relay.starts_with("http://") || relay.starts_with("https://")) {
+            return err("give the deployment's relay URL (http:// or https://)");
+        }
+        if spec.room.trim().is_empty() || spec.key.trim().is_empty() {
+            return err("give the workspace room and key (from the deployment's workspace Secret)");
+        }
+        let name = if spec.name.trim().is_empty() { spec.room.trim().to_string() } else { spec.name.trim().to_string() };
+        let mut created = self.create_workspace(your_name, &name).await?;
+        {
+            let mut w = self.lock();
+            if let Ok(ws) = w.ws(&created.workspace.id)
+                && let Some(sm) = ws.summary.as_mut()
+            {
+                sm.sync = SyncMode::Relay(relay.to_string());
+                created.workspace = sm.clone();
+            }
+        }
+        created.invite = None;
+        Ok(created)
+    }
+
+    async fn admit_box(&self, workspace: &WorkspaceId, join_request: Option<&str>) -> Result<BoxAdmission> {
+        {
+            let mut w = self.lock();
+            if self.your_role(&mut w, workspace)? < Role::Admin {
+                return err("only an Admin or Owner admits a box");
+            }
+        }
+        let request = join_request.map(str::trim).filter(|r| !r.is_empty());
+        if let Some(r) = request
+            && !r.starts_with("ligusjoin1:")
+        {
+            return err("that isn't a box's join request (ligusjoin1:...)");
+        }
+        self.presence("joinApproved", "Admit a box to the workspace".into(), PresenceOp::Get).await?;
+        let at = self.lock().clock;
+        Ok(match request {
+            Some(r) => BoxAdmission {
+                code: format!("ligusadmit1:sealed-for-{}", r.len()),
+                sealed: true,
+                fingerprint: Some("K3QF-7XMA-2DPL-90RW-ZT4E".into()),
+                label: Some("sff".into()),
+                expires_at: at + 60 * MIN,
+            },
+            None => BoxAdmission {
+                code: "hivews1:fake-bearer-admission".into(),
+                sealed: false,
+                fingerprint: None,
+                label: None,
+                expires_at: at + 24 * 60 * MIN,
+            },
+        })
+    }
+
+    async fn handoffs(&self, workspace: &WorkspaceId) -> Result<Vec<Handoff>> {
+        Ok(self.lock().ws(workspace)?.handoffs.clone())
+    }
+
+    async fn checkout(&self, workspace: &WorkspaceId) -> Result<Option<String>> {
+        Ok(self.lock().ws(workspace)?.checkout.clone())
+    }
+
+    async fn set_checkout(&self, workspace: &WorkspaceId, path: Option<&str>) -> Result<Option<String>> {
+        let path = path.map(str::trim).filter(|p| !p.is_empty()).map(str::to_string);
+        let mut w = self.lock();
+        w.ws(workspace)?.checkout = path.clone();
+        drop(w);
+        self.emit(Event::HostsChanged { workspace: workspace.clone() });
+        Ok(path)
+    }
+
+    async fn workflows(&self, workspace: &WorkspaceId) -> Result<Vec<Workflow>> {
+        Ok(self.lock().ws(workspace)?.workflows.clone())
+    }
+
+    async fn runs(&self, workspace: &WorkspaceId) -> Result<Vec<Run>> {
+        let mut r = self.lock().ws(workspace)?.runs.clone();
+        r.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+        Ok(r)
+    }
+
+    async fn start_run(&self, workspace: &WorkspaceId, workflow: &WorkflowId, input: &str) -> Result<Run> {
+        let run = {
+            let mut w = self.lock();
+            let role = self.your_role(&mut w, workspace)?;
+            if role < Role::Contributor {
+                return err("a Viewer can't start a workflow");
+            }
+            let name = w.your_name.clone().unwrap_or_default();
+            let id = RunId::new(w.next("run-"));
+            let at = w.tick();
+            let ws = w.ws(workspace)?;
+            let Some(def) = ws.workflows.iter().find(|d| &d.id == workflow).cloned() else { return err("no such workflow") };
+            if !def.enabled {
+                return err("that workflow is turned off");
+            }
+            let run = Run {
+                id,
+                workflow: def.id.clone(),
+                chat: def.chat.clone(),
+                name: def.name.clone(),
+                input: input.trim().to_string(),
+                status: RunStatus::Running,
+                stages: def.stages.iter().map(|st| stage_run(&st.id, &st.name, &st.what, StageStatus::Pending, "")).collect(),
+                started_by: name,
+                started_at: at,
+                updated_at: at,
+                driver: Some("This device".into()),
+            };
+            ws.runs.insert(0, run.clone());
+            run
+        };
+        self.emit(Event::RunChanged { workspace: workspace.clone(), run: run.clone() });
+        self.spawn_run(workspace.clone(), run.id.clone());
+        Ok(run)
+    }
+
+    async fn cancel_run(&self, workspace: &WorkspaceId, run: &RunId) -> Result<Run> {
+        let r = {
+            let mut w = self.lock();
+            let ws = w.ws(workspace)?;
+            let Some(r) = ws.runs.iter_mut().find(|r| &r.id == run) else { return err("no such run") };
+            if r.status.is_terminal() {
+                return err(format!("the run already {}", r.status.label()));
+            }
+            for st in
+                r.stages.iter_mut().filter(|st| !matches!(st.status, StageStatus::Succeeded | StageStatus::Failed | StageStatus::Rejected))
+            {
+                st.status = StageStatus::Skipped;
+            }
+            r.status = RunStatus::Canceled;
+            r.clone()
+        };
+        self.emit(Event::RunChanged { workspace: workspace.clone(), run: r.clone() });
+        Ok(r)
+    }
+
+    async fn decide_gate(&self, workspace: &WorkspaceId, run: &RunId, stage: &str, approve: bool) -> Result<Run> {
+        let gate = {
+            let mut w = self.lock();
+            let ws = w.ws(workspace)?;
+            let Some(r) = ws.runs.iter().find(|r| &r.id == run) else { return err("no such run") };
+            let Some(st) = r.stages.iter().find(|st| st.id == stage) else { return err("no such stage") };
+            match (&st.gate, st.status) {
+                (Some(g), StageStatus::AwaitingApproval) => g.clone(),
+                _ => return err("that stage isn't a gate waiting for a decision"),
+            }
+        };
+        let choice = if approve { VoteChoice::Approve } else { VoteChoice::Reject };
+        self.vote(workspace, &gate, choice).await?;
+        let mut w = self.lock();
+        w.ws(workspace)?.runs.iter().find(|r| &r.id == run).cloned().ok_or_else(|| super::BackendError("no such run".into()))
+    }
+
+    async fn memory(&self, workspace: &WorkspaceId) -> Result<Memory> {
+        Ok(self.lock().ws(workspace)?.memory.clone())
+    }
+
+    async fn task_state(&self, workspace: &WorkspaceId) -> Result<Vec<TaskState>> {
+        Ok(self.lock().ws(workspace)?.tasks.clone())
     }
 
     async fn answer_presence(&self, id: PresenceId, answer: PresenceAnswer) -> Result<()> {

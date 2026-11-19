@@ -41,6 +41,72 @@ async fn onboarding_join_with_invite() {
     h.key(KeyCode::Tab).await;
     h.send(Msg::Paste("fake-invite:Bee-Yard".into())).await;
     snap("onboarding_join", "First run: join with an invite", h.screen(W, H));
+    h.key(KeyCode::Enter).await;
+    snap("onboarding_join_checked", "Join: who the invite is from, checked before joining", h.screen(W, H));
+}
+
+#[tokio::test]
+async fn onboarding_connect_a_deployment() {
+    let mut h = Harness::new(false).await;
+    h.chars("Mara").await;
+    h.key(KeyCode::Tab).await;
+    h.key(KeyCode::Char('d')).await;
+    h.key(KeyCode::Tab).await;
+    h.chars("http://127.0.0.1:18443").await;
+    h.key(KeyCode::Tab).await;
+    h.chars("k8s-trial-7f3a").await;
+    snap("onboarding_connect", "First run: connect a deployment (ligus-local, Kubernetes)", h.screen(W, H));
+}
+
+#[tokio::test]
+async fn workflows_and_runs() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char('f')).await;
+    snap("workflows", "Workflows: definitions and runs", h.screen(W, H));
+    h.key(KeyCode::Down).await;
+    h.key(KeyCode::Down).await;
+    snap("workflow_run_gate", "A run waiting on its gate", h.screen(W, H));
+    h.key(KeyCode::Char('A')).await;
+    snap("workflow_run_done", "The gate approved: the run completes", h.screen(W, H));
+    h.key(KeyCode::Char('g')).await;
+    h.key(KeyCode::Char('S')).await;
+    h.chars("export the wash counts").await;
+    snap("workflow_start", "Starting a run", h.screen(W, H));
+    h.key(KeyCode::Enter).await;
+    snap("workflow_run_live", "A run started here, live", h.screen(W, H));
+}
+
+#[tokio::test]
+async fn memory_and_task_state() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char('y')).await;
+    snap("memory", "Task state and memory", h.screen(W, H));
+    h.key(KeyCode::Down).await;
+    h.key(KeyCode::Down).await;
+    snap("memory_entry", "A memory entry", h.screen(W, H));
+}
+
+#[tokio::test]
+async fn admit_a_box() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char('m')).await;
+    h.key(KeyCode::Char('B')).await;
+    h.send(Msg::Paste("ligusjoin1:eyJ2IjoxLCJsYWJlbCI6InNmZiJ9".into())).await;
+    snap("admit_box", "Admit a box: its join request", h.screen(W, H));
+    h.key(KeyCode::Enter).await;
+    h.key(KeyCode::Enter).await; // the (simulated) browser confirms
+    snap("admit_box_sealed", "Admit a box: the sealed admission", h.screen(W, H));
+}
+
+#[tokio::test]
+async fn bind_a_checkout() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char('h')).await;
+    h.key(KeyCode::Char('b')).await;
+    h.chars("/srv/apiary").await;
+    snap("bind_checkout", "Binding this device's checkout for apply on host", h.screen(W, H));
+    h.key(KeyCode::Enter).await;
+    snap("hosts_bound", "Hosts with a bound checkout", h.screen(W, H));
 }
 
 #[tokio::test]
