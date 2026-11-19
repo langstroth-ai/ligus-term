@@ -274,7 +274,7 @@ impl Inner {
             let built = (|| -> crate::backend::Result<SyncLoop> {
                 let engine = self.sync_engine(&saved)?;
                 let store = hive_runtime::EventStore::open(self.db()).map_err(super::one_line)?;
-                let feed = lock(&self.core()?.svc).change_feed();
+                let feed = self.core()?.feed.clone();
                 let relay = hive_runtime::RelayClient::new(saved.relay().unwrap_or_default()).with_auth(saved.secrets.token.clone());
                 Ok(SyncLoop { engine, store, feed, workspace_id: ws, every: self.cfg.sync_every, live: Some((relay, saved.room.clone())) })
             })();
@@ -336,9 +336,10 @@ fn host_tick(inner: &Inner, ws: Uuid, touch: bool) {
     let checkout = lock(&inner.local).checkouts.get(&ws.to_string()).cloned();
     let Some(repo) = checkout else { return };
     let repo = std::path::PathBuf::from(repo);
+    // The tick pins `ws`'s founder under the same lock as each decision:
+    // another workspace's write may re-pin the shared service in between.
     let founder = inner.founder(ws);
-    lock(&core.svc).set_trusted_founder(founder);
-    let tick = hive_runtime::sync_service::apply_tick(&core.svc, ws, &|_| Some(repo.clone()));
+    let tick = hive_runtime::sync_service::apply_tick(&core.svc, ws, founder.as_deref(), &|_| Some(repo.clone()));
     if let Some(e) = tick.listing_error {
         inner.emit(Event::Sync { workspace: WorkspaceId::new(ws.to_string()), status: format!("apply: {e}") });
     }

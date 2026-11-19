@@ -114,6 +114,9 @@ pub(crate) struct Core {
     identity: StoredIdentity,
     svc: Arc<Mutex<ChatService>>,
     reader: Mutex<ChatService>,
+    /// The write service's change feed, kept here so nothing has to lock the
+    /// service (held through a passkey prompt) to reach it.
+    feed: hive_runtime::chat_service::ChangeFeed,
 }
 
 fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
@@ -141,11 +144,22 @@ fn uuid_of(s: &str, what: &str) -> Result<Uuid> {
 impl RealBackend {
     /// Open the device in `cfg.data_dir` (must run inside a tokio runtime).
     pub fn open(cfg: RealConfig) -> std::result::Result<Self, String> {
+        // A relay new workspaces can't use is a mistake to say now, not a
+        // workspace that silently stays on this device.
+        if let Some(r) = cfg.relay_url.as_deref()
+            && !hive_runtime::workspace_invite::usable_relay_url(r)
+        {
+            return Err(format!("LT_RELAY_URL {r:?} isn't a relay address: give an http(s) URL, e.g. https://relay.example"));
+        }
         // Create it owner-only first (keys, the database and the secrets live
         // here), then claim it as a Ligus data dir, as the CLI does.
         hive_runtime::private_file::ensure_private_dir(&cfg.data_dir).map_err(|e| format!("creating {}: {e}", cfg.data_dir.display()))?;
         hive_core::compat::claim_data_dir(&cfg.data_dir, hive_core::compat::home_dir().as_deref())?;
         hive_runtime::secret_store::set_binary_identifier(SIGNING_IDENTIFIER);
+        // No agent child (the keyless Claude Code fallback, any CLI runtime)
+        // may read this device's keys, database or secrets: deny the data
+        // dir in the agent sandbox, as the desktop and the CLI do theirs.
+        hive_runtime::executor::configure_host(&cfg.data_dir, &[], &[]);
         let secrets = hive_runtime::secret_store::init_for_data_dir(&cfg.data_dir, None);
         let rt = tokio::runtime::Handle::try_current().map_err(|e| e.to_string())?;
         let (tx, _) = broadcast::channel(4096);
@@ -169,7 +183,10 @@ impl RealBackend {
             inner.open_core(stored).map_err(|e| e.0)?;
             let ids: Vec<Uuid> = lock(&inner.list).workspaces.iter().map(|w| w.id()).collect();
             for ws in ids {
-                inner.activate(ws);
+                // Activation writes (it may wait on the write lock or a
+                // passkey): never on the async thread `open` runs on.
+                let i = inner.clone();
+                rt.spawn_blocking(move || i.activate(ws));
                 inner.start_loops(ws);
             }
         }
@@ -242,7 +259,7 @@ impl Inner {
         svc.set_presence_provider(Some(Arc::new(Provider(self.presence.clone()))));
         let reader = self.service_for(&stored)?;
         let feed = svc.change_feed();
-        let core = Arc::new(Core { identity: stored, svc: Arc::new(Mutex::new(svc)), reader: Mutex::new(reader) });
+        let core = Arc::new(Core { identity: stored, svc: Arc::new(Mutex::new(svc)), reader: Mutex::new(reader), feed: feed.clone() });
         *self.core.write().unwrap_or_else(|e| e.into_inner()) = Some(core.clone());
         watch::prime(self, &core);
         watch::spawn_translator(self.clone(), feed.subscribe());
@@ -1012,5 +1029,61 @@ impl Inner {
         let s = self.read(ws, |svc| svc.load(sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
         let p = s.proposals.iter().find(|p| p.id == pid).ok_or_else(|| BackendError("no such proposal".into()))?;
         Ok(views::proposal(&s, p, &me, &hosts))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Starting a workspace's loops runs on an async worker: it must never
+    /// wait on the write service, which a write holds for as long as a
+    /// passkey prompt is open (up to 180 s).
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn starting_the_loops_never_waits_on_a_write() {
+        // SAFETY: tests in this binary only ever set it to the same value.
+        unsafe { std::env::set_var("LIGUS_SECRET_BACKEND", "file") };
+        let tmp = tempfile::tempdir().unwrap();
+        let mut cfg = RealConfig::new(tmp.path().join("dev"));
+        cfg.cli_fallback = false;
+        let b = RealBackend::open(cfg).unwrap();
+        let inner = b.inner.clone();
+        let core = tokio::task::spawn_blocking({
+            let i = inner.clone();
+            move || i.ensure_core("Ana").map_err(|e| e.0)
+        })
+        .await
+        .unwrap()
+        .unwrap();
+        let conn = WorkspaceConn {
+            name: "W".into(),
+            relay_url: "http://127.0.0.1:9".into(),
+            room: random_token(32),
+            key: Some(random_token(24)),
+            icon: None,
+            dm_account: None,
+            founder_actor_id: None,
+            fk: None,
+            inv: None,
+            ek: Vec::new(),
+            sig: None,
+        };
+        let ws = conn.id();
+        lock(&inner.list).upsert(SavedWorkspace::from_conn(&conn, None));
+        // A write waiting on a passkey: the service is locked for a while.
+        let (locked_tx, locked_rx) = std::sync::mpsc::channel();
+        let svc = core.svc.clone();
+        let holder = std::thread::spawn(move || {
+            let _g = svc.lock().unwrap();
+            locked_tx.send(()).unwrap();
+            std::thread::sleep(Duration::from_secs(3));
+        });
+        locked_rx.recv().unwrap();
+        let started = std::time::Instant::now();
+        inner.start_loops(ws);
+        let took = started.elapsed();
+        holder.join().unwrap();
+        b.shutdown();
+        assert!(took < Duration::from_secs(1), "start_loops waited {took:?} on the write lock");
     }
 }

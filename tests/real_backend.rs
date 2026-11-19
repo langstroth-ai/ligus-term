@@ -446,3 +446,34 @@ async fn a_device_persists_and_cancel_is_quiet() {
     }
     again.shutdown();
 }
+
+/// The agent sandbox denies this device's own data dir (its keys, database
+/// and secrets) to every agent child, as the desktop and the CLI register
+/// theirs at startup.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn open_registers_the_data_dir_with_the_agent_sandbox() {
+    file_secrets();
+    let tmp = tempfile::tempdir().unwrap();
+    let dir = tmp.path().join("sandboxed");
+    let mut cfg = RealConfig::new(dir.clone());
+    cfg.cli_fallback = false;
+    let b = RealBackend::open(cfg).unwrap();
+    let denied = hive_runtime::executor::host_paths().data_dirs;
+    assert!(denied.iter().any(|d| d == &dir), "{dir:?} not in {denied:?}");
+    b.shutdown();
+}
+
+/// A relay URL that isn't an http(s) address is refused when lt starts, not
+/// turned silently into device-only workspaces.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn an_unusable_relay_url_is_refused_at_open() {
+    file_secrets();
+    let tmp = tempfile::tempdir().unwrap();
+    for bad in ["relay.example", "ftp://relay.example", "wss://relay.example"] {
+        let mut cfg = RealConfig::new(tmp.path().join("bad-relay"));
+        cfg.cli_fallback = false;
+        cfg.relay_url = Some(bad.into());
+        let r = RealBackend::open(cfg);
+        assert!(r.as_ref().is_err_and(|e| e.contains("LT_RELAY_URL")), "{bad}: accepted");
+    }
+}

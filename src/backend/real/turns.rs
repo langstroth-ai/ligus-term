@@ -7,6 +7,13 @@
 //! person in it, always answers here. A turn that runs here is claimed first
 //! (`claim_turn`), so only one of the owner's devices answers.
 //!
+//! Before a turn runs, [`guard_turn`] applies what every Ligus host applies:
+//! the author-role gate (H1: below the floor a CLI runs read-only, or not at
+//! all), the chat's sandbox envelope (a lockdown or dearth mode narrows
+//! egress, or refuses a runtime it can't confine), and this host's OS
+//! sandbox (no sandbox: no CLI agent). The reply then streams inside
+//! `executor::with_turn`, so any agent child is spawned under that policy.
+//!
 //! The runner streams the reply from the responder's runtime
 //! (`provider::dispatch::stream`) into `begin_assistant_message` /
 //! `append_chunk` / `complete_assistant_message`; the change feed turns each
@@ -14,7 +21,9 @@
 
 use std::sync::Arc;
 
-use hive_core::{ChatSession, ModelProviderKind, WorkspaceAgent, WorkspaceRuntime};
+use hive_core::{ChatSession, ModelProviderKind, WorkspaceAgent, WorkspaceRole, WorkspaceRuntime};
+use hive_runtime::author_gate::GatePlan;
+use hive_runtime::executor::{HostKind, TurnPolicy};
 use hive_runtime::turn_dispatch::{DispatchTarget, dispatch_target, host_binding, runs_here_linked, synced_user_triggers};
 use hive_runtime::{ResolvedRuntime, dispatch};
 use uuid::Uuid;
@@ -161,6 +170,30 @@ fn runtime_for(i: &Inner, ws: Uuid, runtime_id: &str) -> Result<(ResolvedRuntime
     }
 }
 
+/// The runtime and sandbox policy a turn runs under, as the desktop and the
+/// worker decide them: the author gate on `rt`'s args for the trigger's
+/// author (`author_role`, the role they held when they posted; `None`
+/// fails closed), the chat's envelope (its extra flags for `rt`, or a
+/// refusal), and this host's OS sandbox. `Err` is why the turn doesn't run.
+pub fn guard_turn(
+    session: &ChatSession,
+    mut rt: ResolvedRuntime,
+    author_role: Option<WorkspaceRole>,
+) -> std::result::Result<(ResolvedRuntime, TurnPolicy), String> {
+    let gate = hive_runtime::author_gate::gate_turn(rt.provider, &mut rt.args, author_role);
+    let envelope = hive_core::sandbox::envelope_for_session(session);
+    let enforcement = hive_runtime::sandbox::enforce(rt.provider, &envelope, &Vec::new());
+    if let Some(reason) = enforcement.refuse {
+        return Err(reason);
+    }
+    if let GatePlan::Refuse(reason) = &gate {
+        return Err(reason.clone());
+    }
+    hive_runtime::executor::turn_allowed(rt.provider)?;
+    rt.args.extend(enforcement.extra_args);
+    Ok((rt, TurnPolicy::new(HostKind::Desktop, envelope, gate)))
+}
+
 /// Run `plan` in the background.
 pub fn spawn_turn(inner: Arc<Inner>, plan: Plan) {
     tokio::spawn(async move {
@@ -195,6 +228,17 @@ async fn run_turn(inner: &Arc<Inner>, plan: &Plan) -> Result<()> {
         let author = agent.as_ref().map(|a| a.name.clone()).unwrap_or_else(|| "Hive".into());
         let agent_id = agent.as_ref().map(|a| a.id);
         let s = i.read(ws, |svc| svc.load(sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
+        // The author's role is recognized from the signed log, never from
+        // the message's self-asserted identity.
+        let role = i.read(ws, |svc| svc.trigger_author_role(sid, trigger))?;
+        let provider = rt.provider;
+        let (rt, policy) = match guard_turn(&s, rt, role) {
+            Ok(g) => g,
+            Err(reason) => {
+                let _ = i.write(ws, |svc| svc.post_system_note(sid, ws, format!("A {provider:?} turn was not run: {reason}")));
+                return Err(BackendError(reason));
+            }
+        };
         let through = s.messages.iter().position(|m| m.id == trigger).map(|n| n + 1).unwrap_or(s.messages.len());
         let mut upto = s.clone();
         upto.messages.truncate(through);
@@ -207,11 +251,11 @@ async fn run_turn(inner: &Arc<Inner>, plan: &Plan) -> Result<()> {
         let mid = i.write(ws, |svc| svc.begin_assistant_message(sid, ws, author, rt_id, agent_id, Some(trigger)))?;
         let placeholder =
             i.read(ws, |svc| svc.load(sid))?.and_then(|s| s.messages.iter().find(|m| m.id == mid).map(|m| views::message(&s, m)));
-        Ok((rt, turns, system, mid, placeholder))
+        Ok((rt, policy, turns, system, mid, placeholder))
     })
     .await;
     inner.emit(Event::Typing { workspace: wsid.clone(), chat: chat.clone(), who, on: false });
-    let (rt, turns, system, mid, placeholder) = prepared?;
+    let (rt, policy, turns, system, mid, placeholder) = prepared?;
     // Stream to the UI as the model answers; the log gets the same text
     // (redacted, a little behind) through `append_chunk`.
     inner.emitted.lock().unwrap_or_else(|e| e.into_inner()).entry(mid).or_insert(0);
@@ -234,19 +278,23 @@ async fn run_turn(inner: &Arc<Inner>, plan: &Plan) -> Result<()> {
         })
     };
     let message = crate::backend::model::MessageId::new(mid.to_string());
-    let result = dispatch::stream(
-        &rt,
-        Some(&system),
-        &turns,
-        None,
-        &[],
-        MAX_TOKENS,
-        |d| {
-            *inner.emitted.lock().unwrap_or_else(|e| e.into_inner()).entry(mid).or_insert(0) += d.len();
-            inner.emit(Event::MessageDelta { workspace: wsid.clone(), chat: chat.clone(), message: message.clone(), delta: d.clone() });
-            let _ = tx.send(d);
-        },
-        |_| {},
+    // Every agent child this turn spawns runs under its policy.
+    let result = hive_runtime::executor::with_turn(
+        policy,
+        dispatch::stream(
+            &rt,
+            Some(&system),
+            &turns,
+            None,
+            &[],
+            MAX_TOKENS,
+            |d| {
+                *inner.emitted.lock().unwrap_or_else(|e| e.into_inner()).entry(mid).or_insert(0) += d.len();
+                inner.emit(Event::MessageDelta { workspace: wsid.clone(), chat: chat.clone(), message: message.clone(), delta: d.clone() });
+                let _ = tx.send(d);
+            },
+            |_| {},
+        ),
     )
     .await;
     drop(tx);
@@ -256,4 +304,83 @@ async fn run_turn(inner: &Arc<Inner>, plan: &Plan) -> Result<()> {
         Err(e) => format!("[error] {e}"),
     };
     blocking(inner, move |i| i.write(ws, |svc| svc.complete_assistant_message(sid, ws, mid, body))).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hive_core::{ActorIdentity, ActorKind, SigningKeypair};
+    use hive_runtime::{ChatService, EventStore};
+
+    fn claude() -> ResolvedRuntime {
+        base_runtime(ModelProviderKind::ClaudeCode, String::new(), String::new(), None, hive_core::Driver::default())
+    }
+
+    /// A chat, and the same chat locked down.
+    fn chats() -> (ChatSession, ChatSession) {
+        let author = ActorIdentity::new("ana".to_string(), "Ana".to_string(), ActorKind::Human);
+        let kp = SigningKeypair::generate().unwrap();
+        let account = SigningKeypair::generate().unwrap();
+        let mut svc = ChatService::new(EventStore::open_in_memory().unwrap(), Uuid::new_v4(), kp, account, author);
+        let ws = Uuid::new_v4();
+        svc.ensure_workspace_config(ws).unwrap();
+        let chat = svc.create_chat("c", ws, "").unwrap();
+        let open = svc.load(chat.id).unwrap().unwrap();
+        svc.self_medicate(ws, chat.id, None, &[(hive_core::guard::LockdownSignal::Manual, "manual".into())]).unwrap();
+        let locked = svc.load(chat.id).unwrap().unwrap();
+        assert!(locked.guards.lockdown_active());
+        (open, locked)
+    }
+
+    /// This host has no OS sandbox: no CLI agent runs here at all.
+    fn no_sandbox() -> bool {
+        hive_runtime::executor::refuses_writes()
+    }
+
+    #[test]
+    fn an_owner_runs_claude_code_inside_the_sandbox_policy() {
+        let (open, _) = chats();
+        match guard_turn(&open, claude(), Some(WorkspaceRole::Owner)) {
+            Ok((rt, policy)) => {
+                assert!(!no_sandbox());
+                assert_eq!(policy.gate, GatePlan::Full);
+                assert!(policy.envelope.egress.is_open());
+                assert!(rt.args.iter().any(|a| a == "--strict-mcp-config"), "{:?}", rt.args);
+            }
+            Err(e) => assert!(no_sandbox(), "refused on a host with a sandbox: {e}"),
+        }
+    }
+
+    /// An author below the floor, or one the log can't vouch for, never gets
+    /// the runtime's configured tier (the desktop's H1 gate); a writing tier
+    /// needs an Admin.
+    #[test]
+    fn a_low_or_unknown_author_never_gets_the_configured_tier() {
+        let (open, _) = chats();
+        for role in [None, Some(WorkspaceRole::Viewer)] {
+            if let Ok((_, policy)) = guard_turn(&open, claude(), role) {
+                assert_ne!(policy.gate, GatePlan::Full, "{role:?}");
+            }
+        }
+        let mut writing = claude();
+        writing.args = vec!["--permission-mode".into(), "acceptEdits".into()];
+        if let Ok((rt, policy)) = guard_turn(&open, writing, Some(WorkspaceRole::Contributor)) {
+            assert_eq!(policy.gate, GatePlan::ReadOnly);
+            assert!(!rt.args.iter().any(|a| a == "acceptEdits"), "{:?}", rt.args);
+        }
+    }
+
+    /// A locked-down chat closes the turn's egress and takes Claude Code's
+    /// network and shell tools away.
+    #[test]
+    fn a_lockdown_closes_egress_for_the_turn() {
+        let (_, locked) = chats();
+        match guard_turn(&locked, claude(), Some(WorkspaceRole::Owner)) {
+            Ok((rt, policy)) => {
+                assert!(!policy.envelope.egress.is_open());
+                assert!(rt.args.windows(2).any(|w| w[0] == "--disallowedTools" && w[1] == "WebFetch"), "{:?}", rt.args);
+            }
+            Err(e) => assert!(no_sandbox(), "{e}"),
+        }
+    }
 }

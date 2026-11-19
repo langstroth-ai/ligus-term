@@ -52,8 +52,15 @@ fn fail(msg: impl std::fmt::Display) -> ! {
     std::process::exit(2);
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<()> {
+    // The agent sandbox on Linux re-runs this binary as its pre-exec helper
+    // (inside bubblewrap): that run must stop here, before anything else.
+    #[cfg(target_os = "linux")]
+    hive_runtime::executor::linux::maybe_run_helper();
+    tokio::runtime::Builder::new_multi_thread().enable_all().build()?.block_on(run())
+}
+
+async fn run() -> anyhow::Result<()> {
     let args = Args::parse();
     if args.print_config {
         print!("{}", default_config_text());
