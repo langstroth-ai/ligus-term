@@ -81,7 +81,10 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
                         t.text(),
                     ));
                     lines.push(Line::raw(""));
-                    lines.push(Line::styled(format!("› {}", super::trunc(&request.text, inner.width as usize - 4)), t.accent()));
+                    lines.push(Line::styled(
+                        format!("› {}", super::trunc(&request.text, (inner.width as usize).saturating_sub(4))),
+                        t.accent(),
+                    ));
                     lines.push(Line::raw(""));
                     if *busy {
                         lines.push(Line::styled("Working… (a bearer code needs your passkey)", t.fg(t.warn)));

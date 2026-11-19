@@ -383,3 +383,16 @@ async fn remote_text_cannot_reorder_or_hide_what_is_shown() {
         assert!(!format_or_control, "{c:?} reached the terminal: {screen:?}");
     }
 }
+
+/// Every overlay renders at any terminal size, however small (no
+/// arithmetic underflow on a narrow pane).
+#[tokio::test]
+async fn overlays_render_in_a_tiny_terminal() {
+    use ligus_term::app::state::Overlay;
+    let mut h = demo().await;
+    h.state.overlay =
+        Some(Overlay::AdmitBox { request: ligus_term::app::input::TextBuf::single(), busy: false, checked: None, result: None });
+    for (w, ht) in [(1, 1), (3, 3), (5, 4), (8, 6)] {
+        let _ = h.screen(w, ht);
+    }
+}
