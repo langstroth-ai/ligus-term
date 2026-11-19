@@ -5,6 +5,12 @@ all-features = false
 [advisories]
 version = 2
 yanked = "deny"
+# The Ligus crates' own exception, with their reasoning (ligus deny.toml):
+# crypto-bigint 0.5 is reached only through ssh-key 0.6 SSHSIG verification
+# (public inputs, no secret to leak); fixed in ssh-key 0.7, still an rc.
+ignore = [
+    { id = "RUSTSEC-2026-0387", reason = "crypto-bigint 0.5 only via ssh-key 0.6 SSHSIG verification in hive-runtime (public inputs); review by 2027-02-15" },
+]
 
 [licenses]
 version = 2
@@ -19,13 +25,20 @@ allow = [
     "Zlib",
     # option-ext (through dirs): file-level copyleft, unmodified, fine in an MIT binary.
     "MPL-2.0",
+    # Through the Ligus crates, as the ligus repo allows them: bip39 and the
+    # bitcoin_hashes stack (recovery words) are CC0, and the Mozilla root
+    # store (webpki-root-certs, via reqwest/rustls) is CDLA-Permissive-2.0.
+    "CC0-1.0",
+    "CDLA-Permissive-2.0",
 ]
 confidence-threshold = 0.9
 unused-allowed-license = "allow"
 
 [bans]
 multiple-versions = "warn"
-wildcards = "deny"
+# The Ligus crates are a path dependency (no version) until they are git
+# dependencies pinned to v0.1.0; deny wildcards again then.
+wildcards = "warn"
 
 [sources]
 unknown-registry = "deny"

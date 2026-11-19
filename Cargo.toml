@@ -33,10 +33,24 @@ serde = { version = "1.0.228", features = ["derive"] }
 tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros", "sync", "time", "io-util", "io-std", "net"] }
 toml = "1.1.8"
 unicode-width = "0.2.2"
+uuid = { version = "1.29.1", features = ["v4"] }
+serde_json = "1.0.154"
+# The Ligus crates (Ligus is short for ligustica), under their current
+# names. For now a path dependency on a local worktree of the ligus repo
+# (branch feat/runtime-for-clients). At release, after the rename to
+# ligus-*, switch to git dependencies pinned to the release tag:
+#   ligus-core    = { git = "https://github.com/langstroth-ai/ligus", tag = "v0.1.0" }
+#   ligus-runtime = { git = "https://github.com/langstroth-ai/ligus", tag = "v0.1.0" }
+# (and allow that git source in deny.toml).
+hive-core = { path = "../f-term-crates/crates/hive-core" }
+hive-runtime = { path = "../f-term-crates/crates/hive-runtime", default-features = false }
 
 [dev-dependencies]
 insta = "1.48.0"
 tempfile = "3.27.0"
+# The in-process mock relay two test devices sync through.
+hive-runtime = { path = "../f-term-crates/crates/hive-runtime", default-features = false, features = ["test-relay"] }
+axum = "0.8.9"
 
 [profile.release]
 lto = "thin"
