@@ -466,7 +466,7 @@ pub struct Notification {
 }
 
 /// What creating a workspace hands back: the recovery key is shown once.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Created {
     pub workspace: WorkspaceSummary,
     /// The 24 recovery words.
@@ -526,7 +526,7 @@ pub enum SettingKey {
 /// A deployment's workspace, as `ligus-local` or the Kubernetes chart
 /// configure it: the relay, the room and its key (the chart's workspace
 /// Secret), and a relay access token when the relay is gated.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Clone, PartialEq, Eq, Default)]
 pub struct DeploymentSpec {
     /// The name to show for the workspace.
     pub name: String,
@@ -593,7 +593,7 @@ pub struct JoinRequestCheck {
 
 /// An admission for a box (`ligus serve` or `ligus worker`): it joins as
 /// its own service member (Contributor).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct BoxAdmission {
     /// `ligusadmit1:` (sealed to the box's join request) or a bearer
     /// `hivews1:` code (for a Kubernetes Secret or `LIGUS_ADMISSION_FILE`).
@@ -746,4 +746,77 @@ pub struct TaskState {
     pub at: Millis,
     /// Still within its time to live and not finished.
     pub active: bool,
+}
+
+// Secrets never show in `{:?}` (a panic, a test failure, a debug log).
+const REDACTED: &str = "<redacted>";
+
+impl fmt::Debug for DeploymentSpec {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DeploymentSpec")
+            .field("name", &self.name)
+            .field("relay_url", &self.relay_url)
+            .field("room", &self.room)
+            .field("key", &REDACTED)
+            .field("token", &self.token.as_ref().map(|_| REDACTED))
+            .finish()
+    }
+}
+
+impl fmt::Debug for Created {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Created")
+            .field("workspace", &self.workspace)
+            .field("recovery_words", &REDACTED)
+            .field("invite", &self.invite)
+            .finish()
+    }
+}
+
+impl fmt::Debug for BoxAdmission {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BoxAdmission")
+            .field("code", &REDACTED)
+            .field("sealed", &self.sealed)
+            .field("fingerprint", &self.fingerprint)
+            .field("label", &self.label)
+            .field("expires_at", &self.expires_at)
+            .finish()
+    }
+}
+
+#[cfg(test)]
+mod secret_debug_tests {
+    use super::*;
+
+    /// A secret never shows in `{:?}` (a panic message, a test failure, a
+    /// debug log of a `Msg` or an `Effect`).
+    #[test]
+    fn debug_output_never_shows_a_secret() {
+        let spec = DeploymentSpec {
+            name: "n".into(),
+            relay_url: "http://r".into(),
+            room: "room".into(),
+            key: "the-workspace-key".into(),
+            token: Some("hrt1-relay-token".into()),
+        };
+        let created = Created {
+            workspace: WorkspaceSummary {
+                id: WorkspaceId::new("w"),
+                name: "w".into(),
+                mentioned: false,
+                sync: SyncMode::Local,
+                your_role: Role::Owner,
+                can_invite: Allowed::Yes,
+            },
+            recovery_words: vec!["abandonword".into(); 24],
+            invite: Some("invite-code".into()),
+        };
+        let bearer = BoxAdmission { code: "hivews1:bearer-secret".into(), sealed: false, fingerprint: None, label: None, expires_at: 0 };
+        let shown = format!("{spec:?} {created:?} {bearer:?}");
+        for secret in ["the-workspace-key", "hrt1-relay-token", "abandonword", "bearer-secret"] {
+            assert!(!shown.contains(secret), "{secret} in {shown}");
+        }
+        assert!(shown.contains("room") && shown.contains("http://r"), "{shown}");
+    }
 }
