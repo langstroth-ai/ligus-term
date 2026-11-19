@@ -41,14 +41,14 @@ serde_json = "1.0.154"
 # Pinned to a commit on the ligus repo's feat/turn-engine branch (the shared
 # agent-turn engine, on release/v0.1.0 with the sandbox and repos v2). Repin
 # to release/v0.1.0 once it merges; at release this becomes tag = "v0.1.0".
-ligus-core = { package = "hive-core", version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "ca4f71b191084024b7eb2f94bfd12f392b0607fe" }
-ligus-runtime = { package = "hive-runtime", version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "ca4f71b191084024b7eb2f94bfd12f392b0607fe", default-features = false }
+ligus-core = { package = "hive-core", version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "1788fc8ae7c67d93316c58f6ac951fa95f5c535e" }
+ligus-runtime = { package = "hive-runtime", version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "1788fc8ae7c67d93316c58f6ac951fa95f5c535e", default-features = false }
 
 [dev-dependencies]
 insta = "1.48.0"
 tempfile = "3.27.0"
 # The in-process mock relay two test devices sync through.
-ligus-runtime = { package = "hive-runtime", version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "ca4f71b191084024b7eb2f94bfd12f392b0607fe", default-features = false, features = ["test-relay"] }
+ligus-runtime = { package = "hive-runtime", version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "1788fc8ae7c67d93316c58f6ac951fa95f5c535e", default-features = false, features = ["test-relay"] }
 axum = "0.8.9"
 
 [profile.release]
