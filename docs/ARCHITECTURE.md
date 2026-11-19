@@ -233,7 +233,7 @@ Paths are inside the crate named in each row, on `release/v0.1.0`.
 | `startup` | `IdentityStore::load`; `lt`'s workspace list in the data dir | The desktop keeps its workspace list in app settings; there is no crate API |
 | `create_workspace` | `IdentityStore::bootstrap`; `ChatService::ensure_workspace_config(ws)`; founder passkey via `register_passkey(ws, cred, &prompt)` with a browser `create` ceremony; `RecoveryKey::generate()` → `.words()`, registered with `register_passkey(ws, key.credential(account, "Recovery key"), …)` | Room and key are random tokens, as the desktop's `create_workspace` makes them. No server needed |
 | `inspect_invite` | `workspace_invite::decode_workspace_invite`; `WorkspaceConn::signed_by` (the founder's device signature, `invite_sig`) against the devices `directory_trust::co_members` says are revoked; `dm::check_founder` against `dm::known_fingerprints` | The desktop's `inspect_invite` / `invite_trust`. A DM invite is refused |
-| `join_workspace` | the same check (a `Mismatch` is refused, as the desktop's drop-box accept does), then `store().set_join_invite(ws, inv)`, the founder pin, `SyncEngine::catch_up`, `ensure_self_member` | |
+| `join_workspace` | refused for a workspace this device already holds (an invite never rewrites its relay, key or founder pin); the same check (a `Mismatch` is refused, as the desktop's drop-box accept does), then `store().set_join_invite(ws, inv)`, the founder pin, `SyncEngine::catch_up`, `ensure_self_member` | |
 | `connect_deployment` | `workspace_invite::usable_relay_url`; a `SyncEngine::catch_up` to check the relay holds no config log for the room; then as `create_workspace`, with the deployment's relay, room and key (and relay token, kept with the connection secrets) | A box never founds a workspace (`admit::prepare_box` in the CLI), so the first person does |
 | `admit_box` | Admin+; `box_admission::JoinRequest::decode`; `ChatService::issue_box_admission(ws, ttl, request)` (presence); a signed invite (`sign_invite`) with `inv` and `ek`; `box_admission::with_redeem_key`; `JoinRequest::seal` when there is a request | As `ligus admit issue` (`crates/hive-cli/src/admit.rs`, `serve::admission_code`) and the desktop's `admit_box`. TTL 1 h sealed, 24 h bearer |
 | `confirm_recovery_saved` | device-local flag | |
@@ -276,10 +276,13 @@ Paths are inside the crate named in each row, on `release/v0.1.0`.
   `HostsChanged` and `AgentsChanged`, plus `Sync` status.
 - **Local turns.** Chunks as `MessageDelta`, tool calls as `ToolActivity`,
   and completion as `MessageDone`.
+- **Admissions.** After a sync round that pulled nothing (caught up), an
+  Admin's device closes the box admissions that settled
+  (`close_settled_admissions`), as the desktop does.
 - **Presence channel.** Per workspace with a relay, every `beat_every`:
   publish this host's beat and the lease beat of each run this device
   drives (`lease_presence::LeaseBeat`, signed with `sign_lease_beat`),
-  read every host's beat; a changed online set emits `HostsChanged` and
+  read every host's beat (kept per workspace: a beat counts only in the room it came from); a changed online set emits `HostsChanged` and
   `AgentsChanged`. People's beats (`human_presence`) are never read.
 - **Runs.** The translator emits `RunChanged` when a session's runs change
   (synced or local), and the driver emits one after each write it makes;
