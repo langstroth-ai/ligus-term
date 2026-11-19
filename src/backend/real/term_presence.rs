@@ -15,8 +15,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use hive_core::presence::{PresenceAssertion, RecoveryKey, b64url, unb64url};
-use hive_runtime::chat_service::{PresenceProvider, PresenceRequest};
+use ligus_core::presence::{PresenceAssertion, RecoveryKey, b64url, unb64url};
+use ligus_runtime::chat_service::{PresenceProvider, PresenceRequest};
 use tokio::sync::{broadcast, mpsc};
 
 use crate::backend::Event;
@@ -229,7 +229,7 @@ mod tests {
             credential_ids: vec![],
             digest_short: "0707070707070707".into(),
             summary: "Remove member x".into(),
-            policy: hive_core::presence::PresencePolicy::ligus(),
+            policy: ligus_core::presence::PresencePolicy::ligus(),
         }
     }
 

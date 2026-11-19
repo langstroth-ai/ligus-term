@@ -35,21 +35,19 @@ toml = "1.1.8"
 unicode-width = "0.2.2"
 uuid = { version = "1.29.1", features = ["v4"] }
 serde_json = "1.0.154"
-# The Ligus crates (Ligus is short for ligustica), under their current
-# names. For now a path dependency on a local worktree of the ligus repo
-# (branch feat/runtime-for-clients). At release, after the rename to
-# ligus-*, switch to git dependencies pinned to the release tag:
-#   ligus-core    = { git = "https://github.com/langstroth-ai/ligus", tag = "v0.1.0" }
-#   ligus-runtime = { git = "https://github.com/langstroth-ai/ligus", tag = "v0.1.0" }
-# (and allow that git source in deny.toml).
-hive-core = { path = "../f-term-crates/crates/hive-core" }
-hive-runtime = { path = "../f-term-crates/crates/hive-runtime", default-features = false }
+# The Ligus crates (Ligus is short for ligustica). They are still published
+# under their hive-* names; the `package =` renames let the code already say
+# ligus_core and ligus_runtime, so the crate rename is a Cargo.toml change.
+# Pinned to a commit on the ligus repo's release/v0.1.0 branch (PR #121
+# merged the client runtime there). At release this becomes tag = "v0.1.0".
+ligus-core = { package = "hive-core", version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "6ba1fd2d4f40064fca853869f2587d6bad910903" }
+ligus-runtime = { package = "hive-runtime", version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "6ba1fd2d4f40064fca853869f2587d6bad910903", default-features = false }
 
 [dev-dependencies]
 insta = "1.48.0"
 tempfile = "3.27.0"
 # The in-process mock relay two test devices sync through.
-hive-runtime = { path = "../f-term-crates/crates/hive-runtime", default-features = false, features = ["test-relay"] }
+ligus-runtime = { package = "hive-runtime", version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "6ba1fd2d4f40064fca853869f2587d6bad910903", default-features = false, features = ["test-relay"] }
 axum = "0.8.9"
 
 [profile.release]

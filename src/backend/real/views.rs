@@ -1,12 +1,12 @@
 //! From the crates' projections to `lt`'s view models.
 //!
 //! Nothing here decides authorization: refusals come from
-//! `hive_core::authz::member_action_refusal` and the lockdown rule from
-//! `hive_runtime::lockdown_view`.
+//! `ligus_core::authz::member_action_refusal` and the lockdown rule from
+//! `ligus_runtime::lockdown_view`.
 
-use hive_core::authz::{MemberAction, RosterState, member_action_refusal};
-use hive_core::workspace_repo::ApplyOutcome;
-use hive_core::{ActionProposal, ActorKind, ChatMessage, ChatSession, MessageRole, ModelProviderKind, Timestamp, WorkspaceRole};
+use ligus_core::authz::{MemberAction, RosterState, member_action_refusal};
+use ligus_core::workspace_repo::ApplyOutcome;
+use ligus_core::{ActionProposal, ActorKind, ChatMessage, ChatSession, MessageRole, ModelProviderKind, Timestamp, WorkspaceRole};
 use uuid::Uuid;
 
 use crate::backend::model::*;
@@ -101,7 +101,7 @@ pub fn proposal(s: &ChatSession, p: &ActionProposal, me: &str, hosts: &[(String,
     };
     let my_role = s.role_of(me);
     let voted = p.approvals.iter().any(|a| a.actor_id == me);
-    let can_vote = if p.status != hive_core::ProposalStatus::Open {
+    let can_vote = if p.status != ligus_core::ProposalStatus::Open {
         Allowed::No("this proposal is closed".into())
     } else if voted {
         Allowed::No("you already voted".into())
@@ -126,10 +126,10 @@ pub fn proposal(s: &ChatSession, p: &ActionProposal, me: &str, hosts: &[(String,
         title: p.title.clone(),
         author,
         status: match p.status {
-            hive_core::ProposalStatus::Open => ProposalStatus::Open,
-            hive_core::ProposalStatus::Approved => ProposalStatus::Approved,
-            hive_core::ProposalStatus::Rejected => ProposalStatus::Rejected,
-            hive_core::ProposalStatus::Applied => ProposalStatus::Applied,
+            ligus_core::ProposalStatus::Open => ProposalStatus::Open,
+            ligus_core::ProposalStatus::Approved => ProposalStatus::Approved,
+            ligus_core::ProposalStatus::Rejected => ProposalStatus::Rejected,
+            ligus_core::ProposalStatus::Applied => ProposalStatus::Applied,
         },
         files_changed: p.changed_files.len(),
         approvals: p.approvals.iter().filter(|a| a.approved).count(),

@@ -9,10 +9,12 @@
 # can't pass vacuously (a renamed feature, a dropped dev-dependency).
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# The runtime crate's package name (ligus-runtime after the rename).
+crate=hive-runtime
 
 fail=0
 for flags in "" "--no-default-features" "--all-features"; do
-  out=$(cargo tree --locked -p ligus-term $flags -e features,normal,build -i hive-runtime 2>/dev/null || true)
+  out=$(cargo tree --locked -p ligus-term $flags -e features,normal,build -i "$crate" 2>/dev/null || true)
   if [ -z "$out" ]; then
     echo "check-no-test-relay: cargo tree ($flags) printed nothing" >&2
     fail=1
@@ -20,14 +22,14 @@ for flags in "" "--no-default-features" "--all-features"; do
   fi
   for feat in test-relay test-presence; do
     if grep -q "\"$feat\"" <<<"$out"; then
-      echo "check-no-test-relay: lt ($flags) enables hive-runtime/$feat in a normal build:" >&2
+      echo "check-no-test-relay: lt ($flags) enables $crate/$feat in a normal build:" >&2
       grep "\"$feat\"" <<<"$out" >&2
       fail=1
     fi
   done
 done
 
-if ! cargo tree --locked -p ligus-term -e features,normal,dev -i hive-runtime 2>/dev/null | grep -q '"test-relay"'; then
+if ! cargo tree --locked -p ligus-term -e features,normal,dev -i "$crate" 2>/dev/null | grep -q '"test-relay"'; then
   echo "check-no-test-relay: the control failed (the test graph no longer shows test-relay; update this script)" >&2
   fail=1
 fi

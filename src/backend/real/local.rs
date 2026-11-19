@@ -1,7 +1,7 @@
 //! What `lt` keeps about itself, device-local, in its data dir.
 //!
 //! - The workspace list: `workspaces.json` with its secrets in the OS secret
-//!   store under scope `term` (`hive_runtime::connection_settings`).
+//!   store under scope `term` (`ligus_runtime::connection_settings`).
 //! - `lt-state.json` (owner-only): read markers, notification history,
 //!   settings, which recovery keys were confirmed written down, and the
 //!   checkout this device applies proposals in, per workspace.
@@ -84,7 +84,7 @@ impl LocalState {
 
     pub fn save(&self, data_dir: &Path) -> std::io::Result<()> {
         let json = serde_json::to_vec_pretty(self).map_err(std::io::Error::other)?;
-        hive_runtime::private_file::write_private_atomic(&Self::path(data_dir), &json)
+        ligus_runtime::private_file::write_private_atomic(&Self::path(data_dir), &json)
     }
 
     pub fn push_notification(&mut self, workspace: &str, chat: Option<&str>, text: String, at: i64) -> SavedNotification {

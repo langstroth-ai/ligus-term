@@ -8,19 +8,19 @@
 //!   replies, proposal changes, chat-list, member, agent and host changes,
 //!   and mention notifications. User messages that arrived through sync go
 //!   to the relay-sync dispatch gate.
-//! - **Sync loop.** `hive_runtime::sync_service::SyncLoop` per workspace
+//! - **Sync loop.** `ligus_runtime::sync_service::SyncLoop` per workspace
 //!   with a relay.
 //! - **Host loop.** Heartbeats this device as a host and runs the
-//!   apply-on-host loop (`hive_runtime::sync_service::apply_tick`) when a
+//!   apply-on-host loop (`ligus_runtime::sync_service::apply_tick`) when a
 //!   checkout is bound.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
 
-use hive_core::{ChatSession, MessageRole, workspace_config_session_id};
-use hive_runtime::chat_service::{ChangeOrigin, ChatChange};
-use hive_runtime::sync_service::{SyncLoop, SyncStatus};
+use ligus_core::{ChatSession, MessageRole, workspace_config_session_id};
+use ligus_runtime::chat_service::{ChangeOrigin, ChatChange};
+use ligus_runtime::sync_service::{SyncLoop, SyncStatus};
 use tokio::sync::broadcast;
 use uuid::Uuid;
 
@@ -59,7 +59,7 @@ fn snap_of(s: &ChatSession) -> Snap {
     }
 }
 
-fn proposal_key(s: &ChatSession, p: &hive_core::ActionProposal) -> String {
+fn proposal_key(s: &ChatSession, p: &ligus_core::ActionProposal) -> String {
     let requests = s.apply_requests.values().filter(|r| r.proposal_id == p.id).count();
     let outcomes = s.apply_requests.values().filter(|r| r.proposal_id == p.id && s.apply_outcomes.contains_key(&r.id)).count();
     format!("{:?}/{}/{}/{}/{}", p.status, p.approvals.len(), requests, outcomes, p.dismissed)
@@ -223,7 +223,7 @@ fn diff(inner: &Inner, batch: HashMap<Uuid, (Uuid, bool)>) -> Vec<(Uuid, Uuid, U
     triggers
 }
 
-fn notify_if_mentioned(inner: &Inner, s: &ChatSession, m: &hive_core::ChatMessage, me: &str) {
+fn notify_if_mentioned(inner: &Inner, s: &ChatSession, m: &ligus_core::ChatMessage, me: &str) {
     if !lock(&inner.local).notify_mentions {
         return;
     }
@@ -232,7 +232,7 @@ fn notify_if_mentioned(inner: &Inner, s: &ChatSession, m: &hive_core::ChatMessag
     let my_member = mine.map(|x| x.id.as_str());
     let my_name = mine.map(|x| x.actor.display_name.as_str()).unwrap_or("");
     let roles: Vec<_> = mine.map(|x| x.role).into_iter().collect();
-    let named_me = hive_runtime::message_mentions(m, s).reaches(|id| id == me || Some(id) == my_member, &roles, my_name);
+    let named_me = ligus_runtime::message_mentions(m, s).reaches(|id| id == me || Some(id) == my_member, &roles, my_name);
     if !named_me {
         return;
     }
@@ -273,9 +273,9 @@ impl Inner {
         if saved.relay().is_some() {
             let built = (|| -> crate::backend::Result<SyncLoop> {
                 let engine = self.sync_engine(&saved)?;
-                let store = hive_runtime::EventStore::open(self.db()).map_err(super::one_line)?;
+                let store = ligus_runtime::EventStore::open(self.db()).map_err(super::one_line)?;
                 let feed = self.core()?.feed.clone();
-                let relay = hive_runtime::RelayClient::new(saved.relay().unwrap_or_default()).with_auth(saved.secrets.token.clone());
+                let relay = ligus_runtime::RelayClient::new(saved.relay().unwrap_or_default()).with_auth(saved.secrets.token.clone());
                 Ok(SyncLoop { engine, store, feed, workspace_id: ws, every: self.cfg.sync_every, live: Some((relay, saved.room.clone())) })
             })();
             match built {
@@ -339,7 +339,7 @@ fn host_tick(inner: &Inner, ws: Uuid, touch: bool) {
     // The tick pins `ws`'s founder under the same lock as each decision:
     // another workspace's write may re-pin the shared service in between.
     let founder = inner.founder(ws);
-    let tick = hive_runtime::sync_service::apply_tick(&core.svc, ws, founder.as_deref(), &|_| Some(repo.clone()));
+    let tick = ligus_runtime::sync_service::apply_tick(&core.svc, ws, founder.as_deref(), &|_| Some(repo.clone()));
     if let Some(e) = tick.listing_error {
         inner.emit(Event::Sync { workspace: WorkspaceId::new(ws.to_string()), status: format!("apply: {e}") });
     }

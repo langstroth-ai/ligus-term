@@ -1,6 +1,6 @@
 //! Turns this device answers.
 //!
-//! Both gates go through `hive_runtime::turn_dispatch` with the same inputs
+//! Both gates go through `ligus_runtime::turn_dispatch` with the same inputs
 //! as the desktop: the **local-send** gate when the person posts here
 //! ([`post_and_plan`]) and the **relay-sync** gate when a message arrives
 //! through sync ([`plan_synced`]). A workspace with no relay, or with one
@@ -21,11 +21,11 @@
 
 use std::sync::Arc;
 
-use hive_core::{ChatSession, ModelProviderKind, WorkspaceAgent, WorkspaceRole, WorkspaceRuntime};
-use hive_runtime::author_gate::GatePlan;
-use hive_runtime::executor::{HostKind, TurnPolicy};
-use hive_runtime::turn_dispatch::{DispatchTarget, dispatch_target, host_binding, runs_here_linked, synced_user_triggers};
-use hive_runtime::{ResolvedRuntime, dispatch};
+use ligus_core::{ChatSession, ModelProviderKind, WorkspaceAgent, WorkspaceRole, WorkspaceRuntime};
+use ligus_runtime::author_gate::GatePlan;
+use ligus_runtime::executor::{HostKind, TurnPolicy};
+use ligus_runtime::turn_dispatch::{DispatchTarget, dispatch_target, host_binding, runs_here_linked, synced_user_triggers};
+use ligus_runtime::{ResolvedRuntime, dispatch};
 use uuid::Uuid;
 
 use super::{Inner, one_line, views};
@@ -103,7 +103,7 @@ pub fn plan_synced(i: &Inner, ws: Uuid, sid: Uuid, trigger: Uuid) -> Result<Opti
 /// Whether a workspace runtime can be dispatched here (its key resolves, or
 /// it needs none).
 pub fn configured(r: &WorkspaceRuntime) -> bool {
-    !needs_key(r.provider, &r.endpoint) || hive_runtime::resolve_workspace_credential(&r.credential).is_some()
+    !needs_key(r.provider, &r.endpoint) || ligus_runtime::resolve_workspace_credential(&r.credential).is_some()
 }
 
 fn needs_key(p: ModelProviderKind, endpoint: &str) -> bool {
@@ -114,11 +114,11 @@ fn needs_key(p: ModelProviderKind, endpoint: &str) -> bool {
             | ModelProviderKind::OpenRouter
             | ModelProviderKind::Azure
             | ModelProviderKind::Custom
-    ) && !hive_core::endpoint::endpoint_is_local_server(endpoint)
+    ) && !ligus_core::endpoint::endpoint_is_local_server(endpoint)
 }
 
 fn resolved(wr: &WorkspaceRuntime) -> Result<ResolvedRuntime> {
-    let api_key = hive_runtime::resolve_workspace_credential(&wr.credential);
+    let api_key = ligus_runtime::resolve_workspace_credential(&wr.credential);
     if api_key.is_none() && needs_key(wr.provider, &wr.endpoint) {
         return Err(BackendError(format!("the runtime '{}' has no key on this device", wr.name)));
     }
@@ -130,7 +130,7 @@ fn base_runtime(
     model: String,
     endpoint: String,
     api_key: Option<String>,
-    driver: hive_core::Driver,
+    driver: ligus_core::Driver,
 ) -> ResolvedRuntime {
     ResolvedRuntime {
         provider,
@@ -163,7 +163,7 @@ fn runtime_for(i: &Inner, ws: Uuid, runtime_id: &str) -> Result<(ResolvedRuntime
     match found {
         Some(wr) => Ok((resolved(wr)?, wr.id.clone())),
         None if i.cfg.cli_fallback => Ok((
-            base_runtime(ModelProviderKind::ClaudeCode, String::new(), String::new(), None, hive_core::Driver::default()),
+            base_runtime(ModelProviderKind::ClaudeCode, String::new(), String::new(), None, ligus_core::Driver::default()),
             "claude-code".into(),
         )),
         None => Err(BackendError("no runtime answers here: add a workspace runtime".into())),
@@ -180,16 +180,16 @@ pub fn guard_turn(
     mut rt: ResolvedRuntime,
     author_role: Option<WorkspaceRole>,
 ) -> std::result::Result<(ResolvedRuntime, TurnPolicy), String> {
-    let gate = hive_runtime::author_gate::gate_turn(rt.provider, &mut rt.args, author_role);
-    let envelope = hive_core::sandbox::envelope_for_session(session);
-    let enforcement = hive_runtime::sandbox::enforce(rt.provider, &envelope, &Vec::new());
+    let gate = ligus_runtime::author_gate::gate_turn(rt.provider, &mut rt.args, author_role);
+    let envelope = ligus_core::sandbox::envelope_for_session(session);
+    let enforcement = ligus_runtime::sandbox::enforce(rt.provider, &envelope, &Vec::new());
     if let Some(reason) = enforcement.refuse {
         return Err(reason);
     }
     if let GatePlan::Refuse(reason) = &gate {
         return Err(reason.clone());
     }
-    hive_runtime::executor::turn_allowed(rt.provider)?;
+    ligus_runtime::executor::turn_allowed(rt.provider)?;
     rt.args.extend(enforcement.extra_args);
     Ok((rt, TurnPolicy::new(HostKind::Desktop, envelope, gate)))
 }
@@ -242,7 +242,7 @@ async fn run_turn(inner: &Arc<Inner>, plan: &Plan) -> Result<()> {
         let through = s.messages.iter().position(|m| m.id == trigger).map(|n| n + 1).unwrap_or(s.messages.len());
         let mut upto = s.clone();
         upto.messages.truncate(through);
-        let turns = hive_runtime::turns_for(&upto, agent_id, &author);
+        let turns = ligus_runtime::turns_for(&upto, agent_id, &author);
         let system = match &agent {
             Some(a) if !a.role.is_empty() => format!("You are @{}, an agent in a Ligus workspace chat. Your role: {}.", a.name, a.role),
             Some(a) => format!("You are @{}, an agent in a Ligus workspace chat.", a.name),
@@ -279,7 +279,7 @@ async fn run_turn(inner: &Arc<Inner>, plan: &Plan) -> Result<()> {
     };
     let message = crate::backend::model::MessageId::new(mid.to_string());
     // Every agent child this turn spawns runs under its policy.
-    let result = hive_runtime::executor::with_turn(
+    let result = ligus_runtime::executor::with_turn(
         policy,
         dispatch::stream(
             &rt,
@@ -309,11 +309,11 @@ async fn run_turn(inner: &Arc<Inner>, plan: &Plan) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hive_core::{ActorIdentity, ActorKind, SigningKeypair};
-    use hive_runtime::{ChatService, EventStore};
+    use ligus_core::{ActorIdentity, ActorKind, SigningKeypair};
+    use ligus_runtime::{ChatService, EventStore};
 
     fn claude() -> ResolvedRuntime {
-        base_runtime(ModelProviderKind::ClaudeCode, String::new(), String::new(), None, hive_core::Driver::default())
+        base_runtime(ModelProviderKind::ClaudeCode, String::new(), String::new(), None, ligus_core::Driver::default())
     }
 
     /// A chat, and the same chat locked down.
@@ -326,7 +326,7 @@ mod tests {
         svc.ensure_workspace_config(ws).unwrap();
         let chat = svc.create_chat("c", ws, "").unwrap();
         let open = svc.load(chat.id).unwrap().unwrap();
-        svc.self_medicate(ws, chat.id, None, &[(hive_core::guard::LockdownSignal::Manual, "manual".into())]).unwrap();
+        svc.self_medicate(ws, chat.id, None, &[(ligus_core::guard::LockdownSignal::Manual, "manual".into())]).unwrap();
         let locked = svc.load(chat.id).unwrap().unwrap();
         assert!(locked.guards.lockdown_active());
         (open, locked)
@@ -334,7 +334,7 @@ mod tests {
 
     /// This host has no OS sandbox: no CLI agent runs here at all.
     fn no_sandbox() -> bool {
-        hive_runtime::executor::refuses_writes()
+        ligus_runtime::executor::refuses_writes()
     }
 
     #[test]

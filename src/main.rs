@@ -56,7 +56,7 @@ fn main() -> anyhow::Result<()> {
     // The agent sandbox on Linux re-runs this binary as its pre-exec helper
     // (inside bubblewrap): that run must stop here, before anything else.
     #[cfg(target_os = "linux")]
-    hive_runtime::executor::linux::maybe_run_helper();
+    ligus_runtime::executor::linux::maybe_run_helper();
     tokio::runtime::Builder::new_multi_thread().enable_all().build()?.block_on(run())
 }
 

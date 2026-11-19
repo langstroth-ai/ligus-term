@@ -153,37 +153,34 @@ cancelled.
 
 ### Dependency
 
-**Today** `lt` depends on the crates under their current names (`hive-core`,
-`hive-runtime`) by path, on a local worktree of the ligus repo at
-`../f-term-crates`, branch `feat/runtime-for-clients` (based on
-`release/v2.0.0`), which adds what clients need to the runtime crate (see
-"Gaps" below). `hive-runtime` is built without its `p2p` feature (no iroh)
-for now; tests enable its `test-relay` feature. `Cargo.lock` was seeded
-from the ligus lock so the crates' dependencies resolve to the versions the
-ligus repo tests with.
-
-The crates are being renamed (to `ligus-core`, `ligus-runtime`,
-`ligus-proto`, `ligus-forge`). After the rename `lt` depends on them as git
-dependencies pinned to a release tag:
+**Today** `lt` depends on the crates as git dependencies on
+`https://github.com/langstroth-ai/ligus`, pinned to a commit of the
+`release/v0.1.0` branch (PR #121 merged the client runtime there):
 
 ```toml
 [dependencies]
-ligus-core    = { git = "https://github.com/langstroth-ai/ligus", tag = "v0.1.0" }
-ligus-proto   = { git = "https://github.com/langstroth-ai/ligus", tag = "v0.1.0" }
-ligus-runtime = { git = "https://github.com/langstroth-ai/ligus", tag = "v0.1.0", features = ["p2p"] }
+ligus-core    = { package = "hive-core",    version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "6ba1fd2d…" }
+ligus-runtime = { package = "hive-runtime", version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "6ba1fd2d…", default-features = false }
 ```
 
-- **Tag first.** The reference tree (branch `release/v0.1.0`) has no tags
-  yet and its crates still say `0.1.0`. Cut the tag before wiring, and
-  never depend on a branch.
+- **Tag at release.** When the ligus repo cuts `v0.1.0`, the pin moves from
+  `rev = "…"` to `tag = "v0.1.0"`. Never depend on a branch.
+- **Names.** The packages are still `hive-*`. The `package =` renames let
+  the code say `ligus_core` and `ligus_runtime` already, so the crate rename
+  (to `ligus-core`, `ligus-runtime`, …) only changes `Cargo.toml` (and the
+  package name in `scripts/check-no-test-relay.sh`).
+- **Features.** `hive-runtime` is built without its `p2p` feature (no iroh)
+  for now; the dev-dependency adds `test-relay` for the tests.
+- **`version = "0.1.0"`** sits next to `git` so cargo-deny doesn't count
+  the git dependencies as wildcards; `deny.toml` allows the git source.
 - **Toolchain.** The crates are edition 2021 with `rust-version = 1.91`,
   which is why `lt` declares 1.91 too. Mixing editions across crates is
   fine.
-- **cargo-deny.** Allow the git source in `deny.toml`
-  (`[sources] allow-git`).
 - **Lockfile.** `lt`'s own `Cargo.lock` resolves the crates' transitive
-  dependencies independently of the ligus repo's lock. Run the 7-day age
-  check (`scripts/check-dep-age.py`) and the test suite after every bump.
+  dependencies independently of the ligus repo's lock; it was seeded from
+  that lock so they resolve to the versions the ligus repo tests with. Run
+  the 7-day age check (`scripts/check-dep-age.py`) and the test suite after
+  every bump.
 - **The fake stays.** It becomes `lt --demo` and the test backend. The real
   backend is the default.
 
@@ -356,7 +353,7 @@ Not wired yet:
 ### Gaps in the crates
 
 Wiring `lt` surfaced logic that lived in the desktop app or the CLI binary.
-Branch `feat/runtime-for-clients` of the ligus repo moves it into
+PR #121 (`feat/runtime-for-clients`, merged into `release/v0.1.0`) moved it into
 `hive-runtime` (later `ligus-runtime`), and the desktop and the CLI now use
 the shared copy:
 

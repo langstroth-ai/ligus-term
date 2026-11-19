@@ -17,9 +17,9 @@ use std::time::Duration;
 use axum::Router;
 use axum::routing::post;
 use futures::StreamExt;
-use hive_core::presence::soft::SoftAuthenticator;
-use hive_core::presence::unb64url;
-use hive_core::{ModelProviderKind, WorkspaceAgent, WorkspaceRuntime, workspace_config_session_id};
+use ligus_core::presence::soft::SoftAuthenticator;
+use ligus_core::presence::unb64url;
+use ligus_core::{ModelProviderKind, WorkspaceAgent, WorkspaceRuntime, workspace_config_session_id};
 use ligus_term::backend::model::*;
 use ligus_term::backend::presence::{Opener, urlencode};
 use ligus_term::backend::real::{RealBackend, RealConfig};
@@ -172,7 +172,7 @@ const DIFF: &str = "diff --git a/hive.txt b/hive.txt\nnew file mode 100644\n--- 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn two_devices_work_together_through_a_relay() {
     let tmp = tempfile::tempdir().unwrap();
-    let relay = serve(hive_runtime::test_relay::router()).await;
+    let relay = serve(ligus_runtime::test_relay::router()).await;
     let model = fake_model().await;
     let a = device(&tmp.path().join("ana"), "lt Ana", &relay);
     let b = device(&tmp.path().join("ben"), "lt Ben", &relay);
@@ -320,7 +320,7 @@ async fn two_devices_work_together_through_a_relay() {
     let pid = tokio::task::spawn_blocking(move || {
         let mut svc = svc.lock().unwrap();
         let author = svc.author().id.clone();
-        let p = hive_core::ActionProposal::file_diff("Add hive.txt", author, DIFF.into(), vec!["hive.txt".into()]);
+        let p = ligus_core::ActionProposal::file_diff("Add hive.txt", author, DIFF.into(), vec!["hive.txt".into()]);
         let id = p.id;
         svc.upsert_proposal(chat_u, wsu, p).unwrap();
         id
@@ -458,7 +458,7 @@ async fn open_registers_the_data_dir_with_the_agent_sandbox() {
     let mut cfg = RealConfig::new(dir.clone());
     cfg.cli_fallback = false;
     let b = RealBackend::open(cfg).unwrap();
-    let denied = hive_runtime::executor::host_paths().data_dirs;
+    let denied = ligus_runtime::executor::host_paths().data_dirs;
     assert!(denied.iter().any(|d| d == &dir), "{dir:?} not in {denied:?}");
     b.shutdown();
 }

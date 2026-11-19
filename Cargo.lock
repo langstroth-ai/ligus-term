@@ -1212,6 +1212,7 @@ dependencies = [
 [[package]]
 name = "hive-core"
 version = "0.1.0"
+source = "git+https://github.com/langstroth-ai/ligus?rev=6ba1fd2d4f40064fca853869f2587d6bad910903#6ba1fd2d4f40064fca853869f2587d6bad910903"
 dependencies = [
  "argon2",
  "base64",
@@ -1235,6 +1236,7 @@ dependencies = [
 [[package]]
 name = "hive-forge"
 version = "0.1.0"
+source = "git+https://github.com/langstroth-ai/ligus?rev=6ba1fd2d4f40064fca853869f2587d6bad910903#6ba1fd2d4f40064fca853869f2587d6bad910903"
 dependencies = [
  "async-trait",
  "http",
@@ -1258,6 +1260,7 @@ dependencies = [
 [[package]]
 name = "hive-proto"
 version = "0.1.0"
+source = "git+https://github.com/langstroth-ai/ligus?rev=6ba1fd2d4f40064fca853869f2587d6bad910903#6ba1fd2d4f40064fca853869f2587d6bad910903"
 dependencies = [
  "serde",
  "ts-rs",
@@ -1266,6 +1269,7 @@ dependencies = [
 [[package]]
 name = "hive-runtime"
 version = "0.1.0"
+source = "git+https://github.com/langstroth-ai/ligus?rev=6ba1fd2d4f40064fca853869f2587d6bad910903#6ba1fd2d4f40064fca853869f2587d6bad910903"
 dependencies = [
  "aho-corasick",
  "anyhow",

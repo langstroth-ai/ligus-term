@@ -10,10 +10,12 @@ export CARGO_TARGET_DIR="$PWD/target"   # keep build output in the repo (gitigno
 cargo build --locked
 ```
 
-The Ligus crates are a path dependency on a local checkout of the ligus
-repo at `../f-term-crates` (branch `feat/runtime-for-clients`) until they
-are tagged; see the note in `Cargo.toml`. At release they become git
-dependencies pinned to tag `v0.1.0`.
+The Ligus crates are git dependencies on `langstroth-ai/ligus`, pinned to
+a commit of its `release/v0.1.0` branch (`rev = ...` in `Cargo.toml`); at
+release the pin becomes `tag = "v0.1.0"`. Their packages are still named
+`hive-*`; `Cargo.toml` renames them (`ligus-core = { package = "hive-core", ... }`)
+so the code already says `ligus_core` and `ligus_runtime`. Cargo fetches
+them, so no sibling checkout is needed.
 
 Rust 1.91 or newer, edition 2024. The binary is `target/debug/lt`.
 
@@ -23,7 +25,7 @@ Run all of these before committing. CI runs the same on Linux and macOS
 (`.github/workflows/ci.yml`):
 
 ```sh
-cargo fmt --check          # (--all also walks the path dependency)
+cargo fmt --check
 cargo clippy --all-targets --locked -- -D warnings
 cargo test --locked
 cargo deny check            # licenses, advisories, sources (if installed)

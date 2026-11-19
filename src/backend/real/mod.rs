@@ -15,7 +15,7 @@
 //! `ChatService` is synchronous: every call runs in `spawn_blocking`. Live
 //! updates come from its change feed ([`watch`]); turns this device answers
 //! run in [`turns`], behind the same dispatch gates as the desktop
-//! (`hive_runtime::turn_dispatch`).
+//! (`ligus_runtime::turn_dispatch`).
 
 mod local;
 mod term_presence;
@@ -30,13 +30,15 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use futures::stream::BoxStream;
-use hive_core::presence::{PasskeyCredential, PresencePolicy, RecoveryKey, b64url};
-use hive_core::{Timestamp, workspace_config_session_id};
-use hive_runtime::chat_service::{ChatError, PresenceRequest};
-use hive_runtime::connection_settings::{SavedWorkspace, WorkspaceList};
-use hive_runtime::secret_store::{SecretStore, StoreKeyVault};
-use hive_runtime::workspace_invite::{WorkspaceConn, decode_workspace_invite, encode_workspace_invite, invite_relay_problem, random_token};
-use hive_runtime::{ChatService, EventStore, IdentityStore, StoredIdentity};
+use ligus_core::presence::{PasskeyCredential, PresencePolicy, RecoveryKey, b64url};
+use ligus_core::{Timestamp, workspace_config_session_id};
+use ligus_runtime::chat_service::{ChatError, PresenceRequest};
+use ligus_runtime::connection_settings::{SavedWorkspace, WorkspaceList};
+use ligus_runtime::secret_store::{SecretStore, StoreKeyVault};
+use ligus_runtime::workspace_invite::{
+    WorkspaceConn, decode_workspace_invite, encode_workspace_invite, invite_relay_problem, random_token,
+};
+use ligus_runtime::{ChatService, EventStore, IdentityStore, StoredIdentity};
 use tokio::sync::broadcast;
 use uuid::Uuid;
 
@@ -73,7 +75,7 @@ pub struct RealConfig {
 
 impl RealConfig {
     pub fn new(data_dir: PathBuf) -> Self {
-        let host = hive_runtime::machine_hostname().unwrap_or_else(|| "this machine".into());
+        let host = ligus_runtime::machine_hostname().unwrap_or_else(|| "this machine".into());
         Self {
             data_dir,
             device_name: format!("lt on {host}"),
@@ -116,7 +118,7 @@ pub(crate) struct Core {
     reader: Mutex<ChatService>,
     /// The write service's change feed, kept here so nothing has to lock the
     /// service (held through a passkey prompt) to reach it.
-    feed: hive_runtime::chat_service::ChangeFeed,
+    feed: ligus_runtime::chat_service::ChangeFeed,
 }
 
 fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
@@ -147,20 +149,20 @@ impl RealBackend {
         // A relay new workspaces can't use is a mistake to say now, not a
         // workspace that silently stays on this device.
         if let Some(r) = cfg.relay_url.as_deref()
-            && !hive_runtime::workspace_invite::usable_relay_url(r)
+            && !ligus_runtime::workspace_invite::usable_relay_url(r)
         {
             return Err(format!("LT_RELAY_URL {r:?} isn't a relay address: give an http(s) URL, e.g. https://relay.example"));
         }
         // Create it owner-only first (keys, the database and the secrets live
         // here), then claim it as a Ligus data dir, as the CLI does.
-        hive_runtime::private_file::ensure_private_dir(&cfg.data_dir).map_err(|e| format!("creating {}: {e}", cfg.data_dir.display()))?;
-        hive_core::compat::claim_data_dir(&cfg.data_dir, hive_core::compat::home_dir().as_deref())?;
-        hive_runtime::secret_store::set_binary_identifier(SIGNING_IDENTIFIER);
+        ligus_runtime::private_file::ensure_private_dir(&cfg.data_dir).map_err(|e| format!("creating {}: {e}", cfg.data_dir.display()))?;
+        ligus_core::compat::claim_data_dir(&cfg.data_dir, ligus_core::compat::home_dir().as_deref())?;
+        ligus_runtime::secret_store::set_binary_identifier(SIGNING_IDENTIFIER);
         // No agent child (the keyless Claude Code fallback, any CLI runtime)
         // may read this device's keys, database or secrets: deny the data
         // dir in the agent sandbox, as the desktop and the CLI do theirs.
-        hive_runtime::executor::configure_host(&cfg.data_dir, &[], &[]);
-        let secrets = hive_runtime::secret_store::init_for_data_dir(&cfg.data_dir, None);
+        ligus_runtime::executor::configure_host(&cfg.data_dir, &[], &[]);
+        let secrets = ligus_runtime::secret_store::init_for_data_dir(&cfg.data_dir, None);
         let rt = tokio::runtime::Handle::try_current().map_err(|e| e.to_string())?;
         let (tx, _) = broadcast::channel(4096);
         let presence =
@@ -339,7 +341,7 @@ impl Inner {
             if let Some(ka) = &ka {
                 let _ = svc.publish_key_agreement(ws, ka.public_key_bytes());
             }
-            let _ = svc.ensure_host(ws, hive_core::WorkspaceHost::new(device, hive_core::HostKind::Device, label));
+            let _ = svc.ensure_host(ws, ligus_core::WorkspaceHost::new(device, ligus_core::HostKind::Device, label));
             Ok(())
         });
     }
@@ -378,17 +380,17 @@ impl Inner {
     }
 
     /// The key source this device syncs `w` with (B1).
-    fn key_source(&self, w: &SavedWorkspace) -> Result<hive_runtime::keyring::KeySource> {
+    fn key_source(&self, w: &SavedWorkspace) -> Result<ligus_runtime::keyring::KeySource> {
         let core = self.core()?;
         let device = core.identity.device.id;
         let ka = self.identity_store().key_agreement(device).map_err(one_line)?;
-        Ok(hive_runtime::keyring::KeySource::for_device(device, ka, w.secrets.key.as_deref(), &w.secrets.ek))
+        Ok(ligus_runtime::keyring::KeySource::for_device(device, ka, w.secrets.key.as_deref(), &w.secrets.ek))
     }
 
-    fn sync_engine(&self, w: &SavedWorkspace) -> Result<hive_runtime::SyncEngine> {
+    fn sync_engine(&self, w: &SavedWorkspace) -> Result<ligus_runtime::SyncEngine> {
         let relay = w.relay().ok_or_else(|| BackendError("this workspace has no relay".into()))?;
-        let client = hive_runtime::RelayClient::new(relay).with_auth(w.secrets.token.clone());
-        Ok(hive_runtime::SyncEngine::new(client, w.room.clone()).with_key_source(self.key_source(w)?))
+        let client = ligus_runtime::RelayClient::new(relay).with_auth(w.secrets.token.clone());
+        Ok(ligus_runtime::SyncEngine::new(client, w.room.clone()).with_key_source(self.key_source(w)?))
     }
 
     /// Whether chats in `ws` can only ever be answered here (no relay).
@@ -408,12 +410,12 @@ impl Inner {
             kind: "passkeyRegistered".into(),
             account_id: account,
             credential_ids: Vec::new(),
-            digest_short: hive_core::keys::hex(&challenge[..8]),
+            digest_short: ligus_core::keys::hex(&challenge[..8]),
             summary: format!("Create a Ligus passkey for “{ws_name}”"),
             policy: policy.clone(),
         };
         let att = self.presence.create(&req, your_name).map_err(one_line)?;
-        let (id, alg, pk) = policy.with(|p| hive_core::presence::verify_create(&att, &challenge, p)).map_err(|e| BackendError(e.0))?;
+        let (id, alg, pk) = policy.with(|p| ligus_core::presence::verify_create(&att, &challenge, p)).map_err(|e| BackendError(e.0))?;
         Ok(PasskeyCredential {
             account_id: account,
             credential_id: b64url(&id),
@@ -456,8 +458,8 @@ impl Backend for RealBackend {
         let safety_code = core
             .as_ref()
             .and_then(|c| {
-                let fp = hive_runtime::envelope_verifier::FounderPin::fingerprint_hex(&c.identity.account.signing_public_key);
-                hive_runtime::directory_trust::safety_code(&fp)
+                let fp = ligus_runtime::envelope_verifier::FounderPin::fingerprint_hex(&c.identity.account.signing_public_key);
+                ligus_runtime::directory_trust::safety_code(&fp)
             })
             .unwrap_or_default();
         DeviceInfo {
@@ -499,7 +501,7 @@ impl Backend for RealBackend {
                 let core = i.ensure_core(&your_name)?;
                 let passkey = i.create_passkey(&core, &your_name, &name)?;
                 let account = core.identity.account.id;
-                let fk = hive_runtime::envelope_verifier::FounderPin::fingerprint_hex(&core.identity.account.signing_public_key);
+                let fk = ligus_runtime::envelope_verifier::FounderPin::fingerprint_hex(&core.identity.account.signing_public_key);
                 let conn = WorkspaceConn {
                     name: name.clone(),
                     relay_url: i.cfg.relay_url.clone().unwrap_or_default(),
@@ -584,7 +586,7 @@ impl Backend for RealBackend {
             Ok(())
         })
         .await?;
-        hive_runtime::sync_service::sync_round(&mut engine, &mut store).await.map_err(one_line)?;
+        ligus_runtime::sync_service::sync_round(&mut engine, &mut store).await.map_err(one_line)?;
         self.inner.start_loops(ws);
         self.inner.emit(Event::WorkspacesChanged);
         self.call(move |i| Ok(i.summary(&i.saved(ws)?))).await
@@ -695,7 +697,7 @@ impl Backend for RealBackend {
     async fn lock_chat(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<()> {
         let (ws, sid) = (ws_uuid(workspace)?, uuid_of(chat.as_str(), "chat")?);
         self.call(move |i| {
-            i.write(ws, |svc| svc.self_medicate(ws, sid, None, &[(hive_core::guard::LockdownSignal::Manual, "manual".into())]))?;
+            i.write(ws, |svc| svc.self_medicate(ws, sid, None, &[(ligus_core::guard::LockdownSignal::Manual, "manual".into())]))?;
             Ok(())
         })
         .await
@@ -706,7 +708,7 @@ impl Backend for RealBackend {
         self.call(move |i| {
             let me = i.me();
             let s = i.read(ws, |svc| svc.load(sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
-            let view = hive_runtime::lockdown_view::chat_lockdown(&s, sid, &me);
+            let view = ligus_runtime::lockdown_view::chat_lockdown(&s, sid, &me);
             if !view.can_clear {
                 return err("only a human Contributor or above clears a lockdown");
             }
@@ -809,7 +811,7 @@ impl Backend for RealBackend {
         self.call(move |i| {
             let device = i.core()?.identity.device.id.to_string();
             let hosts = i.read(ws, |svc| svc.list_hosts(ws))?;
-            let presence = hive_runtime::HostPresence::new();
+            let presence = ligus_runtime::HostPresence::new();
             let now = Timestamp::now();
             Ok(hosts
                 .iter()
@@ -817,8 +819,8 @@ impl Backend for RealBackend {
                     id: HostId::new(h.id.clone()),
                     label: if h.id == device { "This device".into() } else { h.label.clone() },
                     kind: match h.kind {
-                        hive_core::HostKind::Device => HostKind::Device,
-                        hive_core::HostKind::Worker => HostKind::Worker,
+                        ligus_core::HostKind::Device => HostKind::Device,
+                        ligus_core::HostKind::Worker => HostKind::Worker,
                     },
                     online: h.id == device || presence.is_online(h, &now),
                     last_seen: Some(views::ms(&presence.last_seen(h))),
@@ -935,7 +937,7 @@ impl Inner {
     }
 
     /// The chat sessions of `ws` (never its config log).
-    pub(crate) fn chat_sessions(&self, ws: Uuid) -> Result<Vec<hive_core::ChatSession>> {
+    pub(crate) fn chat_sessions(&self, ws: Uuid) -> Result<Vec<ligus_core::ChatSession>> {
         let config = workspace_config_session_id(ws);
         self.read(ws, |svc| {
             let mut out = Vec::new();
@@ -965,11 +967,11 @@ impl Inner {
             .iter()
             .map(|s| {
                 let id = s.id.to_string();
-                let last = s.messages.iter().rev().find(|m| m.role != hive_core::MessageRole::System);
+                let last = s.messages.iter().rev().find(|m| m.role != ligus_core::MessageRole::System);
                 let updated_at = last.map(|m| views::ms(&m.created_at)).unwrap_or_else(|| views::ms(&s.created_at));
                 let seen = read.get(&id).copied().unwrap_or(0);
                 let unread = last.is_some_and(|m| views::ms(&m.created_at) > seen && m.actor_identity.as_ref().is_none_or(|a| a.id != me));
-                let view = hive_runtime::lockdown_view::chat_lockdown(s, s.id, &me);
+                let view = ligus_runtime::lockdown_view::chat_lockdown(s, s.id, &me);
                 ChatSummary {
                     id: ChatId::new(id.clone()),
                     title: s.title.clone(),
@@ -1016,7 +1018,7 @@ impl Inner {
         Ok(out)
     }
 
-    fn find_proposal(&self, ws: Uuid, pid: Uuid) -> Result<(Uuid, hive_core::ActionProposal)> {
+    fn find_proposal(&self, ws: Uuid, pid: Uuid) -> Result<(Uuid, ligus_core::ActionProposal)> {
         self.chat_sessions(ws)?
             .into_iter()
             .find_map(|s| s.proposals.iter().find(|p| p.id == pid).cloned().map(|p| (s.id, p)))

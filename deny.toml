@@ -36,13 +36,12 @@ unused-allowed-license = "allow"
 
 [bans]
 multiple-versions = "warn"
-# The Ligus crates are a path dependency (no version) until they are git
-# dependencies pinned to v0.1.0; deny wildcards again then.
-wildcards = "warn"
+# The Ligus git dependencies carry a version too (0.1.0), so none is a wildcard.
+wildcards = "deny"
 
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-# When the Ligus crates are wired in, allow their release repo here:
-# allow-git = ["https://github.com/langstroth-ai/ligus"]
+# The Ligus crates, pinned to a commit (later the v0.1.0 tag) of their repo.
+allow-git = ["https://github.com/langstroth-ai/ligus"]
