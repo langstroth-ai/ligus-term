@@ -288,14 +288,31 @@ Paths are inside the crate named in each row, on `release/v0.1.0`.
 
 ### Agent turns and the sandbox
 
-A turn runs as on every Ligus host: `turns::guard_turn` applies the
-author-role gate (`author_gate::gate_turn`, with the role the trigger's
-author held when they posted), the chat's sandbox envelope
+A turn runs as on every Ligus host. `turns::guard_turn`
+(`turn_engine::decide_gate_with`) applies the author-role gate
+(`author_gate::gate_turn`, with the role the trigger's author held when they
+posted), the shell rule (the shell is the workspace Owner's, from
+`trigger_shell_role`, or an Owner's grant to the agent; the signed path
+grants apply per `LIGUS_SANDBOX_GRANTS`), the chat's sandbox envelope
 (`sandbox::envelope_for_session` and `sandbox::enforce`: a lockdown or dearth
 mode narrows egress or refuses a runtime it can't confine) and this host's
-OS sandbox (`executor::turn_allowed`). The reply streams inside
-`executor::with_turn`, so the keyless Claude Code fallback and any other CLI
-runtime are spawned confined. `RealBackend::open` registers `lt`'s data dir
+OS sandbox (`executor::turn_allowed`). The repo gate is
+`turn_engine::repo_checkout`: a chat with a workspace repo runs only in this
+device's checkout of it, any other chat in the checkout bound for the
+workspace.
+
+The turn itself runs in the runtime's shared engine (`turn_engine::run`), the
+same one the desktop and `ligus worker` / `ligus serve` run, with `lt` as its
+host (`turns::TermHost`): the gate's `TurnPolicy` and the host's executor are
+inputs, so every child (the keyless Claude Code fallback, any CLI runtime,
+`run_command`) is spawned confined. A runtime that runs the tool loop
+(Custom, a local gateway, Ollama; `LT_AGENT_TOOLS=0` turns it off) gets
+Ligus's built-in file tools (on a private endpoint), the folded Ligus tools
+(propose, hand off, ask, read) and, with `LT_RUN_COMMAND=1` and the shell,
+`run_command`. Its edits land in a per-turn worktree of the checkout, cut on
+the first write, and come back as a FileDiff proposal; a hand-off runs the
+receiver here when it is this device's to answer. Tool calls show live as
+`ToolActivity` under the reply. `RealBackend::open` registers `lt`'s data dir
 with `executor::configure_host`, so no agent child can read its keys,
 database or secrets, and on Linux `main` dispatches the sandbox's pre-exec
 helper before anything else.
@@ -410,11 +427,8 @@ from disk.
 Not wired yet:
 
 - **Peer-to-peer sync** (iroh): relay only.
-- **Agent tools and per-turn worktrees.** Turns stream plain chat: no MCP
-  or built-in file tools, so agents running on `lt` don't file proposals
-  or workflows. This waits for the agent-turn engine to move into the
-  runtime (after the sandbox and repos branches merge). Agents on workers
-  and desktops do all of this, and `lt` reviews the result.
+- **MCP servers for agents.** Turns get Ligus's built-in and folded tools
+  through the shared engine, but `lt` has no MCP server catalog yet.
 - **Cascades.** A reply that hands off to another agent isn't run here
   (the desktop's cascade loop); a worker hosting that agent answers it.
 - **Run takeover.** `lt` drives the runs it starts; it doesn't take over a
@@ -443,8 +457,9 @@ the shared copy:
 3. **Turn dispatch**: `turn_dispatch` (`turn_runs_here`,
    `runs_here_linked`, `dispatch_target`, the answered and deferred
    checks), and `sync_service` (`SyncLoop`, `sync_round`, `apply_tick`).
-   The turn runner itself (context windows, tools, cascades) is still the
-   desktop's and the CLI worker's.
+   The turn runner is `turn_engine` (tools, worktrees, proposals,
+   hand-offs), shared by the desktop, the worker and `lt`; context windows
+   and summaries are still the desktop's.
 4. **Lockdown view**: `lockdown_view` (`can_clear`, `chat_lockdown`). Done.
 5. **Live updates**: `ChatService::subscribe` (a broadcast of every
    append; sync loops publish what they pulled to the same feed). Done.
