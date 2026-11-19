@@ -6,13 +6,14 @@ use clap::Parser;
 use ligus_term::app::State;
 use ligus_term::backend::Backend;
 use ligus_term::backend::fake::{FakeBackend, FakeConfig};
+use ligus_term::backend::real::{RealBackend, RealConfig};
 use ligus_term::config::{Config, default_config_text};
 use ligus_term::theme::{Theme, ThemeChoice};
 use ligus_term::{app, paths, plain};
 
 const LONG_VERSION: &str = concat!(
     env!("CARGO_PKG_VERSION"),
-    "\nbackend: in-memory demo (not yet wired to the Ligus crates)",
+    "\nbackend: the Ligus crates (--demo: an in-memory sample)",
     "\nLigus is short for ligustica, the Italian honeybee."
 );
 
@@ -24,7 +25,8 @@ struct Args {
     /// line; commands on stdin). Also used when stdout isn't a terminal.
     #[arg(long)]
     plain: bool,
-    /// Start with sample workspaces instead of first-run onboarding.
+    /// The in-memory demo backend with sample workspaces (keeps nothing on
+    /// disk) instead of this device's real data.
     #[arg(long)]
     demo: bool,
     /// This device's data dir (default: $LT_DATA_DIR, else ~/.ligus-term).
@@ -67,9 +69,14 @@ async fn main() -> anyhow::Result<()> {
     let choice = args.theme.or(config.theme).unwrap_or(ThemeChoice::Auto);
     let theme = Theme::resolve(choice, env);
 
-    let cfg = FakeConfig { data_dir: format!("{} (not used by the demo backend)", data.path.display()), ..FakeConfig::default() };
-    let fake = if args.demo { FakeBackend::demo(cfg) } else { FakeBackend::new(cfg) };
-    let backend: Arc<dyn Backend> = Arc::new(fake);
+    let backend: Arc<dyn Backend> = if args.demo {
+        let cfg = FakeConfig { data_dir: "(in memory: the demo keeps nothing)".into(), ..FakeConfig::default() };
+        Arc::new(FakeBackend::demo(cfg))
+    } else {
+        let mut cfg = RealConfig::new(data.path.clone());
+        cfg.relay_url = env("LT_RELAY_URL").map(|u| u.trim().to_string()).filter(|u| !u.is_empty());
+        Arc::new(RealBackend::open(cfg).unwrap_or_else(|e| fail(e)))
+    };
 
     if args.plain || !std::io::stdout().is_terminal() || !std::io::stdin().is_terminal() {
         let stdin = tokio::io::BufReader::new(tokio::io::stdin());

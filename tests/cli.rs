@@ -68,11 +68,31 @@ fn refuses_the_desktop_data_dir_and_bad_config() {
 }
 
 #[test]
-fn does_not_create_its_data_dir_yet() {
+fn the_demo_keeps_nothing_on_disk() {
     let home = tempfile::tempdir().unwrap();
     let mut c = Command::new(env!("CARGO_BIN_EXE_lt"));
-    c.env_clear().env("HOME", home.path()).arg("--plain");
+    c.env_clear().env("HOME", home.path()).args(["--plain", "--demo"]);
     let (code, _, _) = run(c, "quit\n");
     assert_eq!(code, 0);
     assert!(!home.path().join(".ligus-term").exists(), "the demo backend keeps nothing on disk");
+}
+
+/// Without `--demo`, lt opens its own device dir (owner-only), and makes no
+/// identity until the person creates or joins a workspace. File secrets: a
+/// test never touches the login keychain.
+#[test]
+fn first_run_opens_its_own_device_dir() {
+    let home = tempfile::tempdir().unwrap();
+    let mut c = Command::new(env!("CARGO_BIN_EXE_lt"));
+    c.env_clear().env("HOME", home.path()).env("LIGUS_SECRET_BACKEND", "file").arg("--plain");
+    let (code, out, err) = run(c, "workspaces\nquit\n");
+    assert_eq!(code, 0, "{out}{err}");
+    let dir = home.path().join(".ligus-term");
+    assert!(dir.is_dir(), "{err}");
+    assert!(!dir.join("identity.json").exists(), "no identity before create or join");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(std::fs::metadata(&dir).unwrap().permissions().mode() & 0o077, 0, "the data dir is owner-only");
+    }
 }
