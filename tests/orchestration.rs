@@ -262,6 +262,15 @@ async fn lt_founds_a_deployment_admits_a_box_and_drives_a_workflow() {
     .await;
     let boxm = people.iter().find(|m| m.service).unwrap();
     assert_eq!(boxm.role, Role::Contributor);
+    // As an Admin's device, lt closes the redeemed admission (so nobody
+    // holding the code can slot a backdated redemption in later), as the
+    // desktop and `ligus admit close` do.
+    until("Ana's device to close the redeemed admission", || async {
+        let closed =
+            on_service(&a, move |svc| svc.load(workspace_config_session_id(wsu)).unwrap().unwrap().guards.closed_admissions.len()).await;
+        (closed >= 1).then_some(())
+    })
+    .await;
 
     // ── Agents: a runtime (the fake model) and an agent hosted on the box.
     let builder = {
@@ -337,7 +346,11 @@ async fn lt_founds_a_deployment_admits_a_box_and_drives_a_workflow() {
     assert_eq!(done.status, RunStatus::Completed, "{done:?}");
     assert_eq!(done.stages[2].excerpt, "Hello from the hive.");
     assert!(a.saw(|e| matches!(e, Event::RunChanged { run: r, .. } if r.id == run.id && r.status == RunStatus::AwaitingGate)));
-    assert!(a.saw(|e| matches!(e, Event::RunChanged { run: r, .. } if r.id == run.id && r.status == RunStatus::Completed)));
+    // The record can be read completed a moment before its event goes out.
+    until("the run's completed event", || async {
+        a.saw(|e| matches!(e, Event::RunChanged { run: r, .. } if r.id == run.id && r.status == RunStatus::Completed)).then_some(())
+    })
+    .await;
     // The box sees the same run, completed, through the relay.
     until("the box to see the run completed", || {
         let bx = bx.clone();

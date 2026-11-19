@@ -337,6 +337,9 @@ impl Inner {
                     let w = wsid.clone();
                     let rx = stop_rx.clone();
                     let mut joined = false;
+                    // Box admissions to close: after anything arrived, and
+                    // every minute besides.
+                    let (mut admissions_due, mut admissions_at) = (true, std::time::Instant::now());
                     tokio::spawn(lp.run(rx, move |st| {
                         let status = match st {
                             SyncStatus::Synced(r) => {
@@ -345,6 +348,27 @@ impl Inner {
                                     joined = true;
                                     let me2 = me.clone();
                                     tokio::task::spawn_blocking(move || me2.activate(ws));
+                                }
+                                // As an Admin's device (the desktop does the same),
+                                // close the box admissions that settled (redeemed,
+                                // or lapsed unredeemed), so a holder of the code
+                                // can't slot a backdated redemption in later. Only
+                                // when caught up (a round that pulled nothing): a
+                                // closure naming no redemption would deny one still
+                                // waiting on the relay. A no-op below Admin.
+                                if r.pulled > 0 {
+                                    admissions_due = true;
+                                } else if admissions_due || admissions_at.elapsed() >= Duration::from_secs(60) {
+                                    (admissions_due, admissions_at) = (false, std::time::Instant::now());
+                                    let me2 = me.clone();
+                                    tokio::task::spawn_blocking(move || {
+                                        if let Err(e) = me2.write(ws, |svc| svc.close_settled_admissions(ws)) {
+                                            me2.emit(Event::Sync {
+                                                workspace: WorkspaceId::new(ws.to_string()),
+                                                status: format!("closing settled box admissions: {}", e.0),
+                                            });
+                                        }
+                                    });
                                 }
                                 "synced".to_string()
                             }
