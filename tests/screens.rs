@@ -32,6 +32,42 @@ async fn onboarding_first_run() {
     snap("onboarding", "First run: create or join", h.screen(W, H));
 }
 
+/// The Ligus mark beside the first-run form when the terminal is wide
+/// enough (`onboarding` above), above it when only tall enough, and left
+/// out when neither.
+#[tokio::test]
+async fn onboarding_splash_by_terminal_size() {
+    const MARK: [char; 3] = ['▀', '▄', '█'];
+    let h = Harness::new(false).await;
+    let wide = h.screen(W, H);
+    assert!(wide.contains(MARK), "{wide}");
+    let narrow = h.screen(80, H);
+    assert!(!narrow.contains(MARK), "{narrow}");
+    snap("onboarding_narrow", "First run in a narrow terminal: no mark", narrow);
+    let tall = h.screen(80, 40);
+    assert!(tall.contains(MARK), "{tall}");
+    snap("onboarding_narrow_tall", "First run in a narrow, tall terminal: the mark above the form", tall);
+    // Too small for the form and the mark: the form alone.
+    assert!(!h.screen(60, 20).contains(MARK));
+}
+
+/// Mono (`NO_COLOR` or `--theme mono`): the same mark as a silhouette, with
+/// no colour anywhere on screen.
+#[tokio::test]
+async fn onboarding_splash_mono() {
+    use ligus_term::theme::Theme;
+    let h = Harness::new(false).await;
+    let mut term = ratatui::Terminal::new(ratatui::backend::TestBackend::new(W, H)).unwrap();
+    term.draw(|f| ligus_term::ui::draw(f, &h.state, &Theme::MONO)).unwrap();
+    let buf = term.backend().buffer();
+    assert!(buf.content().iter().all(|c| c.fg == ratatui::style::Color::Reset && c.bg == ratatui::style::Color::Reset));
+    let screen = common::buffer_text(buf);
+    assert!(screen.contains('█'), "{screen}");
+    // The colour themes put two pixels in one cell (`▀` on a background);
+    // mono uses full and half blocks instead, so its text differs.
+    snap("onboarding_mono", "First run in the mono theme: the mark as a silhouette", screen);
+}
+
 #[tokio::test]
 async fn onboarding_join_with_invite() {
     let mut h = Harness::new(false).await;
@@ -339,6 +375,23 @@ async fn narrow_terminal_still_renders() {
     assert!(s.contains("Chats"));
     // No panic at tiny sizes either.
     let _ = h.screen(10, 4);
+}
+
+/// An empty chat shows the mark above its welcome when the pane has room.
+#[tokio::test]
+async fn empty_chat_splash() {
+    let mut h = Harness::new(false).await;
+    h.chars("Mara").await;
+    h.key(KeyCode::Tab).await;
+    h.key(KeyCode::Tab).await;
+    h.chars("Bee Yard").await;
+    h.key(KeyCode::Enter).await;
+    h.key(KeyCode::Enter).await;
+    h.key(KeyCode::Enter).await;
+    assert!(h.screen(W, H).contains('▀'), "{}", h.screen(W, H));
+    let short = h.screen(W, 18);
+    assert!(!short.contains('▀') && short.contains("Start a conversation"), "{short}");
+    snap("new_workspace_short", "A new workspace in a short terminal: the welcome without the mark", short);
 }
 
 #[tokio::test]

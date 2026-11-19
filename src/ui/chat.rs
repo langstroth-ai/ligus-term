@@ -100,7 +100,16 @@ fn draw_main(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             Line::styled("Start a conversation", t.accent()),
             Line::styled("Ask about your code, or @mention an agent to have it make changes.", t.dim()),
         ];
-        f.render_widget(Paragraph::new(lines).centered(), super::center(inner, inner.width, 2));
+        // The mark above the welcome when the pane has room for both.
+        let with_mark = inner.width >= super::splash::WIDTH + 2 && inner.height >= super::splash::HEIGHT + 6;
+        if with_mark {
+            let r = super::center(inner, inner.width, super::splash::HEIGHT + 4);
+            super::splash::draw(f, Rect { height: super::splash::HEIGHT, ..r }, t);
+            let text = Rect { y: r.y + super::splash::HEIGHT + 2, height: 2, ..r };
+            f.render_widget(Paragraph::new(lines).centered(), text);
+        } else {
+            f.render_widget(Paragraph::new(lines).centered(), super::center(inner, inner.width, 2));
+        }
     } else {
         let lines = transcript_lines(s, inner.width as usize, t);
         let h = inner.height as usize;

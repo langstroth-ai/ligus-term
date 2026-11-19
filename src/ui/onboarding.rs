@@ -8,7 +8,7 @@ use ratatui::style::Modifier;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Clear, Paragraph, Wrap};
 
-use super::{center, pane};
+use super::{center, pane, splash};
 use crate::app::input::TextBuf;
 use crate::app::state::{FormField, FormMode, State, WorkspaceForm};
 use crate::backend::model::{Created, InviteTrust};
@@ -45,6 +45,27 @@ fn field_line_as<'a>(
     Line::from(vec![Span::styled(marker, t.accent()), Span::styled(format!("{label:<15}"), t.text()), shown])
 }
 
+/// The form's rect, centred; on first run the mark goes beside it (or above
+/// it) when the terminal has room, and is left out when it doesn't.
+fn with_splash(f: &mut Frame, area: Rect, w: u16, h: u16, first_run: bool, t: &Theme) -> Rect {
+    const GAP: u16 = 4;
+    let r = center(area, w, h);
+    if !first_run {
+        return r;
+    }
+    if area.width >= splash::WIDTH + GAP + w + 2 && area.height >= h {
+        let x = area.x + (area.width - (splash::WIDTH + GAP + w)) / 2;
+        splash::draw(f, Rect { x, y: r.y, width: splash::WIDTH, height: r.height }, t);
+        return Rect { x: x + splash::WIDTH + GAP, ..r };
+    }
+    if area.width >= w && area.height >= splash::HEIGHT + 1 + h + 2 {
+        let y = area.y + (area.height - (splash::HEIGHT + 1 + h)) / 2;
+        splash::draw(f, Rect { x: r.x, y, width: r.width, height: splash::HEIGHT }, t);
+        return Rect { y: y + splash::HEIGHT + 1, ..r };
+    }
+    r
+}
+
 pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: &Theme, first_run: bool) {
     let connect = form.mode == FormMode::Connect;
     let h = match (first_run, connect) {
@@ -53,7 +74,7 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
         (false, true) => 18,
         (false, false) => 16,
     };
-    let r = center(area, 72, h);
+    let r = with_splash(f, area, 72, h, first_run, t);
     f.render_widget(Clear, r);
     let title = if first_run { "Welcome to Ligus" } else { "Add a workspace" };
     let block = pane(title, true, t);

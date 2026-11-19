@@ -38,6 +38,19 @@ fn piped_stdout_uses_plain_mode() {
     assert!(out.contains("workspace\t1\tws-apiary\tApiary Tracker\towner"), "{out}");
     assert!(out.contains("member\t2\tm-ada\tAda\tadmin"), "{out}");
     assert!(!out.contains('\u{1b}'), "no escape codes in plain mode");
+    assert!(!out.contains(['▀', '▄', '█']), "no splash art in plain mode: {out}");
+}
+
+/// Plain mode on a first run (no workspace yet, where the TUI shows the
+/// mark) prints records only.
+#[test]
+fn plain_first_run_has_no_splash() {
+    let home = tempfile::tempdir().unwrap();
+    let mut c = Command::new(env!("CARGO_BIN_EXE_lt"));
+    c.env_clear().env("HOME", home.path()).env("LIGUS_SECRET_BACKEND", "file").arg("--plain");
+    let (code, out, err) = run(c, "help\nworkspaces\nquit\n");
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(!out.contains(['▀', '▄', '█']) && !out.contains('\u{1b}'), "{out}");
 }
 
 #[test]

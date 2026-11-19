@@ -5,6 +5,7 @@ mod chat;
 mod onboarding;
 mod overlays;
 mod proposals;
+mod splash;
 mod views;
 
 pub use proposals::apply_text;

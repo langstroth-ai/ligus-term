@@ -3,7 +3,8 @@
 Text captures of every `lt` screen, rendered by the snapshot tests in
 `tests/screens.rs` into a ratatui `TestBackend` (110×32) against the
 in-memory demo backend. Colors aren't captured here; the dark, light and
-mono themes render the same text.
+mono themes render the same text, except the Ligus mark on the first-run
+and empty screens, which mono draws as a silhouette.
 
 Regenerate after a UI change:
 
@@ -14,6 +15,9 @@ INSTA_UPDATE=always LT_WRITE_SCREENS=1 cargo test --test screens
 | Screen | File |
 |---|---|
 | First run: create or join | [onboarding.md](onboarding.md) |
+| First run in a narrow terminal: no mark | [onboarding_narrow.md](onboarding_narrow.md) |
+| First run in a narrow, tall terminal: the mark above the form | [onboarding_narrow_tall.md](onboarding_narrow_tall.md) |
+| First run in the mono theme: the mark as a silhouette | [onboarding_mono.md](onboarding_mono.md) |
 | First run: join with an invite | [onboarding_join.md](onboarding_join.md) |
 | Join: who the invite is from, checked before joining | [onboarding_join_checked.md](onboarding_join_checked.md) |
 | First run: connect a deployment (ligus-local, Kubernetes) | [onboarding_connect.md](onboarding_connect.md) |
@@ -21,6 +25,7 @@ INSTA_UPDATE=always LT_WRITE_SCREENS=1 cargo test --test screens
 | Creating a workspace asks for a passkey | [passkey_create.md](passkey_create.md) |
 | The recovery key, shown once | [recovery_key.md](recovery_key.md) |
 | A new workspace | [new_workspace.md](new_workspace.md) |
+| A new workspace in a short terminal: the welcome without the mark | [new_workspace_short.md](new_workspace_short.md) |
 | Chats: list and transcript | [chat.md](chat.md) |
 | An agent streaming its reply | [chat_streaming.md](chat_streaming.md) |
 | Composer with the @mention popup | [chat_mentions.md](chat_mentions.md) |
@@ -53,3 +58,6 @@ INSTA_UPDATE=always LT_WRITE_SCREENS=1 cargo test --test screens
 | Notifications | [notifications.md](notifications.md) |
 | Settings | [settings.md](settings.md) |
 | Help: keybindings | [help.md](help.md) |
+
+SVG images of a few screens, in color, are in
+[assets/screens](../../assets/screens), from `cargo run --example screenshots`.
