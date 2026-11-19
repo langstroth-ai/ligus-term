@@ -1,10 +1,20 @@
 # lt architecture
 
-`lt` is a full Ligus client in the terminal (Ligus is short for
-*ligustica*). It is its own device: its own keys and data dir, joining
-workspaces and signing events like the desktop app, and working without a
-server. This document covers how the app is put together today and how it
-gets wired to the Ligus Rust crates.
+`lt` is a terminal client for Ligus multi-agent orchestration (Ligus is
+short for *ligustica*), against a local setup or a Kubernetes deployment:
+founding or joining the workspace, admitting its boxes, driving and
+watching workflow runs, deciding gates, watching agents and hosts,
+reviewing and applying proposals, and chatting with agents. It is its own
+device: its own keys and data dir, signing events like the desktop app.
+This document covers how the app is put together and how it is wired to
+the Ligus Rust crates.
+
+**Deliberately out of scope:** direct messages, people's online status and
+typing indicators, linking another device of your own, and rotating the
+workspace key. `lt` never publishes or reads people's presence beats, and
+refuses a pasted DM invite with a pointer to the Ligus app; DMs and beats
+from other devices never reach its UI (`tests/orchestration.rs` publishes
+both and checks).
 
 ## Layers
 
@@ -57,9 +67,18 @@ pub trait Backend: Send + Sync {
     fn events(&self) -> BoxStream<'static, Event>;
     async fn startup(&self) -> Result<StartupState>;
     async fn create_workspace(&self, your_name: &str, name: &str) -> Result<Created>;
+    async fn inspect_invite(&self, invite: &str) -> Result<InviteCheck>;
     async fn join_workspace(&self, your_name: &str, invite: &str) -> Result<WorkspaceSummary>;
+    async fn connect_deployment(&self, your_name: &str, spec: DeploymentSpec) -> Result<Created>;
+    async fn admit_box(&self, ws: &WorkspaceId, join_request: Option<&str>) -> Result<BoxAdmission>;
+    async fn workflows(&self, ws: &WorkspaceId) -> Result<Vec<Workflow>>;
+    async fn runs(&self, ws: &WorkspaceId) -> Result<Vec<Run>>;
+    async fn start_run(&self, ws: &WorkspaceId, wf: &WorkflowId, input: &str) -> Result<Run>;
+    async fn cancel_run(&self, ws: &WorkspaceId, run: &RunId) -> Result<Run>;
+    async fn decide_gate(&self, ws: &WorkspaceId, run: &RunId, stage: &str, approve: bool) -> Result<Run>;
     // … chats, transcript, send_message, proposals, vote, request_apply,
-    //   agents, runtimes, hosts, members, set_role, remove_member,
+    //   agents, handoffs, runtimes, hosts, checkout, set_checkout,
+    //   memory, task_state, members, set_role, remove_member,
     //   lock_chat, clear_lockdown, notifications, settings …
     async fn answer_presence(&self, id: PresenceId, answer: PresenceAnswer) -> Result<()>;
 }
@@ -69,8 +88,8 @@ The rules the UI relies on:
 
 1. **Authorization belongs to the backend.** Views carry `Allowed::Yes` or
    `Allowed::No(reason)`: `Member::can_remove`, `Member::can_set_role` (one
-   per role), `Proposal::can_vote`, `Lockdown::clear` and
-   `WorkspaceSummary::can_invite`. The UI crosses refused actions out and
+   per role), `Proposal::can_vote`, `Lockdown::clear`,
+   `WorkspaceSummary::can_invite` and `Workflow::can_start`. The UI crosses refused actions out and
    shows the reason. It never derives rank rules itself.
 2. **Passkeys are prompts, not failures.** An action that needs presence
    (a role change, a removal, clearing a lockdown, a vote that requires it,
@@ -79,8 +98,9 @@ The rules the UI relies on:
    reports a fixable problem (an unreadable recovery file) without ending
    the ceremony; `Event::PresenceDone` ends it.
 3. **Live updates come only through `events()`.** These are new messages,
-   streaming deltas and completion, tool activity, typing, and changes to
-   proposals, members, hosts, agents and chats. "Changed" events make the
+   streaming deltas and completion, tool activity, agents thinking, run
+   changes, and changes to proposals, workflows, memory, members, hosts,
+   agents and chats. "Changed" events make the
    reducer reload that list. Results for a workspace that is no longer
    active are dropped.
 4. **Errors are one line**, shown as toasts. `cancelled` is treated as
@@ -210,26 +230,35 @@ Paths are inside the crate named in each row, on `release/v0.1.0`.
 | `events` | none: `RealBackend` owns a `tokio::sync::broadcast` | `ChatService` has no callbacks. Sources are listed below |
 | `startup` | `IdentityStore::load`; `lt`'s workspace list in the data dir | The desktop keeps its workspace list in app settings; there is no crate API |
 | `create_workspace` | `IdentityStore::bootstrap`; `ChatService::ensure_workspace_config(ws)`; founder passkey via `register_passkey(ws, cred, &prompt)` with a browser `create` ceremony; `RecoveryKey::generate()` → `.words()`, registered with `register_passkey(ws, key.credential(account, "Recovery key"), …)` | Room and key are random tokens, as the desktop's `create_workspace` makes them. No server needed |
-| `join_workspace` | decode the workspace invite, `store().set_join_invite(ws, inv)`, then sync with `SyncEngine`, or `RelayClient::join_via_invite` | The invite codec lives in the desktop app and the CLI today (see Gaps) |
+| `inspect_invite` | `workspace_invite::decode_workspace_invite`; `WorkspaceConn::signed_by` (the founder's device signature, `invite_sig`) against the devices `directory_trust::co_members` says are revoked; `dm::check_founder` against `dm::known_fingerprints` | The desktop's `inspect_invite` / `invite_trust`. A DM invite is refused |
+| `join_workspace` | the same check (a `Mismatch` is refused, as the desktop's drop-box accept does), then `store().set_join_invite(ws, inv)`, the founder pin, `SyncEngine::catch_up`, `ensure_self_member` | |
+| `connect_deployment` | `workspace_invite::usable_relay_url`; a `SyncEngine::catch_up` to check the relay holds no config log for the room; then as `create_workspace`, with the deployment's relay, room and key (and relay token, kept with the connection secrets) | A box never founds a workspace (`admit::prepare_box` in the CLI), so the first person does |
+| `admit_box` | Admin+; `box_admission::JoinRequest::decode`; `ChatService::issue_box_admission(ws, ttl, request)` (presence); a signed invite (`sign_invite`) with `inv` and `ek`; `box_admission::with_redeem_key`; `JoinRequest::seal` when there is a request | As `ligus admit issue` (`crates/hive-cli/src/admit.rs`, `serve::admission_code`) and the desktop's `admit_box`. TTL 1 h sealed, 24 h bearer |
 | `confirm_recovery_saved` | device-local flag | |
 | `workspaces` | `lt`'s workspace list | Relay URL and room in `workspaces.json`; secrets in the secret store |
 | `create_invite` | `ChatService::issue_invite(ws)` (Admin+), then sign and encode | Refused when the workspace has no relay (`workspace-no-relay`) |
 | `chats` | `store().list_session_ids()` minus `workspace_config_session_id(ws)`; `list_channels(ws)` | |
 | `create_chat` | `ChatService::create_chat(title, ws, runtime_id)` | |
 | `transcript` | `ChatService::load(sid)?.messages` | |
-| `send_message` | `post_user_message(sid, ws, body)`; then dispatch: `parse_mentions(body, &session)`, `turns_for`, `pending_mentions`; for turns this device runs, `begin_assistant_message`, `append_chunk`, `complete_assistant_message` | Each chunk also goes out as `Event::MessageDelta`. The two dispatch gates (local send and relay-synced) must agree: see Gaps |
+| `send_message` | `post_user_message(sid, ws, body)`; then `turn_dispatch::dispatch_target` and `runs_here_linked`; a turn that runs here is claimed (`claim_turn`) and streamed (`begin_assistant_message`, `append_chunk`, `complete_assistant_message`). A top-level turn deferred to an owner whose host isn't online elsewhere arms the **deferred-claim fallback**: after `DEFERRED_CLAIM_TIMEOUT` (25 s), if `turn_dispatch::deferred_turn_unanswered` still holds and the host still isn't online, claim it and answer here | The desktop's `arm_deferred_claim_fallback` / `run_deferred_claim_fallback`. The relay-sync gate never arms it (the sending device does) |
 | `mentionables` | `session.members`, `session.workspace_agents`, plus `@primary` and `@all` | |
 | `mark_read` | device-local read markers | |
 | `lock_chat` | `self_medicate(ws, chat, None, &[(LockdownSignal::Manual, "manual")])` | Viewer and above |
 | `clear_lockdown` | `clear_lockdown(ws, chat_id, raise_ids)` | Human Contributor and above, with presence. `Lockdown::clear` is computed as the desktop's `get_chat_lockdown` does |
-| `proposals` | `load(sid)?.proposals` across the workspace's chats (`ActionProposal`) | |
+| `proposals` | `load(sid)?.proposals` across the workspace's chats (`ActionProposal`) | `kind`: `workflow` when it carries a definition, `gate` when a run's node points at it, else decision or change |
 | `proposal_diff` | `ActionProposal::diff` (a unified diff) | `lt` parses it into files and hunks |
 | `vote` | `vote_on_proposal(sid, ws, id, approved)` | Presence when the rules require it |
 | `request_apply` / `withdraw_apply` | `request_apply(sid, ws, id, host_device_id, expected_base_commit)` / `withdraw_apply_request` | When `lt` is itself a host: `sync_service::apply_tick(&svc, ws, founder, repo_for)`, which lists and judges each request under `ws`'s founder pin (the service is shared by every workspace) |
-| `agents` | `session.workspace_agents` (`WorkspaceAgent`) | |
+| `agents` | `session.workspace_agents` (`WorkspaceAgent`); busy when one of the last 20 messages of a chat streams for it under ten minutes old (serve's `HiveSnapshot` rule); offline when its host's beat is older than `HOST_ONLINE_WINDOW_SECS`; `doing` from its active task-state slot | |
+| `handoffs` | `session.flow.handoffs` (`HandoffCard`) across chats, newest first | |
 | `set_agent_runtime` | `add_agent` (upsert) with the new `runtime_id` | Per chat: `set_session_runtime` |
 | `runtimes` | `list_workspace_runtimes(ws)` | |
-| `hosts` | `list_hosts(ws)` plus `host_presence::fetch_host_beats` for online/last seen | `lt` registers itself with `ensure_host` / `touch_host` and publishes its own beat |
+| `hosts` | `list_hosts(ws)`; online and last seen from `HostPresence`, fed by `host_presence::fetch_host_beats` every `beat_every` (30 s); busy and agents from `agents` | `lt` registers itself with `ensure_host` / `touch_host` and publishes its own beat (`publish_host_beat`). Beats carry no repo coverage yet, so `repos` is empty |
+| `checkout` / `set_checkout` | device-local (`lt-state.json`), checked to be a git checkout | `apply_tick`'s `repo_for` uses it for every chat. The release has no synced repo bindings yet (PR #127, repos v2, isn't merged) |
+| `workflows` | `session.workflow_definitions` across chats; `workflow::validate` for `can_start` | Definitions belong to a chat |
+| `runs` | `session.workflow_runs` across chats; the driver is the `LeaseScope::WorkflowRun` lease holder's host label | |
+| `start_run` / `cancel_run` / `decide_gate` | `workflow::new_run`, `upsert_workflow_run`, `claim_lease(.., WorkflowRun, run, 1, DEFAULT_LEASE_MS, Initial)`, then the driver below; a gate is `vote_on_proposal` on its proposal | See "Workflow runs" |
+| `memory` / `task_state` | `ChatService::memory(ws)` (`MemoryState::live`, `open_proposals`); `flow.tasks` (`TaskSlot`, not `stale`) across chats | Read-only, as serve's `/v1/memory` and `/v1/chats/{id}/task-state` |
 | `members` | `session.members` (`WorkspaceMember`, `WorkspaceRole`) plus `authz::member_action_refusal(roster, config, author, &MemberAction::Remove{..} / SetRole{..})` for each member and action | `None` → `Allowed::Yes`; `Some(reason)` → `Allowed::No(reason)`. The UI shows the crates' wording |
 | `set_role` / `remove_member` | `set_member_role(_, ws, id, role)` / `remove_member(_, ws, id)` | Presence |
 | `notifications` | `mentions::message_mentions` / `parse_mentions(..).you` on synced messages | History is device-local |
@@ -245,8 +274,15 @@ Paths are inside the crate named in each row, on `release/v0.1.0`.
   `HostsChanged` and `AgentsChanged`, plus `Sync` status.
 - **Local turns.** Chunks as `MessageDelta`, tool calls as `ToolActivity`,
   and completion as `MessageDone`.
-- **Typing.** `human_presence::fetch_human_beats` + `typing_in`; publish
-  our own with `publish_human_beat`.
+- **Presence channel.** Per workspace with a relay, every `beat_every`:
+  publish this host's beat and the lease beat of each run this device
+  drives (`lease_presence::LeaseBeat`, signed with `sign_lease_beat`),
+  read every host's beat; a changed online set emits `HostsChanged` and
+  `AgentsChanged`. People's beats (`human_presence`) are never read.
+- **Runs.** The translator emits `RunChanged` when a session's runs change
+  (synced or local), and the driver emits one after each write it makes;
+  definition changes are `WorkflowsChanged`, memory and task state
+  `MemoryChanged`.
 - **Presence.** `TermPresence` emits `PresencePrompt`, `PresenceProblem`
   and `PresenceDone`.
 
@@ -263,6 +299,38 @@ runtime are spawned confined. `RealBackend::open` registers `lt`'s data dir
 with `executor::configure_host`, so no agent child can read its keys,
 database or secrets, and on Linux `main` dispatches the sandbox's pre-exec
 helper before anything else.
+
+### Workflow runs
+
+The crates hold the records and the scheduling rules; the driver loop
+lives in each client (the desktop's `app/src/workflows.rs`). `lt`'s is
+`src/backend/real/workflows.rs` and follows the desktop's:
+
+1. **Start**: `new_run`, `upsert_workflow_run`, claim the run's lease at
+   epoch 1. Every later write carries `lease_epoch` (the fencing token) and
+   the presence loop beats the lease, so a desktop's recovery doesn't take
+   the run over while `lt` drives it. If `lt` stops, the lease lapses and a
+   desktop in the workspace takes the run over (`recover_workflow_runs`).
+2. **Each round** (under the service locks, no awaits): stop if the lease
+   moved or the run settled elsewhere; fold gate proposals
+   (`apply_gate_outcome`), `propagate_skips`, `derive_run_status`; dismiss
+   gate proposals a reset or settled run no longer waits on; open a
+   `Decision` proposal (no author, `required_approvals`) for each ready
+   gate; mark one ready stage per agent `Running` and persist.
+3. **Stages**: a stage whose responder runs here (`runs_here_linked`) posts
+   its prompt (`post_workflow_stage_prompt`), claims it and runs it with
+   the same turn runner and sandbox policy as any reply. Any other stage
+   posts the prompt with an `@mention`, so the agent's host answers it like
+   any mention (a `ligus worker` drains `pending_turns`); the driver waits
+   (up to `stage_timeout`, 300 s) for the reply whose
+   `reply_to_message_id` is the prompt.
+4. **Gates** are decided by votes from anyone (lt's `decide_gate`, the
+   desktop, the phone); a vote and every synced change wake the driver.
+5. **Cancel** sets a flag the next round honours (Skipped, Canceled).
+
+Not done here: the desktop's idle-host offer (taking a stage from a busy
+or offline host), throttle waits, stage hand-off and wait records in the
+flow layer, and taking over a run whose driver went away.
 
 ### Threading
 
@@ -318,37 +386,46 @@ queue behind it: serve list and transcript reads from a second read-only
 
 | Module | What |
 |---|---|
-| `mod.rs` | `RealBackend::open`: `claim_data_dir`, the secret store (scope `term`, signing identifier `ai.ligus.term`), the identity (made on the first create or join), a write `ChatService` with the agent vault and the presence provider, and a read-only `ChatService` on its own store connection. Every method of the trait |
+| `mod.rs` | `RealBackend::open`: `claim_data_dir`, the secret store (scope `term`, signing identifier `ai.ligus.term`), the identity (made on the first create, join or connect), a write `ChatService` with the agent vault and the presence provider, and a read-only `ChatService` on its own store connection. Every method of the trait |
+| `deploy.rs` | The invite check, founding a deployment's workspace, box admission |
+| `workflows.rs` | Starting, driving, cancelling runs; run views; the lease |
 | `term_presence.rs` | The `PresenceProvider`: prompt events, the loopback browser hand-off for `get` and `create`, the recovery-words file |
-| `turns.rs` | The local-send and relay-sync gates (`hive_runtime::turn_dispatch`), the claim, and the turn runner (workspace runtime, else the keyless Claude Code CLI) |
-| `watch.rs` | The change-feed translator, the sync loop per workspace (`hive_runtime::sync_service::SyncLoop`), and the host loop (heartbeat, apply on host) |
+| `turns.rs` | The local-send and relay-sync gates (`ligus_runtime::turn_dispatch`), the claim, the deferred-claim fallback, and the turn runner (workspace runtime, else the keyless Claude Code CLI) |
+| `watch.rs` | The change-feed translator, the sync loop per workspace (`ligus_runtime::sync_service::SyncLoop`), the presence loop (host and lease beats), and the host loop (durable heartbeat, apply on host) |
 | `views.rs` | Projections to view models; member refusals from `authz::member_action_refusal` |
 | `local.rs` | Device-local state: read markers, notifications, settings, checkouts |
 
-Working for real, and covered by `tests/real_backend.rs`: first run, create
-(founder passkey through a `create` ceremony, recovery key registered and
-shown once), invites (Admin, confirmed with a passkey or the recovery
-words), join by invite, chats, streamed agent replies through both dispatch
-gates, proposals and their diffs, votes, apply on a host's checkout,
-people (roles, refusals with the crates' wording), hosts, lockdowns,
-mention notifications, and a device reopened from disk.
+Working for real, and covered by `tests/real_backend.rs` and
+`tests/orchestration.rs`: first run, create, invites, join by invite with
+the founder-signature check, founding a deployment's workspace on its
+relay, admitting a box (sealed and bearer), a worker-like box answering
+its agent's stages, workflow runs end to end (a remote stage, a gate
+approved from `lt`, a local stage), live run events, host beats (online,
+busy, agents per host), the deferred-claim fallback, chats, streamed agent
+replies through both dispatch gates, proposals and diffs, votes, apply on
+a host's checkout and the checkout binding, people, lockdowns, mention
+notifications, plain mode over the real backend, and a device reopened
+from disk.
 
 Not wired yet:
 
 - **Peer-to-peer sync** (iroh): relay only.
+- **Agent tools and per-turn worktrees.** Turns stream plain chat: no MCP
+  or built-in file tools, so agents running on `lt` don't file proposals
+  or workflows. This waits for the agent-turn engine to move into the
+  runtime (after the sandbox and repos branches merge). Agents on workers
+  and desktops do all of this, and `lt` reviews the result.
 - **Cascades.** A reply that hands off to another agent isn't run here
-  (the desktop's cascade loop and workflow runs).
-- **Agent tools.** Turns stream plain chat: no MCP or built-in file tools,
-  no per-turn worktree, so agents don't file proposals from `lt` yet.
-- **Typing and online presence.** No human or host beats on the relay's
-  presence channel: hosts show their durable heartbeat, people show offline.
-- **Direct messages**, device linking, box admission, key rotation.
-- **The deferred-claim fallback** (answering a turn whose owner never
-  claims it).
-- **A checkout per workspace** is set with `RealBackend::bind_checkout`;
-  there is no UI or config for it yet.
-- **Relay tokens.** Workspaces are created and joined without a relay
-  access token (an open relay).
+  (the desktop's cascade loop); a worker hosting that agent answers it.
+- **Run takeover.** `lt` drives the runs it starts; it doesn't take over a
+  run whose driver went away (the desktop does), nor offer to run a stage
+  queued on a busy host.
+- **Repos per checkout.** One checkout per workspace (device-local); repos
+  v2 (PR #127) isn't on the release branch yet, so there are no synced
+  workspace repos to bind one by one, and beats carry no repo coverage.
+- **Writing memory.** Memory and task state are read-only here.
+- **Relay tokens** are stored per workspace when given at connect; there is
+  no `ligus auth login` flow to refresh one.
 
 ### Gaps in the crates
 
@@ -374,6 +451,13 @@ the shared copy:
 6. **Serverless across devices.** Still open: joining needs a relay.
 7. **Keychain trust for other binaries**:
    `secret_store::set_binary_identifier`. Done.
+8. **Workflow driver.** Still open: the run loop (scheduling rounds, stage
+   dispatch, remote waits, lease handling, takeover) exists once in the
+   desktop and once in `lt` (`real/workflows.rs`); serve and workers don't
+   drive runs. It belongs in the runtime with the agent-turn engine.
+9. **Invite trust.** Small and composed from crate parts in `lt`
+   (`signed_by`, `co_members`, `dm::check_founder`); the desktop's
+   `invite_trust` is the same few lines. Could move next to `dm`.
 
 ## Testing
 
@@ -384,9 +468,15 @@ the shared copy:
 - **The binary:** `tests/cli.rs`.
 - **Unit tests:** the fake backend, the presence hand-off, the data-dir
   rules, text editing and plain mode.
-- **Real backend:** `tests/real_backend.rs`. Two devices with temporary
-  data dirs and `LIGUS_SECRET_BACKEND=file`, syncing through the crates'
-  in-process test relay (`hive_runtime::test_relay`, feature
-  `test-relay`), a fake OpenAI-compatible model server, and a software
-  passkey (`hive_core::presence::soft`) playing the browser. Tests never
-  touch the login keychain or a real relay.
+- **Real backend:** `tests/real_backend.rs` and `tests/orchestration.rs`
+  (helpers in `tests/support/`). Devices with temporary data dirs and
+  `LIGUS_SECRET_BACKEND=file`, syncing through the crates' in-process test
+  relay (`ligus_runtime::test_relay`, feature `test-relay`), a fake
+  OpenAI-compatible model server, a software passkey
+  (`ligus_core::presence::soft`) playing the browser, and a worker-like box
+  (a `ChatService` admitted with a sealed admission, answering its agent's
+  mentions as `ligus worker` does). Tests never touch the login keychain
+  or a real relay.
+- **Plain mode:** unit tests in `src/plain.rs` (records and exit codes on
+  the fake), `tests/cli.rs` (the binary's one-shot exit codes), and
+  `tests/orchestration.rs` (one-shot commands over the real backend).

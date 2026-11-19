@@ -41,7 +41,9 @@ What the tests cover:
 | `tests/keymap.rs` | Default bindings, contexts, typing rules, config overrides and errors |
 | `tests/cli.rs` | The `lt` binary: `--version`, plain mode on a pipe, refusals, the data dir |
 | `tests/real_backend.rs` | The real backend: two devices through the in-process test relay (create, invite, join, chat, streamed replies through both dispatch gates, proposals, vote, apply on host, people, hosts, lockdown), and a device reopened from disk |
-| `src/**` unit tests | Fake backend behavior, the presence loopback hand-off, the recovery-words file, data-dir rules, text editing, plain-mode scripts |
+| `tests/orchestration.rs` | Orchestration over the real backend: founding a deployment's workspace, admitting a worker-like box, a workflow run end to end (a stage on the box, a gate approved from `lt`, a local stage), host beats, the invite-signature check, the deferred-claim fallback, the checkout binding, one-shot plain mode, and that DM invites and people's presence beats are ignored |
+| `tests/support/` | Helpers for the two above: file secrets, the relay, a fake model, the software passkey, devices |
+| `src/**` unit tests | Fake backend behavior, the presence loopback hand-off, the recovery-words file, data-dir rules, text editing, plain-mode scripts and one-shot records and exit codes |
 
 When a UI change alters a screen, the snapshot test fails and shows the
 diff. If the new screen is right, accept it and refresh the captures in
@@ -67,8 +69,19 @@ mode, which uses the same backend:
 printf 'chats\nopen 1\nsay @coder fix it\nwait 5\nproposals\nquit\n' | cargo run -q -- --demo --plain
 ```
 
+Or one command at a time, the way another agent scripts it (exit 0 ok, 1
+error, 2 unknown command):
+
+```sh
+cargo run -q -- --demo --plain runs
+cargo run -q -- --demo --plain run 2 "this week"   # starts and follows a run
+```
+
 Or add a snapshot test that drives the reducer with keys (see
 `tests/common/mod.rs`, `Harness`).
+
+`lt` deliberately has no direct messages, people's presence or typing,
+device linking or key rotation; don't add them.
 
 ## Rules
 
