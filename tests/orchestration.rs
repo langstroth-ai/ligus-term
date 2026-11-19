@@ -607,3 +607,59 @@ async fn a_held_workspace_is_never_rejoined_from_another_invite() {
     a.b.shutdown();
     b.b.shutdown();
 }
+
+/// The deferred-claim fallback re-resolves who answers when it fires, as
+/// the desktop's does: an agent removed while the turn waited isn't run.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn the_fallback_re_resolves_its_responder_when_it_fires() {
+    let tmp = tempfile::tempdir().unwrap();
+    let relay = serve(ligus_runtime::test_relay::router()).await;
+    let model = fake_model().await;
+    let a = device(&tmp.path().join("ana"), "lt Ana", &relay);
+    let b = device_with(&tmp.path().join("ben"), "lt Ben", &relay, |c| c.deferred_timeout = Duration::from_secs(3));
+    let created = a.b.create_workspace("Ana", "Bee Yard").await.unwrap();
+    let ws = created.workspace.id.clone();
+    let wsu = Uuid::parse_str(ws.as_str()).unwrap();
+    // Ana's agent lives on a worker that is offline: nobody answers it, so
+    // Ben's device would after the wait.
+    let coder = on_service(&a, move |svc| {
+        let mut rt = WorkspaceRuntime::new("gw", "Lab gateway", ModelProviderKind::Custom, "test-model");
+        rt.endpoint = model;
+        svc.add_workspace_runtime(wsu, rt).unwrap();
+        let mut agent = WorkspaceAgent::new("coder", "gw");
+        agent.owner_actor_id = svc.author().id.clone();
+        agent.host_id = Uuid::new_v4().to_string();
+        let id = agent.id;
+        svc.add_agent(workspace_config_session_id(wsu), wsu, agent).unwrap();
+        id
+    })
+    .await;
+    let words = tmp.path().join("words.txt");
+    std::fs::write(&words, created.recovery_words.join(" ")).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&words, std::fs::Permissions::from_mode(0o600)).unwrap();
+    }
+    *a.words_file.lock().unwrap() = Some(words);
+    let invite = a.b.create_invite(&ws, Role::Contributor).await.unwrap();
+    b.b.join_workspace("Ben", &invite).await.unwrap();
+    let chat = a.b.create_chat(&ws, "Varroa").await.unwrap();
+    until("Ben to see the chat and the agent", || async {
+        let c = b.b.chats(&ws).await.unwrap().into_iter().any(|c| c.id == chat.id);
+        let ag = b.b.agents(&ws).await.unwrap().into_iter().any(|x| x.handle == "coder");
+        (c && ag).then_some(())
+    })
+    .await;
+
+    b.b.send_message(&ws, &chat.id, "@coder are the mites under 3?").await.unwrap();
+    // While the turn waits, Ana removes the agent.
+    on_service(&a, move |svc| svc.remove_agent(workspace_config_session_id(wsu), wsu, coder).unwrap()).await;
+    until("Ben to see the agent gone", || async { (!b.b.agents(&ws).await.unwrap().iter().any(|x| x.handle == "coder")).then_some(()) })
+        .await;
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    let t = b.b.transcript(&ws, &chat.id).await.unwrap();
+    assert!(!t.iter().any(|m| matches!(m.author, Author::Agent { .. })), "a removed agent answered: {t:?}");
+    a.b.shutdown();
+    b.b.shutdown();
+}

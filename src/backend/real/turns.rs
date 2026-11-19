@@ -120,19 +120,26 @@ pub fn arm_fallback(inner: Arc<Inner>, plan: Plan) {
     tokio::spawn(async move {
         tokio::time::sleep(inner.cfg.deferred_timeout).await;
         let claimed = blocking(&inner, move |i| {
-            let Some(s) = i.read(plan.ws, |svc| svc.load(plan.sid))? else { return Ok(None) };
-            if !ligus_runtime::turn_dispatch::deferred_turn_unanswered(&s, plan.trigger) {
+            let (ws, sid, trigger) = (plan.ws, plan.sid, plan.trigger);
+            let (s, links) = i.read(ws, |svc| Ok((svc.load(sid)?, svc.device_links(ws).unwrap_or_default())))?;
+            let Some(s) = s else { return Ok(None) };
+            if !ligus_runtime::turn_dispatch::deferred_turn_unanswered(&s, trigger) {
                 return Ok(None);
             }
+            // Re-resolve who answers, as the desktop does: over the wait the
+            // agent may have been removed, moved to another host or rebound
+            // to another runtime, or the relay cleared.
+            let Some(m) = s.messages.iter().find(|m| m.id == trigger) else { return Ok(None) };
+            let Some(target) = dispatch_target(&m.body, &s, i.local_only(ws), &links) else { return Ok(None) };
+            let Some((agent, runtime_id, _, host)) = responder(&s, target) else { return Ok(None) };
             let device = i.core()?.identity.device.id.to_string();
-            let host = plan.agent.as_ref().map(|a| a.host_id.clone()).unwrap_or_default();
-            if host_binding(&host, &device) == HostBinding::Elsewhere && i.host_online(plan.ws, &host) {
+            if host_binding(&host, &device) == HostBinding::Elsewhere && i.host_online(ws, &host) {
                 return Ok(None);
             }
-            if !i.write(plan.ws, |svc| svc.claim_turn(plan.sid, plan.ws, plan.trigger))? {
+            if !i.write(ws, |svc| svc.claim_turn(sid, ws, trigger))? {
                 return Ok(None);
             }
-            Ok(Some(plan))
+            Ok(Some(Plan { ws, sid, trigger, agent, runtime_id }))
         })
         .await;
         if let Ok(Some(plan)) = claimed
