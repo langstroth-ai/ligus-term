@@ -56,6 +56,14 @@ async fn onboarding_connect_a_deployment() {
     h.key(KeyCode::Tab).await;
     h.chars("k8s-trial-7f3a").await;
     snap("onboarding_connect", "First run: connect a deployment (ligus-local, Kubernetes)", h.screen(W, H));
+    // The workspace key and the relay token never show on screen.
+    h.key(KeyCode::Tab).await;
+    h.chars("s3cret-workspace-key").await;
+    h.key(KeyCode::Tab).await;
+    h.chars("hrt1-token-xyz").await;
+    let screen = h.screen(W, H);
+    assert!(!screen.contains("s3cret") && !screen.contains("hrt1-token"), "{screen}");
+    assert!(screen.contains("••••"), "{screen}");
 }
 
 #[tokio::test]

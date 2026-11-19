@@ -15,13 +15,30 @@ use crate::backend::model::{Created, InviteTrust};
 use crate::theme::Theme;
 
 fn field_line<'a>(label: &'a str, buf: &TextBuf, focused: bool, width: usize, placeholder: &'a str, t: &Theme) -> Line<'a> {
+    field_line_as(label, buf, focused, width, placeholder, t, false)
+}
+
+/// A field; a `secret` one (a workspace key, a relay token) shows a dot per
+/// character, never the value.
+fn field_line_as<'a>(
+    label: &'a str,
+    buf: &TextBuf,
+    focused: bool,
+    width: usize,
+    placeholder: &'a str,
+    t: &Theme,
+    secret: bool,
+) -> Line<'a> {
     let marker = if focused { "› " } else { "  " };
     let shown = if buf.text.is_empty() && !focused {
         Span::styled(placeholder.to_string(), t.dim())
     } else {
-        let mut text = buf.text.clone();
+        let mut text = if secret { buf.text.char_indices().map(|_| '•').collect::<String>() } else { buf.text.clone() };
         if focused {
-            text.insert(buf.cursor, '▏');
+            // The cursor is a byte offset into the value; in the dots it
+            // sits after as many dots as the value has chars before it.
+            let at = if secret { buf.text[..buf.cursor].chars().count() * '•'.len_utf8() } else { buf.cursor };
+            text.insert(at, '▏');
         }
         Span::styled(super::trunc(&text, width), if focused { t.accent() } else { t.text() })
     };
@@ -99,8 +116,16 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
         FormMode::Connect => {
             lines.push(field_line("Relay URL", &form.relay, form.field == FormField::Relay, w, "http://127.0.0.1:18443", t));
             lines.push(field_line("Room", &form.room, form.field == FormField::Room, w, "LIGUS_WORKSPACE / Secret key room", t));
-            lines.push(field_line("Key", &form.key, form.field == FormField::Key, w, "the workspace key / Secret key key", t));
-            lines.push(field_line("Relay token", &form.token, form.field == FormField::Token, w, "only for a gated relay (hrt1…)", t));
+            lines.push(field_line_as("Key", &form.key, form.field == FormField::Key, w, "the workspace key / Secret key key", t, true));
+            lines.push(field_line_as(
+                "Relay token",
+                &form.token,
+                form.field == FormField::Token,
+                w,
+                "only for a gated relay (hrt1…)",
+                t,
+                true,
+            ));
             lines.push(field_line("Workspace name", &form.ws_name, vf, w, "defaults to the room", t));
             lines.push(Line::styled("  Founds the workspace a ligus-local or Kubernetes deployment serves;", t.dim()));
             lines.push(Line::styled("  then admit its boxes from People (B).", t.dim()));
