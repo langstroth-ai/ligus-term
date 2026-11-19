@@ -215,13 +215,7 @@ fn stage_lines(r: &Run) -> Vec<String> {
 pub fn event_line(e: &Event, names: &dyn Fn(&WorkspaceId) -> String) -> Option<String> {
     Some(match e {
         Event::MessageAdded { workspace, message } if !message.streaming => {
-            format!(
-                "message\t{}\t{}\t{}\t{}",
-                esc(&names(workspace)),
-                esc(&message.chat),
-                esc(&message.author.display()),
-                esc(&message.text)
-            )
+            format!("message\t{}\t{}\t{}\t{}", esc(names(workspace)), esc(&message.chat), esc(message.author.display()), esc(&message.text))
         }
         Event::MessageAdded { .. } | Event::MessageDelta { .. } => return None,
         Event::MessageDone { error: Some(e), chat, .. } => format!("error\t{}\t{}", esc(chat), esc(e)),
@@ -232,7 +226,7 @@ pub fn event_line(e: &Event, names: &dyn Fn(&WorkspaceId) -> String) -> Option<S
         Event::ProposalChanged { proposal: p, .. } => {
             format!("proposal-changed\t{}\t{}\t{}/{}\t{}", esc(&p.id), p.status.label(), p.approvals, p.quorum, esc(&p.title))
         }
-        Event::Notification(n) => format!("notification\t{}\t{}", esc(&names(&n.workspace)), esc(&n.text)),
+        Event::Notification(n) => format!("notification\t{}\t{}", esc(names(&n.workspace)), esc(&n.text)),
         Event::PresencePrompt(p) => {
             let how = if p.op == PresenceOp::Get { "confirm ID | confirm ID file PATH | cancel ID" } else { "confirm ID | cancel ID" };
             format!("presence\t{}\t{}\t{}\t{}\t{how}", p.id.0, esc(&p.kind), esc(&p.digest_short), esc(&p.summary))
@@ -241,7 +235,7 @@ pub fn event_line(e: &Event, names: &dyn Fn(&WorkspaceId) -> String) -> Option<S
         Event::PresenceDone { id, ok, error } => {
             format!("presence-done\t{}\t{}\t{}", id.0, if *ok { "ok" } else { "failed" }, esc(error.as_deref().unwrap_or("")))
         }
-        Event::Sync { workspace, status } => format!("sync\t{}\t{}", esc(&names(workspace)), esc(status)),
+        Event::Sync { workspace, status } => format!("sync\t{}\t{}", esc(names(workspace)), esc(status)),
         Event::RunChanged { run: r, .. } => {
             let done = r.stages.iter().filter(|s| s.status == StageStatus::Succeeded).count();
             format!("run-changed\t{}\t{}\t{}\t{done}/{}", esc(&r.id), r.status.label(), esc(&r.name), r.stages.len())
@@ -742,7 +736,7 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                         esc(&d.id),
                         esc(&d.name),
                         esc(&d.chat_title),
-                        esc(&stages.join(" ")),
+                        esc(stages.join(" ")),
                         esc(&start)
                     ))
                     .await;
@@ -845,7 +839,7 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                         "memory\t{}\t{}\t{}\t{}\t{}",
                         esc(&e.id),
                         esc(&e.title),
-                        esc(&e.tags.join(" ")),
+                        esc(e.tags.join(" ")),
                         esc(&e.author),
                         esc(&e.body)
                     ))
@@ -902,14 +896,14 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
             s.lock().await.chat = Some(chat.id.clone());
             say(format!("opened\t{}\t{}", esc(&chat.id), esc(&chat.title))).await;
             if let Some(l) = &chat.lockdown {
-                say(format!("lockdown\t{}\t{}", esc(&l.reasons.join("; ")), esc(l.clear.reason().unwrap_or("you can clear it: unlock"))))
+                say(format!("lockdown\t{}\t{}", esc(l.reasons.join("; ")), esc(l.clear.reason().unwrap_or("you can clear it: unlock"))))
                     .await;
             }
             let ws_name = { s.lock().await.workspaces.iter().find(|x| x.id == w).map(|x| x.name.clone()).unwrap_or_default() };
             match b.transcript(&w, &chat.id).await {
                 Ok(t) => {
                     for m in t {
-                        say(format!("message\t{}\t{}\t{}\t{}", esc(&ws_name), esc(&chat.id), esc(&m.author.display()), esc(&m.text))).await;
+                        say(format!("message\t{}\t{}\t{}\t{}", esc(&ws_name), esc(&chat.id), esc(m.author.display()), esc(&m.text))).await;
                     }
                 }
                 Err(e) => fail(e.0).await,
@@ -1019,7 +1013,7 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                     };
                     let Some(host) = host else { return fail("no such host".into()).await };
                     match b.request_apply(&w, &p.id, &host.id).await {
-                        Ok(p) => say(format!("apply\t{}\t{}", esc(&p.id), esc(&crate::ui::apply_text(&p.apply).unwrap_or_default()))).await,
+                        Ok(p) => say(format!("apply\t{}\t{}", esc(&p.id), esc(crate::ui::apply_text(&p.apply).unwrap_or_default()))).await,
                         Err(e) => fail(e.0).await,
                     }
                 }
