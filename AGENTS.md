@@ -10,6 +10,11 @@ export CARGO_TARGET_DIR="$PWD/target"   # keep build output in the repo (gitigno
 cargo build --locked
 ```
 
+The Ligus crates are a path dependency on a local checkout of the ligus
+repo at `../f-term-crates` (branch `feat/runtime-for-clients`) until they
+are tagged; see the note in `Cargo.toml`. At release they become git
+dependencies pinned to tag `v0.1.0`.
+
 Rust 1.91 or newer, edition 2024. The binary is `target/debug/lt`.
 
 ## Test
@@ -18,7 +23,7 @@ Run all of these before committing. CI runs the same on Linux and macOS
 (`.github/workflows/ci.yml`):
 
 ```sh
-cargo fmt --all --check
+cargo fmt --check          # (--all also walks the path dependency)
 cargo clippy --all-targets --locked -- -D warnings
 cargo test --locked
 cargo deny check            # licenses, advisories, sources (if installed)
@@ -31,7 +36,8 @@ What the tests cover:
 | `tests/screens.rs` | Every screen rendered into a ratatui `TestBackend` and compared as text (insta snapshots in `tests/snapshots/`) |
 | `tests/reducer.rs` | The reducer: messages in, state and effects out, no backend |
 | `tests/keymap.rs` | Default bindings, contexts, typing rules, config overrides and errors |
-| `tests/cli.rs` | The `lt` binary: `--version`, plain mode on a pipe, refusals |
+| `tests/cli.rs` | The `lt` binary: `--version`, plain mode on a pipe, refusals, the data dir |
+| `tests/real_backend.rs` | The real backend: two devices through the in-process test relay (create, invite, join, chat, streamed replies through both dispatch gates, proposals, vote, apply on host, people, hosts, lockdown), and a device reopened from disk |
 | `src/**` unit tests | Fake backend behavior, the presence loopback hand-off, the recovery-words file, data-dir rules, text editing, plain-mode scripts |
 
 When a UI change alters a screen, the snapshot test fails and shows the
@@ -47,7 +53,7 @@ git diff tests/snapshots docs/screens   # read it before committing
 
 ```sh
 cargo run -- --demo          # sample workspaces
-cargo run                    # first-run onboarding
+LT_DATA_DIR=$(mktemp -d) LIGUS_SECRET_BACKEND=file cargo run   # a throwaway real device
 cargo run -- --demo --plain  # line mode; type help
 ```
 
@@ -63,9 +69,13 @@ Or add a snapshot test that drives the reducer with keys (see
 
 ## Rules
 
-- **The demo backend only.** Until the crates are wired, everything runs
-  against `backend::fake`. Never run a real `ligus` binary or point `lt` at
-  a real data dir from tests.
+- **Never the owner's data.** UI tests run against `backend::fake`. Tests
+  of the real backend (`tests/real_backend.rs`) use temporary data dirs,
+  `LIGUS_SECRET_BACKEND=file` (never the login keychain), the crates'
+  in-process test relay and a software passkey. Never point `lt` at a real
+  data dir from a test, never run a real `ligus` binary without
+  `LIGUS_DATA_DIR` set to a temp dir and `LIGUS_SECRET_BACKEND=file`, and
+  never cause a macOS permission prompt.
 - **No authorization in the UI.** Whether an action is allowed comes from the
   backend as `Allowed::No(reason)`. The UI shows the reason and disables the
   action; it never re-derives rank rules.

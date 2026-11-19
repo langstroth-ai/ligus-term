@@ -151,6 +151,15 @@ cancelled.
 
 ### Dependency
 
+**Today** `lt` depends on the crates under their current names (`hive-core`,
+`hive-runtime`) by path, on a local worktree of the ligus repo at
+`../f-term-crates`, branch `feat/runtime-for-clients` (based on
+`release/v2.0.0`), which adds what clients need to the runtime crate (see
+"Gaps" below). `hive-runtime` is built without its `p2p` feature (no iroh)
+for now; tests enable its `test-relay` feature. `Cargo.lock` was seeded
+from the ligus lock so the crates' dependencies resolve to the versions the
+ligus repo tests with.
+
 The crates are being renamed (to `ligus-core`, `ligus-runtime`,
 `ligus-proto`, `ligus-forge`). After the rename `lt` depends on them as git
 dependencies pinned to a release tag:
@@ -204,7 +213,7 @@ Paths are inside the crate named in each row, on `release/v0.1.0`.
 | `create_workspace` | `IdentityStore::bootstrap`; `ChatService::ensure_workspace_config(ws)`; founder passkey via `register_passkey(ws, cred, &prompt)` with a browser `create` ceremony; `RecoveryKey::generate()` → `.words()`, registered with `register_passkey(ws, key.credential(account, "Recovery key"), …)` | Room and key are random tokens, as the desktop's `create_workspace` makes them. No server needed |
 | `join_workspace` | decode the workspace invite, `store().set_join_invite(ws, inv)`, then sync with `SyncEngine`, or `RelayClient::join_via_invite` | The invite codec lives in the desktop app and the CLI today (see Gaps) |
 | `confirm_recovery_saved` | device-local flag | |
-| `workspaces` | `lt`'s workspace list | Relay URL and room in `workspaces.toml`; secrets in the secret store |
+| `workspaces` | `lt`'s workspace list | Relay URL and room in `workspaces.json`; secrets in the secret store |
 | `create_invite` | `ChatService::issue_invite(ws)` (Admin+), then sign and encode | Refused when the workspace has no relay (`workspace-no-relay`) |
 | `chats` | `store().list_session_ids()` minus `workspace_config_session_id(ws)`; `list_channels(ws)` | |
 | `create_chat` | `ChatService::create_chat(title, ws, runtime_id)` | |
@@ -281,7 +290,7 @@ queue behind it: serve list and transcript reads from a second read-only
 - **Identity seeds** go through `StoreKeyVault` (scope `seed`).
 - **Other secrets.** `lt`'s connection secrets (relay tokens, workspace
   passphrases, delivered epoch keys) use their own scope, `term`, mirroring
-  the CLI's `cli`. `config.toml` and `workspaces.toml` never hold a
+  the CLI's `cli`. `config.toml` and `workspaces.json` never hold a
   secret.
 - **macOS signing.** The keychain's unlock item trusts only the binary that
   created it. A bare `lt` binary isn't an app bundle, so it is pinned by
@@ -290,31 +299,68 @@ queue behind it: serve list and transcript reads from a second read-only
   The crates' access-list code needs a way to name that requirement for a
   non-desktop binary (see Gaps).
 
-### Gaps in the crates to close at the rename
+### What is wired
 
-Wiring `lt` surfaced logic that lives in the desktop app or the CLI binary
-rather than in a library crate. Each item should move into
-`ligus-runtime`, so that `lt`, the CLI and the desktop share one copy:
+`src/backend/real/` implements the whole `Backend` over the crates:
 
-1. **Workspace invite codec.** Encoding and decoding live in the desktop
-   app and the CLI.
-2. **Workspace list and connection settings.** Relay, room, founder pin:
-   app-level today.
-3. **Turn dispatch.** The gate that decides whether a turn runs on this
-   device, the turn runner, the sync loop and the apply loop are in the
-   desktop app and in the CLI's worker and serve modules. The local-send
-   gate and the relay-sync gate must stay identical (solo always answers).
-4. **Lockdown view.** `can_clear` and its signals are computed in the
-   desktop's command layer.
-5. **Live updates.** `ChatService` exposes no subscription. A small
-   observer hook would save every client from diffing projections.
-6. **Serverless across devices.** Today peer sync carries only the current
-   room when a relay is configured, and invites are refused without a
-   relay. A workspace works without a server on one device; joining from a
-   second device needs a relay until relay-less invites over iroh land.
-7. **Keychain trust for other binaries.** Make the designated requirement
-   configurable, so that a signed `lt` gets the same protection as the
-   desktop app.
+| Module | What |
+|---|---|
+| `mod.rs` | `RealBackend::open`: `claim_data_dir`, the secret store (scope `term`, signing identifier `ai.ligus.term`), the identity (made on the first create or join), a write `ChatService` with the agent vault and the presence provider, and a read-only `ChatService` on its own store connection. Every method of the trait |
+| `term_presence.rs` | The `PresenceProvider`: prompt events, the loopback browser hand-off for `get` and `create`, the recovery-words file |
+| `turns.rs` | The local-send and relay-sync gates (`hive_runtime::turn_dispatch`), the claim, and the turn runner (workspace runtime, else the keyless Claude Code CLI) |
+| `watch.rs` | The change-feed translator, the sync loop per workspace (`hive_runtime::sync_service::SyncLoop`), and the host loop (heartbeat, apply on host) |
+| `views.rs` | Projections to view models; member refusals from `authz::member_action_refusal` |
+| `local.rs` | Device-local state: read markers, notifications, settings, checkouts |
+
+Working for real, and covered by `tests/real_backend.rs`: first run, create
+(founder passkey through a `create` ceremony, recovery key registered and
+shown once), invites (Admin, confirmed with a passkey or the recovery
+words), join by invite, chats, streamed agent replies through both dispatch
+gates, proposals and their diffs, votes, apply on a host's checkout,
+people (roles, refusals with the crates' wording), hosts, lockdowns,
+mention notifications, and a device reopened from disk.
+
+Not wired yet:
+
+- **Peer-to-peer sync** (iroh): relay only.
+- **Cascades.** A reply that hands off to another agent isn't run here
+  (the desktop's cascade loop and workflow runs).
+- **Agent tools.** Turns stream plain chat: no MCP or built-in file tools,
+  no per-turn worktree, so agents don't file proposals from `lt` yet.
+- **Typing and online presence.** No human or host beats on the relay's
+  presence channel: hosts show their durable heartbeat, people show offline.
+- **Direct messages**, device linking, box admission, key rotation.
+- **The deferred-claim fallback** (answering a turn whose owner never
+  claims it).
+- **A checkout per workspace** is set with `RealBackend::bind_checkout`;
+  there is no UI or config for it yet.
+- **Relay tokens.** Workspaces are created and joined without a relay
+  access token (an open relay).
+
+### Gaps in the crates
+
+Wiring `lt` surfaced logic that lived in the desktop app or the CLI binary.
+Branch `feat/runtime-for-clients` of the ligus repo moves it into
+`hive-runtime` (later `ligus-runtime`), and the desktop and the CLI now use
+the shared copy:
+
+1. **Workspace invite codec**: `workspace_invite` (`WorkspaceConn`,
+   `encode_workspace_invite`, `decode_workspace_invite`,
+   `invite_relay_problem`). Done.
+2. **Workspace list and connection settings**: `connection_settings`
+   (`ConnectionSecrets` for the CLI's `cli` scope, `WorkspaceList` for
+   clients with several workspaces). Done.
+3. **Turn dispatch**: `turn_dispatch` (`turn_runs_here`,
+   `runs_here_linked`, `dispatch_target`, the answered and deferred
+   checks), and `sync_service` (`SyncLoop`, `sync_round`, `apply_tick`).
+   The turn runner itself (context windows, tools, cascades) is still the
+   desktop's and the CLI worker's.
+4. **Lockdown view**: `lockdown_view` (`can_clear`, `chat_lockdown`). Done.
+5. **Live updates**: `ChatService::subscribe` (a broadcast of every
+   append; sync loops publish what they pulled to the same feed). Done.
+6. **Serverless across devices.** Still open: joining needs a relay.
+7. **Keychain trust for other binaries**:
+   `secret_store::set_binary_identifier`. Done.
 
 ## Testing
 
@@ -325,6 +371,9 @@ rather than in a library crate. Each item should move into
 - **The binary:** `tests/cli.rs`.
 - **Unit tests:** the fake backend, the presence hand-off, the data-dir
   rules, text editing and plain mode.
-- **Real backend.** When it lands it gets its own tests against a
-  temporary data dir with `LIGUS_SECRET_BACKEND=file` and an in-memory
-  `EventStore`. Tests never touch the login keychain or a real relay.
+- **Real backend:** `tests/real_backend.rs`. Two devices with temporary
+  data dirs and `LIGUS_SECRET_BACKEND=file`, syncing through the crates'
+  in-process test relay (`hive_runtime::test_relay`, feature
+  `test-relay`), a fake OpenAI-compatible model server, and a software
+  passkey (`hive_core::presence::soft`) playing the browser. Tests never
+  touch the login keychain or a real relay.

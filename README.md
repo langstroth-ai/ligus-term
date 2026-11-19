@@ -9,11 +9,11 @@ and their diffs, agents, hosts, people and roles, lockdowns and
 notifications. It also has a plain line mode for screen readers and
 scripts.
 
-> **Status: early.** The UI, keymap, config, themes, plain mode and the
-> passkey hand-off are built and tested against an in-memory demo backend.
-> Wiring to the Ligus crates comes next; the plan is in
-> [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Until then `lt` keeps
-> nothing on disk and talks to no one.
+> **Status: early.** `lt` runs on the Ligus crates: it creates and joins
+> workspaces, syncs through a relay, signs its events, answers the turns
+> it owns, and applies approved proposals on its own checkout. `lt --demo`
+> runs the same UI on an in-memory sample instead. What isn't wired yet is
+> listed in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#what-is-wired).
 
 ## Install
 
@@ -30,7 +30,8 @@ lt --version
 
 ```sh
 lt                 # first run: your name, then create a workspace or paste an invite
-lt --demo          # explore with sample workspaces
+LT_RELAY_URL=https://relay.example lt   # new workspaces sync through this relay
+lt --demo          # explore with sample workspaces (keeps nothing on disk)
 lt --plain         # line mode for screen readers and scripts
 lt --print-config  # a config file with every default
 ```
@@ -39,6 +40,10 @@ On first run `lt` asks for your name, then lets you **create a workspace**
 (no server needed) or **join one** by pasting an invite code. Creating one
 asks for a passkey and then shows your 24-word **recovery key** once: write
 it down.
+
+A workspace created without a relay stays on this device. To invite others,
+start `lt` with `LT_RELAY_URL` set to a relay before creating it: invites
+carry the relay, and joining needs one.
 
 ### Screens
 
@@ -132,6 +137,7 @@ CLI:
 | | Default | Override |
 |---|---|---|
 | Data dir (identity, database, keychain) | `~/.ligus-term` | `--data-dir`, `LT_DATA_DIR` |
+| Secret store | the OS's (macOS keychain file in the data dir, Secret Service, `systemd-creds`), scope `term` | `LIGUS_SECRET_BACKEND` (`file` for owner-only files) |
 | Config | `<config dir>/ligus-term/config.toml` | `--config`, `LT_CONFIG` |
 
 `lt` doesn't read `LIGUS_DATA_DIR`, so a shell set up for the CLI doesn't
