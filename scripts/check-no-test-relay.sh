@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Fails if lt's normal build graph enables a test-only feature of the Ligus
-# crates: hive-runtime's `test-relay` (the in-process mock relay, which
+# crates: ligus-runtime's `test-relay` (the in-process mock relay, which
 # admits any request) or `test-presence` (a recovery key that answers every
 # passkey prompt). The integration tests enable `test-relay` through a
 # dev-dependency only; the resolver keeps dev features out of `cargo build`.
@@ -9,8 +9,8 @@
 # can't pass vacuously (a renamed feature, a dropped dev-dependency).
 set -euo pipefail
 cd "$(dirname "$0")/.."
-# The runtime crate's package name (ligus-runtime after the rename).
-crate=hive-runtime
+# The runtime crate's package name.
+crate=ligus-runtime
 
 fail=0
 for flags in "" "--no-default-features" "--all-features"; do

@@ -51,7 +51,7 @@ impl BoxDevice {
     }
 
     fn db(&self) -> PathBuf {
-        self.dir.join("hive.db")
+        self.dir.join("ligus.db")
     }
 
     fn device(&self) -> Uuid {
@@ -68,7 +68,7 @@ impl BoxDevice {
         let ids = self.ids();
         let dk = ids.device_keypair(self.device()).unwrap();
         let ak = ids.account_keypair(self.identity.account.id).unwrap();
-        ChatService::new(EventStore::open(self.db()).unwrap(), self.device(), dk, ak, self.identity.actor())
+        ChatService::new(EventStore::open(self.db()).unwrap(), dk, ak, self.identity.actor())
     }
 
     /// `ligus admit redeem`: keep the invite, its redeem key and the founder

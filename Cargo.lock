@@ -792,7 +792,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -971,7 +971,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -1233,104 +1233,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "db3fef046dca3ca91ee1408a8c1b80ab777e80a4d308d1bf4e7adb3fcb047e08"
 dependencies = [
  "arrayvec",
-]
-
-[[package]]
-name = "hive-core"
-version = "0.1.0"
-source = "git+https://github.com/langstroth-ai/ligus?rev=1788fc8ae7c67d93316c58f6ac951fa95f5c535e#1788fc8ae7c67d93316c58f6ac951fa95f5c535e"
-dependencies = [
- "argon2",
- "base64",
- "bip39",
- "chacha20poly1305",
- "ed25519-dalek 3.0.0",
- "getrandom 0.4.3",
- "hkdf",
- "p256 0.14.0",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "thiserror",
- "time",
- "toml",
- "url",
- "uuid",
- "x25519-dalek",
-]
-
-[[package]]
-name = "hive-forge"
-version = "0.1.0"
-source = "git+https://github.com/langstroth-ai/ligus?rev=1788fc8ae7c67d93316c58f6ac951fa95f5c535e#1788fc8ae7c67d93316c58f6ac951fa95f5c535e"
-dependencies = [
- "async-trait",
- "http",
- "hyper-util",
- "libc",
- "reqwest",
- "rustls",
- "rustls-platform-verifier",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "toml",
- "tracing",
- "url",
- "uuid",
- "webpki-roots",
- "zeroize",
-]
-
-[[package]]
-name = "hive-proto"
-version = "0.1.0"
-source = "git+https://github.com/langstroth-ai/ligus?rev=1788fc8ae7c67d93316c58f6ac951fa95f5c535e#1788fc8ae7c67d93316c58f6ac951fa95f5c535e"
-dependencies = [
- "serde",
- "ts-rs",
-]
-
-[[package]]
-name = "hive-runtime"
-version = "0.1.0"
-source = "git+https://github.com/langstroth-ai/ligus?rev=1788fc8ae7c67d93316c58f6ac951fa95f5c535e#1788fc8ae7c67d93316c58f6ac951fa95f5c535e"
-dependencies = [
- "aho-corasick",
- "anyhow",
- "async-trait",
- "axum",
- "base64",
- "flate2",
- "futures-util",
- "getrandom 0.4.3",
- "hive-core",
- "hive-forge",
- "hive-proto",
- "hkdf",
- "hmac 0.13.0",
- "landlock",
- "libc",
- "regex",
- "reqwest",
- "rsa 0.10.0",
- "rusqlite",
- "seccompiler",
- "security-framework",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "ssh-key",
- "thiserror",
- "time",
- "tokio",
- "tracing",
- "url",
- "uuid",
- "walkdir",
- "windows-sys 0.61.2",
- "zeroize",
 ]
 
 [[package]]
@@ -1800,6 +1702,104 @@ dependencies = [
 ]
 
 [[package]]
+name = "ligus-core"
+version = "0.1.0"
+source = "git+https://github.com/langstroth-ai/ligus?rev=8bfc1de8a4a0d48c898b8aa91c678500744dab46#8bfc1de8a4a0d48c898b8aa91c678500744dab46"
+dependencies = [
+ "argon2",
+ "base64",
+ "bip39",
+ "chacha20poly1305",
+ "ed25519-dalek 3.0.0",
+ "getrandom 0.4.3",
+ "hkdf",
+ "p256 0.14.0",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "thiserror",
+ "time",
+ "toml",
+ "url",
+ "uuid",
+ "x25519-dalek",
+]
+
+[[package]]
+name = "ligus-forge"
+version = "0.1.0"
+source = "git+https://github.com/langstroth-ai/ligus?rev=8bfc1de8a4a0d48c898b8aa91c678500744dab46#8bfc1de8a4a0d48c898b8aa91c678500744dab46"
+dependencies = [
+ "async-trait",
+ "http",
+ "hyper-util",
+ "libc",
+ "reqwest",
+ "rustls",
+ "rustls-platform-verifier",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "toml",
+ "tracing",
+ "url",
+ "uuid",
+ "webpki-roots",
+ "zeroize",
+]
+
+[[package]]
+name = "ligus-proto"
+version = "0.1.0"
+source = "git+https://github.com/langstroth-ai/ligus?rev=8bfc1de8a4a0d48c898b8aa91c678500744dab46#8bfc1de8a4a0d48c898b8aa91c678500744dab46"
+dependencies = [
+ "serde",
+ "ts-rs",
+]
+
+[[package]]
+name = "ligus-runtime"
+version = "0.1.0"
+source = "git+https://github.com/langstroth-ai/ligus?rev=8bfc1de8a4a0d48c898b8aa91c678500744dab46#8bfc1de8a4a0d48c898b8aa91c678500744dab46"
+dependencies = [
+ "aho-corasick",
+ "anyhow",
+ "async-trait",
+ "axum",
+ "base64",
+ "flate2",
+ "futures-util",
+ "getrandom 0.4.3",
+ "hkdf",
+ "hmac 0.13.0",
+ "landlock",
+ "libc",
+ "ligus-core",
+ "ligus-forge",
+ "ligus-proto",
+ "regex",
+ "reqwest",
+ "rsa 0.10.0",
+ "rusqlite",
+ "seccompiler",
+ "security-framework",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "ssh-key",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+ "url",
+ "uuid",
+ "walkdir",
+ "windows-sys 0.61.2",
+ "zeroize",
+]
+
+[[package]]
 name = "ligus-term"
 version = "0.1.0"
 dependencies = [
@@ -1810,9 +1810,9 @@ dependencies = [
  "crossterm",
  "dirs",
  "futures",
- "hive-core",
- "hive-runtime",
  "insta",
+ "ligus-core",
+ "ligus-runtime",
  "ratatui",
  "serde",
  "serde_json",
@@ -2610,7 +2610,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -2666,7 +2666,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -3005,7 +3005,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -3204,7 +3204,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -3741,7 +3741,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]

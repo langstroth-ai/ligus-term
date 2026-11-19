@@ -9,7 +9,7 @@ yanked = "deny"
 # crypto-bigint 0.5 is reached only through ssh-key 0.6 SSHSIG verification
 # (public inputs, no secret to leak); fixed in ssh-key 0.7, still an rc.
 ignore = [
-    { id = "RUSTSEC-2026-0387", reason = "crypto-bigint 0.5 only via ssh-key 0.6 SSHSIG verification in hive-runtime (public inputs); review by 2027-02-15" },
+    { id = "RUSTSEC-2026-0387", reason = "crypto-bigint 0.5 only via ssh-key 0.6 SSHSIG verification in ligus-runtime (public inputs); review by 2027-02-15" },
 ]
 
 [licenses]

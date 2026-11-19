@@ -411,7 +411,7 @@ fn prepare(i: &Inner, ws: Uuid, sid: Uuid, run: &WorkflowRun, node: &wf::Workflo
     let device = core.identity.device.id.to_string();
     let (owner, host, runtime_id, author) = match &agent {
         Some(a) => (a.owner_actor_id.clone(), a.host_id.clone(), a.runtime_id.clone(), a.name.clone()),
-        None => (s.creator_actor_id.clone(), String::new(), s.runtime_id.clone(), "Hive".to_string()),
+        None => (s.creator_actor_id.clone(), String::new(), s.runtime_id.clone(), "Ligus".to_string()),
     };
     let links = i.read(ws, |svc| svc.device_links(ws))?;
     let local_only = i.local_only(ws);

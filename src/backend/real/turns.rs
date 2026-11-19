@@ -153,9 +153,8 @@ pub fn arm_fallback(inner: Arc<Inner>, plan: Plan) {
 /// The relay-sync gate: a user message that arrived through sync, answered
 /// here when it is unanswered, unclaimed by another device, and ours.
 pub fn plan_synced(i: &Inner, ws: Uuid, sid: Uuid, trigger: Uuid) -> Result<Option<Plan>> {
-    let device = i.core()?.identity.device.id;
     let Some(s) = i.read(ws, |svc| svc.load(sid))? else { return Ok(None) };
-    if synced_user_triggers(&s, &[trigger], device).is_empty() {
+    if synced_user_triggers(&s, &[trigger]).is_empty() {
         return Ok(None);
     }
     let Some(m) = s.messages.iter().find(|m| m.id == trigger) else { return Ok(None) };
@@ -312,7 +311,7 @@ pub async fn run_turn(inner: &Arc<Inner>, plan: &Plan) -> Result<(Uuid, String)>
     let chat = ChatId::new(sid.to_string());
     inner.emit(Event::Thinking { workspace: wsid.clone(), chat: chat.clone(), agent: who.clone(), on: true });
     let prepared = blocking(inner, move |i| prepare(i, ws, sid, trigger, agent.as_ref(), &runtime_id)).await;
-    let (input, checkout) = match prepared {
+    let (mut input, checkout) = match prepared {
         Ok(p) => p,
         Err(e) => {
             inner.emit(Event::Thinking { workspace: wsid, chat, agent: who, on: false });
@@ -331,7 +330,12 @@ pub async fn run_turn(inner: &Arc<Inner>, plan: &Plan) -> Result<(Uuid, String)>
         who,
         calls: Default::default(),
     };
+    // Registered while it runs, so a shutdown (or a Stop) reaches it, even
+    // one that lands before the engine first waits.
+    let stop = inner.turn_stops.register(sid);
+    input.stop = Some(stop.signal());
     let result = turn_engine::run(&host, input).await;
+    drop(stop);
     host.thinking(false);
     match result {
         Ok(o) => Ok((o.message_id, o.body)),
@@ -355,7 +359,7 @@ fn prepare(
     runtime_id: &str,
 ) -> Result<(TurnInput, Checkout)> {
     let (rt, rt_id) = runtime_for(i, ws, runtime_id)?;
-    let author = agent.map(|a| a.name.clone()).unwrap_or_else(|| "Hive".into());
+    let author = agent.map(|a| a.name.clone()).unwrap_or_else(|| "Ligus".into());
     let agent_id = agent.map(|a| a.id);
     let s = i.read(ws, |svc| svc.load(sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
     let provider = rt.provider;
@@ -608,7 +612,7 @@ mod tests {
         let author = ActorIdentity::new("ana".to_string(), "Ana".to_string(), ActorKind::Human);
         let kp = SigningKeypair::generate().unwrap();
         let account = SigningKeypair::generate().unwrap();
-        let mut svc = ChatService::new(EventStore::open_in_memory().unwrap(), Uuid::new_v4(), kp, account, author);
+        let mut svc = ChatService::new(EventStore::open_in_memory().unwrap(), kp, account, author);
         let ws = Uuid::new_v4();
         svc.ensure_workspace_config(ws).unwrap();
         let chat = svc.create_chat("c", ws, "").unwrap();

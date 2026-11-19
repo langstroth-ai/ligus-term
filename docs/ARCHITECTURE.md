@@ -181,17 +181,13 @@ cancelled.
 
 ```toml
 [dependencies]
-ligus-core    = { package = "hive-core",    version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "6ba1fd2d…" }
-ligus-runtime = { package = "hive-runtime", version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "6ba1fd2d…", default-features = false }
+ligus-core    = { version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "…" }
+ligus-runtime = { version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "…", default-features = false }
 ```
 
 - **Tag at release.** When the ligus repo cuts `v0.1.0`, the pin moves from
   `rev = "…"` to `tag = "v0.1.0"`. Never depend on a branch.
-- **Names.** The packages are still `hive-*`. The `package =` renames let
-  the code say `ligus_core` and `ligus_runtime` already, so the crate rename
-  (to `ligus-core`, `ligus-runtime`, …) only changes `Cargo.toml` (and the
-  package name in `scripts/check-no-test-relay.sh`).
-- **Features.** `hive-runtime` is built without its `p2p` feature (no iroh)
+- **Features.** `ligus-runtime` is built without its `p2p` feature (no iroh)
   for now; the dev-dependency adds `test-relay` for the tests.
 - **`version = "0.1.0"`** sits next to `git` so cargo-deny doesn't count
   the git dependencies as wildcards; `deny.toml` allows the git source.
@@ -235,7 +231,7 @@ Paths are inside the crate named in each row, on `release/v0.1.0`.
 | `inspect_invite` | `workspace_invite::decode_workspace_invite`; `WorkspaceConn::signed_by` (the founder's device signature, `invite_sig`) against the devices `directory_trust::co_members` says are revoked; `dm::check_founder` against `dm::known_fingerprints` | The desktop's `inspect_invite` / `invite_trust`. A DM invite is refused |
 | `join_workspace` | refused for a workspace this device already holds (an invite never rewrites its relay, key or founder pin); the same check (a `Mismatch` is refused, as the desktop's drop-box accept does), then `store().set_join_invite(ws, inv)`, the founder pin, `SyncEngine::catch_up`, `ensure_self_member` | |
 | `connect_deployment` | `workspace_invite::usable_relay_url`; a `SyncEngine::catch_up` to check the relay holds no config log for the room; then as `create_workspace`, with the deployment's relay, room and key (and relay token, kept with the connection secrets) | A box never founds a workspace (`admit::prepare_box` in the CLI), so the first person does |
-| `admit_box` | Admin+; `box_admission::JoinRequest::decode`; `ChatService::issue_box_admission(ws, ttl, request)` (presence); a signed invite (`sign_invite`) with `inv` and `ek`; `box_admission::with_redeem_key`; `JoinRequest::seal` when there is a request | As `ligus admit issue` (`crates/hive-cli/src/admit.rs`, `serve::admission_code`) and the desktop's `admit_box`. TTL 1 h sealed, 24 h bearer |
+| `admit_box` | Admin+; `box_admission::JoinRequest::decode`; `ChatService::issue_box_admission(ws, ttl, request)` (presence); a signed invite (`sign_invite`) with `inv` and `ek`; `box_admission::with_redeem_key`; `JoinRequest::seal` when there is a request | As `ligus admit issue` (`crates/ligus-cli/src/admit.rs`, `serve::admission_code`) and the desktop's `admit_box`. TTL 1 h sealed, 24 h bearer |
 | `confirm_recovery_saved` | device-local flag | |
 | `workspaces` | `lt`'s workspace list | Relay URL and room in `workspaces.json`; secrets in the secret store |
 | `create_invite` | `ChatService::issue_invite(ws)` (Admin+), then sign and encode | Refused when the workspace has no relay (`workspace-no-relay`) |
@@ -251,7 +247,7 @@ Paths are inside the crate named in each row, on `release/v0.1.0`.
 | `proposal_diff` | `ActionProposal::diff` (a unified diff) | `lt` parses it into files and hunks |
 | `vote` | `vote_on_proposal(sid, ws, id, approved)` | Presence when the rules require it |
 | `request_apply` / `withdraw_apply` | `request_apply(sid, ws, id, host_device_id, expected_base_commit)` / `withdraw_apply_request` | When `lt` is itself a host: `sync_service::apply_tick(&svc, ws, founder, repo_for)`, which lists and judges each request under `ws`'s founder pin (the service is shared by every workspace) |
-| `agents` | `session.workspace_agents` (`WorkspaceAgent`); busy when one of the last 20 messages of a chat streams for it under ten minutes old (serve's `HiveSnapshot` rule); offline when its host's beat is older than `HOST_ONLINE_WINDOW_SECS`; `doing` from its active task-state slot | |
+| `agents` | `session.workspace_agents` (`WorkspaceAgent`); busy when one of the last 20 messages of a chat streams for it under ten minutes old (serve's `LigusSnapshot` rule); offline when its host's beat is older than `HOST_ONLINE_WINDOW_SECS`; `doing` from its active task-state slot | |
 | `handoffs` | `session.flow.handoffs` (`HandoffCard`) across chats, newest first | |
 | `set_agent_runtime` | `add_agent` (upsert) with the new `runtime_id` | Per chat: `set_session_runtime` |
 | `runtimes` | `list_workspace_runtimes(ws)` | |
@@ -450,7 +446,7 @@ Not wired yet:
 
 Wiring `lt` surfaced logic that lived in the desktop app or the CLI binary.
 PR #121 (`feat/runtime-for-clients`, merged into `release/v0.1.0`) moved it into
-`hive-runtime` (later `ligus-runtime`), and the desktop and the CLI now use
+`ligus-runtime`, and the desktop and the CLI now use
 the shared copy:
 
 1. **Workspace invite codec**: `workspace_invite` (`WorkspaceConn`,

@@ -52,7 +52,7 @@ pub use local::SECRET_SCOPE;
 use term_presence::{Provider, TermPresence};
 
 /// The database file under the data dir (the CLI's name).
-pub const DB_FILE: &str = "hive.db";
+pub const DB_FILE: &str = "ligus.db";
 /// The code-signing identifier of a release `lt`.
 pub const SIGNING_IDENTIFIER: &str = "ai.ligus.term";
 
@@ -130,6 +130,8 @@ pub(crate) struct Inner {
     drivers: Mutex<HashMap<Uuid, workflows::Driving>>,
     /// Per workspace, this device's Ligus MCP server for its agents' turns.
     ligus: Mutex<HashMap<Uuid, Arc<ligus_runtime::ligus_mcp::LigusMcp>>>,
+    /// The turns running on this device, each with its own stop signal.
+    turn_stops: Arc<ligus_runtime::turn_engine::TurnStops>,
 }
 
 /// The open device.
@@ -174,10 +176,8 @@ impl RealBackend {
         {
             return Err(format!("LT_RELAY_URL {r:?} isn't a relay address: give an http(s) URL, e.g. https://relay.example"));
         }
-        // Create it owner-only first (keys, the database and the secrets live
-        // here), then claim it as a Ligus data dir, as the CLI does.
+        // Create it owner-only (keys, the database and the secrets live here).
         ligus_runtime::private_file::ensure_private_dir(&cfg.data_dir).map_err(|e| format!("creating {}: {e}", cfg.data_dir.display()))?;
-        ligus_core::compat::claim_data_dir(&cfg.data_dir, ligus_core::compat::home_dir().as_deref())?;
         ligus_runtime::secret_store::set_binary_identifier(SIGNING_IDENTIFIER);
         // No agent child (the keyless Claude Code fallback, any CLI runtime)
         // may read this device's keys, database or secrets: deny the data
@@ -201,6 +201,7 @@ impl RealBackend {
             beats: Mutex::new(HashMap::new()),
             drivers: Mutex::new(HashMap::new()),
             ligus: Mutex::new(HashMap::new()),
+            turn_stops: ligus_runtime::turn_engine::TurnStops::new(),
             cfg,
             tx,
         });
@@ -263,11 +264,13 @@ impl RealBackend {
         self.inner.core().ok().map(|c| c.identity.device.id)
     }
 
-    /// Stop the background loops (sync, hosts, apply).
+    /// Stop the background loops (sync, hosts, apply) and every turn
+    /// running here (a turn that starts after this is born stopped).
     pub fn shutdown(&self) {
         for (_, stop) in lock(&self.inner.loops).drain() {
             let _ = stop.send(true);
         }
+        self.inner.turn_stops.close();
     }
 
     async fn call<T: Send + 'static>(&self, f: impl FnOnce(&Arc<Inner>) -> Result<T> + Send + 'static) -> Result<T> {
@@ -298,7 +301,7 @@ impl Inner {
         let device_kp = ids.device_keypair(stored.device.id).map_err(one_line)?;
         let account_kp = ids.account_keypair(stored.account.id).map_err(one_line)?;
         let store = EventStore::open(self.db()).map_err(one_line)?;
-        Ok(ChatService::new(store, stored.device.id, device_kp, account_kp, stored.actor()))
+        Ok(ChatService::new(store, device_kp, account_kp, stored.actor()))
     }
 
     /// Open the services for `stored` (idempotent).
@@ -486,8 +489,12 @@ impl Inner {
         let src = self.key_source(&w)?;
         let mut conn: WorkspaceConn = w.conn();
         let cert = core.identity.device.certificate.clone();
+        let mut redeem = None;
         self.write(ws, |svc| {
             let inv = svc.issue_invite(ws)?;
+            // The invite's redeem key: only the code's holder can redeem it
+            // (`ligus_core::admission`).
+            redeem = svc.take_invite_redeem_seed(ws, inv)?;
             conn.inv = Some(inv.to_string());
             let ek = svc.delivered_epoch_keys(ws, &src)?;
             if !ek.is_empty() {
@@ -497,7 +504,11 @@ impl Inner {
             conn.sig = svc.sign_invite(&conn.sig_claims(&name, &ek_json), &cert);
             Ok(())
         })?;
-        Ok(encode_workspace_invite(&conn))
+        let code = encode_workspace_invite(&conn);
+        match redeem {
+            Some(seed) => ligus_runtime::box_admission::with_redeem_key(&code, &seed).map_err(BackendError),
+            None => Ok(code),
+        }
     }
 }
 
@@ -591,6 +602,7 @@ impl Backend for RealBackend {
 
     async fn join_workspace(&self, your_name: &str, invite: &str) -> Result<WorkspaceSummary> {
         let mut conn = decode_workspace_invite(invite).map_err(BackendError)?;
+        let redeem = ligus_runtime::box_admission::redeem_key_of(invite);
         if conn.dm_account.is_some() {
             return err(deploy::NO_DMS);
         }
@@ -619,6 +631,8 @@ impl Backend for RealBackend {
                 let store = EventStore::open(i.db()).map_err(one_line)?;
                 if let Some(inv) = conn.invite_id() {
                     store.set_join_invite(ws, inv).map_err(one_line)?;
+                    // Its redeem key proves the redemption.
+                    store.set_join_redeem(ws, redeem.as_ref()).map_err(one_line)?;
                 }
                 if let Some((f, fk)) = conn.founder_pin() {
                     store.set_workspace_pin(ws, &f, &fk).map_err(one_line)?;
@@ -1424,5 +1438,21 @@ mod tests {
         holder.join().unwrap();
         b.shutdown();
         assert!(took < Duration::from_secs(1), "start_loops waited {took:?} on the write lock");
+    }
+
+    /// Shutting down stops the turns running here, and a turn that starts
+    /// afterwards is born stopped (the engine returns before it begins).
+    #[tokio::test]
+    async fn shutdown_stops_the_turns_running_here() {
+        // SAFETY: tests in this binary only ever set it to the same value.
+        unsafe { std::env::set_var("LIGUS_SECRET_BACKEND", "file") };
+        let tmp = tempfile::tempdir().unwrap();
+        let b = RealBackend::open(RealConfig::new(tmp.path().join("dev"))).unwrap();
+        let chat = Uuid::new_v4();
+        let running = b.inner.turn_stops.register(chat);
+        assert!(!running.signal().is_stopped());
+        b.shutdown();
+        assert!(running.signal().is_stopped());
+        assert!(b.inner.turn_stops.register(Uuid::new_v4()).signal().is_stopped());
     }
 }
