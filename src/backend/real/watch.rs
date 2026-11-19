@@ -438,13 +438,13 @@ async fn presence_loop(
         .flatten();
         if let Some((device, ring, leases)) = prepared {
             let device = device.to_string();
-            inner.beats.record(&device, ligus_core::Timestamp::now().inner().unix_timestamp());
+            inner.beats(ws).record(&device, ligus_core::Timestamp::now().inner().unix_timestamp());
             let _ = publish_host_beat(&relay, &room, &ring, &device).await;
             for beat in &leases {
                 let _ = publish_lease_beat(&relay, &room, &ring, beat).await;
             }
             if let Ok(beats) = fetch_host_beats(&relay, &room, &ring).await {
-                inner.beats.merge(beats);
+                inner.beats(ws).merge(beats);
             }
             let i = inner.clone();
             let now_online = tokio::task::spawn_blocking(move || {
@@ -453,7 +453,7 @@ async fn presence_loop(
                     .read(ws, |svc| svc.list_hosts(ws))
                     .unwrap_or_default()
                     .iter()
-                    .filter(|h| i.beats.is_online(h, &now))
+                    .filter(|h| i.beats(ws).is_online(h, &now))
                     .map(|h| h.id.clone())
                     .collect();
                 ids.sort();

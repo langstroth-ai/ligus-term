@@ -123,7 +123,9 @@ pub(crate) struct Inner {
     /// so the two never send the same text twice.
     emitted: Mutex<HashMap<Uuid, usize>>,
     /// Host heartbeats read from the relay's presence channel.
-    beats: ligus_runtime::HostPresence,
+    /// Host beats per workspace: a beat read from one workspace's room
+    /// never makes another workspace's host look online.
+    beats: Mutex<HashMap<Uuid, ligus_runtime::HostPresence>>,
     /// The workflow runs this device drives.
     drivers: Mutex<HashMap<Uuid, workflows::Driving>>,
     /// Per workspace, this device's Ligus MCP server for its agents' turns.
@@ -196,7 +198,7 @@ impl RealBackend {
             loops: Mutex::new(HashMap::new()),
             snaps: Mutex::new(watch::Snaps::default()),
             emitted: Mutex::new(HashMap::new()),
-            beats: ligus_runtime::HostPresence::new(),
+            beats: Mutex::new(HashMap::new()),
             drivers: Mutex::new(HashMap::new()),
             ligus: Mutex::new(HashMap::new()),
             cfg,
@@ -832,7 +834,7 @@ impl Backend for RealBackend {
                 .iter()
                 .map(|a| {
                     let host = i.agent_host(a, &activity.me);
-                    let online = host == device || hosts.iter().any(|h| h.id == host && i.beats.is_online(h, &now));
+                    let online = host == device || hosts.iter().any(|h| h.id == host && i.beats(ws).is_online(h, &now));
                     let status = if activity.busy.contains(&a.id) {
                         AgentStatus::Busy
                     } else if !host.is_empty() && !online {
@@ -899,8 +901,8 @@ impl Backend for RealBackend {
                             ligus_core::HostKind::Device => HostKind::Device,
                             ligus_core::HostKind::Worker => HostKind::Worker,
                         },
-                        online: h.id == device || i.beats.is_online(h, &now),
-                        last_seen: Some(views::ms(&i.beats.last_seen(h))),
+                        online: h.id == device || i.beats(ws).is_online(h, &now),
+                        last_seen: Some(views::ms(&i.beats(ws).last_seen(h))),
                         this_device: h.id == device,
                         busy: agents.iter().any(|a| activity.busy.contains(&a.id)),
                         agents: agents.iter().map(|a| a.name.clone()).collect(),
@@ -1317,10 +1319,15 @@ impl Inner {
         String::new()
     }
 
+    /// The host beats read from `ws`'s room (a shared handle).
+    pub(crate) fn beats(&self, ws: Uuid) -> ligus_runtime::HostPresence {
+        lock(&self.beats).entry(ws).or_default().clone()
+    }
+
     /// Whether `host` (a host id) has a heartbeat inside the online window.
     pub(crate) fn host_online(&self, ws: Uuid, host: &str) -> bool {
         let now = Timestamp::now();
-        self.read(ws, |svc| svc.list_hosts(ws)).unwrap_or_default().iter().any(|h| h.id == host && self.beats.is_online(h, &now))
+        self.read(ws, |svc| svc.list_hosts(ws)).unwrap_or_default().iter().any(|h| h.id == host && self.beats(ws).is_online(h, &now))
     }
 
     /// Bind (or unbind) the checkout this device applies `workspace`'s

@@ -663,3 +663,40 @@ async fn the_fallback_re_resolves_its_responder_when_it_fires() {
     a.b.shutdown();
     b.b.shutdown();
 }
+
+/// Host beats count only in the workspace they were published to: a member
+/// of one workspace can't make another workspace's host look online.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_host_beat_counts_only_in_its_own_workspace() {
+    let tmp = tempfile::tempdir().unwrap();
+    let relay = serve(ligus_runtime::test_relay::router()).await;
+    let a = device(&tmp.path().join("ana"), "lt Ana", &relay);
+    let yard = a.b.create_workspace("Ana", "Bee Yard").await.unwrap().workspace.id;
+    let yard_u = Uuid::parse_str(yard.as_str()).unwrap();
+    // A worker of the Bee Yard, last seen long ago: offline.
+    let worker = Uuid::new_v4().to_string();
+    {
+        let worker = worker.clone();
+        on_service(&a, move |svc| {
+            let mut h = WorkspaceHost::new(worker, ligus_core::HostKind::Worker, "far box".to_string());
+            h.last_seen = Timestamp::epoch();
+            svc.ensure_host(yard_u, h).unwrap();
+        })
+        .await;
+    }
+    let offline = |hosts: Vec<Host>, id: &str| hosts.iter().find(|h| h.id.as_str() == id).map(|h| !h.online);
+    assert_eq!(offline(a.b.hosts(&yard).await.unwrap(), &worker), Some(true));
+    // Another workspace on the same device, whose key someone else holds.
+    let spec =
+        DeploymentSpec { name: "Other".into(), relay_url: relay.clone(), room: "other-room".into(), key: "other-key".into(), token: None };
+    let other = a.b.connect_deployment("Ana", spec).await.unwrap().workspace.id;
+    let other_u = Uuid::parse_str(other.as_str()).unwrap();
+    // They publish a beat for the Bee Yard's worker in their own room.
+    let ring = ligus_runtime::keyring::KeyringEngine::passphrase(other_u, ligus_core::derive_workspace_key("other-key"));
+    for _ in 0..10 {
+        ligus_runtime::host_presence::publish_host_beat(&RelayClient::new(&relay), "other-room", &ring, &worker).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    assert_eq!(offline(a.b.hosts(&yard).await.unwrap(), &worker), Some(true), "a beat from another workspace made the host online");
+    a.b.shutdown();
+}
