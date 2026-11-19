@@ -38,6 +38,8 @@ jobs:
       # insta never writes snapshots in CI; a changed screen fails the run.
       - run: cargo test --locked
       - run: cargo run --locked -- --version
+      # The mock relay and the test passkey never reach a shipped binary.
+      - run: scripts/check-no-test-relay.sh
 
   deny:
     runs-on: ubuntu-latest

@@ -27,6 +27,7 @@ cargo fmt --check          # (--all also walks the path dependency)
 cargo clippy --all-targets --locked -- -D warnings
 cargo test --locked
 cargo deny check            # licenses, advisories, sources (if installed)
+scripts/check-no-test-relay.sh  # test-only crate features stay out of lt
 ```
 
 What the tests cover:
