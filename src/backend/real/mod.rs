@@ -1037,7 +1037,7 @@ impl Backend for RealBackend {
         let ws = ws_uuid(workspace)?;
         self.call(move |i| {
             let mut out: Vec<Handoff> = i.chat_sessions(ws)?.iter().flat_map(views::handoffs).collect();
-            out.sort_by(|a, b| b.at.cmp(&a.at));
+            out.sort_by_key(|x| std::cmp::Reverse(x.at));
             out.truncate(50);
             Ok(out)
         })
@@ -1065,7 +1065,7 @@ impl Backend for RealBackend {
                 .iter()
                 .flat_map(|s| s.workflow_definitions.iter().map(|d| views::workflow(s, d, &me)).collect::<Vec<_>>())
                 .collect();
-            out.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+            out.sort_by_key(|x| x.name.to_lowercase());
             Ok(out)
         })
         .await
@@ -1076,7 +1076,7 @@ impl Backend for RealBackend {
         self.call(move |i| {
             let mut out: Vec<Run> =
                 i.chat_sessions(ws)?.iter().flat_map(|s| s.workflow_runs.iter().map(|r| i.run_view(s, r)).collect::<Vec<_>>()).collect();
-            out.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+            out.sort_by_key(|x| std::cmp::Reverse(x.started_at));
             Ok(out)
         })
         .await
@@ -1130,7 +1130,7 @@ impl Backend for RealBackend {
         self.call(move |i| {
             let now = ligus_core::flow::now_ms();
             let mut out: Vec<TaskState> = i.chat_sessions(ws)?.iter().flat_map(|s| views::task_state(s, now)).collect();
-            out.sort_by(|a, b| b.at.cmp(&a.at));
+            out.sort_by_key(|x| std::cmp::Reverse(x.at));
             Ok(out)
         })
         .await
@@ -1207,7 +1207,7 @@ impl Inner {
                 }
             })
             .collect();
-        out.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+        out.sort_by_key(|x| std::cmp::Reverse(x.updated_at));
         Ok(out)
     }
 
@@ -1231,7 +1231,7 @@ impl Inner {
             .iter()
             .flat_map(|s| s.proposals.iter().filter(|p| !p.dismissed).map(|p| views::proposal(s, p, &me, &hosts)).collect::<Vec<_>>())
             .collect();
-        out.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        out.sort_by_key(|x| std::cmp::Reverse(x.created_at));
         Ok(out)
     }
 

@@ -1254,7 +1254,7 @@ impl Backend for FakeBackend {
     async fn chats(&self, workspace: &WorkspaceId) -> Result<Vec<ChatSummary>> {
         let mut w = self.lock();
         let mut c = w.ws(workspace)?.chats.clone();
-        c.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+        c.sort_by_key(|x| std::cmp::Reverse(x.updated_at));
         Ok(c)
     }
 
@@ -1721,7 +1721,7 @@ impl Backend for FakeBackend {
 
     async fn runs(&self, workspace: &WorkspaceId) -> Result<Vec<Run>> {
         let mut r = self.lock().ws(workspace)?.runs.clone();
-        r.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+        r.sort_by_key(|x| std::cmp::Reverse(x.started_at));
         Ok(r)
     }
 

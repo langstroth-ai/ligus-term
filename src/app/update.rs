@@ -597,11 +597,9 @@ fn paste(s: &mut State, text: &str) -> Vec<Effect> {
         (Some(Overlay::NewChat(b)), _) | (Some(Overlay::BindCheckout(b)), _) => b.insert_str(text.trim()),
         (Some(Overlay::StartRun { input, .. }), _) => input.insert_str(text),
         (Some(Overlay::AdmitBox { request, result: None, .. }), _) => request.insert_str(text.trim()),
-        (None, Phase::Main) => {
-            if s.view == View::Chats && s.open_chat.is_some() {
-                s.focus = Focus::Composer;
-                s.composer.insert_str(text);
-            }
+        (None, Phase::Main) if s.view == View::Chats && s.open_chat.is_some() => {
+            s.focus = Focus::Composer;
+            s.composer.insert_str(text);
         }
         _ => {}
     }

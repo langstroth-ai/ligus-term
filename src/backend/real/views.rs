@@ -370,7 +370,7 @@ pub fn memory(m: &ligus_core::memory::MemoryState) -> Memory {
             revisions: e.revision_count,
         })
         .collect();
-    entries.sort_by(|a, b| b.at.cmp(&a.at));
+    entries.sort_by_key(|x| std::cmp::Reverse(x.at));
     Memory { entries, open_proposals: m.open_proposals().count() }
 }
 

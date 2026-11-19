@@ -278,18 +278,23 @@ pub fn parse_form(body: &[u8]) -> HandOff {
     r
 }
 
-async fn capped_line<R: tokio::io::AsyncBufRead + Unpin>(reader: &mut R) -> Result<String, ()> {
+async fn capped_line<R: tokio::io::AsyncBufRead + Unpin>(reader: &mut R) -> Result<String, Rejected> {
     let mut buf = Vec::new();
     let mut limited = reader.take(MAX_LINE);
-    limited.read_until(b'\n', &mut buf).await.map_err(|_| ())?;
+    limited.read_until(b'\n', &mut buf).await.map_err(|_| Rejected)?;
     if buf.last() != Some(&b'\n') {
-        return Err(());
+        return Err(Rejected);
     }
-    String::from_utf8(buf).map_err(|_| ())
+    String::from_utf8(buf).map_err(|_| Rejected)
 }
 
+/// A loopback request that isn't the hand-off's answer (wrong path or
+/// method, too large, malformed).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Rejected;
+
 /// The body of a `POST /<nonce>`, reading at most the capped head + body.
-pub async fn parse_submission<S: tokio::io::AsyncRead + Unpin>(stream: S, nonce: &str) -> Result<Vec<u8>, ()> {
+pub async fn parse_submission<S: tokio::io::AsyncRead + Unpin>(stream: S, nonce: &str) -> Result<Vec<u8>, Rejected> {
     let mut reader = BufReader::new(stream.take(MAX_HEAD + MAX_BODY as u64));
     let line = capped_line(&mut reader).await?;
     let ok_path = format!("POST /{nonce} ");
@@ -300,7 +305,7 @@ pub async fn parse_submission<S: tokio::io::AsyncRead + Unpin>(stream: S, nonce:
         let h = capped_line(&mut reader).await?;
         head += h.len() as u64;
         if head > MAX_HEAD {
-            return Err(());
+            return Err(Rejected);
         }
         if h == "\r\n" || h == "\n" {
             ended = true;
@@ -311,10 +316,10 @@ pub async fn parse_submission<S: tokio::io::AsyncRead + Unpin>(stream: S, nonce:
         }
     }
     if !ended || !line.starts_with(&ok_path) || len == 0 || len > MAX_BODY {
-        return Err(());
+        return Err(Rejected);
     }
     let mut body = vec![0u8; len];
-    reader.read_exact(&mut body).await.map_err(|_| ())?;
+    reader.read_exact(&mut body).await.map_err(|_| Rejected)?;
     Ok(body)
 }
 
