@@ -160,6 +160,52 @@ impl FakeBackend {
         b
     }
 
+    /// The demo with `bad` in every name, id and label that comes from
+    /// another member, an agent or a box: for tests that nothing printed
+    /// from the network can forge a record or reach the terminal raw.
+    pub fn hostile(cfg: FakeConfig, bad: &str) -> Self {
+        let b = Self::demo(cfg);
+        {
+            let mut w = b.world.lock().unwrap();
+            let bad = bad.to_string();
+            for ws in w.ws.values_mut() {
+                for a in &mut ws.agents {
+                    a.handle = bad.clone();
+                    a.runtime = RuntimeId::new(bad.clone());
+                    a.host = Some(HostId::new(bad.clone()));
+                }
+                for h in &mut ws.hosts {
+                    h.id = HostId::new(bad.clone());
+                    h.agents = vec![bad.clone()];
+                    h.repos = vec![bad.clone()];
+                }
+                for r in &mut ws.runtimes {
+                    r.id = RuntimeId::new(bad.clone());
+                    r.model = Some(bad.clone());
+                }
+                for t in &mut ws.tasks {
+                    t.agent = bad.clone();
+                    t.status = bad.clone();
+                }
+                for h in &mut ws.handoffs {
+                    h.from = bad.clone();
+                    h.to = bad.clone();
+                }
+                for d in &mut ws.workflows {
+                    for st in &mut d.stages {
+                        st.id = bad.clone();
+                    }
+                }
+                for r in &mut ws.runs {
+                    for st in &mut r.stages {
+                        st.id = bad.clone();
+                    }
+                }
+            }
+        }
+        b
+    }
+
     fn emit(&self, e: Event) {
         let _ = self.tx.send(e);
     }

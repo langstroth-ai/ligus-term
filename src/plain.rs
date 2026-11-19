@@ -56,8 +56,8 @@ commands (N is a number from the last list, or an id):
   help / quit";
 
 /// Escape a field: tabs become spaces, newlines `\n`.
-fn esc(s: &str) -> String {
-    s.replace('\t', " ").replace('\\', "\\\\").replace('\n', "\\n")
+fn esc(s: impl std::fmt::Display) -> String {
+    s.to_string().replace('\t', " ").replace('\\', "\\\\").replace('\n', "\\n").replace('\r', "\\r")
 }
 
 struct Session {
@@ -183,7 +183,7 @@ fn run_line(i: usize, r: &Run) -> String {
     format!(
         "run\t{}\t{}\t{}\t{}\t{done}/{}\t{}\t{}",
         i + 1,
-        r.id,
+        esc(&r.id),
         r.status.label(),
         esc(&r.name),
         r.stages.len(),
@@ -199,11 +199,11 @@ fn stage_lines(r: &Run) -> Vec<String> {
             let note = if st.error.is_empty() { &st.excerpt } else { &st.error };
             format!(
                 "stage\t{}\t{}\t{}\t{}\t{}\t{}",
-                r.id,
-                st.id,
+                esc(&r.id),
+                esc(&st.id),
                 st.status.label(),
                 esc(&st.what),
-                st.gate.as_ref().map(|g| g.0.as_str()).unwrap_or(""),
+                esc(st.gate.as_ref().map(|g| g.0.as_str()).unwrap_or("")),
                 esc(note)
             )
         })
@@ -215,21 +215,27 @@ fn stage_lines(r: &Run) -> Vec<String> {
 pub fn event_line(e: &Event, names: &dyn Fn(&WorkspaceId) -> String) -> Option<String> {
     Some(match e {
         Event::MessageAdded { workspace, message } if !message.streaming => {
-            format!("message\t{}\t{}\t{}\t{}", esc(&names(workspace)), message.chat, esc(&message.author.display()), esc(&message.text))
+            format!(
+                "message\t{}\t{}\t{}\t{}",
+                esc(&names(workspace)),
+                esc(&message.chat),
+                esc(&message.author.display()),
+                esc(&message.text)
+            )
         }
         Event::MessageAdded { .. } | Event::MessageDelta { .. } => return None,
-        Event::MessageDone { error: Some(e), chat, .. } => format!("error\t{chat}\t{}", esc(e)),
+        Event::MessageDone { error: Some(e), chat, .. } => format!("error\t{}\t{}", esc(chat), esc(e)),
         Event::MessageDone { .. } => return None,
-        Event::ToolActivity { chat, call, .. } => format!("tool\t{chat}\t{}\t{}", esc(&call.name), esc(&call.preview)),
-        Event::Thinking { chat, agent, on: true, .. } => format!("thinking\t{chat}\t{}", esc(agent)),
+        Event::ToolActivity { chat, call, .. } => format!("tool\t{}\t{}\t{}", esc(chat), esc(&call.name), esc(&call.preview)),
+        Event::Thinking { chat, agent, on: true, .. } => format!("thinking\t{}\t{}", esc(chat), esc(agent)),
         Event::Thinking { .. } => return None,
         Event::ProposalChanged { proposal: p, .. } => {
-            format!("proposal-changed\t{}\t{}\t{}/{}\t{}", p.id, p.status.label(), p.approvals, p.quorum, esc(&p.title))
+            format!("proposal-changed\t{}\t{}\t{}/{}\t{}", esc(&p.id), p.status.label(), p.approvals, p.quorum, esc(&p.title))
         }
         Event::Notification(n) => format!("notification\t{}\t{}", esc(&names(&n.workspace)), esc(&n.text)),
         Event::PresencePrompt(p) => {
             let how = if p.op == PresenceOp::Get { "confirm ID | confirm ID file PATH | cancel ID" } else { "confirm ID | cancel ID" };
-            format!("presence\t{}\t{}\t{}\t{}\t{how}", p.id.0, esc(&p.kind), p.digest_short, esc(&p.summary))
+            format!("presence\t{}\t{}\t{}\t{}\t{how}", p.id.0, esc(&p.kind), esc(&p.digest_short), esc(&p.summary))
         }
         Event::PresenceProblem { id, error } => format!("presence-problem\t{}\t{}", id.0, esc(error)),
         Event::PresenceDone { id, ok, error } => {
@@ -238,7 +244,7 @@ pub fn event_line(e: &Event, names: &dyn Fn(&WorkspaceId) -> String) -> Option<S
         Event::Sync { workspace, status } => format!("sync\t{}\t{}", esc(&names(workspace)), esc(status)),
         Event::RunChanged { run: r, .. } => {
             let done = r.stages.iter().filter(|s| s.status == StageStatus::Succeeded).count();
-            format!("run-changed\t{}\t{}\t{}\t{done}/{}", r.id, r.status.label(), esc(&r.name), r.stages.len())
+            format!("run-changed\t{}\t{}\t{}\t{done}/{}", esc(&r.id), r.status.label(), esc(&r.name), r.stages.len())
         }
         Event::WorkflowsChanged { .. } | Event::MemoryChanged { .. } => return None,
         Event::ChatsChanged { .. }
@@ -462,14 +468,14 @@ async fn follow(
         }
     }
     if r.status == RunStatus::Completed {
-        emit(out, format!("run-done\t{}\t{}", r.id, r.status.label())).await;
+        emit(out, format!("run-done\t{}\t{}", esc(&r.id), r.status.label())).await;
     } else {
-        emit(out, format!("error\trun {} {}", r.id, r.status.label())).await;
+        emit(out, format!("error\trun {} {}", esc(&r.id), r.status.label())).await;
     }
 }
 
 fn ws_line(i: usize, w: &WorkspaceSummary) -> String {
-    format!("workspace\t{}\t{}\t{}\t{}\t{}", i + 1, w.id, esc(&w.name), w.your_role.label(), w.sync.label())
+    format!("workspace\t{}\t{}\t{}\t{}\t{}", i + 1, esc(&w.id), esc(&w.name), w.your_role.label(), w.sync.label())
 }
 
 fn pick<'a, T>(items: &'a [T], arg: &str, id: impl Fn(&T) -> &str) -> Option<&'a T> {
@@ -542,7 +548,10 @@ async fn recovery_words(out: &Out, words: &[String], file: Option<&std::path::Pa
             Ok(()) => {
                 emit(
                     out,
-                    format!("recovery-key\t@{}\tthe 24 words are in this owner-only file: keep them offline, then delete it", f.display()),
+                    format!(
+                        "recovery-key\t@{}\tthe 24 words are in this owner-only file: keep them offline, then delete it",
+                        esc(f.display())
+                    ),
                 )
                 .await
             }
@@ -587,10 +596,10 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                 }
                 match b.create_workspace(&your, &name).await {
                     Ok(c) => {
-                        say(format!("created\t{}\t{}", c.workspace.id, esc(&c.workspace.name))).await;
+                        say(format!("created\t{}\t{}", esc(&c.workspace.id), esc(&c.workspace.name))).await;
                         recovery_words(out, &c.recovery_words, file.as_deref()).await;
                         if let Some(i) = &c.invite {
-                            say(format!("invite\t{i}")).await;
+                            say(format!("invite\t{}", esc(i))).await;
                         }
                         let _ = b.confirm_recovery_saved(&c.workspace.id).await;
                         let mut g = s.lock().await;
@@ -602,7 +611,7 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
             } else {
                 match b.join_workspace(&your, arg).await {
                     Ok(w) => {
-                        say(format!("joined\t{}\t{}", w.id, esc(&w.name))).await;
+                        say(format!("joined\t{}\t{}", esc(&w.id), esc(&w.name))).await;
                         let mut g = s.lock().await;
                         g.ws = Some(w.id.clone());
                         g.workspaces.push(w);
@@ -629,7 +638,7 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
             g.ws = Some(w.id.clone());
             g.chat = None;
             drop(g);
-            say(format!("using\t{}\t{}", w.id, esc(&w.name))).await;
+            say(format!("using\t{}\t{}", esc(&w.id), esc(&w.name))).await;
         }
         "check" => match b.inspect_invite(arg).await {
             Ok(c) => {
@@ -638,7 +647,7 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                     c.trust.label(),
                     esc(&c.workspace_name),
                     esc(c.founder_name.as_deref().unwrap_or("")),
-                    c.safety_code.as_deref().unwrap_or(""),
+                    esc(c.safety_code.as_deref().unwrap_or("")),
                     esc(&c.relay_url),
                     c.trust.describe()
                 ))
@@ -679,7 +688,7 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
             let spec = DeploymentSpec { name: String::new(), relay_url: relay.to_string(), room: room.to_string(), key, token };
             match b.connect_deployment(&your, spec).await {
                 Ok(c) => {
-                    say(format!("connected\t{}\t{}\t{}", c.workspace.id, esc(&c.workspace.name), c.workspace.sync.label())).await;
+                    say(format!("connected\t{}\t{}\t{}", esc(&c.workspace.id), esc(&c.workspace.name), c.workspace.sync.label())).await;
                     recovery_words(out, &c.recovery_words, file.as_deref()).await;
                     let _ = b.confirm_recovery_saved(&c.workspace.id).await;
                     let mut g = s.lock().await;
@@ -705,7 +714,7 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
             // box's terminal before the passkey prompt is answered.
             if !request.is_empty() {
                 match b.inspect_join_request(&request).await {
-                    Ok(c) => say(format!("joinrequest\t{}\t{}", c.fingerprint, esc(c.label.as_deref().unwrap_or("")))).await,
+                    Ok(c) => say(format!("joinrequest\t{}\t{}", esc(&c.fingerprint), esc(c.label.as_deref().unwrap_or("")))).await,
                     Err(e) => return fail(e.0).await,
                 }
             }
@@ -721,9 +730,9 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                     say(format!(
                         "admission\t{}\t{}\t{}\t{}",
                         if a.sealed { "sealed" } else { "bearer" },
-                        a.fingerprint.as_deref().unwrap_or(""),
+                        esc(a.fingerprint.as_deref().unwrap_or("")),
                         esc(a.label.as_deref().unwrap_or("")),
-                        code
+                        esc(&code)
                     ))
                     .await
                 }
@@ -741,7 +750,7 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                     say(format!(
                         "workflow\t{}\t{}\t{}\t{}\t{}\t{}",
                         i + 1,
-                        d.id,
+                        esc(&d.id),
                         esc(&d.name),
                         esc(&d.chat_title),
                         esc(&stages.join(" ")),
@@ -810,7 +819,10 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                         return fail(format!("run {} isn't waiting on a gate", r.id)).await;
                     };
                     match b.decide_gate(&w, &r.id, &stage.id, approve).await {
-                        Ok(r) => say(format!("gate\t{}\t{}\t{}", r.id, stage.id, if approve { "approved" } else { "rejected" })).await,
+                        Ok(r) => {
+                            say(format!("gate\t{}\t{}\t{}", esc(&r.id), esc(&stage.id), if approve { "approved" } else { "rejected" }))
+                                .await
+                        }
                         Err(e) => fail(e.0).await,
                     }
                 }
@@ -825,9 +837,9 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                 for x in t {
                     say(format!(
                         "task\t{}\t@{}\t{}\t{}\t{}\t{}",
-                        x.chat,
-                        x.agent,
-                        x.status,
+                        esc(&x.chat),
+                        esc(&x.agent),
+                        esc(&x.status),
                         x.progress.map(|p| p.to_string()).unwrap_or_default(),
                         if x.active { "active" } else { "inactive" },
                         esc(&x.summary)
@@ -840,8 +852,15 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
         "memory" => match b.memory(ws.as_ref().unwrap()).await {
             Ok(m) => {
                 for e in &m.entries {
-                    say(format!("memory\t{}\t{}\t{}\t{}\t{}", e.id, esc(&e.title), esc(&e.tags.join(" ")), esc(&e.author), esc(&e.body)))
-                        .await;
+                    say(format!(
+                        "memory\t{}\t{}\t{}\t{}\t{}",
+                        esc(&e.id),
+                        esc(&e.title),
+                        esc(&e.tags.join(" ")),
+                        esc(&e.author),
+                        esc(&e.body)
+                    ))
+                    .await;
                 }
                 say(format!("memory-proposals\t{}", m.open_proposals)).await;
             }
@@ -850,7 +869,7 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
         "handoffs" => match b.handoffs(ws.as_ref().unwrap()).await {
             Ok(h) => {
                 for x in h {
-                    say(format!("handoff\t{}\t@{}\t@{}\t{}", x.chat, x.from, x.to, esc(&x.task))).await;
+                    say(format!("handoff\t{}\t@{}\t@{}\t{}", esc(&x.chat), esc(&x.from), esc(&x.to), esc(&x.task))).await;
                 }
             }
             Err(e) => fail(e.0).await,
@@ -876,7 +895,7 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                         if x.mentioned { "mentioned " } else { "" },
                         if x.lockdown.is_some() { "locked" } else { "" }
                     );
-                    say(format!("chat\t{}\t{}\t{}\t{}", i + 1, x.id, esc(&x.title), flags.trim())).await;
+                    say(format!("chat\t{}\t{}\t{}\t{}", i + 1, esc(&x.id), esc(&x.title), flags.trim())).await;
                 }
                 s.lock().await.chats = c;
             }
@@ -892,7 +911,7 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
             let chat = { pick(&s.lock().await.chats, arg, |c| c.id.as_str()).cloned() };
             let Some(chat) = chat else { return fail(format!("no chat {arg}")).await };
             s.lock().await.chat = Some(chat.id.clone());
-            say(format!("opened\t{}\t{}", chat.id, esc(&chat.title))).await;
+            say(format!("opened\t{}\t{}", esc(&chat.id), esc(&chat.title))).await;
             if let Some(l) = &chat.lockdown {
                 say(format!("lockdown\t{}\t{}", esc(&l.reasons.join("; ")), esc(l.clear.reason().unwrap_or("you can clear it: unlock"))))
                     .await;
@@ -901,7 +920,7 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
             match b.transcript(&w, &chat.id).await {
                 Ok(t) => {
                     for m in t {
-                        say(format!("message\t{}\t{}\t{}\t{}", esc(&ws_name), chat.id, esc(&m.author.display()), esc(&m.text))).await;
+                        say(format!("message\t{}\t{}\t{}\t{}", esc(&ws_name), esc(&chat.id), esc(&m.author.display()), esc(&m.text))).await;
                     }
                 }
                 Err(e) => fail(e.0).await,
@@ -911,7 +930,7 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
         "new" => match b.create_chat(ws.as_ref().unwrap(), arg).await {
             Ok(c) => {
                 s.lock().await.chat = Some(c.id.clone());
-                say(format!("opened\t{}\t{}", c.id, esc(&c.title))).await;
+                say(format!("opened\t{}\t{}", esc(&c.id), esc(&c.title))).await;
             }
             Err(e) => fail(e.0).await,
         },
@@ -919,7 +938,7 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
             let chat = { s.lock().await.chat.clone() };
             let Some(chat) = chat else { return fail("open a chat first: open N".into()).await };
             match b.send_message(ws.as_ref().unwrap(), &chat, &arg.replace("\\n", "\n")).await {
-                Ok(m) => say(format!("sent\t{}\t{}", chat, m.id)).await,
+                Ok(m) => say(format!("sent\t{}\t{}", esc(&chat), esc(&m.id))).await,
                 Err(e) => fail(e.0).await,
             }
         }
@@ -940,7 +959,7 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                     say(format!(
                         "proposal\t{}\t{}\t{}\t{}/{}\t{}\t{}\t{}",
                         i + 1,
-                        x.id,
+                        esc(&x.id),
                         x.status.label(),
                         x.approvals,
                         x.quorum,
@@ -989,7 +1008,8 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                     let c = if cmd == "approve" { VoteChoice::Approve } else { VoteChoice::Reject };
                     match b.vote(&w, &p.id, c).await {
                         Ok(p) => {
-                            say(format!("voted\t{}\t{}\t{}/{}\t{}", p.id, p.status.label(), p.approvals, p.quorum, esc(&p.title))).await
+                            say(format!("voted\t{}\t{}\t{}/{}\t{}", esc(&p.id), p.status.label(), p.approvals, p.quorum, esc(&p.title)))
+                                .await
                         }
                         Err(e) => fail(e.0).await,
                     }
@@ -1010,7 +1030,7 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                     };
                     let Some(host) = host else { return fail("no such host".into()).await };
                     match b.request_apply(&w, &p.id, &host.id).await {
-                        Ok(p) => say(format!("apply\t{}\t{}", p.id, esc(&crate::ui::apply_text(&p.apply).unwrap_or_default()))).await,
+                        Ok(p) => say(format!("apply\t{}\t{}", esc(&p.id), esc(&crate::ui::apply_text(&p.apply).unwrap_or_default()))).await,
                         Err(e) => fail(e.0).await,
                     }
                 }
@@ -1023,9 +1043,9 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                     say(format!(
                         "agent\t{}\t@{}\t{}\t{}\t{}\t{}\t{}",
                         i + 1,
-                        x.handle,
-                        x.runtime,
-                        host,
+                        esc(&x.handle),
+                        esc(&x.runtime),
+                        esc(&host),
                         esc(x.role.as_deref().unwrap_or("agent")),
                         x.status.label(),
                         esc(x.doing.as_deref().unwrap_or(""))
@@ -1045,7 +1065,8 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                     } else {
                         "not configured"
                     };
-                    say(format!("runtime\t{}\t{}\t{}\t{st}", x.id, x.kind.label(), x.model.as_deref().unwrap_or("default"))).await;
+                    say(format!("runtime\t{}\t{}\t{}\t{st}", esc(&x.id), x.kind.label(), esc(x.model.as_deref().unwrap_or("default"))))
+                        .await;
                 }
             }
             Err(e) => fail(e.0).await,
@@ -1058,12 +1079,12 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                     say(format!(
                         "host\t{}\t{}\t{}\t{kind}\t{}\t{me}\t{}\t{}\t{}",
                         i + 1,
-                        x.id,
+                        esc(&x.id),
                         esc(&x.label),
                         if x.online { "online" } else { "offline" },
                         if x.busy { "busy" } else { "idle" },
-                        x.agents.iter().map(|a| format!("@{a}")).collect::<Vec<_>>().join(" "),
-                        x.repos.join(" ")
+                        esc(x.agents.iter().map(|a| format!("@{a}")).collect::<Vec<_>>().join(" ")),
+                        esc(x.repos.join(" "))
                     ))
                     .await;
                 }
@@ -1088,7 +1109,8 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                         Allowed::Yes => "remove: allowed".to_string(),
                         Allowed::No(r) => format!("remove: refused ({r})"),
                     };
-                    say(format!("member\t{}\t{}\t{}\t{}\t{}\t{remove}", i + 1, x.id, esc(&x.name), x.role.label(), tags.join(" "))).await;
+                    say(format!("member\t{}\t{}\t{}\t{}\t{}\t{remove}", i + 1, esc(&x.id), esc(&x.name), x.role.label(), tags.join(" ")))
+                        .await;
                 }
                 s.lock().await.members = m;
             }
@@ -1123,13 +1145,13 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
             }
         }
         "invite" => match b.create_invite(ws.as_ref().unwrap(), Role::Contributor).await {
-            Ok(code) => say(format!("invite\t{code}")).await,
+            Ok(code) => say(format!("invite\t{}", esc(&code))).await,
             Err(e) => fail(e.0).await,
         },
         "notifications" => match b.notifications().await {
             Ok(n) => {
                 for x in n {
-                    say(format!("notification\t{}\t{}\t{}", if x.read { "read" } else { "unread" }, x.workspace, esc(&x.text))).await;
+                    say(format!("notification\t{}\t{}\t{}", if x.read { "read" } else { "unread" }, esc(&x.workspace), esc(&x.text))).await;
                 }
             }
             Err(e) => fail(e.0).await,
@@ -1292,6 +1314,20 @@ mod tests {
         assert!(out.contains("hi "), "{out}");
         for bad in ['\u{1b}', '\u{7}', '\u{202e}', '\u{2066}', '\u{9b}', '\r'] {
             assert!(!out.contains(bad), "{bad:?} reached the terminal: {out:?}");
+        }
+    }
+
+    /// Every field that came from another member, an agent or a box is
+    /// escaped: a tab in an agent's handle, a host's id, a stage's id or a
+    /// hand-off's names can't forge a field, a newline can't forge a record.
+    #[tokio::test]
+    async fn no_network_field_forges_a_field_or_a_record() {
+        let bad = "x\tforged\nfake-record\t\u{1b}[31m";
+        for cmd in ["agents", "hosts", "runtimes", "tasks", "handoffs", "workflows", "runs", "run 2 this week"] {
+            let (_, out) = one_shot(FakeBackend::hostile(FakeConfig::instant(), bad), cmd).await;
+            assert!(!out.contains("\tforged"), "{cmd}: a field was forged: {out:?}");
+            assert!(!out.lines().any(|l| l.starts_with("fake-record")), "{cmd}: a record was forged: {out:?}");
+            assert!(!out.contains('\u{1b}'), "{cmd}: {out:?}");
         }
     }
 
