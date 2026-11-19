@@ -43,7 +43,8 @@ it down.
 
 A workspace created without a relay stays on this device. To invite others,
 start `lt` with `LT_RELAY_URL` set to a relay before creating it: invites
-carry the relay, and joining needs one.
+carry the relay, and joining needs one. `lt` refuses to start with an
+`LT_RELAY_URL` that isn't an http(s) address.
 
 ### Screens
 

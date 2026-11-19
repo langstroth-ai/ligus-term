@@ -228,7 +228,7 @@ Paths are inside the crate named in each row, on `release/v0.1.0`.
 | `proposals` | `load(sid)?.proposals` across the workspace's chats (`ActionProposal`) | |
 | `proposal_diff` | `ActionProposal::diff` (a unified diff) | `lt` parses it into files and hunks |
 | `vote` | `vote_on_proposal(sid, ws, id, approved)` | Presence when the rules require it |
-| `request_apply` / `withdraw_apply` | `request_apply(sid, ws, id, host_device_id, expected_base_commit)` / `withdraw_apply_request` | When `lt` is itself a host: `apply_host::pending(&svc, ws)` and `apply_host::fulfil(&svc, &job, repo)` in a loop, as the CLI worker's `apply_tick` does |
+| `request_apply` / `withdraw_apply` | `request_apply(sid, ws, id, host_device_id, expected_base_commit)` / `withdraw_apply_request` | When `lt` is itself a host: `sync_service::apply_tick(&svc, ws, founder, repo_for)`, which lists and judges each request under `ws`'s founder pin (the service is shared by every workspace) |
 | `agents` | `session.workspace_agents` (`WorkspaceAgent`) | |
 | `set_agent_runtime` | `add_agent` (upsert) with the new `runtime_id` | Per chat: `set_session_runtime` |
 | `runtimes` | `list_workspace_runtimes(ws)` | |
@@ -252,6 +252,20 @@ Paths are inside the crate named in each row, on `release/v0.1.0`.
   our own with `publish_human_beat`.
 - **Presence.** `TermPresence` emits `PresencePrompt`, `PresenceProblem`
   and `PresenceDone`.
+
+### Agent turns and the sandbox
+
+A turn runs as on every Ligus host: `turns::guard_turn` applies the
+author-role gate (`author_gate::gate_turn`, with the role the trigger's
+author held when they posted), the chat's sandbox envelope
+(`sandbox::envelope_for_session` and `sandbox::enforce`: a lockdown or dearth
+mode narrows egress or refuses a runtime it can't confine) and this host's
+OS sandbox (`executor::turn_allowed`). The reply streams inside
+`executor::with_turn`, so the keyless Claude Code fallback and any other CLI
+runtime are spawned confined. `RealBackend::open` registers `lt`'s data dir
+with `executor::configure_host`, so no agent child can read its keys,
+database or secrets, and on Linux `main` dispatches the sandbox's pre-exec
+helper before anything else.
 
 ### Threading
 
