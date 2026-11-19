@@ -129,6 +129,13 @@ impl Inner {
     }
 }
 
+/// Read a box's join request without admitting it: the fingerprint the
+/// Admin compares with the box's terminal before the passkey prompt.
+pub(crate) fn inspect_join_request(request: &str) -> Result<JoinRequestCheck> {
+    let r = JoinRequest::decode(request.trim()).map_err(BackendError)?;
+    Ok(JoinRequestCheck { fingerprint: r.fingerprint(), label: Some(r.label.clone()).filter(|l| !l.is_empty()) })
+}
+
 /// The connection a deployment spec describes (checked).
 pub fn deployment_conn(spec: &DeploymentSpec, founder: String, fk: String) -> Result<WorkspaceConn> {
     let relay = spec.relay_url.trim();

@@ -645,7 +645,8 @@ fn workflows_view_starts_runs_and_decides_gates() {
     assert_eq!(s.runs.len(), 1);
 }
 
-/// Admitting a box: Admin only; the request (or none) goes to the backend.
+/// Admitting a box: Admin only; the request's fingerprint is shown (and
+/// confirmed) before the admission, and so before any passkey prompt.
 #[test]
 fn admitting_a_box_asks_for_its_request() {
     let mut s = main_state();
@@ -653,7 +654,20 @@ fn admitting_a_box_asks_for_its_request() {
     key(&mut s, KeyCode::Char('B'));
     assert!(matches!(s.overlay, Some(Overlay::AdmitBox { .. })));
     update(&mut s, Msg::Paste(" ligusjoin1:abc ".into()));
-    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::AdmitBox(WorkspaceId::new("a"), Some("ligusjoin1:abc".into()))]);
+    // Enter only reads the request: nothing that needs a passkey yet.
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::InspectJoinRequest("ligusjoin1:abc".into())]);
+    let check = JoinRequestCheck { fingerprint: "AAAA-BBBB".into(), label: Some("sff".into()) };
+    update(&mut s, Msg::JoinRequestChecked("ligusjoin1:abc".into(), Ok(check.clone())));
+    assert!(matches!(&s.overlay, Some(Overlay::AdmitBox { checked: Some(c), busy: false, .. }) if *c == check));
+    // Any other key (Enter included) doesn't admit; esc goes back to edit.
+    assert!(key(&mut s, KeyCode::Enter).is_empty());
+    assert!(key(&mut s, KeyCode::Char('x')).is_empty());
+    key(&mut s, KeyCode::Esc);
+    assert!(matches!(&s.overlay, Some(Overlay::AdmitBox { checked: None, result: None, .. })));
+    key(&mut s, KeyCode::Enter);
+    update(&mut s, Msg::JoinRequestChecked("ligusjoin1:abc".into(), Ok(check)));
+    // y, with the fingerprint on screen, admits.
+    assert_eq!(key(&mut s, KeyCode::Char('y')), vec![Effect::AdmitBox(WorkspaceId::new("a"), Some("ligusjoin1:abc".into()))]);
     update(
         &mut s,
         Msg::Admitted(Ok(BoxAdmission {
@@ -665,6 +679,20 @@ fn admitting_a_box_asks_for_its_request() {
         })),
     );
     assert!(matches!(&s.overlay, Some(Overlay::AdmitBox { result: Some(a), .. }) if a.code == "ligusadmit1:x"));
+    key(&mut s, KeyCode::Esc);
+    assert!(s.overlay.is_none());
+    // An unreadable request is a toast and no admission; empty is a
+    // bearer code, admitted at once (no box to compare with).
+    key(&mut s, KeyCode::Char('B'));
+    update(&mut s, Msg::Paste("nonsense".into()));
+    key(&mut s, KeyCode::Enter);
+    update(&mut s, Msg::JoinRequestChecked("nonsense".into(), Err(BackendError("not a join request".into()))));
+    assert!(matches!(&s.overlay, Some(Overlay::AdmitBox { checked: None, busy: false, .. })));
+    assert!(s.toasts.iter().any(|t| t.text.contains("not a join request")));
+    key(&mut s, KeyCode::Esc);
+    key(&mut s, KeyCode::Char('B'));
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::AdmitBox(WorkspaceId::new("a"), None)]);
+    update(&mut s, Msg::Admitted(Err(BackendError("cancelled".into()))));
     key(&mut s, KeyCode::Esc);
     assert!(s.overlay.is_none());
     // A Viewer is told no before anything is asked.

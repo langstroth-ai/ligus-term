@@ -228,6 +228,13 @@ async fn lt_founds_a_deployment_admits_a_box_and_drives_a_workflow() {
     let bx = Arc::new(BoxDevice::new(&tmp.path().join("box")));
     let request = bx.join_request();
     assert!(other.b.admit_box(&ws, Some(&request.encode())).await.is_err(), "Ben isn't in the workspace");
+    // Its fingerprint is read first, with no passkey prompt: Ana compares it
+    // with the box's terminal before she is asked for one.
+    let check = a.b.inspect_join_request(&request.encode()).await.unwrap();
+    assert_eq!(check.fingerprint, request.fingerprint());
+    assert_eq!(check.label.as_deref(), Some("box"));
+    assert!(!a.saw(|e| matches!(e, Event::PresencePrompt(p) if p.kind == "joinApproved")));
+    assert!(a.b.inspect_join_request("ligusjoin1:garbage").await.is_err());
     let admission = a.b.admit_box(&ws, Some(&request.encode())).await.unwrap();
     assert!(admission.sealed && admission.code.starts_with(box_admission::SEALED_PREFIX));
     assert_eq!(admission.fingerprint.as_deref(), Some(request.fingerprint().as_str()));

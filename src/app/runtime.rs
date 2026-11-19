@@ -57,6 +57,7 @@ pub async fn run_effect(b: Arc<dyn Backend>, fx: Effect) -> Msg {
         AnswerPresence(id, a) => done("", b.answer_presence(id, a).await),
         InspectInvite(i) => Msg::InviteChecked(i.clone(), b.inspect_invite(&i).await),
         ConnectDeployment { your_name, spec } => Msg::Created(b.connect_deployment(&your_name, spec).await),
+        InspectJoinRequest(r) => Msg::JoinRequestChecked(r.clone(), b.inspect_join_request(&r).await),
         AdmitBox(w, r) => Msg::Admitted(b.admit_box(&w, r.as_deref()).await),
         LoadWorkflows(w) => Msg::Workflows(w.clone(), b.workflows(&w).await),
         LoadRuns(w) => Msg::Runs(w.clone(), b.runs(&w).await),

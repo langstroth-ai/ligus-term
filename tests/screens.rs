@@ -102,6 +102,12 @@ async fn admit_a_box() {
     h.send(Msg::Paste("ligusjoin1:eyJ2IjoxLCJsYWJlbCI6InNmZiJ9".into())).await;
     snap("admit_box", "Admit a box: its join request", h.screen(W, H));
     h.key(KeyCode::Enter).await;
+    // The fingerprint is on screen before any passkey prompt.
+    let checked = h.screen(W, H);
+    assert!(checked.contains("K3QF-7XMA-2DPL-90RW-ZT4E"), "{checked}");
+    assert!(!checked.contains("Confirm with passkey"), "{checked}");
+    snap("admit_box_fingerprint", "Admit a box: compare its fingerprint", checked);
+    h.key(KeyCode::Char('y')).await;
     h.key(KeyCode::Enter).await; // the (simulated) browser confirms
     snap("admit_box_sealed", "Admit a box: the sealed admission", h.screen(W, H));
 }

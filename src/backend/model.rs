@@ -583,6 +583,14 @@ impl InviteTrust {
     }
 }
 
+/// A box's join request, read before anything is asked of the Admin: its
+/// fingerprint is compared with the box's terminal before the passkey.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct JoinRequestCheck {
+    pub fingerprint: String,
+    pub label: Option<String>,
+}
+
 /// An admission for a box (`ligus serve` or `ligus worker`): it joins as
 /// its own service member (Contributor).
 #[derive(Debug, Clone, PartialEq, Eq)]

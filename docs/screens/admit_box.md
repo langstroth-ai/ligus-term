@@ -20,7 +20,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃            ┃                                                                                  ┃            │
 ┃            ┃› ligusjoin1:eyJ2IjoxLCJsYWJlbCI6InNmZiJ9                                         ┃            │
 ┃            ┃                                                                                  ┃sskey.      │
-┃            ┃enter admit · esc cancel                                                          ┃            │
+┃            ┃enter check its fingerprint (empty: a bearer code) · esc cancel                   ┃            │
 ┃            ┃                                                                                  ┃            │
 ┃            ┃                                                                                  ┃            │
 ┃            ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛            │

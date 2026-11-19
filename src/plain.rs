@@ -38,6 +38,7 @@ commands (N is a number from the last list, or an id):
   agents / runtimes / hosts / members / notifications / settings
   role M ROLE          change a member's role   remove M     remove a member
   invite               create an invite code    admit [REQUEST] [--out FILE]  admit a box (ligusjoin1:,
+                       first prints its fingerprint to compare with the box before the passkey prompt;
                        or none: a bearer code, written owner-only to FILE, never printed)
   check CODE           who an invite is from    connect RELAY ROOM KEY [TOKEN] [--out FILE]  found a deployment's
                        workspace (KEY and TOKEN may be @FILE, owner-only; one-shot: only @FILE, and the
@@ -699,6 +700,14 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
             }
             if let Err(e) = fresh_out(file.as_deref()) {
                 return fail(e).await;
+            }
+            // The box's fingerprint comes first, so it's compared with the
+            // box's terminal before the passkey prompt is answered.
+            if !request.is_empty() {
+                match b.inspect_join_request(&request).await {
+                    Ok(c) => say(format!("joinrequest\t{}\t{}", c.fingerprint, esc(c.label.as_deref().unwrap_or("")))).await,
+                    Err(e) => return fail(e.0).await,
+                }
             }
             match b.admit_box(ws.as_ref().unwrap(), Some(request.as_str()).filter(|a| !a.is_empty())).await {
                 Ok(a) => {
@@ -1365,5 +1374,20 @@ mod tests {
         let (code, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "admit ligusjoin1:abc").await;
         assert_eq!(code, 0, "{out}");
         assert!(out.contains("ligusadmit1:sealed-for-"), "{out}");
+    }
+
+    /// The box's fingerprint is printed before the passkey prompt, so it's
+    /// compared with the box's terminal before anyone confirms; a request
+    /// that doesn't read raises no prompt at all.
+    #[tokio::test]
+    async fn admitting_prints_the_fingerprint_before_the_passkey_prompt() {
+        let (code, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "admit ligusjoin1:abc").await;
+        assert_eq!(code, 0, "{out}");
+        let fp = out.find("joinrequest\tK3QF-7XMA-2DPL-90RW-ZT4E\tsff").expect(&out);
+        let prompt = out.find("presence\t").expect(&out);
+        assert!(fp < prompt, "fingerprint after the passkey prompt: {out}");
+        let (code, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "admit nonsense").await;
+        assert_eq!(code, 1, "{out}");
+        assert!(!out.contains("presence\t"), "{out}");
     }
 }

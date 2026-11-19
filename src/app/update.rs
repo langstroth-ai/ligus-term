@@ -40,6 +40,8 @@ pub enum Msg {
     Invite(Result<String>),
     /// The invite (as typed) and what it says about its sender.
     InviteChecked(String, Result<InviteCheck>),
+    /// A join request read (no passkey yet): the request and its fingerprint.
+    JoinRequestChecked(String, Result<JoinRequestCheck>),
     Admitted(Result<BoxAdmission>),
     Workflows(WorkspaceId, Result<Vec<Workflow>>),
     Runs(WorkspaceId, Result<Vec<Run>>),
@@ -91,6 +93,7 @@ pub enum Effect {
     AnswerPresence(PresenceId, PresenceAnswer),
     InspectInvite(String),
     ConnectDeployment { your_name: String, spec: DeploymentSpec },
+    InspectJoinRequest(String),
     AdmitBox(WorkspaceId, Option<String>),
     LoadWorkflows(WorkspaceId),
     LoadRuns(WorkspaceId),
@@ -285,6 +288,18 @@ pub fn update(s: &mut State, msg: Msg) -> Vec<Effect> {
                     form.checked = Some((invite, c));
                 }
                 Err(e) => form.error = Some(e.0),
+            }
+            vec![]
+        }
+        Msg::JoinRequestChecked(r, res) => {
+            if let Some(Overlay::AdmitBox { request, busy, checked, result: None }) = &mut s.overlay
+                && request.text.trim() == r
+            {
+                *busy = false;
+                match res {
+                    Ok(c) => *checked = Some(c),
+                    Err(e) => s.toast(ToastKind::Error, format!("Couldn't read the join request: {e}")),
+                }
             }
             vec![]
         }
@@ -596,7 +611,7 @@ fn paste(s: &mut State, text: &str) -> Vec<Effect> {
         }
         (Some(Overlay::NewChat(b)), _) | (Some(Overlay::BindCheckout(b)), _) => b.insert_str(text.trim()),
         (Some(Overlay::StartRun { input, .. }), _) => input.insert_str(text),
-        (Some(Overlay::AdmitBox { request, result: None, .. }), _) => request.insert_str(text.trim()),
+        (Some(Overlay::AdmitBox { request, checked: None, result: None, .. }), _) => request.insert_str(text.trim()),
         (None, Phase::Main) if s.view == View::Chats && s.open_chat.is_some() => {
             s.focus = Focus::Composer;
             s.composer.insert_str(text);
@@ -1000,7 +1015,7 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
             s.overlay = None;
             vec![]
         }
-        Overlay::AdmitBox { request, busy, result } => {
+        Overlay::AdmitBox { request, busy, checked, result } => {
             if *busy {
                 return vec![];
             }
@@ -1008,15 +1023,36 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
                 s.overlay = None;
                 return vec![];
             }
+            // The fingerprint is on screen: y admits (the passkey prompt
+            // comes only now), esc goes back to the request.
+            if checked.is_some() {
+                return match k.code {
+                    KeyCode::Char('y') => {
+                        *busy = true;
+                        let r = request.text.trim().to_string();
+                        ws.map(|w| vec![Effect::AdmitBox(w, Some(r))]).unwrap_or_default()
+                    }
+                    KeyCode::Esc => {
+                        *checked = None;
+                        vec![]
+                    }
+                    _ => vec![],
+                };
+            }
             match k.code {
                 KeyCode::Esc => {
                     s.overlay = None;
                     vec![]
                 }
                 KeyCode::Enter => {
-                    let r = Some(request.text.trim().to_string()).filter(|r| !r.is_empty());
+                    let r = request.text.trim().to_string();
                     *busy = true;
-                    ws.map(|w| vec![Effect::AdmitBox(w, r)]).unwrap_or_default()
+                    if r.is_empty() {
+                        // A bearer code: no box to compare with.
+                        ws.map(|w| vec![Effect::AdmitBox(w, None)]).unwrap_or_default()
+                    } else {
+                        vec![Effect::InspectJoinRequest(r)]
+                    }
                 }
                 _ => {
                     request.handle(&k);
@@ -1440,7 +1476,7 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
                 s.toast(ToastKind::Error, "Can't admit a box: only an Admin or Owner admits one");
                 return vec![];
             }
-            s.overlay = Some(Overlay::AdmitBox { request: TextBuf::single(), busy: false, result: None });
+            s.overlay = Some(Overlay::AdmitBox { request: TextBuf::single(), busy: false, checked: None, result: None });
             vec![]
         }
     }

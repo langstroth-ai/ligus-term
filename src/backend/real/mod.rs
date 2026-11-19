@@ -1073,6 +1073,10 @@ impl Backend for RealBackend {
         Ok(Created { workspace: summary, recovery_words: words.split_whitespace().map(str::to_string).collect(), invite: None })
     }
 
+    async fn inspect_join_request(&self, join_request: &str) -> Result<JoinRequestCheck> {
+        deploy::inspect_join_request(join_request)
+    }
+
     async fn admit_box(&self, workspace: &WorkspaceId, join_request: Option<&str>) -> Result<BoxAdmission> {
         let ws = ws_uuid(workspace)?;
         let request = join_request.map(str::to_string);

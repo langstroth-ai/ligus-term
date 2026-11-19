@@ -1,0 +1,36 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[AT] [QR]• Apiary Tracker · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
+┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Member ──────────────────────────────────────────────────╮
+┃  Mara · you  owner  founder                    ┃│Mara  owner                                               │
+┃  Ada  admin                                    ┃│                                                          │
+┃  Lin  contributor                              ┃│Founder: nobody can remove or demote them.                │
+┃  Sam  viewer                                   ┃│Role (r)                                                  │
+┃  sff box  contributor  service                 ┃│  (•) owner                                               │
+┃                                                ┃│  ( ) admin                                               │
+┃                                                ┃│  ( ) contributor                                         │
+┃                                                ┃│  ( ) viewer                                              │
+┃            ┏ Admit a box ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓            │
+┃            ┃Check the box (sff) shows this fingerprint: K3QF-7XMA-2DPL-90RW-ZT4E              ┃            │
+┃            ┃Its terminal printed it with the join request. A different one means the request  ┃            │
+┃            ┃was swapped: don't admit it.                                                      ┃ervice      │
+┃            ┃                                                                                  ┃            │
+┃            ┃y it matches, admit (needs your passkey) · esc back                               ┃            │
+┃            ┃                                                                                  ┃sskey.      │
+┃            ┃                                                                                  ┃            │
+┃            ┃                                                                                  ┃            │
+┃            ┃                                                                                  ┃            │
+┃            ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛            │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────╯
+↑↓ people  r role  X remove  I invite  B admit box  ? help                         lt on this terminal · demo

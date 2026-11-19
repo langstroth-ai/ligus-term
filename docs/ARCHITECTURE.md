@@ -70,6 +70,7 @@ pub trait Backend: Send + Sync {
     async fn inspect_invite(&self, invite: &str) -> Result<InviteCheck>;
     async fn join_workspace(&self, your_name: &str, invite: &str) -> Result<WorkspaceSummary>;
     async fn connect_deployment(&self, your_name: &str, spec: DeploymentSpec) -> Result<Created>;
+    async fn inspect_join_request(&self, join_request: &str) -> Result<JoinRequestCheck>;
     async fn admit_box(&self, ws: &WorkspaceId, join_request: Option<&str>) -> Result<BoxAdmission>;
     async fn workflows(&self, ws: &WorkspaceId) -> Result<Vec<Workflow>>;
     async fn runs(&self, ws: &WorkspaceId) -> Result<Vec<Run>>;
@@ -231,6 +232,7 @@ Paths are inside the crate named in each row, on `release/v0.1.0`.
 | `inspect_invite` | `workspace_invite::decode_workspace_invite`; `WorkspaceConn::signed_by` (the founder's device signature, `invite_sig`) against the devices `directory_trust::co_members` says are revoked; `dm::check_founder` against `dm::known_fingerprints` | The desktop's `inspect_invite` / `invite_trust`. A DM invite is refused |
 | `join_workspace` | refused for a workspace this device already holds (an invite never rewrites its relay, key or founder pin); the same check (a `Mismatch` is refused, as the desktop's drop-box accept does), then `store().set_join_invite(ws, inv)`, the founder pin, `SyncEngine::catch_up`, `ensure_self_member` | |
 | `connect_deployment` | `workspace_invite::usable_relay_url`; a `SyncEngine::catch_up` to check the relay holds no config log for the room; then as `create_workspace`, with the deployment's relay, room and key (and relay token, kept with the connection secrets) | A box never founds a workspace (`admit::prepare_box` in the CLI), so the first person does |
+| `inspect_join_request` | `box_admission::JoinRequest::decode`, its `fingerprint()` and label; no write, no presence | lt shows (TUI) or prints (plain) this before `admit_box`, so the Admin compares it with the box's terminal before the passkey prompt |
 | `admit_box` | Admin+; `box_admission::JoinRequest::decode`; `ChatService::issue_box_admission(ws, ttl, request)` (presence); a signed invite (`sign_invite`) with `inv` and `ek`; `box_admission::with_redeem_key`; `JoinRequest::seal` when there is a request | As `ligus admit issue` (`crates/ligus-cli/src/admit.rs`, `serve::admission_code`) and the desktop's `admit_box`. TTL 1 h sealed, 24 h bearer |
 | `confirm_recovery_saved` | device-local flag | |
 | `workspaces` | `lt`'s workspace list | Relay URL and room in `workspaces.json`; secrets in the secret store |

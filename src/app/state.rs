@@ -232,10 +232,13 @@ pub enum Overlay {
         code: Option<String>,
     },
     /// Admit a box: paste its join request (or leave it empty for a bearer
-    /// code), then the code to hand it.
+    /// code), compare its fingerprint with the box's terminal (before any
+    /// passkey prompt), then the code to hand it.
     AdmitBox {
         request: TextBuf,
         busy: bool,
+        /// The request's fingerprint, read before the passkey is asked.
+        checked: Option<JoinRequestCheck>,
         result: Option<BoxAdmission>,
     },
     /// The input for a workflow run.
@@ -507,7 +510,7 @@ impl State {
         match &self.overlay {
             Some(Overlay::AddWorkspace(f)) => f.field != FormField::Mode,
             Some(Overlay::NewChat(_)) | Some(Overlay::StartRun { .. }) | Some(Overlay::BindCheckout(_)) => true,
-            Some(Overlay::AdmitBox { result: None, .. }) => true,
+            Some(Overlay::AdmitBox { result: None, checked: None, .. }) => true,
             Some(_) => false,
             None => match &self.phase {
                 Phase::Onboarding(f) => f.field != FormField::Mode,

@@ -161,6 +161,9 @@ pub trait Backend: Send + Sync {
     // ── Workspaces and chats ───────────────────────────────────────────
     async fn workspaces(&self) -> Result<Vec<WorkspaceSummary>>;
     async fn create_invite(&self, workspace: &WorkspaceId, role: Role) -> Result<String>;
+    /// Read a box's `ligusjoin1:` request (no passkey, no write): its
+    /// fingerprint, to compare with the box's terminal before admitting it.
+    async fn inspect_join_request(&self, join_request: &str) -> Result<JoinRequestCheck>;
     /// Admit a box as a service member (Admin, with a passkey): seal to its
     /// `ligusjoin1:` request, or (none) a bearer code for a Secret or file.
     async fn admit_box(&self, workspace: &WorkspaceId, join_request: Option<&str>) -> Result<BoxAdmission>;

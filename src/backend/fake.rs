@@ -1665,6 +1665,13 @@ impl Backend for FakeBackend {
         Ok(created)
     }
 
+    async fn inspect_join_request(&self, join_request: &str) -> Result<JoinRequestCheck> {
+        if !join_request.trim().starts_with("ligusjoin1:") {
+            return err("that isn't a box's join request (ligusjoin1:...)");
+        }
+        Ok(JoinRequestCheck { fingerprint: "K3QF-7XMA-2DPL-90RW-ZT4E".into(), label: Some("sff".into()) })
+    }
+
     async fn admit_box(&self, workspace: &WorkspaceId, join_request: Option<&str>) -> Result<BoxAdmission> {
         {
             let mut w = self.lock();
