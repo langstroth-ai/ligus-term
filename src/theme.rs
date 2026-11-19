@@ -48,35 +48,40 @@ pub struct Theme {
 }
 
 impl Theme {
-    /// Amber on the terminal's dark background.
+    /// Honey on the terminal's dark background. The inks are the Ligus
+    /// brand tokens (`ligus-brand-tokens.json`): paper for text, soft for
+    /// dim, honeyLight for the accent, activeLight for mentions, tileTopDark
+    /// for the selection.
     pub const DARK: Theme = Theme {
         name: "dark",
-        text: Color::Rgb(0xe6, 0xe1, 0xd6),
-        dim: Color::Rgb(0x8f, 0x89, 0x7c),
-        accent: Color::Rgb(0xf2, 0xb1, 0x34),
+        text: Color::Rgb(0xf4, 0xf1, 0xea),
+        dim: Color::Rgb(0x8a, 0x80, 0x73),
+        accent: Color::Rgb(0xf0, 0xc2, 0x5a),
         border: Color::Rgb(0x4a, 0x45, 0x3c),
-        focus: Color::Rgb(0xf2, 0xb1, 0x34),
-        selected_bg: Color::Rgb(0x3a, 0x32, 0x22),
+        focus: Color::Rgb(0xf0, 0xc2, 0x5a),
+        selected_bg: Color::Rgb(0x3a, 0x28, 0x12),
         good: Color::Rgb(0x8c, 0xc8, 0x6b),
-        warn: Color::Rgb(0xf2, 0xb1, 0x34),
+        warn: Color::Rgb(0xf0, 0xc2, 0x5a),
         bad: Color::Rgb(0xef, 0x6b, 0x5b),
         added: Color::Rgb(0x8c, 0xc8, 0x6b),
         removed: Color::Rgb(0xef, 0x6b, 0x5b),
         hunk: Color::Rgb(0x7f, 0xb4, 0xe0),
-        mention: Color::Rgb(0xf7, 0xc8, 0x5f),
+        mention: Color::Rgb(0xf0, 0xb8, 0x78),
         agent: Color::Rgb(0xb7, 0x9c, 0xe8),
         mono: false,
     };
 
-    /// Darker inks for light backgrounds.
+    /// Darker inks for light backgrounds: the brand's ink for text,
+    /// honeyDeep for the accent and cellMid for the selection. Dim is a
+    /// shade darker than the brand's soft, which is too faint on white.
     pub const LIGHT: Theme = Theme {
         name: "light",
-        text: Color::Rgb(0x2a, 0x25, 0x1d),
+        text: Color::Rgb(0x22, 0x1f, 0x1a),
         dim: Color::Rgb(0x6d, 0x66, 0x5a),
-        accent: Color::Rgb(0x9a, 0x5b, 0x00),
+        accent: Color::Rgb(0x8a, 0x5a, 0x14),
         border: Color::Rgb(0xb9, 0xb0, 0x9f),
-        focus: Color::Rgb(0x9a, 0x5b, 0x00),
-        selected_bg: Color::Rgb(0xf3, 0xe3, 0xbf),
+        focus: Color::Rgb(0x8a, 0x5a, 0x14),
+        selected_bg: Color::Rgb(0xf0, 0xe0, 0xb8),
         good: Color::Rgb(0x2f, 0x6f, 0x1f),
         warn: Color::Rgb(0x8a, 0x55, 0x00),
         bad: Color::Rgb(0xb0, 0x26, 0x1a),
