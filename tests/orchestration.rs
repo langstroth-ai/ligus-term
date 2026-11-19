@@ -563,3 +563,47 @@ async fn a_checkout_is_bound_per_workspace() {
     assert_eq!(a.b.checkout(&ws).await.unwrap(), None);
     a.b.shutdown();
 }
+
+/// An invite for a workspace this device already holds never rewrites it:
+/// not its founder pin (a co-member who knows the room could otherwise
+/// name a founder of their choosing, or none), nor its relay or key.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_held_workspace_is_never_rejoined_from_another_invite() {
+    let tmp = tempfile::tempdir().unwrap();
+    let relay = serve(ligus_runtime::test_relay::router()).await;
+    let evil = serve(ligus_runtime::test_relay::router()).await;
+    let a = device(&tmp.path().join("ana"), "lt Ana", &relay);
+    let b = device(&tmp.path().join("ben"), "lt Ben", &relay);
+    let created = a.b.create_workspace("Ana", "Bee Yard").await.unwrap();
+    let words = tmp.path().join("words.txt");
+    std::fs::write(&words, created.recovery_words.join(" ")).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&words, std::fs::Permissions::from_mode(0o600)).unwrap();
+    }
+    *a.words_file.lock().unwrap() = Some(words);
+    let invite = a.b.create_invite(&created.workspace.id, Role::Contributor).await.unwrap();
+    b.b.join_workspace("Ben", &invite).await.unwrap();
+
+    // Someone who knows the room hands Ben an "invite" to it with no founder
+    // and their own relay.
+    let mut hostile = decode_workspace_invite(&invite).unwrap();
+    hostile.relay_url = evil.clone();
+    hostile.founder_actor_id = None;
+    hostile.fk = None;
+    hostile.sig = None;
+    let refused = b.b.join_workspace("Ben", &encode_workspace_invite(&hostile)).await.unwrap_err();
+    assert!(refused.0.contains("already"), "{refused}");
+    let held = b.b.workspaces().await.unwrap().into_iter().find(|w| w.id == created.workspace.id).unwrap();
+    assert_eq!(held.sync, SyncMode::Relay(relay.clone()), "the relay was rewritten");
+    assert_eq!(held.your_role, Role::Contributor);
+    // A failed join of a new workspace leaves nothing behind, so it can be retried.
+    let mut stray = decode_workspace_invite(&invite).unwrap();
+    stray.room = "a-room-nobody-founded".into();
+    stray.sig = None;
+    assert!(b.b.join_workspace("Ben", &encode_workspace_invite(&stray)).await.is_err());
+    assert!(!b.b.workspaces().await.unwrap().iter().any(|w| w.name == stray.name && w.id != created.workspace.id));
+    a.b.shutdown();
+    b.b.shutdown();
+}

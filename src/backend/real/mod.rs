@@ -214,6 +214,34 @@ impl RealBackend {
         Ok(Self { inner })
     }
 
+    /// Pull a just-saved workspace, redeem the invite and start syncing it.
+    async fn finish_join(&self, ws: Uuid, saved: SavedWorkspace) -> Result<WorkspaceSummary> {
+        // Pull the workspace (its config log) before redeeming the invite.
+        let mut engine = self
+            .call({
+                let saved = saved.clone();
+                move |i| i.sync_engine(&saved)
+            })
+            .await?;
+        let mut store = EventStore::open(self.inner.db()).map_err(one_line)?;
+        engine.catch_up(&mut store, 250).await.map_err(one_line)?;
+        self.call(move |i| {
+            i.activate(ws);
+            let me = i.me();
+            let joined =
+                i.read(ws, |svc| Ok(svc.load(workspace_config_session_id(ws))?.is_some_and(|c| c.members.iter().any(|m| m.id == me))))?;
+            if !joined {
+                return err("couldn't join: the workspace didn't accept the invite (it may be used up, expired or revoked)");
+            }
+            Ok(())
+        })
+        .await?;
+        ligus_runtime::sync_service::sync_round(&mut engine, &mut store).await.map_err(one_line)?;
+        self.inner.start_loops(ws);
+        self.inner.emit(Event::WorkspacesChanged);
+        self.call(move |i| Ok(i.summary(&i.saved(ws)?))).await
+    }
+
     /// Bind the git checkout this device applies proposals in, for
     /// `workspace` (the apply-on-host loop uses its per-chat worktrees).
     pub fn bind_checkout(&self, workspace: &WorkspaceId, repo: &Path) -> Result<()> {
@@ -575,6 +603,13 @@ impl Backend for RealBackend {
         let your_name = your_name.trim().to_string();
         let saved = self
             .call(move |i| {
+                // An invite never rewrites a workspace this device holds: its
+                // relay, key and founder (lt's trusted founder comes from
+                // this list, so a co-member who knows the room could
+                // otherwise move the pin, or drop it).
+                if lock(&i.list).get(ws).is_some() {
+                    return err("this device already has that workspace: an invite can't change its relay, key or founder");
+                }
                 i.ensure_core(&your_name)?;
                 let store = EventStore::open(i.db()).map_err(one_line)?;
                 if let Some(inv) = conn.invite_id() {
@@ -590,30 +625,22 @@ impl Backend for RealBackend {
                 Ok(saved)
             })
             .await?;
-        // Pull the workspace (its config log) before redeeming the invite.
-        let mut engine = self
-            .call({
-                let saved = saved.clone();
-                move |i| i.sync_engine(&saved)
-            })
-            .await?;
-        let mut store = EventStore::open(self.inner.db()).map_err(one_line)?;
-        engine.catch_up(&mut store, 250).await.map_err(one_line)?;
-        self.call(move |i| {
-            i.activate(ws);
-            let me = i.me();
-            let joined =
-                i.read(ws, |svc| Ok(svc.load(workspace_config_session_id(ws))?.is_some_and(|c| c.members.iter().any(|m| m.id == me))))?;
-            if !joined {
-                return err("couldn't join: the workspace didn't accept the invite (it may be used up, expired or revoked)");
-            }
-            Ok(())
-        })
-        .await?;
-        ligus_runtime::sync_service::sync_round(&mut engine, &mut store).await.map_err(one_line)?;
-        self.inner.start_loops(ws);
-        self.inner.emit(Event::WorkspacesChanged);
-        self.call(move |i| Ok(i.summary(&i.saved(ws)?))).await
+        let joined = self.finish_join(ws, saved).await;
+        if joined.is_err() {
+            // Nothing half-joined stays behind (it would block a retry).
+            let _ = self
+                .call(move |i| {
+                    let removed = lock(&i.list).remove(ws, i.secrets.as_ref(), SECRET_SCOPE).map_err(one_line)?;
+                    if removed {
+                        i.save_list()?;
+                    }
+                    // Its founder pin and invite too: a retry pins again.
+                    EventStore::open(i.db()).and_then(|s| s.forget_workspace(ws)).map_err(one_line)?;
+                    Ok(())
+                })
+                .await;
+        }
+        joined
     }
 
     async fn confirm_recovery_saved(&self, workspace: &WorkspaceId) -> Result<()> {
