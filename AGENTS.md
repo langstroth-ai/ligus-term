@@ -81,6 +81,27 @@ Or add a snapshot test that drives the reducer with keys (see
 `lt` deliberately has no direct messages, people's presence or typing,
 device linking or key rotation; don't add them.
 
+## Artwork
+
+`assets/` holds the README header, screen images, the demo GIF and the
+GitHub social preview. The mark and colours are the Ligus brand kit's
+(`assets/branding/` in the ligus repo); don't draw a new logo. Regenerate:
+
+```sh
+cargo run --example screenshots          # assets/screens/*.svg from the demo backend
+python3 assets/tools/lockup.py Inter-Bold.ttf Inter-Medium.ttf   # lockups + social-preview.svg (fontTools, Inter)
+npx svgo@3.3.2 --config assets/tools/svgo.config.mjs assets/*.svg assets/screens/*.svg
+rsvg-convert assets/social-preview.svg -o assets/social-preview.png
+pngquant --quality 80-95 --strip -f --ext .png assets/social-preview.png && oxipng -o 4 assets/social-preview.png
+cargo build --locked && vhs assets/tools/demo.tape && gifsicle -O3 --lossy=30 -b assets/lt-demo.gif
+```
+
+`examples/screenshots.rs` is dev-only: an example, never part of the `lt`
+binary. The tape runs `lt --demo` only, with a throwaway `LT_DATA_DIR` and
+`LIGUS_SECRET_BACKEND=file`. The terminal mark (`src/ui/splash.rs`) shows on
+the first-run and empty-chat screens, hides when it doesn't fit, is a
+colourless silhouette in mono, and never appears in plain mode.
+
 ## Rules
 
 - **Never the owner's data.** UI tests run against `backend::fake`. Tests

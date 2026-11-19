@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/lt-lockup-dark.svg">
+    <img alt="lt, the Ligus terminal: the Ligus mark (seven honeycomb cells) beside the wordmark lt" src="assets/lt-lockup-light.svg" width="418" height="100">
+  </picture>
+</p>
+
 # lt: Ligus in the terminal
 
 `lt` is a terminal client for orchestrating Ligus agents. (Ligus is short
@@ -12,6 +19,8 @@ deployment (`ligus-k8s` and the `ligus` Helm chart) and, from the terminal:
 
 A plain line mode makes all of it scriptable for other agents and CI, with
 exit codes.
+
+![lt --demo: starting a run of the "Implement, review, ship" workflow, its agent stages finishing one by one, then approving its sign-off gate](assets/lt-demo.gif)
 
 `lt` is a Ligus device in its own right: it has its own keys, signs its
 events like the desktop app does, and syncs end-to-end encrypted through
@@ -163,6 +172,8 @@ agent, and the agent's host (a `ligus worker`, or its owner's desktop)
 answers it. Keep `lt` running until the run ends (`lt --plain run` does).
 Anyone can approve or reject a gate, from `lt`, the desktop or the phone.
 
+![Workflows in lt: definitions and runs on the left; on the right a run of "Implement, review, ship" with its implement and review stages succeeded and its sign-off gate awaiting approval](assets/screens/workflow-run.svg)
+
 ### Agents and hosts
 
 Agents (`a`) lists each agent's status (busy, idle, offline), what it says
@@ -182,6 +193,8 @@ An approved proposal is applied by one host, in its checkout. For this
 device to apply one, bind the workspace's checkout: Hosts, then `b`, and
 the path to a git checkout (or `lt --plain checkout PATH`). The binding is
 kept in this device's data dir and never synced.
+
+![The proposals queue in lt: open, approved and applied proposals on the left; on the right a proposal's votes and actions above a diff of src/inspections.rs](assets/screens/proposals.svg)
 
 ### Agent tools
 
@@ -263,7 +276,13 @@ Press a view's key from anywhere outside a text field:
 | `w` | Workspaces | The switcher; `+` creates, joins or connects another |
 | `?` | Help | Every keybinding, as currently configured |
 
-Text captures of every screen are in [docs/screens](docs/screens/README.md).
+![A chat in lt: the chat list, a transcript where @coder streams its reply after two file tool calls, @reviewer thinking, and the composer](assets/screens/chat.svg)
+
+Text captures of every screen are in [docs/screens](docs/screens/README.md);
+images of a few (also [agents](assets/screens/agents.svg),
+[help](assets/screens/help.svg) and [first run](assets/screens/onboarding.svg))
+are in [assets/screens](assets/screens), rendered from the demo by
+`cargo run --example screenshots`.
 
 The default keys (all can be rebound, see [Configure](#configure)):
 
