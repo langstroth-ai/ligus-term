@@ -2,7 +2,7 @@
 //!
 //! The UI talks only to [`Backend`]: async calls for reads and actions, plus
 //! one [`Event`] stream for everything that happens on its own (a message
-//! arriving, an agent streaming a reply, someone typing, a proposal changing,
+//! arriving, an agent streaming a reply, a proposal changing,
 //! a passkey prompt). Today [`fake::FakeBackend`] implements it in memory; the
 //! real implementation wraps the Ligus crates (`docs/ARCHITECTURE.md`).
 //!
@@ -70,11 +70,13 @@ pub enum Event {
         message: MessageId,
         call: ToolCall,
     },
-    /// Someone (or an agent, before its first token) is typing or thinking.
-    Typing {
+    /// An agent this device runs is working on a reply (before its first
+    /// token). `agent` is its handle with the `@`. People's typing and
+    /// online presence are deliberately not part of `lt`.
+    Thinking {
         workspace: WorkspaceId,
         chat: ChatId,
-        who: String,
+        agent: String,
         on: bool,
     },
     ChatsChanged {

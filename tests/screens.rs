@@ -101,8 +101,7 @@ async fn chat_streaming_reply() {
     let mut h = demo().await;
     let ws = WorkspaceId::new("ws-apiary");
     let chat = ChatId::new("c-log");
-    h.send(Msg::Event(Event::Typing { workspace: ws.clone(), chat: chat.clone(), who: "@reviewer".into(), on: true })).await;
-    h.send(Msg::Event(Event::Typing { workspace: ws.clone(), chat: chat.clone(), who: "Lin".into(), on: true })).await;
+    h.send(Msg::Event(Event::Thinking { workspace: ws.clone(), chat: chat.clone(), agent: "@reviewer".into(), on: true })).await;
     let message = Message {
         id: MessageId::new("s1"),
         chat: chat.clone(),

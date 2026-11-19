@@ -191,7 +191,7 @@ pub fn parse_diff(text: &str) -> Diff {
 }
 
 /// The workspace's members for `me`, with what `me` may do to each.
-pub fn members(config: &ChatSession, roster: &RosterState, me: &str, online: &dyn Fn(&str) -> bool) -> Vec<Member> {
+pub fn members(config: &ChatSession, roster: &RosterState, me: &str) -> Vec<Member> {
     config
         .members
         .iter()
@@ -221,7 +221,6 @@ pub fn members(config: &ChatSession, roster: &RosterState, me: &str, online: &dy
                 founder: !roster.founder.is_empty() && roster.founder == m.id,
                 service: m.actor.kind == ActorKind::Service,
                 you,
-                online: you || online(&m.id),
                 can_remove,
                 can_set_role,
             }

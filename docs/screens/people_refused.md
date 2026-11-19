@@ -5,8 +5,8 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ```text
 [AT] [QR] queen-rearing · viewer │ Chats  Proposals  Agents  Hosts  People  Notifications 1  Settings
 ┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Member ──────────────────────────────────────────────────╮
-┃● Jo  owner  founder                            ┃│Jo  owner                                                 │
-┃● Mara · you  viewer                            ┃│                                                          │
+┃  Jo  owner  founder                            ┃│Jo  owner                                                 │
+┃  Mara · you  viewer                            ┃│                                                          │
 ┃                                                ┃│Founder: nobody can remove or demote them.                │
 ┃                                                ┃│Role (r)                                                  │
 ┃                                                ┃│  (•) owner                                               │

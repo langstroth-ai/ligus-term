@@ -71,7 +71,6 @@ struct MemberRec {
     role: Role,
     founder: bool,
     service: bool,
-    online: bool,
 }
 
 struct World {
@@ -230,7 +229,6 @@ impl FakeBackend {
                 founder: m.founder,
                 service: m.service,
                 you: m.id == w.you,
-                online: m.online,
                 can_remove: refusal(me.as_ref(), m, None),
                 can_set_role: Role::ALL.iter().map(|&r| (r, refusal(me.as_ref(), m, Some(r)))).collect(),
             })
@@ -242,7 +240,7 @@ impl FakeBackend {
         let me = self.clone();
         tokio::spawn(async move {
             let who = format!("@{}", agent.handle);
-            me.emit(Event::Typing { workspace: ws.clone(), chat: chat.clone(), who: who.clone(), on: true });
+            me.emit(Event::Thinking { workspace: ws.clone(), chat: chat.clone(), agent: who.clone(), on: true });
             tokio::time::sleep(me.cfg.stream_delay * 4).await;
             let (msg, files_proposal, your_name) = {
                 let mut w = me.lock();
@@ -264,7 +262,7 @@ impl FakeBackend {
                 let files = ["fix", "change", "add", "propose", "refactor"].iter().any(|k| lower.contains(k));
                 (m, files, w.your_name.clone().unwrap_or_else(|| "you".into()))
             };
-            me.emit(Event::Typing { workspace: ws.clone(), chat: chat.clone(), who, on: false });
+            me.emit(Event::Thinking { workspace: ws.clone(), chat: chat.clone(), agent: who, on: false });
             me.emit(Event::MessageAdded { workspace: ws.clone(), message: msg.clone() });
             let call = ToolCall { name: "read_file".into(), preview: "src/inspections.rs".into(), ok: true };
             me.emit(Event::ToolActivity { workspace: ws.clone(), chat: chat.clone(), message: msg.id.clone(), call: call.clone() });
@@ -438,8 +436,8 @@ fn runtime(id: &str, kind: RuntimeKind, model: Option<&str>, configured: bool, a
     Runtime { id: RuntimeId::new(id), label: kind.label().into(), kind, model: model.map(Into::into), configured, active }
 }
 
-fn member(id: &str, name: &str, role: Role, founder: bool, service: bool, online: bool) -> MemberRec {
-    MemberRec { id: MemberId::new(id), name: name.into(), role, founder, service, online }
+fn member(id: &str, name: &str, role: Role, founder: bool, service: bool) -> MemberRec {
+    MemberRec { id: MemberId::new(id), name: name.into(), role, founder, service }
 }
 
 fn msg(id: &str, chat: &str, author: Author, text: &str, at: Millis) -> Message {
@@ -550,11 +548,11 @@ fn seed_apiary(w: &mut World) {
         ..Ws::default()
     };
     ws.members = vec![
-        member("m-you", "Mara", Role::Owner, true, false, true),
-        member("m-ada", "Ada", Role::Admin, false, false, true),
-        member("m-lin", "Lin", Role::Contributor, false, false, false),
-        member("m-sam", "Sam", Role::Viewer, false, false, false),
-        member("m-sff", "sff box", Role::Contributor, false, true, true),
+        member("m-you", "Mara", Role::Owner, true, false),
+        member("m-ada", "Ada", Role::Admin, false, false),
+        member("m-lin", "Lin", Role::Contributor, false, false),
+        member("m-sam", "Sam", Role::Viewer, false, false),
+        member("m-sff", "sff box", Role::Contributor, false, true),
     ];
     ws.runtimes = vec![
         runtime("claude-code", RuntimeKind::ClaudeCode, Some("default"), true, true),
@@ -743,7 +741,7 @@ fn seed_queens(w: &mut World) {
         }),
         ..Ws::default()
     };
-    ws.members = vec![member("m-jo", "Jo", Role::Owner, true, false, true), member("m-you", "Mara", Role::Viewer, false, false, true)];
+    ws.members = vec![member("m-jo", "Jo", Role::Owner, true, false), member("m-you", "Mara", Role::Viewer, false, false)];
     ws.runtimes = vec![runtime("claude-code", RuntimeKind::ClaudeCode, None, true, true)];
     ws.agents = vec![agent("a-primary", "primary", "claude-code", None, None)];
     ws.hosts = vec![Host {
@@ -824,14 +822,7 @@ impl Backend for FakeBackend {
         let chat_id = ChatId::new(w.next("c-"));
         let ws = Ws {
             summary: Some(summary.clone()),
-            members: vec![MemberRec {
-                id: you,
-                name: your_name.trim().into(),
-                role: Role::Owner,
-                founder: true,
-                service: false,
-                online: true,
-            }],
+            members: vec![MemberRec { id: you, name: your_name.trim().into(), role: Role::Owner, founder: true, service: false }],
             runtimes: vec![runtime("claude-code", RuntimeKind::ClaudeCode, None, true, true)],
             agents: vec![agent("a-primary", "primary", "claude-code", None, Some("answers untagged messages"))],
             hosts: vec![Host {
@@ -882,8 +873,8 @@ impl Backend for FakeBackend {
         let ws = Ws {
             summary: Some(summary.clone()),
             members: vec![
-                member("m-inviter", "Inviter", Role::Owner, true, false, true),
-                MemberRec { id: you, name: your_name.trim().into(), role: Role::Contributor, founder: false, service: false, online: true },
+                member("m-inviter", "Inviter", Role::Owner, true, false),
+                MemberRec { id: you, name: your_name.trim().into(), role: Role::Contributor, founder: false, service: false },
             ],
             agents: vec![agent("a-primary", "primary", "claude-code", None, None)],
             runtimes: vec![runtime("claude-code", RuntimeKind::ClaudeCode, None, true, true)],
@@ -1306,7 +1297,7 @@ mod tests {
         let mut saw_typing = false;
         loop {
             match ev.next().await.unwrap() {
-                Event::Typing { on: true, who, .. } => saw_typing = who == "@coder",
+                Event::Thinking { on: true, agent, .. } => saw_typing = agent == "@coder",
                 Event::MessageDelta { delta, .. } => deltas.push_str(&delta),
                 Event::ProposalChanged { proposal, .. } => {
                     assert_eq!(proposal.title, "Tighten the varroa threshold check");
@@ -1328,8 +1319,8 @@ mod tests {
         b.send_message(&ws(), &ChatId::new("c-notes"), "@Ada thoughts?").await.unwrap();
         b.send_message(&ws(), &ChatId::new("c-notes"), "what's next").await.unwrap();
         loop {
-            if let Event::Typing { on: true, who, .. } = ev.next().await.unwrap() {
-                assert_eq!(who, "@primary");
+            if let Event::Thinking { on: true, agent, .. } = ev.next().await.unwrap() {
+                assert_eq!(agent, "@primary");
                 break;
             }
         }

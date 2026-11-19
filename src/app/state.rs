@@ -230,8 +230,8 @@ pub struct State {
     pub transcript: Vec<Message>,
     /// Rows scrolled up from the bottom of the transcript.
     pub transcript_scroll: usize,
-    /// Who is typing, per chat.
-    pub typing: HashMap<ChatId, BTreeSet<String>>,
+    /// Which agents are working on a reply, per chat.
+    pub thinking: HashMap<ChatId, BTreeSet<String>>,
     pub composer: TextBuf,
     /// Drafts kept per chat when switching.
     pub drafts: HashMap<ChatId, String>,
@@ -285,7 +285,7 @@ impl State {
             open_chat: None,
             transcript: vec![],
             transcript_scroll: 0,
-            typing: HashMap::new(),
+            thinking: HashMap::new(),
             composer: TextBuf::multi(),
             drafts: HashMap::new(),
             mentionables: vec![],

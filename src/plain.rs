@@ -73,11 +73,8 @@ pub fn event_line(e: &Event, names: &dyn Fn(&WorkspaceId) -> String) -> Option<S
         Event::MessageDone { error: Some(e), chat, .. } => format!("error\t{chat}\t{}", esc(e)),
         Event::MessageDone { .. } => return None,
         Event::ToolActivity { chat, call, .. } => format!("tool\t{chat}\t{}\t{}", esc(&call.name), esc(&call.preview)),
-        Event::Typing { chat, who, on: true, .. } => {
-            let verb = if who.starts_with('@') { "is thinking" } else { "is typing" };
-            format!("typing\t{chat}\t{}\t{verb}", esc(who))
-        }
-        Event::Typing { .. } => return None,
+        Event::Thinking { chat, agent, on: true, .. } => format!("thinking\t{chat}\t{}", esc(agent)),
+        Event::Thinking { .. } => return None,
         Event::ProposalChanged { proposal: p, .. } => {
             format!("proposal-changed\t{}\t{}\t{}/{}\t{}", p.id, p.status.label(), p.approvals, p.quorum, esc(&p.title))
         }
@@ -605,7 +602,7 @@ mod tests {
             run_script(FakeBackend::demo(FakeConfig::instant()), "chats\nopen 1\nsay @coder fix it\nwait 5\nproposals\nmembers\n").await;
         assert!(out.contains("chat\t1\tc-log\tInspection log refactor\tunread mentioned"), "{out}");
         assert!(out.contains("message\tApiary Tracker\tc-log\tAda\tThe inspection log stores raw mite counts."), "{out}");
-        assert!(out.contains("typing\tc-log\t@coder\tis thinking"), "{out}");
+        assert!(out.contains("thinking\tc-log\t@coder"), "{out}");
         assert!(out.contains("message\tApiary Tracker\tc-log\t@coder\tLooked at the inspection log."), "{out}");
         assert!(out.contains("Tighten the varroa threshold check"), "{out}");
         assert!(out.contains("member\t4\tm-sam\tSam\tviewer\t\tremove: allowed"), "{out}");

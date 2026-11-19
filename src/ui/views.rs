@@ -138,8 +138,7 @@ pub fn people(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         .members
         .iter()
         .map(|m| {
-            let dot = if m.online { Span::styled("● ", t.fg(t.good)) } else { Span::styled("○ ", t.dim()) };
-            let mut spans = vec![dot, Span::styled(m.name.clone(), t.text().add_modifier(Modifier::BOLD))];
+            let mut spans = vec![Span::raw("  "), Span::styled(m.name.clone(), t.text().add_modifier(Modifier::BOLD))];
             if m.you {
                 spans.push(Span::styled(" · you", t.dim()));
             }

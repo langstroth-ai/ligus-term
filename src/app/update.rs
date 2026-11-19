@@ -361,13 +361,13 @@ fn event(s: &mut State, e: Event) -> Vec<Effect> {
             }
             vec![]
         }
-        Event::Typing { workspace, chat, who, on } => {
+        Event::Thinking { workspace, chat, agent, on } => {
             if is_active(s, &workspace) {
-                let set = s.typing.entry(chat).or_default();
+                let set = s.thinking.entry(chat).or_default();
                 if on {
-                    set.insert(who);
+                    set.insert(agent);
                 } else {
-                    set.remove(&who);
+                    set.remove(&agent);
                 }
             }
             vec![]

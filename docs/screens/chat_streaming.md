@@ -30,7 +30,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                              ┃│                                                                            │
 ┃                              ┃│                                                                            │
 ┃                              ┃╰────────────────────────────────────────────────────────────────────────────╯
-┃                              ┃ @reviewer is thinking…  Lin is typing…
+┃                              ┃ @reviewer is thinking…
 ┃                              ┃╭ Message the room ──────────────────────────────────────────────────────────╮
 ┃                              ┃│i to write · @ mentions an agent or a person                                │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────────────────╯

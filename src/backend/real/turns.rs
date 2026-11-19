@@ -222,7 +222,7 @@ async fn run_turn(inner: &Arc<Inner>, plan: &Plan) -> Result<()> {
     let who = agent.as_ref().map(|a| format!("@{}", a.name)).unwrap_or_else(|| "@primary".into());
     let wsid = crate::backend::model::WorkspaceId::new(ws.to_string());
     let chat = crate::backend::model::ChatId::new(sid.to_string());
-    inner.emit(Event::Typing { workspace: wsid.clone(), chat: chat.clone(), who: who.clone(), on: true });
+    inner.emit(Event::Thinking { workspace: wsid.clone(), chat: chat.clone(), agent: who.clone(), on: true });
     let prepared = blocking(inner, move |i| {
         let (rt, rt_id) = runtime_for(i, ws, &runtime_id)?;
         let author = agent.as_ref().map(|a| a.name.clone()).unwrap_or_else(|| "Hive".into());
@@ -254,7 +254,7 @@ async fn run_turn(inner: &Arc<Inner>, plan: &Plan) -> Result<()> {
         Ok((rt, policy, turns, system, mid, placeholder))
     })
     .await;
-    inner.emit(Event::Typing { workspace: wsid.clone(), chat: chat.clone(), who, on: false });
+    inner.emit(Event::Thinking { workspace: wsid.clone(), chat: chat.clone(), agent: who, on: false });
     let (rt, policy, turns, system, mid, placeholder) = prepared?;
     // Stream to the UI as the model answers; the log gets the same text
     // (redacted, a little behind) through `append_chunk`.

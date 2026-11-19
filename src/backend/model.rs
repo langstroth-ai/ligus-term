@@ -212,7 +212,6 @@ pub struct Member {
     /// A service member (a box).
     pub service: bool,
     pub you: bool,
-    pub online: bool,
     /// What you may do to this member; refused actions carry the reason.
     pub can_remove: Allowed,
     /// One entry per role, in [`Role::ALL`] order.

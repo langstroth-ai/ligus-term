@@ -229,11 +229,11 @@ fn mention_popup_filters_completes_and_dismisses() {
 }
 
 #[test]
-fn streaming_events_build_the_reply_and_typing_set() {
+fn streaming_events_build_the_reply_and_thinking_set() {
     let mut s = main_state();
     let (w, c) = (WorkspaceId::new("a"), ChatId::new("c1"));
-    update(&mut s, Msg::Event(Event::Typing { workspace: w.clone(), chat: c.clone(), who: "@coder".into(), on: true }));
-    assert!(s.typing[&c].contains("@coder"));
+    update(&mut s, Msg::Event(Event::Thinking { workspace: w.clone(), chat: c.clone(), agent: "@coder".into(), on: true }));
+    assert!(s.thinking[&c].contains("@coder"));
     let m = Message {
         id: MessageId::new("m"),
         chat: c.clone(),
@@ -251,10 +251,10 @@ fn streaming_events_build_the_reply_and_typing_set() {
         );
     }
     update(&mut s, Msg::Event(Event::MessageDone { workspace: w.clone(), chat: c.clone(), message: MessageId::new("m"), error: None }));
-    update(&mut s, Msg::Event(Event::Typing { workspace: w.clone(), chat: c.clone(), who: "@coder".into(), on: false }));
+    update(&mut s, Msg::Event(Event::Thinking { workspace: w.clone(), chat: c.clone(), agent: "@coder".into(), on: false }));
     assert_eq!(s.transcript[0].text, "a b");
     assert!(!s.transcript[0].streaming);
-    assert!(s.typing[&c].is_empty());
+    assert!(s.thinking[&c].is_empty());
     // A message in another chat marks it unread instead.
     let other = Message { id: MessageId::new("o"), chat: ChatId::new("c2"), ..s.transcript[0].clone() };
     s.chats[1].unread = false;
@@ -389,7 +389,6 @@ fn member(id: &str, role: Role, remove: Allowed, roles: Allowed) -> Member {
         founder: false,
         service: false,
         you: false,
-        online: true,
         can_remove: remove,
         can_set_role: Role::ALL
             .iter()

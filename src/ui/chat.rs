@@ -1,5 +1,5 @@
 //! The chat list, the transcript with streaming replies, the lockdown bar,
-//! who's typing, and the composer with its @mention popup.
+//! which agents are thinking, and the composer with its @mention popup.
 
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Position, Rect};
@@ -71,7 +71,7 @@ fn draw_main(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     let chat = s.open_chat_summary();
     let lock_h = if chat.is_some_and(|c| c.lockdown.is_some()) { 2 } else { 0 };
     let comp_lines = s.composer.lines().len().clamp(1, 6) as u16;
-    let [lock, transcript, typing, composer] =
+    let [lock, transcript, thinking, composer] =
         Layout::vertical([Constraint::Length(lock_h), Constraint::Min(3), Constraint::Length(1), Constraint::Length(comp_lines + 2)])
             .areas(area);
 
@@ -121,20 +121,12 @@ fn draw_main(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     }
 
     if let Some(c) = &s.open_chat {
-        let who: Vec<&String> = s.typing.get(c).map(|w| w.iter().collect()).unwrap_or_default();
-        let (agents, people): (Vec<&String>, Vec<&String>) = who.into_iter().partition(|w| w.starts_with('@'));
-        let mut parts = vec![];
-        for a in agents {
-            parts.push(format!("{a} is thinking…"));
-        }
-        match people.len() {
-            0 => {}
-            1 => parts.push(format!("{} is typing…", people[0])),
-            2 => parts.push(format!("{} and {} are typing…", people[0], people[1])),
-            _ => parts.push("Several people are typing…".into()),
-        }
+        let parts: Vec<String> = s.thinking.get(c).map(|w| w.iter().map(|a| format!("{a} is thinking…")).collect()).unwrap_or_default();
         if !parts.is_empty() {
-            f.render_widget(Paragraph::new(Line::styled(format!(" {}", parts.join("  ")), t.dim().add_modifier(Modifier::ITALIC))), typing);
+            f.render_widget(
+                Paragraph::new(Line::styled(format!(" {}", parts.join("  ")), t.dim().add_modifier(Modifier::ITALIC))),
+                thinking,
+            );
         }
     }
 

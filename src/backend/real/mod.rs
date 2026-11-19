@@ -542,7 +542,7 @@ impl Backend for RealBackend {
     async fn join_workspace(&self, your_name: &str, invite: &str) -> Result<WorkspaceSummary> {
         let mut conn = decode_workspace_invite(invite).map_err(BackendError)?;
         if conn.dm_account.is_some() {
-            return err("that's a direct-message invite; lt doesn't open direct messages yet");
+            return err("that's a direct-message invite; lt doesn't do direct messages (open it in the Ligus app)");
         }
         if let Some(problem) = invite_relay_problem(&conn.relay_url) {
             return Err(BackendError(problem));
@@ -853,7 +853,7 @@ impl Backend for RealBackend {
             let founder = i.founder(ws);
             let (config, timeline) = i.read(ws, |svc| Ok(svc.store().load_config(ws, founder.as_deref(), None)?))?;
             let Some(config) = config else { return Ok(Vec::new()) };
-            Ok(views::members(&config, timeline.current(), &me, &|_| false))
+            Ok(views::members(&config, timeline.current(), &me))
         })
         .await
     }
