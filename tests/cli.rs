@@ -96,3 +96,39 @@ fn first_run_opens_its_own_device_dir() {
         assert_eq!(std::fs::metadata(&dir).unwrap().permissions().mode() & 0o077, 0, "the data dir is owner-only");
     }
 }
+
+/// One-shot plain mode: one command, its records, and an exit code (0 ok,
+/// 1 an error, 2 an unknown command); a command needs --plain.
+#[test]
+fn one_shot_commands_exit_with_a_status() {
+    let (mut c, _home) = lt();
+    c.args(["--demo", "--plain", "runs"]);
+    let (code, out, _) = run(c, "");
+    assert_eq!(code, 0);
+    assert!(out.starts_with("run\t1\trun-7\tawaiting-gate\t"), "{out}");
+    assert!(!out.contains("ready\t"), "one-shot prints only the command's records: {out}");
+
+    let (mut c, _home) = lt();
+    c.args(["--demo", "--plain", "--workspace", "queen-rearing", "workflows"]);
+    let (code, out, _) = run(c, "");
+    assert_eq!((code, out.as_str()), (0, ""));
+
+    let (mut c, _home) = lt();
+    c.args(["--demo", "--plain", "--workspace", "nowhere", "runs"]);
+    assert_eq!(run(c, "").0, 1);
+
+    let (mut c, _home) = lt();
+    c.args(["--demo", "--plain", "gate", "2", "approve"]);
+    let (code, out, _) = run(c, "");
+    assert_eq!(code, 1, "{out}");
+
+    let (mut c, _home) = lt();
+    c.args(["--demo", "--plain", "frobnicate"]);
+    assert_eq!(run(c, "").0, 2);
+
+    let (mut c, _home) = lt();
+    c.args(["--demo", "runs"]);
+    let (code, _, err) = run(c, "");
+    assert_eq!(code, 2);
+    assert!(err.contains("lt --plain COMMAND"), "{err}");
+}
