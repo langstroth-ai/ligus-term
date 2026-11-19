@@ -524,18 +524,7 @@ fn fresh_out(file: Option<&std::path::Path>) -> std::result::Result<(), String> 
 
 /// Read a secret from `@FILE`: owner-only, small.
 pub fn read_secret_file(path: &str) -> std::result::Result<String, String> {
-    let meta = std::fs::metadata(path).map_err(|e| format!("reading {path}: {e}"))?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        if meta.permissions().mode() & 0o077 != 0 {
-            return Err(format!("others can read {path}: a key file must be owner-only (chmod 600 {path})"));
-        }
-    }
-    if meta.len() > 64 * 1024 {
-        return Err(format!("{path} is too big for a key"));
-    }
-    std::fs::read_to_string(path).map(|t| t.trim().to_string()).map_err(|e| format!("reading {path}: {e}"))
+    crate::backend::presence::read_owner_only(std::path::Path::new(path), 64 * 1024).map(|t| t.trim().to_string())
 }
 
 /// Where a new workspace's recovery words go: printed for a person at the

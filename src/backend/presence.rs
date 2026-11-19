@@ -323,20 +323,48 @@ pub async fn parse_submission<S: tokio::io::AsyncRead + Unpin>(stream: S, nonce:
     Ok(body)
 }
 
+/// Read a secret from a file: a regular file (never a FIFO or a device,
+/// which could block or stream forever), owner-only on Unix, and at most
+/// `max` bytes (never read into memory whole when it is bigger). A link is
+/// followed (a mounted secret is often one); the file opened is the one
+/// checked.
+pub fn read_owner_only(path: &Path, max: u64) -> Result<String, String> {
+    use std::io::Read;
+    let shown = path.display();
+    // Checked before opening: opening a FIFO for reading blocks.
+    let before = std::fs::metadata(path).map_err(|e| format!("reading {shown}: {e}"))?;
+    if !before.is_file() {
+        return Err(format!("{shown} isn't a regular file"));
+    }
+    let f = std::fs::File::open(path).map_err(|e| format!("reading {shown}: {e}"))?;
+    let meta = f.metadata().map_err(|e| format!("reading {shown}: {e}"))?;
+    if !meta.is_file() {
+        return Err(format!("{shown} isn't a regular file"));
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if meta.permissions().mode() & 0o077 != 0 {
+            return Err(format!("others can read {shown}: a secret file must be owner-only (chmod 600 it)"));
+        }
+    }
+    if meta.len() > max {
+        return Err(format!("{shown} is too big for a secret"));
+    }
+    let mut text = String::new();
+    f.take(max + 1).read_to_string(&mut text).map_err(|e| format!("reading {shown}: {e}"))?;
+    if text.len() as u64 > max {
+        return Err(format!("{shown} is too big for a secret"));
+    }
+    Ok(text)
+}
+
 /// Read a recovery-words file (the CLI's `--recovery-words-file`): 24
 /// whitespace-separated words. The real backend then checks the BIP-39
 /// checksum (`RecoveryKey::from_words`); this only checks the shape and
 /// that the file isn't readable by others.
 pub fn read_recovery_words_file(path: &Path) -> Result<Vec<String>, String> {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let meta = std::fs::metadata(path).map_err(|e| format!("reading {}: {e}", path.display()))?;
-        if meta.permissions().mode() & 0o077 != 0 {
-            return Err(format!("{} is readable by others: chmod 600 it first", path.display()));
-        }
-    }
-    let text = std::fs::read_to_string(path).map_err(|e| format!("reading {}: {e}", path.display()))?;
+    let text = read_owner_only(path, 4 * 1024)?;
     let words: Vec<String> = text.split_whitespace().map(|w| w.to_lowercase()).collect();
     if words.len() != 24 {
         return Err(format!("a recovery key is 24 words; {} has {}", path.display(), words.len()));
@@ -485,5 +513,32 @@ mod tests {
         assert_eq!(read_recovery_words_file(&p).unwrap().len(), 24);
         std::fs::write(&p, "one two").unwrap();
         assert!(read_recovery_words_file(&p).unwrap_err().contains("24 words"));
+    }
+
+    /// A secret file is read bounded, and only when it is a regular file: a
+    /// huge file isn't read into memory, a FIFO or a device never blocks or
+    /// streams forever.
+    #[cfg(unix)]
+    #[test]
+    fn secret_files_are_regular_owner_only_and_small() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let big = dir.path().join("big");
+        std::fs::File::create(&big).unwrap().set_len(256 * 1024 * 1024).unwrap();
+        std::fs::set_permissions(&big, std::fs::Permissions::from_mode(0o600)).unwrap();
+        assert!(read_recovery_words_file(&big).unwrap_err().contains("too big"));
+        assert!(crate::plain::read_secret_file(big.to_str().unwrap()).unwrap_err().contains("too big"));
+        let fifo = dir.path().join("fifo");
+        assert!(std::process::Command::new("mkfifo").arg("-m").arg("600").arg(&fifo).status().unwrap().success());
+        let (tx, rx) = std::sync::mpsc::channel();
+        let (f1, f2) = (fifo.clone(), fifo.clone());
+        std::thread::spawn(move || {
+            let a = read_recovery_words_file(&f1);
+            let b = crate::plain::read_secret_file(f2.to_str().unwrap());
+            let _ = tx.send((a, b));
+        });
+        let (a, b) = rx.recv_timeout(std::time::Duration::from_secs(3)).expect("reading a FIFO blocked");
+        assert!(a.unwrap_err().contains("regular file"));
+        assert!(b.unwrap_err().contains("regular file"));
     }
 }
