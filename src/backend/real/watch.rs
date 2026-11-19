@@ -193,6 +193,10 @@ fn diff(inner: &Inner, batch: HashMap<Uuid, (Uuid, bool)>) -> Vec<(Uuid, Uuid, U
         let before: HashMap<Uuid, (usize, bool)> = old.messages.iter().map(|(id, len, st)| (*id, (*len, *st))).collect();
         let mut any_new = false;
         for m in &s.messages {
+            // A superseded answer is hidden, as the transcript hides it.
+            if m.superseded {
+                continue;
+            }
             match before.get(&m.id) {
                 None => {
                     any_new = true;

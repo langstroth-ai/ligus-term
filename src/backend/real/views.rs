@@ -78,7 +78,7 @@ fn preview(json: &str) -> String {
 /// The transcript: chat rows only (proposal and tool records are their own
 /// views).
 pub fn transcript(s: &ChatSession) -> Vec<Message> {
-    s.messages.iter().map(|m| message(s, m)).collect()
+    s.messages.iter().filter(|m| !m.superseded).map(|m| message(s, m)).collect()
 }
 
 /// A proposal for `me`. `can_vote` is the backend's: an open proposal you
@@ -430,6 +430,29 @@ mod tests {
             d.files[1].hunks[0].lines,
             vec![DiffLine::Context("ctx".into()), DiffLine::Removed("old".into()), DiffLine::Added("new".into())]
         );
+    }
+
+    /// A superseded answer (the dispatcher kept another) is hidden from the
+    /// transcript, as the desktop hides it.
+    #[test]
+    fn the_transcript_hides_superseded_answers() {
+        use ligus_core::{ActorIdentity, ActorKind, ChatMessage, MessageRole, SigningKeypair};
+        use ligus_runtime::{ChatService, EventStore};
+        let author = ActorIdentity::new("ana".to_string(), "Ana".to_string(), ActorKind::Human);
+        let kp = SigningKeypair::generate().unwrap();
+        let account = SigningKeypair::generate().unwrap();
+        let mut svc = ChatService::new(EventStore::open_in_memory().unwrap(), kp, account, author);
+        let ws = Uuid::new_v4();
+        svc.ensure_workspace_config(ws).unwrap();
+        let chat = svc.create_chat("c", ws, "").unwrap();
+        let mut s = svc.load(chat.id).unwrap().unwrap();
+        let mut second = ChatMessage::new(MessageRole::Agent, "coder", "a second answer");
+        second.superseded = true;
+        s.messages.push(ChatMessage::new(MessageRole::Agent, "coder", "the answer"));
+        s.messages.push(second);
+        let shown: Vec<String> = transcript(&s).into_iter().map(|m| m.text).collect();
+        assert!(shown.contains(&"the answer".to_string()), "{shown:?}");
+        assert!(!shown.contains(&"a second answer".to_string()), "{shown:?}");
     }
 
     #[test]

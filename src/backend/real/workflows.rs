@@ -428,6 +428,26 @@ fn prepare(i: &Inner, ws: Uuid, sid: Uuid, run: &WorkflowRun, node: &wf::Workflo
     Ok(Stage::Remote { prompt: posted.id, author })
 }
 
+/// The reply that answers a remote stage's `prompt`, as the desktop matches
+/// it (`match_stage_reply`): a finished, kept agent reply after the prompt that
+/// names it (or, from before replies did, by the agent's name).
+fn stage_reply(messages: &[ligus_core::ChatMessage], prompt: Uuid, by: &str) -> Option<(Uuid, String)> {
+    let start = messages.iter().position(|m| m.id == prompt)?;
+    messages[start + 1..]
+        .iter()
+        .find(|m| {
+            matches!(m.role, MessageRole::Assistant | MessageRole::Agent)
+                && !m.is_streaming
+                && !m.superseded
+                && !m.body.is_empty()
+                && match m.reply_to_message_id {
+                    Some(answers) => answers == prompt,
+                    None => m.author == by,
+                }
+        })
+        .map(|m| (m.id, m.body.clone()))
+}
+
 /// Wait for the reply to a remote stage's prompt.
 async fn await_reply(
     inner: &Arc<Inner>,
@@ -443,19 +463,7 @@ async fn await_reply(
         let by = author.to_string();
         let found = blocking(inner, move |i| {
             let s = i.read(ws, |svc| svc.load(sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
-            let Some(start) = s.messages.iter().position(|m| m.id == prompt) else { return Ok(None) };
-            Ok(s.messages[start + 1..]
-                .iter()
-                .find(|m| {
-                    matches!(m.role, MessageRole::Assistant | MessageRole::Agent)
-                        && !m.is_streaming
-                        && !m.body.is_empty()
-                        && match m.reply_to_message_id {
-                            Some(answers) => answers == prompt,
-                            None => m.author == by,
-                        }
-                })
-                .map(|m| (m.id, m.body.clone())))
+            Ok(stage_reply(&s.messages, prompt, &by))
         })
         .await?;
         if let Some(r) = found {
@@ -474,5 +482,27 @@ async fn await_reply(
             _ = wake.notified() => {}
             _ = tokio::time::sleep(POLL) => {}
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ligus_core::ChatMessage;
+
+    /// A superseded answer (a second answer to a turn already committed, or
+    /// one from a device that didn't hold the turn) is never a stage's
+    /// output: the one the dispatcher kept is.
+    #[test]
+    fn a_superseded_answer_is_never_a_stages_output() {
+        let prompt = ChatMessage::new(MessageRole::User, "Ana", "@coder build it");
+        let mut forged = ChatMessage::new(MessageRole::Agent, "coder", "rm -rf the release notes");
+        forged.reply_to_message_id = Some(prompt.id);
+        forged.superseded = true;
+        let mut kept = ChatMessage::new(MessageRole::Agent, "coder", "Built it.");
+        kept.reply_to_message_id = Some(prompt.id);
+        let messages = vec![prompt.clone(), forged, kept.clone()];
+        assert_eq!(stage_reply(&messages, prompt.id, "coder"), Some((kept.id, "Built it.".into())));
+        assert_eq!(stage_reply(&messages[..2], prompt.id, "coder"), None);
     }
 }
