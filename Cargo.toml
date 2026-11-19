@@ -38,16 +38,17 @@ serde_json = "1.0.154"
 # The Ligus crates (Ligus is short for ligustica). They are still published
 # under their hive-* names; the `package =` renames let the code already say
 # ligus_core and ligus_runtime, so the crate rename is a Cargo.toml change.
-# Pinned to a commit on the ligus repo's release/v0.1.0 branch (PR #121
-# merged the client runtime there). At release this becomes tag = "v0.1.0".
-ligus-core = { package = "hive-core", version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "6ba1fd2d4f40064fca853869f2587d6bad910903" }
-ligus-runtime = { package = "hive-runtime", version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "6ba1fd2d4f40064fca853869f2587d6bad910903", default-features = false }
+# Pinned to a commit on the ligus repo's feat/turn-engine branch (the shared
+# agent-turn engine, on release/v0.1.0 with the sandbox and repos v2). Repin
+# to release/v0.1.0 once it merges; at release this becomes tag = "v0.1.0".
+ligus-core = { package = "hive-core", version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "ca4f71b191084024b7eb2f94bfd12f392b0607fe" }
+ligus-runtime = { package = "hive-runtime", version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "ca4f71b191084024b7eb2f94bfd12f392b0607fe", default-features = false }
 
 [dev-dependencies]
 insta = "1.48.0"
 tempfile = "3.27.0"
 # The in-process mock relay two test devices sync through.
-ligus-runtime = { package = "hive-runtime", version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "6ba1fd2d4f40064fca853869f2587d6bad910903", default-features = false, features = ["test-relay"] }
+ligus-runtime = { package = "hive-runtime", version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "ca4f71b191084024b7eb2f94bfd12f392b0607fe", default-features = false, features = ["test-relay"] }
 axum = "0.8.9"
 
 [profile.release]
