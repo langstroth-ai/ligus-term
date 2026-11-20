@@ -23,7 +23,8 @@ fn host_badge(s: &State, host: Option<&crate::backend::model::HostId>) -> (Strin
 }
 
 pub fn agents(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
-    let [top, ho, bottom] = Layout::vertical([Constraint::Percentage(50), Constraint::Length(5), Constraint::Min(4)]).areas(area);
+    let [top, us, ho, bottom] =
+        Layout::vertical([Constraint::Percentage(45), Constraint::Length(5), Constraint::Length(5), Constraint::Min(4)]).areas(area);
     let rows: Vec<Row> = s
         .agents
         .iter()
@@ -35,19 +36,36 @@ pub fn agents(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
                 AgentStatus::Offline => Span::styled("offline", t.dim()),
             };
             let doing = a.doing.clone().or_else(|| a.role.clone()).unwrap_or_default();
+            // Who may use it; an agent you may not use is dimmed, with why.
+            let (handle, access) = match &a.unavailable {
+                Some(why) => (Span::styled(format!("@{}", a.handle), t.dim()), Span::styled(why.clone(), t.dim())),
+                None => (
+                    Span::styled(format!("@{}", a.handle), t.fg(t.agent).add_modifier(Modifier::BOLD)),
+                    Span::styled(access_text(a), t.text()),
+                ),
+            };
             Row::new(vec![
-                Span::styled(format!("@{}", a.handle), t.fg(t.agent).add_modifier(Modifier::BOLD)),
+                handle,
                 status,
                 Span::styled(a.runtime.0.clone(), t.text()),
                 Span::styled(badge, if ok { t.fg(t.good) } else { t.fg(t.warn) }),
+                access,
                 Span::styled(doing, if a.doing.is_some() { t.text() } else { t.dim() }),
             ])
         })
         .collect();
-    let header = Row::new(vec!["Agent", "Status", "Runtime", "Runs on", "Doing"]).style(t.dim().add_modifier(Modifier::BOLD));
+    let header =
+        Row::new(vec!["Agent", "Status", "Runtime", "Runs on", "Who can use", "Doing"]).style(t.dim().add_modifier(Modifier::BOLD));
     let table = Table::new(
         rows,
-        [Constraint::Length(12), Constraint::Length(8), Constraint::Length(12), Constraint::Length(18), Constraint::Min(16)],
+        [
+            Constraint::Length(12),
+            Constraint::Length(8),
+            Constraint::Length(12),
+            Constraint::Length(18),
+            Constraint::Length(22),
+            Constraint::Min(12),
+        ],
     )
     .header(header)
     .block(pane("Agents", true, t))
@@ -99,6 +117,39 @@ pub fn agents(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             .collect()
     };
     f.render_widget(Paragraph::new(lines).block(pane("Hand-offs", false, t)), ho);
+    f.render_widget(Paragraph::new(usage_lines(s.agents.get(s.agent_sel.index), t)).block(pane("Usage on this device", false, t)), us);
+}
+
+/// "Everyone" or "Only its owner" (a shared agent: "Admins only").
+pub fn access_text(a: &crate::backend::model::Agent) -> String {
+    match (a.access.as_str(), a.shared) {
+        ("everyone", _) => "Everyone".into(),
+        (_, true) => "Admins only".into(),
+        (_, false) if a.can_manage => "Only me".into(),
+        _ => "Only its owner".into(),
+    }
+}
+
+/// The selected agent's usage on this device (its owner's to see): per
+/// member, turns and estimated cost, today and this month (UTC days).
+fn usage_lines<'a>(a: Option<&crate::backend::model::Agent>, t: &Theme) -> Vec<Line<'a>> {
+    let Some(a) = a else { return vec![] };
+    let Some(u) = &a.usage else {
+        return vec![Line::styled("Usage is shown to the agent's owner, on the device that runs it.", t.dim())];
+    };
+    let row = |label: &str, rows: &[crate::backend::model::UsageRow]| -> Line<'a> {
+        let text = if rows.is_empty() {
+            "none".to_string()
+        } else {
+            rows.iter().map(|r| format!("{}: {}", r.member, r.summary())).collect::<Vec<_>>().join(" · ")
+        };
+        Line::from(vec![Span::styled(format!("{label:<11}"), t.dim()), Span::styled(text, t.text())])
+    };
+    vec![
+        row(&format!("Today {}", u.day.get(5..).unwrap_or("")), &u.today),
+        row("This month", &u.month),
+        Line::styled("UTC days. Runtimes that report no token usage (most CLIs) count turns only.", t.dim()),
+    ]
 }
 
 pub fn hosts(f: &mut Frame, area: Rect, s: &State, t: &Theme) {

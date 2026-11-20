@@ -178,7 +178,15 @@ Anyone can approve or reject a gate, from `lt`, the desktop or the phone.
 
 Agents (`a`) lists each agent's status (busy, idle, offline), what it says
 it's doing, its runtime and its host, plus the runtimes and recent hand-offs
-between agents; `r` changes an agent's runtime. Hosts (`h`) lists this
+between agents; `r` changes an agent's runtime. "Who can use" shows each
+agent's access: a personal agent is "Only me" (its owner's) until its owner
+opens it to everyone with `E` (`lt --plain access N everyone|owner`); one
+you can't use is greyed out with the reason, and the @mention list shows it
+dimmed and won't complete it. For an agent you own, the usage pane shows
+this device's counts per member, today and this month (UTC days), with an
+estimated cost where the runtime reports token usage (most CLIs report none
+and count in turns only). A turn lt would run for someone the agent isn't
+open to is answered with a short note instead, and no model runs. Hosts (`h`) lists this
 device and the workers: online (from heartbeats) or last seen, busy or
 idle, and their agents. Memory (`y`) shows agents' live task state and the
 workspace memory, read-only.

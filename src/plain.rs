@@ -36,6 +36,7 @@ commands (N is a number from the last list, or an id):
   proposals            list proposals           diff N       print a proposal's diff
   approve N / reject N vote                     apply N [H]  apply on host H (default: first online worker)
   agents / runtimes / hosts / members / notifications / settings
+  access N everyone|owner  who can use agent N (yours: everyone, or only you)
   role M ROLE          change a member's role   remove M     remove a member
   invite               create an invite code    admit [REQUEST] [--out FILE]  admit a box (ligusjoin1:,
                        first prints its fingerprint to compare with the box before the passkey prompt;
@@ -158,6 +159,7 @@ const COMMANDS: &[&str] = &[
     "hosts",
     "members",
     "role",
+    "access",
     "remove",
     "invite",
     "admit",
@@ -1024,16 +1026,37 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                 for (i, x) in a.iter().enumerate() {
                     let host = x.host.as_ref().map(|h| h.0.clone()).unwrap_or_else(|| "this device".into());
                     say(format!(
-                        "agent\t{}\t@{}\t{}\t{}\t{}\t{}\t{}",
+                        "agent\t{}\t@{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
                         i + 1,
                         esc(&x.handle),
                         esc(&x.runtime),
                         esc(&host),
                         esc(x.role.as_deref().unwrap_or("agent")),
                         x.status.label(),
-                        esc(x.doing.as_deref().unwrap_or(""))
+                        esc(x.doing.as_deref().unwrap_or("")),
+                        esc(&x.access),
+                        esc(x.unavailable.as_ref().map(|r| format!("unavailable: {r}")).unwrap_or_else(|| "available".into())),
                     ))
                     .await;
+                    // This device's counts, for an agent you manage (UTC
+                    // days; a runtime reporting no usage counts turns only).
+                    if let Some(u) = &x.usage {
+                        for (period, rows) in [(u.day.as_str(), &u.today), ("month", &u.month)] {
+                            for r in rows {
+                                let cost = r.cost_micro_usd.map(|c| format!("{:.4}", c as f64 / 1_000_000.0)).unwrap_or_else(|| "-".into());
+                                say(format!(
+                                    "usage\t@{}\t{}\t{}\t{}\t{}\t{}",
+                                    esc(&x.handle),
+                                    esc(period),
+                                    esc(&r.member),
+                                    r.turns,
+                                    r.uncosted,
+                                    cost
+                                ))
+                                .await;
+                            }
+                        }
+                    }
                 }
             }
             Err(e) => fail(e.0).await,
@@ -1124,6 +1147,25 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
             };
             match r {
                 Ok(()) => say(format!("ok\t{cmd}\t{}", esc(&m.name))).await,
+                Err(e) => fail(e.0).await,
+            }
+        }
+        "access" => {
+            let Some(w) = ws.clone() else { return fail("no workspace yet: create NAME or join CODE".into()).await };
+            let mut parts = arg.split_whitespace();
+            let (which, to) = (parts.next().unwrap_or(""), parts.next().unwrap_or(""));
+            let everyone = match to {
+                "everyone" => true,
+                "owner" | "me" => false,
+                other => return fail(format!("unknown access {other} (everyone, owner)")).await,
+            };
+            let agents = match b.agents(&w).await {
+                Ok(a) => a,
+                Err(e) => return fail(e.0).await,
+            };
+            let Some(a) = pick(&agents, which, |a| a.handle.as_str()).cloned() else { return fail(format!("no agent {which}")).await };
+            match b.set_agent_access(&w, &a.id, everyone).await {
+                Ok(()) => say(format!("ok\taccess\t@{}\t{}", esc(&a.handle), if everyone { "everyone" } else { "owner" })).await,
                 Err(e) => fail(e.0).await,
             }
         }
@@ -1246,6 +1288,25 @@ mod tests {
         assert!(out.lines().any(|l| l.starts_with("proposal\t") && l.ends_with("\tgate")), "{out}");
         let (_, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "tasks").await;
         assert!(out.contains("task\tc-log\t@coder\tworking\t40\tactive\twiring the CSV export"), "{out}");
+    }
+
+    /// Agent access controls: each agent says who may use it and whether
+    /// you may; an agent you manage lists this device's counts.
+    #[tokio::test]
+    async fn agents_say_who_can_use_them_and_their_usage() {
+        let (code, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "agents").await;
+        assert_eq!(code, 0);
+        let coder = out.lines().find(|l| l.contains("\t@coder\t")).unwrap();
+        assert!(coder.ends_with("\towner\tavailable"), "{coder}");
+        assert!(out.lines().any(|l| l.ends_with("\teveryone\tavailable") && l.contains("@scout")), "{out}");
+        assert!(out.contains("usage\t@coder\t2026-11-20\tMara\t3\t0\t0.0120\n"), "{out}");
+        assert!(out.contains("usage\t@coder\tmonth\tBen\t2\t2\t-\n"), "{out}");
+        let (code, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "access coder everyone").await;
+        assert_eq!((code, out.as_str()), (0, "ok\taccess\t@coder\teveryone\n"));
+        let (code, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "access scout owner").await;
+        assert_eq!(code, 1, "only its owner: {out}");
+        let (code, _) = one_shot(FakeBackend::demo(FakeConfig::instant()), "access coder nobody").await;
+        assert_eq!(code, 1);
     }
 
     /// `run` starts a workflow and follows it to the end: exit 0 when it

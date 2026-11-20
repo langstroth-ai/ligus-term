@@ -181,6 +181,9 @@ pub struct Mentionable {
     pub handle: String,
     /// "Agent", "Everyone", "Default agent", or a member's role.
     pub kind: String,
+    /// An agent you may not use (agent access controls): why. Shown dimmed
+    /// and never completed.
+    pub unavailable: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -232,6 +235,50 @@ pub struct Agent {
     pub status: AgentStatus,
     /// What it says it is doing (its live task state), if anything.
     pub doing: Option<String>,
+    /// Who may use it: "owner" (only its owner; on a shared agent, Admins)
+    /// or "everyone".
+    pub access: String,
+    /// You may not use it: why.
+    pub unavailable: Option<String>,
+    /// You may change who may use it and see its usage (its owner; an
+    /// Admin on a shared agent).
+    pub can_manage: bool,
+    /// Its usage as this device counted it (only for an agent you manage).
+    pub usage: Option<AgentUsage>,
+}
+
+/// One agent's usage on this device: today and this month (UTC days).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct AgentUsage {
+    /// Today, `YYYY-MM-DD` (UTC).
+    pub day: String,
+    pub today: Vec<UsageRow>,
+    pub month: Vec<UsageRow>,
+}
+
+/// One member's use of an agent over a span of days.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UsageRow {
+    /// The member's name ("Unattributed" when no person could be traced).
+    pub member: String,
+    pub turns: u64,
+    /// Turns whose runtime reported no token usage (not in the cost).
+    pub uncosted: u64,
+    /// Estimated cost in millionths of a US dollar, when any turn reported
+    /// usage.
+    pub cost_micro_usd: Option<u64>,
+}
+
+impl UsageRow {
+    /// "3 turns, ~$0.0120" / "1 turn (no usage reported)".
+    pub fn summary(&self) -> String {
+        let turns = format!("{} turn{}", self.turns, if self.turns == 1 { "" } else { "s" });
+        match self.cost_micro_usd {
+            Some(c) if self.uncosted == 0 => format!("{turns}, ~${:.4}", c as f64 / 1_000_000.0),
+            Some(c) => format!("{turns}, ~${:.4} ({} without reported usage)", c as f64 / 1_000_000.0, self.uncosted),
+            None => format!("{turns} (no usage reported)"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

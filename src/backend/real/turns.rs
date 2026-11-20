@@ -96,10 +96,24 @@ fn gate(i: &Inner, ws: Uuid, sid: Uuid, trigger: Uuid, body: &str) -> Result<Gat
         }
         return Ok(Gate::None);
     }
+    if access_refusal(i, ws, sid, trigger, agent.as_ref())?.is_some() {
+        return Ok(Gate::None);
+    }
     if !i.write(ws, |svc| svc.claim_turn(sid, ws, trigger))? {
         return Ok(Gate::None);
     }
     Ok(Gate::Run(Plan { ws, sid, trigger, agent, runtime_id }))
+}
+
+/// Agent access controls (`ligus_runtime::agent_access`), checked by the
+/// device that would run the agent before it claims the turn: who may use
+/// it (every person behind the turn) and its daily budgets. A refused turn
+/// is answered with a short note in the agent's name (no model call, no
+/// claim) and the note is returned. The primary runtime always passes. The
+/// turn engine checks again before any model call.
+pub(crate) fn access_refusal(i: &Inner, ws: Uuid, sid: Uuid, trigger: Uuid, agent: Option<&WorkspaceAgent>) -> Result<Option<String>> {
+    let Some(a) = agent else { return Ok(None) };
+    Ok(i.write(ws, |svc| svc.gate_agent_turn(sid, ws, trigger, a.id))?.err())
 }
 
 /// The local-send gate: post the person's message, then decide whether this
@@ -134,6 +148,11 @@ pub fn arm_fallback(inner: Arc<Inner>, plan: Plan) {
             let Some((agent, runtime_id, _, host)) = responder(&s, target) else { return Ok(None) };
             let device = i.core()?.identity.device.id.to_string();
             if host_binding(&host, &device) == HostBinding::Elsewhere && i.host_online(ws, &host) {
+                return Ok(None);
+            }
+            // The fallback would run the agent on this device for whoever
+            // asked: someone else's personal agent is refused here too.
+            if access_refusal(i, ws, sid, trigger, agent.as_ref())?.is_some() {
                 return Ok(None);
             }
             if !i.write(ws, |svc| svc.claim_turn(sid, ws, trigger))? {
@@ -496,6 +515,9 @@ fn plan_handoff(i: &Inner, ws: Uuid, sid: Uuid, agent_id: Uuid, trigger: Uuid) -
     let Some(session) = session else { return Ok(None) };
     let Some(agent) = session.workspace_agents.iter().find(|a| a.id == agent_id).cloned() else { return Ok(None) };
     if !runs_here_linked(i.local_only(ws), &links, &session, &local, &agent.owner_actor_id, host_binding(&agent.host_id, &device)) {
+        return Ok(None);
+    }
+    if access_refusal(i, ws, sid, trigger, Some(&agent))?.is_some() {
         return Ok(None);
     }
     if !i.write(ws, |svc| svc.claim_turn(sid, ws, trigger))? {

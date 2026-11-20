@@ -419,6 +419,11 @@ fn prepare(i: &Inner, ws: Uuid, sid: Uuid, run: &WorkflowRun, node: &wf::Workflo
     let tag = format!("**[Workflow · {} → {}]**", run.definition.name, node.name);
     if here {
         let posted = i.write(ws, |svc| svc.post_workflow_stage_prompt(sid, ws, format!("{tag}\n\n{rendered}"), run.id))?;
+        // Agent access: the stage runs the agent for the run's initiator
+        // and its poster; refused, the stage fails with the note, unclaimed.
+        if let Some(note) = turns::access_refusal(i, ws, sid, posted.id, agent.as_ref())? {
+            return Err(BackendError(format!("stage '{}': {note}", node.name)));
+        }
         // Claimed, so no other device answers the stage's prompt.
         i.write(ws, |svc| svc.claim_turn(sid, ws, posted.id))?;
         return Ok(Stage::Local(Box::new(turns::Plan { ws, sid, trigger: posted.id, agent, runtime_id })));

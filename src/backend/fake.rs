@@ -588,6 +588,10 @@ fn agent(id: &str, handle: &str, runtime: &str, host: Option<&str>, role: Option
         shared: true,
         status: AgentStatus::Idle,
         doing: None,
+        access: "everyone".into(),
+        unavailable: None,
+        can_manage: false,
+        usage: None,
     }
 }
 
@@ -721,7 +725,21 @@ fn seed_apiary(w: &mut World) {
     ];
     ws.agents = vec![
         agent("a-primary", "primary", "claude-code", None, Some("answers untagged messages")),
-        agent("a-coder", "coder", "claude-code", Some("h-sff"), Some("implements proposals")),
+        Agent {
+            // Yours, "Only me", with this device's counts.
+            access: "owner".into(),
+            shared: false,
+            can_manage: true,
+            usage: Some(AgentUsage {
+                day: "2026-11-20".into(),
+                today: vec![UsageRow { member: "Mara".into(), turns: 3, uncosted: 0, cost_micro_usd: Some(12_000) }],
+                month: vec![
+                    UsageRow { member: "Mara".into(), turns: 41, uncosted: 0, cost_micro_usd: Some(180_000) },
+                    UsageRow { member: "Ben".into(), turns: 2, uncosted: 2, cost_micro_usd: None },
+                ],
+            }),
+            ..agent("a-coder", "coder", "claude-code", Some("h-sff"), Some("implements proposals"))
+        },
         agent("a-reviewer", "reviewer", "codex", None, Some("reviews diffs")),
         agent("a-scout", "scout", "ollama", Some("h-sff"), None),
     ];
@@ -1372,13 +1390,19 @@ impl Backend for FakeBackend {
         let mut w = self.lock();
         let ws = w.ws(workspace)?;
         let mut out = vec![
-            Mentionable { handle: "primary".into(), kind: "Default agent".into() },
-            Mentionable { handle: "all".into(), kind: "Everyone".into() },
+            Mentionable { handle: "primary".into(), kind: "Default agent".into(), unavailable: None },
+            Mentionable { handle: "all".into(), kind: "Everyone".into(), unavailable: None },
         ];
-        out.extend(
-            ws.agents.iter().filter(|a| a.handle != "primary").map(|a| Mentionable { handle: a.handle.clone(), kind: "Agent".into() }),
-        );
-        out.extend(ws.members.iter().map(|m| Mentionable { handle: m.name.replace(' ', ""), kind: m.role.label().into() }));
+        out.extend(ws.agents.iter().filter(|a| a.handle != "primary").map(|a| Mentionable {
+            handle: a.handle.clone(),
+            kind: "Agent".into(),
+            unavailable: a.unavailable.clone(),
+        }));
+        out.extend(ws.members.iter().map(|m| Mentionable {
+            handle: m.name.replace(' ', ""),
+            kind: m.role.label().into(),
+            unavailable: None,
+        }));
         Ok(out)
     }
 
@@ -1572,6 +1596,20 @@ impl Backend for FakeBackend {
 
     async fn hosts(&self, workspace: &WorkspaceId) -> Result<Vec<Host>> {
         Ok(self.lock().ws(workspace)?.hosts.clone())
+    }
+
+    async fn set_agent_access(&self, workspace: &WorkspaceId, agent: &AgentId, everyone: bool) -> Result<()> {
+        {
+            let mut w = self.lock();
+            let ws = w.ws(workspace)?;
+            let Some(a) = ws.agents.iter_mut().find(|a| &a.id == agent) else { return err("no such agent") };
+            if !a.can_manage {
+                return err("only the agent's owner changes who may use it");
+            }
+            a.access = if everyone { "everyone" } else { "owner" }.into();
+        }
+        self.emit(Event::AgentsChanged { workspace: workspace.clone() });
+        Ok(())
     }
 
     async fn set_agent_runtime(&self, workspace: &WorkspaceId, agent: &AgentId, runtime: &RuntimeId) -> Result<()> {

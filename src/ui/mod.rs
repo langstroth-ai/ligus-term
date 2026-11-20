@@ -143,7 +143,12 @@ fn draw_status(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             h(C::People, AdmitBox, "admit box"),
             h(C::Global, Help, "help"),
         ],
-        (View::Agents, _) => vec!["↑↓ agents".into(), h(C::Agents, ChangeRuntime, "runtime"), h(C::Global, Help, "help")],
+        (View::Agents, _) => vec![
+            "↑↓ agents".into(),
+            h(C::Agents, ChangeRuntime, "runtime"),
+            h(C::Agents, ToggleAccess, "who can use"),
+            h(C::Global, Help, "help"),
+        ],
         (View::Notifications, _) => {
             vec!["↑↓".into(), h(C::Nav, Select, "open"), h(C::Notifications, MarkAllRead, "mark all read"), h(C::Global, Help, "help")]
         }

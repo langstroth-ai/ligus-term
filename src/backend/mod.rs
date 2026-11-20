@@ -192,6 +192,9 @@ pub trait Backend: Send + Sync {
     async fn runtimes(&self, workspace: &WorkspaceId) -> Result<Vec<Runtime>>;
     async fn hosts(&self, workspace: &WorkspaceId) -> Result<Vec<Host>>;
     async fn set_agent_runtime(&self, workspace: &WorkspaceId, agent: &AgentId, runtime: &RuntimeId) -> Result<()>;
+    /// Who may use an agent: only its owner, or everyone (agent access
+    /// controls; its owner's to change, an Admin's on a shared agent).
+    async fn set_agent_access(&self, workspace: &WorkspaceId, agent: &AgentId, everyone: bool) -> Result<()>;
     /// Recent hand-offs between agents, newest first.
     async fn handoffs(&self, workspace: &WorkspaceId) -> Result<Vec<Handoff>>;
     /// The git checkout this device applies proposals in, for the workspace.

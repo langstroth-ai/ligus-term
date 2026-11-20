@@ -73,11 +73,21 @@ pub enum Effect {
     LoadMembers(WorkspaceId),
     LoadNotifications,
     LoadSettings,
-    CreateWorkspace { your_name: String, name: String },
-    JoinWorkspace { your_name: String, invite: String },
+    CreateWorkspace {
+        your_name: String,
+        name: String,
+    },
+    JoinWorkspace {
+        your_name: String,
+        invite: String,
+    },
     ConfirmRecovery(WorkspaceId),
     CreateChat(WorkspaceId, String),
-    Send { workspace: WorkspaceId, chat: ChatId, text: String },
+    Send {
+        workspace: WorkspaceId,
+        chat: ChatId,
+        text: String,
+    },
     MarkRead(WorkspaceId, ChatId),
     LockChat(WorkspaceId, ChatId),
     ClearLockdown(WorkspaceId, ChatId),
@@ -85,6 +95,8 @@ pub enum Effect {
     RequestApply(WorkspaceId, ProposalId, HostId),
     WithdrawApply(WorkspaceId, ProposalId),
     SetAgentRuntime(WorkspaceId, AgentId, RuntimeId),
+    /// Who may use an agent: everyone (`true`) or only its owner.
+    SetAgentAccess(WorkspaceId, AgentId, bool),
     SetRole(WorkspaceId, MemberId, Role),
     RemoveMember(WorkspaceId, MemberId),
     CreateInvite(WorkspaceId, Role),
@@ -92,7 +104,10 @@ pub enum Effect {
     SetSetting(SettingKey, bool),
     AnswerPresence(PresenceId, PresenceAnswer),
     InspectInvite(String),
-    ConnectDeployment { your_name: String, spec: DeploymentSpec },
+    ConnectDeployment {
+        your_name: String,
+        spec: DeploymentSpec,
+    },
     InspectJoinRequest(String),
     AdmitBox(WorkspaceId, Option<String>),
     LoadWorkflows(WorkspaceId),
@@ -1191,7 +1206,15 @@ fn main_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
                     return vec![];
                 }
                 KeyCode::Tab | KeyCode::Enter if k.modifiers.is_empty() => {
-                    let h = s.mention_candidates()[s.mention_sel.min(n - 1)].handle.clone();
+                    let c = s.mention_candidates()[s.mention_sel.min(n - 1)];
+                    // An agent you may not use isn't completed (agent
+                    // access controls): its reason instead.
+                    if let Some(why) = c.unavailable.clone() {
+                        let h = c.handle.clone();
+                        s.toast(ToastKind::Error, format!("@{h}: {why}"));
+                        return vec![];
+                    }
+                    let h = c.handle.clone();
                     s.composer.complete_mention(&h);
                     s.mention_sel = 0;
                     return vec![];
@@ -1405,6 +1428,16 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             }
             s.overlay = Some(Overlay::Invite { code: None });
             ws.map(|w| vec![Effect::CreateInvite(w, Role::Contributor)]).unwrap_or_default()
+        }
+        ToggleAccess => {
+            let Some(a) = s.agents.get(s.agent_sel.index) else { return vec![] };
+            if !a.can_manage {
+                let who = if a.shared { "an Admin" } else { "its owner" };
+                s.toast(ToastKind::Error, format!("Only {who} changes who can use @{}", a.handle));
+                return vec![];
+            }
+            let everyone = a.access != "everyone";
+            ws.map(|w| vec![Effect::SetAgentAccess(w, a.id.clone(), everyone)]).unwrap_or_default()
         }
         ChangeRuntime => {
             let Some(a) = s.agents.get(s.agent_sel.index) else { return vec![] };

@@ -103,9 +103,14 @@ fn main_state() -> State {
         Msg::Mentionables(
             WorkspaceId::new("a"),
             Ok(vec![
-                Mentionable { handle: "primary".into(), kind: "Default agent".into() },
-                Mentionable { handle: "coder".into(), kind: "Agent".into() },
-                Mentionable { handle: "Cora".into(), kind: "admin".into() },
+                Mentionable { handle: "primary".into(), kind: "Default agent".into(), unavailable: None },
+                Mentionable { handle: "coder".into(), kind: "Agent".into(), unavailable: None },
+                Mentionable { handle: "Cora".into(), kind: "admin".into(), unavailable: None },
+                Mentionable {
+                    handle: "corvid".into(),
+                    kind: "Agent".into(),
+                    unavailable: Some("Only its owner can use this agent".into()),
+                },
             ]),
         ),
     );
@@ -286,7 +291,7 @@ fn mention_popup_filters_completes_and_dismisses() {
     key(&mut s, KeyCode::Char('i'));
     typed(&mut s, "hey @c");
     let c: Vec<String> = s.mention_candidates().iter().map(|m| m.handle.clone()).collect();
-    assert_eq!(c, vec!["coder", "Cora"]);
+    assert_eq!(c, vec!["coder", "Cora", "corvid"]);
     key(&mut s, KeyCode::Down);
     key(&mut s, KeyCode::Tab);
     assert_eq!(s.composer.text, "hey @Cora ");
@@ -298,6 +303,23 @@ fn mention_popup_filters_completes_and_dismisses() {
     key(&mut s, KeyCode::Esc);
     assert!(s.mention_candidates().is_empty());
     assert_eq!(s.focus, Focus::Composer, "Esc closes the popup first");
+}
+
+/// Agent access controls: an agent you may not use is listed (dimmed, with
+/// why) but never completed.
+#[test]
+fn an_unavailable_agent_is_shown_but_never_completed() {
+    let mut s = main_state();
+    key(&mut s, KeyCode::Char('i'));
+    typed(&mut s, "hey @corv");
+    let c = s.mention_candidates();
+    assert_eq!(c.len(), 1);
+    assert_eq!(c[0].unavailable.as_deref(), Some("Only its owner can use this agent"));
+    assert!(key(&mut s, KeyCode::Tab).is_empty());
+    assert_eq!(s.composer.text, "hey @corv", "not completed");
+    assert!(s.toasts.last().unwrap().text.contains("Only its owner can use this agent"));
+    assert!(key(&mut s, KeyCode::Enter).is_empty(), "Enter neither completes nor sends");
+    assert_eq!(s.composer.text, "hey @corv");
 }
 
 #[test]

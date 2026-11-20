@@ -246,7 +246,16 @@ fn draw_mentions(f: &mut Frame, composer: Rect, s: &State, t: &Theme) {
     let items: Vec<ListItem> = c
         .iter()
         .map(|m| {
-            ListItem::new(Line::from(vec![Span::styled(format!("@{:<16}", m.handle), t.text()), Span::styled(m.kind.clone(), t.dim())]))
+            // An agent you may not use: dimmed, with why.
+            match &m.unavailable {
+                None => ListItem::new(Line::from(vec![
+                    Span::styled(format!("@{:<16}", m.handle), t.text()),
+                    Span::styled(m.kind.clone(), t.dim()),
+                ])),
+                Some(why) => {
+                    ListItem::new(Line::from(vec![Span::styled(format!("@{:<16}", m.handle), t.dim()), Span::styled(why.clone(), t.dim())]))
+                }
+            }
         })
         .collect();
     let list = List::new(items).block(pane("Mention", true, t)).highlight_style(t.selected());

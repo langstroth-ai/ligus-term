@@ -34,6 +34,13 @@ pub async fn serve(router: Router) -> String {
 
 /// An OpenAI-compatible model that streams one reply, word by word.
 pub async fn fake_model() -> String {
+    fake_model_counted().await.0
+}
+
+/// [`fake_model`], and how many requests it has had.
+pub async fn fake_model_counted() -> (String, Arc<std::sync::atomic::AtomicUsize>) {
+    let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let seen = calls.clone();
     let words = ["Hello ", "from ", "the ", "hive."];
     let body: String = words
         .iter()
@@ -44,12 +51,13 @@ pub async fn fake_model() -> String {
         "/v1/chat/completions",
         post(move || {
             let body = body.clone();
+            seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             async move {
                 axum::response::Response::builder().header("content-type", "text/event-stream").body(axum::body::Body::from(body)).unwrap()
             }
         }),
     );
-    format!("{}/v1/chat/completions", serve(router).await)
+    (format!("{}/v1/chat/completions", serve(router).await), calls)
 }
 
 /// Plays the system browser with a software passkey: reads the hand-off

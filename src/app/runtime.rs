@@ -49,6 +49,10 @@ pub async fn run_effect(b: Arc<dyn Backend>, fx: Effect) -> Msg {
         RequestApply(w, p, h) => Msg::ProposalUpdated(w.clone(), b.request_apply(&w, &p, &h).await),
         WithdrawApply(w, p) => Msg::ProposalUpdated(w.clone(), b.withdraw_apply(&w, &p).await),
         SetAgentRuntime(w, a, r) => done("Runtime changed", b.set_agent_runtime(&w, &a, &r).await),
+        SetAgentAccess(w, a, everyone) => done(
+            if everyone { "Everyone in the workspace can use it now" } else { "Only you can use it now" },
+            b.set_agent_access(&w, &a, everyone).await,
+        ),
         SetRole(w, m, r) => done("Role changed", b.set_role(&w, &m, r).await),
         RemoveMember(w, m) => done("Removed", b.remove_member(&w, &m).await),
         CreateInvite(w, r) => Msg::Invite(b.create_invite(&w, r).await),

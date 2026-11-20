@@ -30,7 +30,7 @@ const DIFF: &str = "diff --git a/hive.txt b/hive.txt\nnew file mode 100644\n--- 
 async fn two_devices_work_together_through_a_relay() {
     let tmp = tempfile::tempdir().unwrap();
     let relay = serve(ligus_runtime::test_relay::router()).await;
-    let model = fake_model().await;
+    let (model, calls) = fake_model_counted().await;
     let a = device(&tmp.path().join("ana"), "lt Ana", &relay);
     let b = device(&tmp.path().join("ben"), "lt Ben", &relay);
 
@@ -119,6 +119,32 @@ async fn two_devices_work_together_through_a_relay() {
     let chat = a.b.create_chat(&ws, "Varroa plan").await.unwrap();
     until("Ben to see the chat", || async { b.b.chats(&ws).await.unwrap().into_iter().find(|c| c.id == chat.id) }).await;
 
+    // ── Agent access: coder is Ana's personal agent, "Only me" by default.
+    // Ben sees it greyed out with the reason; his mention is answered by
+    // Ana's device (where it runs) with a short note, and no model runs.
+    let coder = a.b.agents(&ws).await.unwrap().into_iter().find(|x| x.handle == "coder").unwrap();
+    assert_eq!((coder.access.as_str(), coder.can_manage, coder.unavailable.clone()), ("owner", true, None));
+    assert!(coder.usage.is_some(), "its owner sees its usage");
+    let bens = until("Ben to see coder", || async { b.b.agents(&ws).await.unwrap().into_iter().find(|x| x.handle == "coder") }).await;
+    assert_eq!(bens.unavailable.as_deref(), Some("Only its owner can use this agent"));
+    assert!(!bens.can_manage && bens.usage.is_none());
+    let ment = b.b.mentionables(&ws).await.unwrap();
+    assert!(ment.iter().any(|m| m.handle == "coder" && m.unavailable.is_some()));
+    b.b.send_message(&ws, &chat.id, "@coder are you there?").await.unwrap();
+    until("the refusal on Ben's device", || async {
+        let t = b.b.transcript(&ws, &chat.id).await.unwrap();
+        t.into_iter().find(|m| m.text == "coder is only available to its owner." && !m.streaming)
+    })
+    .await;
+    assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0, "no model call for a refused turn");
+    assert!(b.b.set_agent_access(&ws, &coder.id, true).await.is_err(), "only its owner opens it");
+    // Ana opens it to everyone.
+    a.b.set_agent_access(&ws, &coder.id, true).await.unwrap();
+    until("Ben to see coder open", || async {
+        b.b.agents(&ws).await.unwrap().into_iter().find(|x| x.handle == "coder" && x.access == "everyone" && x.unavailable.is_none())
+    })
+    .await;
+
     // ── Relay-sync gate: Ben asks Ana's agent. Two people are here and the
     // agent is Ana's, so Ben's device defers and Ana's answers once the
     // message syncs to it. The reply streams back to Ben.
@@ -126,7 +152,9 @@ async fn two_devices_work_together_through_a_relay() {
     assert!(matches!(sent.author, Author::Member { ref name, .. } if name == "Ben"));
     let reply = until("the agent's reply on Ben's device", || async {
         let t = b.b.transcript(&ws, &chat.id).await.unwrap();
-        t.into_iter().find(|m| matches!(&m.author, Author::Agent { handle, .. } if handle == "coder") && !m.streaming)
+        t.into_iter().find(|m| {
+            matches!(&m.author, Author::Agent { handle, .. } if handle == "coder") && !m.streaming && m.text == "Hello from the hive."
+        })
     })
     .await;
     assert_eq!(reply.text, "Hello from the hive.");
@@ -143,16 +171,22 @@ async fn two_devices_work_together_through_a_relay() {
     })
     .await;
     assert!(a.saw(|e| matches!(e, Event::MessageDelta { .. })), "Ana's device streamed it");
-    let answers = b.b.transcript(&ws, &chat.id).await.unwrap().iter().filter(|m| matches!(m.author, Author::Agent { .. })).count();
+    let answers = b.b.transcript(&ws, &chat.id).await.unwrap().iter().filter(|m| m.text == "Hello from the hive.").count();
     assert_eq!(answers, 1, "answered once");
 
     // ── Local-send gate: Ana asks her own agent; her device answers at once.
     a.b.send_message(&ws, &chat.id, "@coder and again?").await.unwrap();
     until("the second reply", || async {
         let t = a.b.transcript(&ws, &chat.id).await.unwrap();
-        (t.iter().filter(|m| matches!(m.author, Author::Agent { .. }) && !m.streaming).count() == 2).then_some(())
+        (t.iter().filter(|m| matches!(m.author, Author::Agent { .. }) && !m.streaming && m.text == "Hello from the hive.").count() == 2)
+            .then_some(())
     })
     .await;
+    // Ana's device ran both turns and counted them: one each (UTC day).
+    let usage = a.b.agents(&ws).await.unwrap().into_iter().find(|x| x.handle == "coder").unwrap().usage.unwrap();
+    let turns = |who: &str| usage.today.iter().find(|r| r.member == who).map(|r| r.turns);
+    assert_eq!((turns("Ben"), turns("Ana")), (Some(1), Some(1)), "{usage:?}");
+    assert_eq!(usage.month.iter().map(|r| r.turns).sum::<u64>(), 2);
     // Human to human: nobody answers a message for Ana in a two-person room.
     b.b.send_message(&ws, &chat.id, "thanks @Ana").await.unwrap();
     until("Ana's mention notification", || async {

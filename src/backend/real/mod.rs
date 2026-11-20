@@ -733,17 +733,19 @@ impl Backend for RealBackend {
             let me = i.me();
             let config = i.read(ws, |svc| svc.load(workspace_config_session_id(ws)))?;
             let mut out = vec![
-                Mentionable { handle: "primary".into(), kind: "Default agent".into() },
-                Mentionable { handle: "all".into(), kind: "Everyone".into() },
+                Mentionable { handle: "primary".into(), kind: "Default agent".into(), unavailable: None },
+                Mentionable { handle: "all".into(), kind: "Everyone".into(), unavailable: None },
             ];
             if let Some(c) = config {
-                out.extend(c.workspace_agents.iter().map(|a| Mentionable { handle: a.name.clone(), kind: "Agent".into() }));
-                out.extend(
-                    c.members
-                        .iter()
-                        .filter(|m| m.id != me)
-                        .map(|m| Mentionable { handle: m.actor.display_name.clone(), kind: views::role(m.role).label().to_string() }),
-                );
+                for a in &c.workspace_agents {
+                    let unavailable = i.agent_access(ws, a, false)?.unavailable;
+                    out.push(Mentionable { handle: a.name.clone(), kind: "Agent".into(), unavailable });
+                }
+                out.extend(c.members.iter().filter(|m| m.id != me).map(|m| Mentionable {
+                    handle: m.actor.display_name.clone(),
+                    kind: views::role(m.role).label().to_string(),
+                    unavailable: None,
+                }));
             }
             Ok(out)
         })
@@ -843,7 +845,7 @@ impl Backend for RealBackend {
             let activity = i.activity(ws)?;
             let hosts = i.read(ws, |svc| svc.list_hosts(ws))?;
             let now = Timestamp::now();
-            Ok(activity
+            activity
                 .agents
                 .iter()
                 .map(|a| {
@@ -860,7 +862,8 @@ impl Backend for RealBackend {
                         let pct = t.progress.map(|p| format!(" {p}%")).unwrap_or_default();
                         format!("{}{pct}: {}", t.status, t.summary)
                     });
-                    Agent {
+                    let access = i.agent_access(ws, a, true)?;
+                    Ok(Agent {
                         id: AgentId::new(a.id.to_string()),
                         handle: a.name.clone(),
                         runtime: RuntimeId::new(a.runtime_id.clone()),
@@ -869,9 +872,13 @@ impl Backend for RealBackend {
                         shared: a.owner_actor_id.is_empty(),
                         status,
                         doing,
-                    }
+                        access: access.label,
+                        unavailable: access.unavailable,
+                        can_manage: access.can_manage,
+                        usage: access.usage,
+                    })
                 })
-                .collect())
+                .collect::<Result<Vec<_>>>()
         })
         .await
     }
@@ -925,6 +932,23 @@ impl Backend for RealBackend {
                     }
                 })
                 .collect())
+        })
+        .await
+    }
+
+    async fn set_agent_access(&self, workspace: &WorkspaceId, agent: &AgentId, everyone: bool) -> Result<()> {
+        let (ws, aid) = (ws_uuid(workspace)?, uuid_of(agent.as_str(), "agent")?);
+        self.call(move |i| {
+            let a = i
+                .read(ws, |svc| svc.load(workspace_config_session_id(ws)))?
+                .and_then(|c| c.workspace_agents.into_iter().find(|a| a.id == aid))
+                .ok_or_else(|| BackendError("no such agent".into()))?;
+            // Only who may use it changes; its budgets and notice stay.
+            let mut policy = a.policy();
+            policy.access = if everyone { ligus_core::agent::ACCESS_EVERYONE } else { ligus_core::agent::ACCESS_OWNER }.into();
+            i.write(ws, |svc| svc.set_agent_policy(ws, aid, policy))?;
+            i.emit(Event::AgentsChanged { workspace: WorkspaceId::new(ws.to_string()) });
+            Ok(())
         })
         .await
     }
@@ -1325,6 +1349,53 @@ impl Inner {
         Ok(Activity { me: self.me(), agents, busy, tasks })
     }
 
+    /// Agent access controls as this device's person sees `a`: who may use
+    /// it, whether they may (and why not), whether they manage it, and
+    /// (`usage`, for an agent they manage) this device's counts.
+    fn agent_access(&self, ws: Uuid, a: &ligus_core::WorkspaceAgent, usage: bool) -> Result<AgentAccessView> {
+        use ligus_runtime::agent_access::{access_label, availability, person_role};
+        self.read(ws, |svc| {
+            let local = svc.is_local_workspace(ws);
+            let links = svc.device_links(ws).unwrap_or_default();
+            let me = svc.author().id.clone();
+            let unavailable = if local {
+                None
+            } else {
+                let roster = svc.workspace_roster(ws).ok();
+                availability(a, &links, &me, person_role(roster.as_ref(), &links, links.person(&me)))
+            };
+            let can_manage = svc.may_manage_agent(ws, a);
+            let usage = if usage && can_manage {
+                let view = svc.agent_usage_view(a.id)?;
+                let config = svc.load(workspace_config_session_id(ws))?;
+                let name = |member: &str| -> String {
+                    if member.is_empty() {
+                        return "Unattributed".into();
+                    }
+                    config
+                        .as_ref()
+                        .and_then(|c| c.members.iter().find(|m| m.id == member || links.person(&m.id) == member))
+                        .map(|m| m.actor.display_name.clone())
+                        .unwrap_or_else(|| member.to_string())
+                };
+                let rows = |rows: &[ligus_runtime::event_store::AgentUsageRow]| -> Vec<UsageRow> {
+                    rows.iter()
+                        .map(|r| UsageRow {
+                            member: name(&r.member),
+                            turns: r.turns,
+                            uncosted: r.uncosted,
+                            cost_micro_usd: (r.turns > r.uncosted).then(|| (r.cost_usd * 1_000_000.0).round() as u64),
+                        })
+                        .collect()
+                };
+                Some(AgentUsage { day: view.day.clone(), today: rows(&view.today), month: rows(&view.month) })
+            } else {
+                None
+            };
+            Ok(AgentAccessView { label: access_label(a).to_string(), unavailable, can_manage, usage })
+        })
+    }
+
     /// The host an agent's turns run on: its bound host, else its owner's
     /// device when that is this device (empty: some other owner's device).
     fn agent_host(&self, a: &ligus_core::WorkspaceAgent, me: &str) -> String {
@@ -1380,6 +1451,14 @@ fn expand_home(p: &Path) -> PathBuf {
         (Ok(rest), Some(home)) => PathBuf::from(home).join(rest),
         _ => p.to_path_buf(),
     }
+}
+
+/// What [`Inner::agent_access`] returns.
+struct AgentAccessView {
+    label: String,
+    unavailable: Option<String>,
+    can_manage: bool,
+    usage: Option<AgentUsage>,
 }
 
 struct Activity {

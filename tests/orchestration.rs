@@ -504,6 +504,10 @@ async fn a_deferred_turn_nobody_answers_is_answered_here() {
         svc.add_workspace_runtime(wsu, rt).unwrap();
         let mut agent = WorkspaceAgent::new("coder", "gw");
         agent.owner_actor_id = svc.author().id.clone();
+        // Open to everyone: the fallback runs it for Ben on his device.
+        // `the_fallback_never_runs_someone_elses_personal_agent` covers the
+        // default.
+        agent.access = ligus_core::agent::ACCESS_EVERYONE.into();
         svc.add_agent(workspace_config_session_id(wsu), wsu, agent).unwrap();
     })
     .await;
@@ -557,6 +561,61 @@ async fn a_deferred_turn_nobody_answers_is_answered_here() {
     assert!(reply.at >= sent.at);
     // People's beats never became events: only agents think, nobody types.
     assert!(!b.saw(|e| matches!(e, Event::Thinking { agent, .. } if !agent.starts_with('@'))));
+    b.b.shutdown();
+}
+
+/// Agent access controls: the deferred-claim fallback would run the agent
+/// on the sender's device, for the sender. Someone else's personal agent
+/// ("Only me", the default) is refused there like anywhere: Ben's device
+/// answers with the note once the wait is over, and no model runs.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn the_fallback_never_runs_someone_elses_personal_agent() {
+    let tmp = tempfile::tempdir().unwrap();
+    let relay = serve(ligus_runtime::test_relay::router()).await;
+    let (model, calls) = fake_model_counted().await;
+    let a = device(&tmp.path().join("ana"), "lt Ana", &relay);
+    let b = device_with(&tmp.path().join("ben"), "lt Ben", &relay, |c| c.deferred_timeout = Duration::from_secs(2));
+    let created = a.b.create_workspace("Ana", "Bee Yard").await.unwrap();
+    let ws = created.workspace.id.clone();
+    let wsu = Uuid::parse_str(ws.as_str()).unwrap();
+    on_service(&a, move |svc| {
+        let mut rt = WorkspaceRuntime::new("gw", "Lab gateway", ModelProviderKind::Custom, "test-model");
+        rt.endpoint = model;
+        svc.add_workspace_runtime(wsu, rt).unwrap();
+        let mut agent = WorkspaceAgent::new("coder", "gw");
+        agent.owner_actor_id = svc.author().id.clone();
+        svc.add_agent(workspace_config_session_id(wsu), wsu, agent).unwrap();
+    })
+    .await;
+    let words = tmp.path().join("words.txt");
+    std::fs::write(&words, created.recovery_words.join(" ")).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&words, std::fs::Permissions::from_mode(0o600)).unwrap();
+    }
+    *a.words_file.lock().unwrap() = Some(words);
+    let invite = a.b.create_invite(&ws, Role::Contributor).await.unwrap();
+    b.b.join_workspace("Ben", &invite).await.unwrap();
+    let chat = a.b.create_chat(&ws, "Varroa").await.unwrap();
+    until("Ben to see the chat and the agent", || async {
+        let c = b.b.chats(&ws).await.unwrap().into_iter().any(|c| c.id == chat.id);
+        let ag = b.b.agents(&ws).await.unwrap().into_iter().any(|x| x.handle == "coder");
+        (c && ag).then_some(())
+    })
+    .await;
+    a.b.shutdown();
+    b.b.send_message(&ws, &chat.id, "@coder are the mites under 3?").await.unwrap();
+    let note = until("the refusal on Ben's device", || async {
+        let t = b.b.transcript(&ws, &chat.id).await.unwrap();
+        t.into_iter().find(|m| matches!(&m.author, Author::Agent { handle, .. } if handle == "coder") && !m.streaming)
+    })
+    .await;
+    assert_eq!(note.text, "coder is only available to its owner.");
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0, "no model call");
+    let t = b.b.transcript(&ws, &chat.id).await.unwrap();
+    assert_eq!(t.iter().filter(|m| matches!(m.author, Author::Agent { .. })).count(), 1, "answered once: {t:?}");
     b.b.shutdown();
 }
 
@@ -656,6 +715,7 @@ async fn the_fallback_re_resolves_its_responder_when_it_fires() {
         for name in ["coder", "scout"] {
             let mut agent = WorkspaceAgent::new(name, "gw");
             agent.owner_actor_id = svc.author().id.clone();
+            agent.access = ligus_core::agent::ACCESS_EVERYONE.into();
             agent.host_id = Uuid::new_v4().to_string();
             ids.push(agent.id);
             svc.add_agent(workspace_config_session_id(wsu), wsu, agent).unwrap();

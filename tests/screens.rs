@@ -295,6 +295,27 @@ async fn agents_and_runtimes() {
     snap("agents", "Agents and runtimes", h.screen(W, H));
 }
 
+/// Agent access controls: the agent you own shows this device's usage
+/// (per member, today and this month); `E` toggles who may use it.
+#[tokio::test]
+async fn agents_usage_and_who_can_use() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char('a')).await;
+    h.key(KeyCode::Down).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Mara: 3 turns, ~$0.0120"), "{screen}");
+    assert!(screen.contains("Ben: 2 turns (no usage reported)"), "{screen}");
+    assert!(screen.contains("count turns only"), "{screen}");
+    h.key(KeyCode::Char('E')).await;
+    let screen = h.screen(W, H);
+    assert!(screen.lines().any(|l| l.contains("@coder") && l.contains("Everyone")), "{screen}");
+    // Someone else's (here: shared, not yours to manage) is refused.
+    h.key(KeyCode::Down).await;
+    h.key(KeyCode::Char('E')).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Only an Admin changes who can use @reviewer") || screen.contains("Only its owner"), "{screen}");
+}
+
 #[tokio::test]
 async fn hosts() {
     let mut h = demo().await;
