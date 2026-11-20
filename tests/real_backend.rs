@@ -137,6 +137,15 @@ async fn two_devices_work_together_through_a_relay() {
     })
     .await;
     assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0, "no model call for a refused turn");
+    // The chat's primary runtime runs on Ana's device and account: Ben's
+    // `@ligus` is answered with a note there, and no model runs either.
+    b.b.send_message(&ws, &chat.id, "@ligus summarize this").await.unwrap();
+    until("the primary's refusal on Ben's device", || async {
+        let t = b.b.transcript(&ws, &chat.id).await.unwrap();
+        t.into_iter().find(|m| m.text.starts_with("Ligus in this chat runs on another member's device") && !m.streaming)
+    })
+    .await;
+    assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0, "no model call for a teammate's @ligus");
     assert!(b.b.set_agent_access(&ws, &coder.id, true).await.is_err(), "only its owner opens it");
     // Ana opens it to everyone.
     a.b.set_agent_access(&ws, &coder.id, true).await.unwrap();

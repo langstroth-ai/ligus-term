@@ -109,11 +109,16 @@ fn gate(i: &Inner, ws: Uuid, sid: Uuid, trigger: Uuid, body: &str) -> Result<Gat
 /// device that would run the agent before it claims the turn: who may use
 /// it (every person behind the turn) and its daily budgets. A refused turn
 /// is answered with a short note in the agent's name (no model call, no
-/// claim) and the note is returned. The primary runtime always passes. The
-/// turn engine checks again before any model call.
+/// claim) and the note is returned (at most one note per member and agent
+/// every few minutes; later refusals are silent). The chat's primary
+/// runtime runs on this device's credentials: in a shared room it answers
+/// only this device's person (lt has no setting to open it). The turn
+/// engine checks again before any model call.
 pub(crate) fn access_refusal(i: &Inner, ws: Uuid, sid: Uuid, trigger: Uuid, agent: Option<&WorkspaceAgent>) -> Result<Option<String>> {
-    let Some(a) = agent else { return Ok(None) };
-    Ok(i.write(ws, |svc| svc.gate_agent_turn(sid, ws, trigger, a.id))?.err())
+    match agent {
+        Some(a) => Ok(i.write(ws, |svc| svc.gate_agent_turn(sid, ws, trigger, a.id))?.err()),
+        None => Ok(i.write(ws, |svc| svc.gate_primary_turn(sid, ws, trigger, false))?.err()),
+    }
 }
 
 /// The local-send gate: post the person's message, then decide whether this

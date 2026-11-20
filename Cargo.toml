@@ -37,14 +37,14 @@ uuid = { version = "1.29.1", features = ["v4"] }
 serde_json = "1.0.154"
 # The Ligus crates (Ligus is short for ligustica), pinned to a commit of the
 # ligus repo's release/v0.1.0 branch. At release this becomes tag = "v0.1.0".
-ligus-core = { version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "b16c832ede6dbffc355ae75564f68e8471856e66" }
-ligus-runtime = { version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "b16c832ede6dbffc355ae75564f68e8471856e66", default-features = false }
+ligus-core = { version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "1fe404fff972b25dea17a9ed981916e3dec60412" }
+ligus-runtime = { version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "1fe404fff972b25dea17a9ed981916e3dec60412", default-features = false }
 
 [dev-dependencies]
 insta = "1.48.0"
 tempfile = "3.27.0"
 # The in-process mock relay two test devices sync through.
-ligus-runtime = { version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "b16c832ede6dbffc355ae75564f68e8471856e66", default-features = false, features = ["test-relay"] }
+ligus-runtime = { version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "1fe404fff972b25dea17a9ed981916e3dec60412", default-features = false, features = ["test-relay"] }
 axum = "0.8.9"
 
 [profile.release]

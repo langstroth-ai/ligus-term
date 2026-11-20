@@ -186,7 +186,11 @@ dimmed and won't complete it. For an agent you own, the usage pane shows
 this device's counts per member, today and this month (UTC days), with an
 estimated cost where the runtime reports token usage (most CLIs report none
 and count in turns only). A turn lt would run for someone the agent isn't
-open to is answered with a short note instead, and no model runs. Hosts (`h`) lists this
+open to is answered with a short note instead (at most one per member and
+agent every five minutes), and no model runs. The chat's primary runtime
+runs on this device's credentials, so in a chat with other people lt answers
+`@ligus` only for you. Opening an agent to everyone needs your passkey
+confirmation in a workspace on rules v2. Hosts (`h`) lists this
 device and the workers: online (from heartbeats) or last seen, busy or
 idle, and their agents. Memory (`y`) shows agents' live task state and the
 workspace memory, read-only.
