@@ -153,13 +153,13 @@ impl Device {
     }
 }
 
-/// Poll `f` until it returns `Some`, up to 30 s.
+/// Poll `f` until it returns `Some`, up to 60 s (only a hung test waits that long).
 pub async fn until<T, F, Fut>(what: &str, mut f: F) -> T
 where
     F: FnMut() -> Fut,
     Fut: std::future::Future<Output = Option<T>>,
 {
-    for _ in 0..300 {
+    for _ in 0..600 {
         if let Some(v) = f().await {
             return v;
         }

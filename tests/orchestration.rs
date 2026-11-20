@@ -17,6 +17,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
+/// The longest a test waits for a fallback's decision: only a hung test
+/// gets there.
+const SETTLE: Duration = Duration::from_secs(60);
+
 use ligus_core::workflow::{GateRejectPolicy, WorkflowDefinition, WorkflowNode, WorkflowNodeKind};
 use ligus_core::{ModelProviderKind, Timestamp, WorkspaceAgent, WorkspaceHost, WorkspaceRuntime, workspace_config_session_id};
 use ligus_runtime::box_admission::{self, JoinRequest};
@@ -25,6 +29,7 @@ use ligus_runtime::secret_store::StoreKeyVault;
 use ligus_runtime::workspace_invite::{WorkspaceConn, decode_workspace_invite, encode_workspace_invite};
 use ligus_runtime::{ChatService, EventStore, IdentityStore, RelayClient, StoredIdentity, SyncEngine};
 use ligus_term::backend::model::*;
+use ligus_term::backend::real::DeferredClock;
 use ligus_term::backend::{Backend, Event};
 use support::*;
 use uuid::Uuid;
@@ -494,7 +499,8 @@ async fn a_deferred_turn_nobody_answers_is_answered_here() {
     let relay = serve(ligus_runtime::test_relay::router()).await;
     let model = fake_model().await;
     let a = device(&tmp.path().join("ana"), "lt Ana", &relay);
-    let b = device_with(&tmp.path().join("ben"), "lt Ben", &relay, |c| c.deferred_timeout = Duration::from_secs(2));
+    let (clock, mut hand) = DeferredClock::manual();
+    let b = device_with(&tmp.path().join("ben"), "lt Ben", &relay, |c| c.deferred_clock = Some(clock));
     let created = a.b.create_workspace("Ana", "Bee Yard").await.unwrap();
     let ws = created.workspace.id.clone();
     let wsu = Uuid::parse_str(ws.as_str()).unwrap();
@@ -552,6 +558,9 @@ async fn a_deferred_turn_nobody_answers_is_answered_here() {
     tokio::time::sleep(Duration::from_millis(800)).await;
     let early = b.b.transcript(&ws, &chat.id).await.unwrap();
     assert!(!early.iter().any(|m| matches!(m.author, Author::Agent { .. })), "answered before the deferral ran out");
+    hand.fire();
+    let decided = tokio::time::timeout(SETTLE, hand.settled()).await.expect("the fallback never decided");
+    assert_eq!(decided, Some((sent.id.clone(), true)), "the fallback didn't claim the turn");
     let reply = until("the fallback reply on Ben's device", || async {
         let t = b.b.transcript(&ws, &chat.id).await.unwrap();
         t.into_iter().find(|m| matches!(&m.author, Author::Agent { handle, .. } if handle == "coder") && !m.streaming)
@@ -690,18 +699,17 @@ async fn a_held_workspace_is_never_rejoined_from_another_invite() {
 /// The deferred-claim fallback re-resolves who answers when it fires, as
 /// the desktop's does: an agent removed while the turn waited isn't run.
 ///
-/// Deterministic on a slow runner: the wait is long enough that the
-/// removal reaches Ben first (checked, not assumed), and a second agent's
-/// turn, armed at the same time and left in place, shows the fallback has
-/// fired before anything is asserted about the removed one.
+/// Deterministic: the fallback's wait is a hand-driven clock, fired only
+/// once the removal has reached Ben, and each fallback reports its decision
+/// (a second agent's turn, left in place, shows the fallback still answers).
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn the_fallback_re_resolves_its_responder_when_it_fires() {
-    const WAIT: Duration = Duration::from_secs(20);
     let tmp = tempfile::tempdir().unwrap();
     let relay = serve(ligus_runtime::test_relay::router()).await;
     let model = fake_model().await;
     let a = device(&tmp.path().join("ana"), "lt Ana", &relay);
-    let b = device_with(&tmp.path().join("ben"), "lt Ben", &relay, |c| c.deferred_timeout = WAIT);
+    let (clock, mut hand) = DeferredClock::manual();
+    let b = device_with(&tmp.path().join("ben"), "lt Ben", &relay, |c| c.deferred_clock = Some(clock));
     let created = a.b.create_workspace("Ana", "Bee Yard").await.unwrap();
     let ws = created.workspace.id.clone();
     let wsu = Uuid::parse_str(ws.as_str()).unwrap();
@@ -742,18 +750,24 @@ async fn the_fallback_re_resolves_its_responder_when_it_fires() {
     })
     .await;
 
-    let armed = tokio::time::Instant::now();
-    b.b.send_message(&ws, &chat.id, "@coder are the mites under 3?").await.unwrap();
-    b.b.send_message(&ws, &chat.id, "@scout any queen cells?").await.unwrap();
+    let to_coder = b.b.send_message(&ws, &chat.id, "@coder are the mites under 3?").await.unwrap();
+    let to_scout = b.b.send_message(&ws, &chat.id, "@scout any queen cells?").await.unwrap();
     // While the turns wait, Ana removes the coder.
     on_service(&a, move |svc| svc.remove_agent(workspace_config_session_id(wsu), wsu, coder).unwrap()).await;
     until("Ben to see the coder gone", || async { (!has(&b.b.agents(&ws).await.unwrap(), "coder")).then_some(()) }).await;
-    assert!(armed.elapsed() < WAIT, "the removal took longer than the fallback wait to reach Ben: nothing to test");
+    // The wait is over: both fallbacks fire and decide.
+    hand.fire();
+    let mut decided = std::collections::HashMap::new();
+    while decided.len() < 2 {
+        let (trigger, claimed) =
+            tokio::time::timeout(SETTLE, hand.settled()).await.expect("a fallback never decided").expect("the backend went away");
+        decided.insert(trigger, claimed);
+    }
+    assert_eq!(decided.get(&to_coder.id), Some(&false), "the fallback claimed a removed agent's turn");
+    assert_eq!(decided.get(&to_scout.id), Some(&true), "the fallback didn't claim the scout's turn");
     let agent_replies = |t: &[Message], h: &str| {
         t.iter().filter(|m| matches!(&m.author, Author::Agent { handle, .. } if handle == h)).cloned().collect::<Vec<_>>()
     };
-    // The scout's fallback fired (and the coder's, armed first, with it).
-    tokio::time::sleep(WAIT.saturating_sub(armed.elapsed())).await;
     until("the scout's fallback to answer", || async {
         let t = b.b.transcript(&ws, &chat.id).await.unwrap();
         agent_replies(&t, "scout").iter().any(|m| !m.streaming).then_some(())
@@ -762,6 +776,35 @@ async fn the_fallback_re_resolves_its_responder_when_it_fires() {
     let t = b.b.transcript(&ws, &chat.id).await.unwrap();
     assert!(agent_replies(&t, "coder").is_empty(), "a removed agent answered: {t:?}");
     a.b.shutdown();
+    b.b.shutdown();
+}
+
+/// An invite is redeemable as soon as it is handed out: lt puts its
+/// issuance on the relay before showing the code, so a joiner never races
+/// the sync loop, and a code printed just before lt exits (plain mode)
+/// works.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn an_invite_is_on_the_relay_before_its_code_is_shown() {
+    let tmp = tempfile::tempdir().unwrap();
+    let relay = serve(ligus_runtime::test_relay::router()).await;
+    // Ana's sync loop never runs a round of its own after the first.
+    let a = device_with(&tmp.path().join("ana"), "lt Ana", &relay, |c| c.sync_every = Duration::from_secs(3600));
+    let b = device(&tmp.path().join("ben"), "lt Ben", &relay);
+    let created = a.b.create_workspace("Ana", "Bee Yard").await.unwrap();
+    let words = tmp.path().join("words.txt");
+    std::fs::write(&words, created.recovery_words.join(" ")).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&words, std::fs::Permissions::from_mode(0o600)).unwrap();
+    }
+    *a.words_file.lock().unwrap() = Some(words);
+    let invite = a.b.create_invite(&created.workspace.id, Role::Contributor).await.unwrap();
+    // lt exits as soon as it has printed the code.
+    a.b.shutdown();
+    let joined = b.b.join_workspace("Ben", &invite).await.unwrap();
+    assert_eq!(joined.id, created.workspace.id);
+    assert_eq!(joined.your_role, Role::Contributor);
     b.b.shutdown();
 }
 

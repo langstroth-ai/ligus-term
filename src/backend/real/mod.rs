@@ -50,6 +50,7 @@ use super::{Backend, BackendError, Event, Result, err};
 use local::LocalState;
 pub use local::SECRET_SCOPE;
 use term_presence::{Provider, TermPresence};
+pub use turns::{DeferredClock, DeferredHand};
 
 /// The database file under the data dir (the CLI's name).
 pub const DB_FILE: &str = "ligus.db";
@@ -81,6 +82,9 @@ pub struct RealConfig {
     /// How long a turn deferred to its owner's device waits before this
     /// device may answer it (the deferred-claim fallback).
     pub deferred_timeout: Duration,
+    /// Tests: a hand-driven clock the deferred-claim fallback waits on
+    /// instead of `deferred_timeout`.
+    pub deferred_clock: Option<DeferredClock>,
 }
 
 impl RealConfig {
@@ -97,6 +101,7 @@ impl RealConfig {
             beat_every: Duration::from_secs(ligus_runtime::host_presence::HOST_BEAT_EVERY_SECS as u64),
             stage_timeout: Duration::from_secs(300),
             deferred_timeout: ligus_runtime::turn_dispatch::DEFERRED_CLAIM_TIMEOUT,
+            deferred_clock: None,
         }
     }
 }
@@ -246,6 +251,21 @@ impl RealBackend {
         self.inner.start_loops(ws);
         self.inner.emit(Event::WorkspacesChanged);
         self.call(move |i| Ok(i.summary(&i.saved(ws)?))).await
+    }
+
+    /// Push what this device holds for `ws` to the relay now. A code handed
+    /// out (an invite, a box admission) is redeemable only once the relay has
+    /// its issuance, and the sync loop's next round may come after the code
+    /// is used, or never (plain mode exits once it prints the code).
+    async fn publish_now(&self, ws: Uuid) -> Result<()> {
+        let mut engine = self.call(move |i| i.sync_engine(&i.saved(ws)?)).await?;
+        let failed = |e: ligus_runtime::SyncError| BackendError(format!("couldn't put it on the relay ({}); try again", one_line(e).0));
+        let unpushed = engine.take_unpushed(&EventStore::open(self.inner.db()).map_err(one_line)?).map_err(failed)?;
+        engine.push_envelopes(&unpushed).await.map_err(failed)?;
+        // Record them as pushed, so the sync loop needn't send them again
+        // when it starts afresh.
+        engine.take_unpushed(&EventStore::open(self.inner.db()).map_err(one_line)?).map_err(failed)?;
+        Ok(())
     }
 
     /// Bind the git checkout this device applies proposals in, for
@@ -681,7 +701,9 @@ impl Backend for RealBackend {
             return err("an invite admits a Contributor; change their role once they've joined");
         }
         let ws = ws_uuid(workspace)?;
-        self.call(move |i| i.invite(ws)).await
+        let code = self.call(move |i| i.invite(ws)).await?;
+        self.publish_now(ws).await?;
+        Ok(code)
     }
 
     async fn chats(&self, workspace: &WorkspaceId) -> Result<Vec<ChatSummary>> {
@@ -1104,7 +1126,9 @@ impl Backend for RealBackend {
     async fn admit_box(&self, workspace: &WorkspaceId, join_request: Option<&str>) -> Result<BoxAdmission> {
         let ws = ws_uuid(workspace)?;
         let request = join_request.map(str::to_string);
-        self.call(move |i| i.admit(ws, request.as_deref())).await
+        let admission = self.call(move |i| i.admit(ws, request.as_deref())).await?;
+        self.publish_now(ws).await?;
+        Ok(admission)
     }
 
     async fn handoffs(&self, workspace: &WorkspaceId) -> Result<Vec<Handoff>> {
@@ -1474,7 +1498,8 @@ mod tests {
 
     /// Starting a workspace's loops runs on an async worker: it must never
     /// wait on the write service, which a write holds for as long as a
-    /// passkey prompt is open (up to 180 s).
+    /// passkey prompt is open (up to 180 s). Shown structurally, not by
+    /// timing: start_loops returns while another thread holds the lock.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn starting_the_loops_never_waits_on_a_write() {
         // SAFETY: tests in this binary only ever set it to the same value.
@@ -1506,21 +1531,24 @@ mod tests {
         };
         let ws = conn.id();
         lock(&inner.list).upsert(SavedWorkspace::from_conn(&conn, None));
-        // A write waiting on a passkey: the service is locked for a while.
+        // A write waiting on a passkey: the service stays locked until
+        // start_loops has returned (or, if it is waiting on the lock, for a
+        // minute, so the test fails instead of hanging).
         let (locked_tx, locked_rx) = std::sync::mpsc::channel();
+        let (started_tx, started_rx) = std::sync::mpsc::channel::<()>();
         let svc = core.svc.clone();
         let holder = std::thread::spawn(move || {
             let _g = svc.lock().unwrap();
             locked_tx.send(()).unwrap();
-            std::thread::sleep(Duration::from_secs(3));
+            // Whether start_loops returned while the lock was held.
+            started_rx.recv_timeout(Duration::from_secs(60)).is_ok()
         });
         locked_rx.recv().unwrap();
-        let started = std::time::Instant::now();
         inner.start_loops(ws);
-        let took = started.elapsed();
-        holder.join().unwrap();
+        let _ = started_tx.send(());
+        let returned_while_locked = holder.join().unwrap();
         b.shutdown();
-        assert!(took < Duration::from_secs(1), "start_loops waited {took:?} on the write lock");
+        assert!(returned_while_locked, "start_loops waited on the write lock");
     }
 
     /// Shutting down stops the turns running here, and a turn that starts

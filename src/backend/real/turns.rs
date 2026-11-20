@@ -136,8 +136,19 @@ pub fn post_and_plan(i: &Inner, ws: Uuid, sid: Uuid, text: &str) -> Result<(Mess
 /// (`turn_dispatch::deferred_turn_unanswered`) and its host still isn't
 /// online elsewhere, claim it and answer here.
 pub fn arm_fallback(inner: Arc<Inner>, plan: Plan) {
+    // Armed now: a hand-driven clock fires only the fallbacks armed before it
+    // ticks.
+    let clock = inner.cfg.deferred_clock.as_ref().map(|c| (c.clone(), *c.fire.borrow()));
     tokio::spawn(async move {
-        tokio::time::sleep(inner.cfg.deferred_timeout).await;
+        match &clock {
+            None => tokio::time::sleep(inner.cfg.deferred_timeout).await,
+            Some((c, armed)) => {
+                if c.fire.clone().wait_for(|t| t > armed).await.is_err() {
+                    return;
+                }
+            }
+        }
+        let trigger = plan.trigger;
         let claimed = blocking(&inner, move |i| {
             let (ws, sid, trigger) = (plan.ws, plan.sid, plan.trigger);
             let (s, links) = i.read(ws, |svc| Ok((svc.load(sid)?, svc.device_links(ws).unwrap_or_default())))?;
@@ -166,12 +177,53 @@ pub fn arm_fallback(inner: Arc<Inner>, plan: Plan) {
             Ok(Some(Plan { ws, sid, trigger, agent, runtime_id }))
         })
         .await;
+        if let Some((c, _)) = &clock {
+            let _ = c.settled.send((MessageId::new(trigger.to_string()), matches!(claimed, Ok(Some(_)))));
+        }
         if let Ok(Some(plan)) = claimed
             && let Err(e) = run_turn(&inner, &plan).await
         {
             tracing_like(&inner, &plan, &e.0);
         }
     });
+}
+
+/// A hand-driven clock for the deferred-claim fallback, for tests that must
+/// not race a wall-clock wait: with one in [`super::RealConfig`], an armed
+/// fallback waits for [`DeferredHand::fire`] instead of `deferred_timeout`,
+/// and reports what it decided to the hand.
+#[derive(Clone)]
+pub struct DeferredClock {
+    fire: tokio::sync::watch::Receiver<u64>,
+    settled: tokio::sync::mpsc::UnboundedSender<(MessageId, bool)>,
+}
+
+/// The test's side of a [`DeferredClock`].
+pub struct DeferredHand {
+    fire: tokio::sync::watch::Sender<u64>,
+    settled: tokio::sync::mpsc::UnboundedReceiver<(MessageId, bool)>,
+}
+
+impl DeferredClock {
+    pub fn manual() -> (DeferredClock, DeferredHand) {
+        let (fire_tx, fire_rx) = tokio::sync::watch::channel(0);
+        let (settled_tx, settled_rx) = tokio::sync::mpsc::unbounded_channel();
+        (DeferredClock { fire: fire_rx, settled: settled_tx }, DeferredHand { fire: fire_tx, settled: settled_rx })
+    }
+}
+
+impl DeferredHand {
+    /// The wait is over for every fallback armed so far.
+    pub fn fire(&self) {
+        self.fire.send_modify(|t| *t += 1);
+    }
+
+    /// The next fallback to decide: its trigger message, and whether this
+    /// device claimed the turn (and so answers it). `None` once the backend
+    /// is gone.
+    pub async fn settled(&mut self) -> Option<(MessageId, bool)> {
+        self.settled.recv().await
+    }
 }
 
 /// The relay-sync gate: a user message that arrived through sync, answered
