@@ -11,9 +11,8 @@ cargo build --locked
 ```
 
 The Ligus crates are git dependencies on `langstroth-ai/ligus`, pinned to
-a commit of its `release/v0.1.0` branch (`rev = ...` in `Cargo.toml`); at
-release the pin becomes `tag = "v0.1.0"`. Cargo fetches them, so no sibling
-checkout is needed.
+its `v0.1.0` release tag (`tag = ...` in `Cargo.toml`). Cargo fetches them,
+so no sibling checkout is needed.
 
 Rust 1.91 or newer, edition 2024. The binary is `target/debug/lt`.
 

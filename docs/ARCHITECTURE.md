@@ -177,17 +177,16 @@ cancelled.
 ### Dependency
 
 **Today** `lt` depends on the crates as git dependencies on
-`https://github.com/langstroth-ai/ligus`, pinned to a commit of the
-`release/v0.1.0` branch (PR #121 merged the client runtime there):
+`https://github.com/langstroth-ai/ligus`, pinned to its `v0.1.0` release tag:
 
 ```toml
 [dependencies]
-ligus-core    = { version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "…" }
-ligus-runtime = { version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", rev = "…", default-features = false }
+ligus-core    = { version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", tag = "v0.1.0" }
+ligus-runtime = { version = "0.1.0", git = "https://github.com/langstroth-ai/ligus", tag = "v0.1.0", default-features = false }
 ```
 
-- **Tag at release.** When the ligus repo cuts `v0.1.0`, the pin moves from
-  `rev = "…"` to `tag = "v0.1.0"`. Never depend on a branch.
+- **Tags only.** lt depends on a released ligus tag; a newer ligus release
+  moves the pin to its tag. Never depend on a branch.
 - **Features.** `ligus-runtime` is built without its `p2p` feature (no iroh)
   for now; the dev-dependency adds `test-relay` for the tests.
 - **`version = "0.1.0"`** sits next to `git` so cargo-deny doesn't count
@@ -220,7 +219,7 @@ At startup (`RealBackend::open(data_dir)`), mirroring the CLI's
 
 ### Method mapping
 
-Paths are inside the crate named in each row, on `release/v0.1.0`.
+Paths are inside the crate named in each row, at the ligus `v0.1.0` tag.
 `ChatService` is `runtime/src/chat_service.rs`.
 
 | `Backend` method | Crate API | Notes |
