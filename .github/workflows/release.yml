@@ -1,0 +1,355 @@
+name: Release
+
+# The whole release of `lt` for a tag, in one workflow run: a draft release,
+# the binaries for four targets, publish, then the Homebrew formula. Modelled
+# on the ligus repo's release pipeline (its CLI release), which is proven.
+#
+# Entry points (README.md, "Releasing"):
+#   - cut-release.yml (the normal way): checks CI passed on the commit, tags
+#     it, and calls this workflow (workflow_call) with the tag. Its tag is
+#     pushed with GITHUB_TOKEN, which never triggers the `push: tags` trigger
+#     below (GitHub's recursion guard), so a cut never runs the pipeline twice.
+#   - pushing a plain tag like `v0.1.1` by hand (the fallback);
+#   - workflow_dispatch for an existing tag (re-run into its draft).
+# The tag always comes from `inputs.tag` (dispatch, call) or the pushed ref.
+#
+#   release ─> build (lt x4) ─> publish ─> formula
+#
+# Draft until complete: the `release` job (scripts/ensure-release.sh) creates
+# the tag's release as a DRAFT prerelease (or reuses the draft on a rerun, and
+# refuses a release that is already published). Every build uploads
+# `lt-<target>` and `lt-<target>.sha256` into that draft, which nobody else
+# can see. `publish` runs only when every build succeeded, checks that the
+# draft holds every binary with a matching checksum
+# (scripts/check-release-assets.py), and only then publishes it, as a
+# prerelease (never Latest). The formula follows publish. So a failed job
+# leaves an unpublished draft, never a half-filled release: rerun the failed
+# jobs, or delete the draft and re-push the tag. Promotion to Latest stays a
+# manual step, with the notes:
+#   gh release edit vX.Y.Z --title "lt vX.Y.Z" --notes-file notes.md \
+#     --prerelease=false --latest
+#
+# Signing is wired but inert until the secrets exist (scripts/macos-sign.sh):
+#   macOS:    APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD,
+#             APPLE_SIGNING_IDENTITY, APPLE_TEAM_ID (Developer ID signing as
+#             ai.ligus.term, the identifier lt's secret store names), and
+#             APPLE_API_KEY, APPLE_API_ISSUER, APPLE_API_KEY_P8 (notarization)
+#   Homebrew: HOMEBREW_TAP_TOKEN (the formula job skips without it)
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v0.1.1); it must already exist"
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v0.1.1); it must already exist"
+        required: true
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+# One release run per tag at a time (a dispatch racing the tag push would
+# otherwise make two drafts). Never cancelled: a half-run release is a draft.
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Find (rerun) or create the tag's DRAFT release; refuse a published one.
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      id: ${{ steps.r.outputs.id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        # A dispatch builds the tag, never the dispatching branch.
+        with:
+          ref: "${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}"
+          persist-credentials: false
+      - id: r
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        # Assign first: a failure inside $(...) as an echo argument would not
+        # fail the step.
+        run: |
+          # Refuse a tag that isn't v<the version in Cargo.toml and Cargo.lock>.
+          scripts/check-release-config.sh "$TAG"
+          id=$(scripts/ensure-release.sh "$GITHUB_REPOSITORY" "$TAG")
+          [[ "$id" =~ ^[0-9]+$ ]] || { echo "::error::no release id for $TAG"; exit 1; }
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: release
+    strategy:
+      fail-fast: false
+      # Every target here must also be in ci.yml's targets matrix, in
+      # check-release-assets.py and in the formula job below
+      # (scripts/test-release-workflow.rb checks all four).
+      matrix:
+        include:
+          - runner: macos-latest
+            target: aarch64-apple-darwin
+          # Intel macOS runners are being retired and can queue for hours;
+          # cross-compile the x86_64 slice on the Apple-Silicon runner, whose
+          # Xcode clang targets x86_64 out of the box.
+          - runner: macos-latest
+            target: x86_64-apple-darwin
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        # Always the tag, also on a manual dispatch.
+        with:
+          ref: "${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}"
+          persist-credentials: false
+
+      # A tag that is not v<the crate version> must not build or upload.
+      - name: Check the tag against the version
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: scripts/check-release-config.sh "$TAG"
+
+      # Only when the secrets exist (otherwise the build stays unsigned). Sets
+      # LIGUS_APPLE_TEAM_ID for the build, so it must run before it.
+      - name: Configure macOS signing
+        if: runner.os == 'macOS'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: scripts/macos-sign.sh configure
+
+      - name: Build lt
+        id: build
+        uses: ./.github/actions/build-lt
+        with:
+          target: ${{ matrix.target }}
+          profile: release
+
+      - name: Sign lt
+        if: runner.os == 'macOS' && env.LT_MACOS_SIGNED == '1'
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          BIN: ${{ steps.build.outputs.binary }}
+        run: scripts/macos-sign.sh sign "$BIN"
+
+      - name: Notarize lt
+        if: runner.os == 'macOS' && env.LT_MACOS_SIGNED == '1'
+        env:
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          BIN: ${{ steps.build.outputs.binary }}
+        run: scripts/macos-sign.sh notarize "$BIN"
+
+      # The binary this runner can execute answers -V with the tag's version.
+      # (The x86_64 macOS slice is cross-built; it isn't run here.)
+      - name: Smoke test
+        if: matrix.target != 'x86_64-apple-darwin'
+        env:
+          BIN: ${{ steps.build.outputs.binary }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          out=$("$BIN" -V)
+          echo "$out"
+          [ "$out" = "lt ${TAG#v}" ] || { echo "::error::lt -V printed '$out', not 'lt ${TAG#v}'"; exit 1; }
+
+      - name: Stage asset
+        env:
+          BIN: ${{ steps.build.outputs.binary }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          install -m 0755 "$BIN" "lt-$TARGET"
+          if command -v sha256sum >/dev/null; then
+            sha256sum "lt-$TARGET" > "lt-$TARGET.sha256"
+          else
+            shasum -a 256 "lt-$TARGET" > "lt-$TARGET.sha256"
+          fi
+          cat "lt-$TARGET.sha256"
+
+      # Upload to the draft by tag (gh finds drafts by tag through GraphQL's
+      # release(tagName:)), after checking that the release gh resolves is the
+      # very draft the release job made: never a published release, never a
+      # stray second draft. --clobber makes a rerun replace this target's
+      # files. Never publishes: the publish job does that.
+      - name: Attach to the draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+          RELEASE_ID: ${{ needs.release.outputs.id }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          got=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json databaseId,isDraft --jq '"\(.databaseId) \(.isDraft)"')
+          if [ "$got" != "$RELEASE_ID true" ]; then
+            echo "::error::gh resolves $TAG to release '$got' (id, draft), not the draft $RELEASE_ID"
+            exit 1
+          fi
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "lt-$TARGET" "lt-$TARGET.sha256"
+
+      - name: Remove the signing keychain
+        if: always() && runner.os == 'macOS'
+        run: scripts/macos-sign.sh cleanup
+
+  # The only job that makes the release public. Runs only when every build
+  # succeeded (skipped or cancelled is not success), re-checks the draft
+  # itself, then publishes it as a prerelease. Promotion to Latest stays
+  # manual (see the header).
+  publish:
+    needs: [release, build]
+    if: >-
+      ${{ !cancelled()
+        && needs.release.result == 'success'
+        && needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: "${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}"
+          persist-credentials: false
+      # Every binary with a matching checksum, every upload finished.
+      - name: Check the draft holds every asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+          RELEASE_ID: ${{ needs.release.outputs.id }}
+        run: python3 -I scripts/check-release-assets.py --repo "$GITHUB_REPOSITORY" --release-id "$RELEASE_ID" --tag "$TAG"
+      - name: Publish the draft as a prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+          RELEASE_ID: ${{ needs.release.outputs.id }}
+        run: |
+          set -euo pipefail
+          state=$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --jq '"\(.draft) \(.tag_name)"')
+          case "$state" in
+            "true $TAG") ;;
+            "false $TAG")
+              echo "Release $RELEASE_ID for $TAG is already published; nothing to do."
+              exit 0 ;;
+            *)
+              echo "::error::release $RELEASE_ID is '$state' (draft, tag), not the $TAG draft"
+              exit 1 ;;
+          esac
+          # By id, not tag: the draft is the release this run filled.
+          # make_latest=false: Latest stays on the previous release until the
+          # owner promotes this one.
+          gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" \
+            -F draft=false -F prerelease=true -f make_latest=false \
+            --jq '"published \(.tag_name) as prerelease=\(.prerelease): \(.html_url)"'
+
+  # Publish/update Formula/lt.rb on the tap (langstroth-ai/homebrew-ligus)
+  # once the release is published, so `brew install langstroth-ai/ligus/lt`
+  # tracks releases. After publish: the tap never points at a draft (whose
+  # download URLs 404). Needs HOMEBREW_TAP_TOKEN, a fine-grained PAT with
+  # Contents: write on langstroth-ai/homebrew-ligus (GITHUB_TOKEN can't push
+  # to another repo); skips cleanly when absent. scripts/tap-push.sh retries
+  # a push rejected because the ligus release pushed to the tap first.
+  formula:
+    needs: publish
+    if: ${{ !cancelled() && needs.publish.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Only for scripts/tap-push.sh (the tag's copy, like every other job).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: "${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}"
+          persist-credentials: false
+          sparse-checkout: scripts
+      - name: Publish the tap formula
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ -z "${TAP_TOKEN:-}" ]; then
+            echo "HOMEBREW_TAP_TOKEN not set — skipping formula update."
+            exit 0
+          fi
+          VERSION="${TAG#v}"
+          base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}"
+          declare -A sha
+          # publish checked every binary is on the release.
+          for t in aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-musl x86_64-unknown-linux-musl; do
+            gh release download "${TAG}" --repo "${GITHUB_REPOSITORY}" --pattern "lt-${t}" --output "lt-${t}" --clobber
+            sha[$t]=$(sha256sum "lt-${t}" | awk '{print $1}')
+          done
+          formula="$RUNNER_TEMP/lt.rb"
+          cat > "$formula" <<RUBY
+          class Lt < Formula
+            desc "Full Ligus client in the terminal (Ligus is short for ligustica)"
+            homepage "https://github.com/langstroth-ai/ligus-term"
+            version "${VERSION}"
+            license "MIT"
+
+            on_macos do
+              on_arm do
+                url "${base}/lt-aarch64-apple-darwin"
+                sha256 "${sha[aarch64-apple-darwin]}"
+              end
+              on_intel do
+                url "${base}/lt-x86_64-apple-darwin"
+                sha256 "${sha[x86_64-apple-darwin]}"
+              end
+            end
+
+            on_linux do
+              on_arm do
+                url "${base}/lt-aarch64-unknown-linux-musl"
+                sha256 "${sha[aarch64-unknown-linux-musl]}"
+              end
+              on_intel do
+                url "${base}/lt-x86_64-unknown-linux-musl"
+                sha256 "${sha[x86_64-unknown-linux-musl]}"
+              end
+            end
+
+            conflicts_with "localtunnel", because: "both install an \`lt\` binary"
+
+            def install
+              bin.install Dir["lt-*"].first => "lt"
+            end
+
+            def caveats
+              <<~EOS
+                lt keeps its data in ~/.ligus-term (or --data-dir / \$LT_DATA_DIR).
+                Try it without touching any data: lt --demo
+              EOS
+            end
+
+            test do
+              assert_match version.to_s, shell_output("#{bin}/lt --version")
+            end
+          end
+          RUBY
+          ruby -c "$formula"
+          git clone -q "https://x-access-token:${TAP_TOKEN}@github.com/langstroth-ai/homebrew-ligus.git" tap
+          # tap-push.sh reruns this after rebasing onto a concurrent tap push.
+          bump_formula() { mkdir -p Formula && cp "$formula" Formula/lt.rb; }
+          export -f bump_formula
+          export formula
+          scripts/tap-push.sh tap "lt ${VERSION}" bump_formula

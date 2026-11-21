@@ -1,0 +1,161 @@
+# Cut an lt release from GitHub, so nobody tags from a laptop:
+#
+#   gh workflow run cut-release.yml -R langstroth-ai/ligus-term -f version=0.1.1
+#   gh workflow run cut-release.yml -R langstroth-ai/ligus-term -f version=0.1.2 -f ref=<sha or branch>
+#
+# 1. checks that whoever started (or re-ran) it is a repository admin;
+# 2. resolves `ref` to one commit (default: the head of release/v<version>
+#    if that branch exists, otherwise main);
+# 3. refuses unless ci.yml's aggregate check `ci-ok` passed on that exact
+#    commit;
+# 4. runs scripts/check-release-config.sh v<version> on it (Cargo.toml and
+#    Cargo.lock both say <version>);
+# 5. refuses if the tag v<version> already exists;
+# 6. creates the annotated tag v<version> on that commit and pushes it;
+# 7. calls release.yml with the tag (draft -> builds -> publish -> formula).
+#
+# Copied from the ligus repo's cut-release.yml.
+#
+# Why the pipeline is called rather than triggered by the tag: the tag is
+# pushed with GITHUB_TOKEN, and GitHub does not start workflows for events
+# that GITHUB_TOKEN causes. That same rule is why there is no double run:
+# release.yml's own `push: tags` trigger (kept as the by-hand fallback) never
+# fires for this tag. Do not give the checkout below a PAT or App token, or
+# the tag push would also start release.yml (the per-tag concurrency group in
+# release.yml would then queue the second run, which finds the draft or the
+# published release; see ensure-release.sh).
+name: Cut a release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, without the v (e.g. 0.1.1)"
+        required: true
+      ref:
+        description: "Commit or branch to tag (default: release/v<version> if it exists, else main)"
+        required: false
+        default: ""
+
+# Nothing by default; each job asks for what it needs.
+permissions: {}
+
+concurrency:
+  group: cut-release-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  cut:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # create and push the tag
+      checks: read # read ci-ok on the commit
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      # workflow_dispatch already needs write access; releasing needs admin.
+      # Both the original actor and whoever re-runs this attempt must be.
+      - name: Only repository admins can cut a release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+        run: |
+          set -euo pipefail
+          for who in "$ACTOR" "$TRIGGERING_ACTOR"; do
+            perm=$(gh api "repos/$GITHUB_REPOSITORY/collaborators/$who/permission" --jq .permission)
+            if [ "$perm" != admin ]; then
+              echo "::error::$who has '$perm' permission on $GITHUB_REPOSITORY; cutting a release needs admin"
+              exit 1
+            fi
+          done
+
+      - name: Validate the version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || {
+            echo "::error::version '$VERSION' is not like 0.1.0 (no v prefix)"; exit 1; }
+
+      - name: Resolve the commit
+        id: sha
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+          REF: ${{ inputs.ref }}
+        run: |
+          set -euo pipefail
+          ref="$REF"
+          # It goes into API paths below: a branch name or a sha only.
+          if ! [[ "$ref" =~ ^[A-Za-z0-9._/-]*$ ]] || [[ "$ref" == *..* ]]; then
+            echo "::error::ref '$ref' is not a branch name or commit sha"; exit 1
+          fi
+          if [ -z "$ref" ]; then
+            if gh api "repos/$GITHUB_REPOSITORY/branches/release/v$VERSION" --silent 2>/dev/null; then
+              ref="release/v$VERSION"
+            else
+              ref=main
+            fi
+          fi
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$ref" --jq .sha)
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::cannot resolve '$ref'"; exit 1; }
+          echo "Releasing $ref at $sha"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      # ci.yml runs on every push to main (and on PRs), and ci-ok passes only
+      # when every other CI job did. Only GitHub Actions' own check run counts
+      # (another app could post a check named ci-ok).
+      - name: Required CI (ci-ok) passed on that commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ steps.sha.outputs.sha }}
+        run: |
+          set -euo pipefail
+          ok=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/check-runs?check_name=ci-ok&filter=latest&per_page=100" \
+            --jq '[.check_runs[] | select(.app.slug == "github-actions" and .status == "completed" and .conclusion == "success")] | length')
+          if [ "$ok" -lt 1 ]; then
+            echo "::error::ci-ok has not passed on $SHA; push it to main (or rerun CI) first"
+            exit 1
+          fi
+          echo "ci-ok passed on $SHA"
+
+      # GITHUB_TOKEN credentials (the default): see the header.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.sha.outputs.sha }}
+
+      - name: Versions match the tag
+        env:
+          VERSION: ${{ inputs.version }}
+        run: scripts/check-release-config.sh "v$VERSION"
+
+      - name: Create and push the annotated tag
+        id: tag
+        env:
+          VERSION: ${{ inputs.version }}
+          SHA: ${{ steps.sha.outputs.sha }}
+          ACTOR: ${{ github.triggering_actor }}
+        run: |
+          set -euo pipefail
+          tag="v$VERSION"
+          if [ -n "$(git ls-remote --tags origin "refs/tags/$tag")" ]; then
+            echo "::error::tag $tag already exists; to re-cut, see README.md, Releasing"
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" -m "lt $tag" -m "Cut by $ACTOR with cut-release.yml (run $GITHUB_RUN_ID)." "$SHA"
+          # Fails if the tag appeared since the check above.
+          git push origin "refs/tags/$tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+  release:
+    needs: cut
+    permissions:
+      contents: write # the draft release, its assets, publishing
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.cut.outputs.tag }}
+    # Signing, notarization and tap secrets.
+    secrets: inherit

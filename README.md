@@ -26,8 +26,8 @@ exit codes.
 events like the desktop app does, and syncs end-to-end encrypted through
 the workspace's relay.
 
-> **Status: early (0.1.0).** `lt` runs on the Ligus crates, pinned to a
-> commit of the [ligus](https://github.com/langstroth-ai/ligus) repo.
+> **Status: early (0.1.1).** `lt` runs on the Ligus crates, pinned to a
+> release tag of the [ligus](https://github.com/langstroth-ai/ligus) repo.
 > `lt --demo` runs the same UI on an in-memory sample. What isn't wired yet
 > is listed in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#what-is-wired).
 
@@ -38,11 +38,42 @@ DM invites and presence beats it receives from other devices.
 
 ## Install
 
-Rust 1.91 or newer. From the GitHub repo at the 0.1.0 release tag:
+Prebuilt binaries start with 0.1.1, for macOS (Apple Silicon and Intel) and
+Linux (arm64 and x86_64; static musl builds that run on any distribution).
+
+### Homebrew (macOS and Linux)
 
 ```sh
-cargo install --locked --git https://github.com/langstroth-ai/ligus-term --tag v0.1.0
+brew install langstroth-ai/ligus/lt
 lt --version
+```
+
+The formula lives in the [langstroth-ai/homebrew-ligus](https://github.com/langstroth-ai/homebrew-ligus)
+tap, next to the `ligus` CLI and the `ligus-app` desktop cask. It conflicts
+with Homebrew's `localtunnel`, which also installs an `lt` binary.
+
+### Direct download
+
+Each [release](https://github.com/langstroth-ai/ligus-term/releases) has
+one binary per target, `lt-<target>`, with a `lt-<target>.sha256` next to
+it. Check the checksum before you run it:
+
+```sh
+version=v0.1.1
+target=aarch64-apple-darwin   # or x86_64-apple-darwin, aarch64-unknown-linux-musl, x86_64-unknown-linux-musl
+base=https://github.com/langstroth-ai/ligus-term/releases/download/$version
+curl -fLO "$base/lt-$target" -O "$base/lt-$target.sha256"
+shasum -a 256 -c "lt-$target.sha256"   # or: sha256sum -c
+mkdir -p ~/.local/bin && install -m 0755 "lt-$target" ~/.local/bin/lt
+lt --version
+```
+
+### From source
+
+Rust 1.91 or newer:
+
+```sh
+cargo install --locked --git https://github.com/langstroth-ai/ligus-term --tag v0.1.1
 ```
 
 Or from a checkout:
@@ -387,6 +418,37 @@ app's or the CLI's.
   and [self-hosting a relay](https://docs.langstroth.ai/operate/networking/self-host/).
 - How `lt` is built: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 - The project: [langstroth.ai](https://langstroth.ai).
+
+## Releasing
+
+Releases are cut from GitHub, never from a laptop. A repository admin bumps
+`version` in `Cargo.toml` (and `Cargo.lock`: `cargo update -p ligus-term
+--offline`), adds a CHANGELOG entry, pushes to `main`, waits for CI's
+`ci-ok` check to pass on that commit, then runs:
+
+```sh
+gh workflow run cut-release.yml -R langstroth-ai/ligus-term -f version=0.1.1
+```
+
+[`cut-release.yml`](.github/workflows/cut-release.yml) checks the caller is
+an admin, that `ci-ok` passed on the exact commit and that the versions
+match, tags `v<version>`, and calls
+[`release.yml`](.github/workflows/release.yml). That workflow makes a draft
+release, builds `lt` for the four targets (signing and notarizing the macOS
+binaries when the Apple secrets are set), uploads `lt-<target>` and its
+`.sha256`, checks the draft holds all eight files, publishes it as a
+prerelease and writes `Formula/lt.rb` to the Homebrew tap. A failed build
+leaves an unpublished draft: rerun the failed jobs. To promote a release to
+Latest, with notes:
+
+```sh
+gh release edit v0.1.1 -R langstroth-ai/ligus-term --title "lt v0.1.1" \
+  --notes-file notes.md --prerelease=false --latest
+```
+
+To re-cut a tag, delete its release and the tag, then cut again.
+`ruby scripts/test-release-workflow.rb` and `bash scripts/test-tap-push.sh`
+test the pipeline (CI runs both).
 
 ## Contributing
 

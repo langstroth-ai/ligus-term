@@ -1,0 +1,80 @@
+# Build `lt` for one release target. The one place lt's toolchain setup and
+# build command live: release.yml builds the shipped binaries with it
+# (profile: release) and ci.yml builds every shipped target with it on each
+# push and PR (profile: debug), so a target that stops building (a Ligus crate
+# that no longer builds for musl, say) fails CI instead of the release.
+# Modelled on the ligus repo's .github/actions/build-cli.
+#
+# Needs the repository checked out. Build-time env (LIGUS_APPLE_TEAM_ID on a
+# signed macOS release build) comes from $GITHUB_ENV or the calling step;
+# composite steps inherit it.
+name: Build lt
+description: Install the target's toolchain and build lt for it.
+
+inputs:
+  target:
+    description: "Rust target triple (one of the targets release.yml ships)"
+    required: true
+  profile:
+    description: "release (the shipped build) or debug (CI)"
+    required: false
+    default: release
+  save-cache:
+    description: "Whether this run may save the Rust cache"
+    required: false
+    default: "true"
+
+outputs:
+  binary:
+    description: "Path to the built lt binary"
+    value: ${{ steps.build.outputs.binary }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install Rust target
+      shell: bash
+      env:
+        TARGET: ${{ inputs.target }}
+      run: rustup update stable && rustup default stable && rustup target add "$TARGET"
+
+    - name: Install musl toolchain (Linux)
+      if: contains(inputs.target, 'linux-musl')
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      with:
+        key: lt-${{ inputs.target }}-${{ inputs.profile }}
+        save-if: ${{ inputs.save-cache }}
+
+    # The mock relay and the test passkey (ligus-runtime `test-relay`,
+    # `test-presence`) must never be in a shipped binary's build graph.
+    - name: No test-only features in shipped builds
+      shell: bash
+      run: scripts/check-no-test-relay.sh
+
+    - name: Build lt
+      id: build
+      shell: bash
+      env:
+        TARGET: ${{ inputs.target }}
+        PROFILE: ${{ inputs.profile }}
+      run: |
+        set -euo pipefail
+        case "$PROFILE" in
+          release) flags=(--release); dir=release ;;
+          debug) flags=(); dir=debug ;;
+          *) echo "::error::profile must be release or debug, not '$PROFILE'"; exit 1 ;;
+        esac
+        # (macOS runners may run bash 3.2: no bare empty-array expansion under -u)
+        cargo build ${flags[@]+"${flags[@]}"} --locked --bin lt --target "$TARGET"
+        bin="${CARGO_TARGET_DIR:-target}/$TARGET/$dir/lt"
+        test -x "$bin"
+        file "$bin" || true
+        # A musl build must not need the runner's libc at run time.
+        if [[ "$TARGET" == *-linux-musl ]] && ! file "$bin" | grep -Eq 'statically linked|static-pie linked'; then
+          echo "::error::$bin is not statically linked"
+          exit 1
+        fi
+        echo "binary=$bin" >> "$GITHUB_OUTPUT"
