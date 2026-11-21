@@ -18,10 +18,76 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   same text as `help` records.
 - `--json`: plain mode writes each record as one JSON object per line, with
   named fields. It implies `--plain`, and a one-shot listing command also
-  takes it at the end (`lt --plain agents --json`).
+  takes it at the end (`lt --plain agents --json`). Counts (`n`, `added`,
+  `removed`, `turns`, `uncosted`, `cost_usd`, `progress`, `open`, `port` and
+  a passkey prompt's `id`) are JSON numbers, `null` when missing, and the
+  two toggle settings are booleans; everything else is a string.
+- `lt COMMAND` runs one command without `--plain` (`lt agents`, `lt runs
+  --json`). A mistyped command is refused before any data dir is opened.
+- `--name NAME` names a new device's identity, so a one-shot `create`,
+  `join` or `connect` works on a fresh device (`lt --name Ada join CODE`).
+- Passkeys with no browser on this device: `LT_NO_BROWSER=1` shows the
+  passkey page's address on your terminal (below the prompt, or on the
+  controlling terminal in plain mode; never on stdout) for a browser on
+  another device that reaches this one's loopback over `ssh -L`, and
+  `LT_PRESENCE_PORT` fixes that port so it can be forwarded ahead of time.
+  `lt help troubleshooting` explains it, and the passkey-free alternative:
+  create the workspace where a browser is, then `join` on the headless box.
+- The status bar shows how the workspace syncs: `⇅ synced`, `⚠ sync
+  failed`, `⚠ sync off`, `peer to peer` or `this device only`. Failures of
+  background work (a turn, a workflow, an apply) appear as error toasts
+  instead of going unseen.
+- Terminals without 24-bit colour get the nearest of 256 colours, or the 16
+  ANSI colours on a basic `TERM` such as `linux` (so the terminal's own
+  palette applies), chosen from `COLORTERM` and `TERM`;
+  `LT_COLOR_DEPTH=truecolor|256|16` overrides it. Settings shows the depth.
+
+### Changed
+
+- lt starts with the cursor in the open chat's composer, so you can type at
+  once; `esc` leaves it for the keys (`f1` opens help from the composer).
+- `q` (and `ctrl-c`) asks before quitting while this device drives a
+  workflow run or an agent's turn; a second `ctrl-c` quits anyway.
+- `X` (cancel a run) and `R` (reject a proposal or a run's gate) ask first:
+  `y` goes ahead, any other key backs out.
+- Notifications marks all read with `M` instead of `R`, so `R` only ever
+  rejects. Rebound keys in your config keep working; a config that set
+  `mark_all_read` keeps its keys.
+- The diff viewer moves between hunks with `]` and `[` only: `n` and `N`
+  now open Notifications and a new chat there too, as everywhere else.
+- Help lists the keys of what has focus first, scrolls to its end (`g`,
+  `G`, page keys) without a dead zone, and shows where you are.
+
+### Fixed
+
+- At 80×24 and smaller the top bar cut off People, Notifications (with its
+  unread badge) and Settings. It now shortens the labels, then shows one
+  workspace tile and the view digits, then only the current view, and
+  always keeps the unread badge.
+- The status bar ran into the device label (`? helplt on this terminal`).
+  Hints now drop from the right, the help key always stays, and the right
+  side keeps a two-column gap.
+- The Agents view showed two of four agents and one of four runtimes at
+  80×24. Its panes now get room by priority (agents, what this device could
+  add, runtimes, usage, hand-offs); a pane that doesn't fit is left out and
+  named in the title. Wide terminals put usage and hand-offs side by side.
+- Workflow names were cut to `▸ Im…` while the chat title kept its room;
+  the name comes first now, for runs too.
+- The usage pane ran its label into the numbers (`Today 11-20Mara`).
+- A run's header said "started by Mara now ago"; relative times in
+  sentences now read "just now" and "5m ago".
 
 ### Tests
 
+- Every main view is snapshotted at 80×24, 60×20 and 200×50 as well as
+  110×32, checking that no view drops out of the top bar, the unread badge
+  survives and the status bar keeps its help key; the 80×24 captures are in
+  `docs/screens/`.
+- New tests: quitting asks while a run is driven here, confirmations for
+  cancel and reject, no view key hides a global key, help scrolls within
+  bounds, the passkey page's address never reaches stdout, the no-browser
+  hand-off on a fixed port, colour-depth detection and mapping, and `--json`
+  numbers.
 - New `tests/help.rs`: every flag is in `lt --help` and has its own page,
   every plain-mode command has help, every record keyword has JSON field
   names, every environment variable read in the source is documented, the
