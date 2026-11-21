@@ -25,6 +25,9 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   issuance, so a quick joiner could race the sync loop, and a code printed
   just before `lt` exits (plain mode) could not be redeemed. Both now push
   the workspace first.
+- `lt` builds for aarch64 Linux (musl): the Ligus crates are re-pinned to
+  the ligus repo's re-cut `v0.1.0` tag, which names `kexec_file_load` by
+  number where the libc crate lacks it.
 
 ### Tests
 

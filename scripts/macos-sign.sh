@@ -113,7 +113,9 @@ case "$cmd" in
     status="$(python3 -I -c 'import json,sys; print(json.load(sys.stdin).get("status",""))' <<<"$out" 2>/dev/null || true)"
     if [ "$status" != Accepted ]; then
       id="$(python3 -I -c 'import json,sys; print(json.load(sys.stdin).get("id",""))' <<<"$out" 2>/dev/null || true)"
-      [ -n "$id" ] && xcrun notarytool log "$id" --key "$key" --key-id "$APPLE_API_KEY" --issuer "$APPLE_API_ISSUER" || true
+      if [ -n "$id" ]; then
+        xcrun notarytool log "$id" --key "$key" --key-id "$APPLE_API_KEY" --issuer "$APPLE_API_ISSUER" || true
+      fi
       echo "::error::notarizing $(basename "$bin"): status '${status:-none}'"
       exit 1
     fi
