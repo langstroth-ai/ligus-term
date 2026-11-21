@@ -296,7 +296,7 @@ class Formula < Minitest::Test
 
       stubs = File.join(dir, "bin")
       FileUtils.mkdir_p(stubs)
-      real_git = `command -v git`.strip
+      real_git = `sh -c 'command -v git'`.strip
       # gh release download <tag> --repo R --pattern P --output O --clobber
       File.write(File.join(stubs, "gh"), <<~SH)
         #!/bin/sh
