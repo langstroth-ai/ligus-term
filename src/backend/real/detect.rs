@@ -36,7 +36,7 @@ pub const OLLAMA_DEFAULT: &str = "http://127.0.0.1:11434";
 pub const LOCAL_PREFIX: &str = "local:";
 
 /// Environment variables whose presence (never value) detection reads.
-const PRESENCE_VARS: &[&str] = &[
+pub(crate) const PRESENCE_VARS: &[&str] = &[
     "ANTHROPIC_API_KEY",
     "CLAUDE_CODE_OAUTH_TOKEN",
     "OPENAI_API_KEY",
@@ -47,7 +47,7 @@ const PRESENCE_VARS: &[&str] = &[
     "GITHUB_TOKEN",
 ];
 /// Directories the CLIs keep their config in (paths, not secrets).
-const DIR_VARS: &[&str] = &["COPILOT_HOME", "CODEX_HOME", "CLAUDE_CONFIG_DIR"];
+pub(crate) const DIR_VARS: &[&str] = &["COPILOT_HOME", "CODEX_HOME", "CLAUDE_CONFIG_DIR"];
 
 /// Hosted APIs found by their key in the environment: (variable, provider,
 /// default model, suggested agent name). The models are `ligus setup`'s.

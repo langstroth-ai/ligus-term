@@ -7,7 +7,9 @@
 
 pub mod app;
 pub mod backend;
+pub mod cli;
 pub mod config;
+pub mod help;
 pub mod keymap;
 pub mod paths;
 pub mod plain;

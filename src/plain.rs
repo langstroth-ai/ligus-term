@@ -56,7 +56,7 @@ commands (N is a number from the last list, or an id):
   confirm ID file PATH answer it with a recovery-words file
   cancel ID            cancel a passkey prompt
   wait [SECS]          wait until events go quiet (default up to 30 s)
-  help / quit";
+  help [COMMAND|TOPIC] / quit   (topics: quickstart keys plain agents kubernetes troubleshooting env)";
 
 /// Escape a field: tabs become spaces, newlines `\n`.
 fn esc(s: impl std::fmt::Display) -> String {
@@ -83,6 +83,8 @@ struct Output {
     w: Mutex<Box<dyn AsyncWrite + Unpin + Send>>,
     /// An `error` record was printed (the one-shot exit code).
     failed: std::sync::atomic::AtomicBool,
+    /// Write each record as a JSON object (`--json`).
+    json: bool,
 }
 
 type Out = Arc<Output>;
@@ -116,6 +118,7 @@ async fn emit(out: &Out, line: String) {
     if line.starts_with("error\t") {
         out.failed.store(true, std::sync::atomic::Ordering::SeqCst);
     }
+    let line = if out.json { crate::help::record_json(&line) } else { line };
     let mut o = out.w.lock().await;
     let _ = o.write_all(line.as_bytes()).await;
     let _ = o.write_all(b"\n").await;
@@ -132,12 +135,14 @@ pub struct PlainOpts {
     /// Answer every passkey prompt this way (one-shot: the browser, or a
     /// recovery-words file).
     pub presence: Option<PresenceAnswer>,
+    /// Write each record as one JSON object per line (`--json`).
+    pub json: bool,
 }
 
 /// The exit code for a usage error (an unknown one-shot command).
 pub const EXIT_USAGE: i32 = 2;
 
-const COMMANDS: &[&str] = &[
+pub const COMMANDS: &[&str] = &[
     "help",
     "name",
     "create",
@@ -276,7 +281,7 @@ pub async fn run_with<R>(
 where
     R: AsyncBufRead + Unpin,
 {
-    let out: Out = Arc::new(Output { w: Mutex::new(out), failed: std::sync::atomic::AtomicBool::new(false) });
+    let out: Out = Arc::new(Output { w: Mutex::new(out), failed: std::sync::atomic::AtomicBool::new(false), json: opts.json });
     let one_shot = opts.one_shot.is_some();
     if let Some(cmd) = &opts.one_shot {
         let name = cmd.split_whitespace().next().unwrap_or("");
@@ -563,11 +568,19 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
         }
     };
     match cmd {
-        "help" => {
+        "help" if arg.is_empty() => {
             for l in HELP.lines() {
                 say(format!("help\t{l}")).await;
             }
         }
+        "help" => match crate::help::topic(arg, &crate::cli::flags()) {
+            Some(text) => {
+                for l in text.lines() {
+                    say(format!("help\t{}", esc(l))).await;
+                }
+            }
+            None => fail(crate::help::unknown(arg)).await,
+        },
         "name" => {
             s.lock().await.your_name = Some(arg.to_string());
             say(format!("ok\tname\t{}", esc(arg))).await;

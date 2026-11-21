@@ -4,6 +4,29 @@ All notable changes to `lt`, the Ligus terminal app (Ligus is short for
 ligustica). Versions follow [semver](https://semver.org); releases are on
 [GitHub](https://github.com/langstroth-ai/ligus-term/releases).
 
+## v0.1.2 (unreleased)
+
+### Added
+
+- `lt` documents itself. `lt --help` lists every flag, every environment
+  variable `lt` reads (with its default), the help topics, the plain-mode
+  commands and the exit codes. `lt help TOPIC` covers `quickstart`, `keys`
+  (built from the keymap), `plain`, `agents`, `kubernetes`,
+  `troubleshooting` and `env`; `lt help COMMAND` explains one plain-mode
+  command and the records it prints; `lt help --FLAG` one flag. `lt help`
+  needs no device. In plain mode, `help COMMAND` and `help TOPIC` print the
+  same text as `help` records.
+- `--json`: plain mode writes each record as one JSON object per line, with
+  named fields. It implies `--plain`, and a one-shot listing command also
+  takes it at the end (`lt --plain agents --json`).
+
+### Tests
+
+- New `tests/help.rs`: every flag is in `lt --help` and has its own page,
+  every plain-mode command has help, every record keyword has JSON field
+  names, every environment variable read in the source is documented, the
+  key table matches `keymap.rs` row for row, and `--json` output parses.
+
 ## v0.1.1
 
 ### Added

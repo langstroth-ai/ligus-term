@@ -1,5 +1,4 @@
 use std::io::IsTerminal;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use clap::Parser;
@@ -7,53 +6,10 @@ use ligus_term::app::State;
 use ligus_term::backend::Backend;
 use ligus_term::backend::fake::{FakeBackend, FakeConfig};
 use ligus_term::backend::real::{RealBackend, RealConfig};
+use ligus_term::cli::Args;
 use ligus_term::config::{Config, default_config_text};
 use ligus_term::theme::{Theme, ThemeChoice};
 use ligus_term::{app, paths, plain};
-
-const LONG_VERSION: &str = concat!(
-    env!("CARGO_PKG_VERSION"),
-    "\nbackend: the Ligus crates (--demo: an in-memory sample)",
-    "\nLigus is short for ligustica, the Italian honeybee."
-);
-
-/// lt: a full Ligus client in the terminal.
-#[derive(Parser, Debug)]
-#[command(name = "lt", version, long_version = LONG_VERSION, about, long_about = None)]
-struct Args {
-    /// Line-oriented output for screen readers and scripts (one record per
-    /// line; commands on stdin). Also used when stdout isn't a terminal.
-    #[arg(long)]
-    plain: bool,
-    /// The in-memory demo backend with sample workspaces (keeps nothing on
-    /// disk) instead of this device's real data.
-    #[arg(long)]
-    demo: bool,
-    /// This device's data dir (default: $LT_DATA_DIR, else ~/.ligus-term).
-    #[arg(long, value_name = "PATH")]
-    data_dir: Option<PathBuf>,
-    /// Config file (default: $LT_CONFIG, else <config dir>/ligus-term/config.toml).
-    #[arg(long, value_name = "PATH")]
-    config: Option<PathBuf>,
-    /// auto, dark, light or mono (overrides the config file).
-    #[arg(long, value_name = "THEME")]
-    theme: Option<ThemeChoice>,
-    /// Print a config file with every default and exit.
-    #[arg(long)]
-    print_config: bool,
-    /// The workspace plain mode uses (a name, an id or a number; default the
-    /// first).
-    #[arg(long, value_name = "WORKSPACE")]
-    workspace: Option<String>,
-    /// Answer passkey confirmations in plain mode with this recovery-words
-    /// file (owner-only), instead of the browser.
-    #[arg(long, value_name = "PATH")]
-    recovery_words_file: Option<PathBuf>,
-    /// With --plain: run this one command and exit (0 ok, 1 an error or an
-    /// unfinished run, 2 an unknown command), e.g. lt --plain run 1 "fix the tests".
-    #[arg(trailing_var_arg = true, value_name = "COMMAND")]
-    command: Vec<String>,
-}
 
 fn env(k: &str) -> Option<String> {
     std::env::var(k).ok()
@@ -73,7 +29,23 @@ fn main() -> anyhow::Result<()> {
 }
 
 async fn run() -> anyhow::Result<()> {
-    let args = Args::parse();
+    let mut args = Args::parse();
+    // `lt help ...` needs no device: answer it before opening anything.
+    if !args.plain && !args.json && args.command.first().is_some_and(|c| c == "help") {
+        match ligus_term::cli::help_text(&args.command[1..]) {
+            Ok(text) => {
+                print!("{text}");
+                return Ok(());
+            }
+            Err(e) => fail(e),
+        }
+    }
+    // `lt --plain agents --json`: a trailing --json on a one-shot command
+    // that takes no free text.
+    if ligus_term::cli::take_trailing_json(&mut args.command) {
+        args.json = true;
+    }
+    let plain_mode = args.plain || args.json;
     if args.print_config {
         print!("{}", default_config_text());
         return Ok(());
@@ -100,13 +72,14 @@ async fn run() -> anyhow::Result<()> {
         Arc::new(b)
     };
 
-    if !args.command.is_empty() && !args.plain {
-        fail("a command runs in plain mode: lt --plain COMMAND");
+    if !args.command.is_empty() && !plain_mode {
+        fail("a command runs in plain mode: lt --plain COMMAND (lt help COMMAND explains it)");
     }
-    if args.plain || !std::io::stdout().is_terminal() || !std::io::stdin().is_terminal() {
+    if plain_mode || !std::io::stdout().is_terminal() || !std::io::stdin().is_terminal() {
         let opts = plain::PlainOpts {
             one_shot: (!args.command.is_empty()).then(|| args.command.join(" ")),
             workspace: args.workspace.clone(),
+            json: args.json,
             presence: args
                 .recovery_words_file
                 .as_ref()

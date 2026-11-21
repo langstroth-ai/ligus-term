@@ -93,7 +93,30 @@ lt --demo          # explore with sample workspaces (keeps nothing on disk)
 lt                 # first run: your name, then create, join or connect a workspace
 lt --plain         # line mode for screen readers and scripts
 lt --print-config  # a config file with every default
+lt help            # everything below, from the binary
 ```
+
+## Help in the terminal
+
+`lt` documents itself, so neither a person nor an agent needs this page or
+the docs site:
+
+```sh
+lt --help              # every flag, environment variable and exit code
+lt help quickstart     # install, then your first workspace or joining one
+lt help keys           # the full-screen app's keys (built from the keymap)
+lt help plain          # scripting: one-shot commands, every record's fields, --json
+lt help agents         # adding agents from what this device can run
+lt help kubernetes     # connecting to a deployment and admitting its boxes
+lt help troubleshooting
+lt help env            # every environment variable lt reads
+lt help run            # one plain-mode command (any of them)
+lt help --data-dir     # one flag
+```
+
+Tests check that every flag, plain-mode command, record and environment
+variable `lt` reads appears in this help, and that the key table matches
+the keymap.
 
 On first run `lt` asks for your name, then lets you **create a workspace**
 (no server needed), **join one** by pasting an invite code, or **connect a
@@ -316,6 +339,16 @@ printf 'chats\nopen 1\nsay @coder fix the threshold\nwait\nproposals\n' | lt --d
 | `1` | it printed an `error` record, or a run it followed didn't complete |
 | `2` | unknown command (also a bad flag, config or data dir at start-up) |
 
+**JSON:** `--json` (or a trailing `--json` on a one-shot listing command)
+writes each record as one JSON object per line: `record` is the keyword,
+the fields are named (`lt help plain` lists them), every value is a
+string.
+
+```sh
+lt --plain --json agents
+lt --plain hosts --json
+```
+
 `--workspace NAME` picks the workspace (a name, an id or a number; default
 the first). Passkey prompts open the browser, or pass
 `--recovery-words-file PATH`.
@@ -440,6 +473,10 @@ app's or the CLI's.
 | `LT_RUN_COMMAND` | `1` allows the `run_command` shell tool where the chat allows it (default off) |
 | `LIGUS_SECRET_BACKEND` | the secret store (`file` for owner-only files) |
 | `NO_COLOR` | the mono theme, unless a theme is set |
+
+`lt help env` lists every variable `lt` reads, with its default, including
+`LIGUS_SECRETS_DIR`, `LIGUS_MCP_MIN_ROLE` and the ones agent detection
+looks at.
 
 ## Documentation
 

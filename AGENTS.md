@@ -36,6 +36,7 @@ What the tests cover:
 | `tests/screens.rs` | Every screen rendered into a ratatui `TestBackend` and compared as text (insta snapshots in `tests/snapshots/`) |
 | `tests/reducer.rs` | The reducer: messages in, state and effects out, no backend |
 | `tests/keymap.rs` | Default bindings, contexts, typing rules, config overrides and errors |
+| `tests/help.rs` | `lt --help` and `lt help`: every flag, plain command, record and environment variable documented, the key table built from the keymap, `--json` output |
 | `tests/cli.rs` | The `lt` binary: `--version`, plain mode on a pipe, refusals, the data dir |
 | `tests/real_backend.rs` | The real backend: two devices through the in-process test relay (create, invite, join, chat, streamed replies through both dispatch gates, proposals, vote, apply on host, people, hosts, lockdown), a device reopened from disk, and agent runtimes found on the device (stub `claude` and `codex` on a temporary `PATH`, a fake Ollama) and added as agents |
 | `tests/orchestration.rs` | Orchestration over the real backend: founding a deployment's workspace, admitting a worker-like box, a workflow run end to end (a stage on the box, a gate approved from `lt`, a local stage), host beats, the invite-signature check, the deferred-claim fallback, the checkout binding, one-shot plain mode, and that DM invites and people's presence beats are ignored |
