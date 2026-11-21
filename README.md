@@ -401,17 +401,17 @@ The default keys (all can be rebound, see [Configure](#configure)):
 
 | Where | Keys |
 |---|---|
-| Anywhere | `q` / `ctrl-c` quit · `?` / `f1` help · `esc` back · `w` / `ctrl-w` workspaces · `+` add a workspace · `tab` / `shift-tab` next or previous pane |
+| Anywhere | `q` / `ctrl-c` quit (while this device drives a run or an agent's turn it asks first; a second `ctrl-c` quits) · `?` / `f1` help · `esc` back · `w` / `ctrl-w` workspaces · `+` add a workspace · `tab` / `shift-tab` next or previous pane |
 | Lists | `↑ ↓` or `j k` move · `pgup pgdn` (`ctrl-u ctrl-d`) · `g G` (`home end`) first and last · `enter` (`l`, `→`) open |
 | Chats | `i` write · `N` new chat · `L` lock the chat down · `U` clear the lockdown |
 | Composer | `enter` send · `alt-enter` / `ctrl-j` new line (`shift-enter` too, in terminals with the kitty keyboard protocol) · `@` mention, then `tab` or `enter` to accept · `esc` leave (the draft is kept) |
-| Workflows | `S` start a run (asks for its input) · `A` / `R` approve or reject the run's waiting gate · `X` cancel the run · `enter` on a run opens its chat |
-| Proposals | `A` approve · `R` reject · `O` apply on a host · `W` withdraw the apply request |
-| Diff viewer | `]` / `[` (or `n` / `N`) next and previous hunk · `}` / `{` next and previous file |
+| Workflows | `S` start a run (asks for its input) · `A` / `R` approve or reject the run's waiting gate (reject asks first) · `X` cancel the run (asks first) · `enter` on a run opens its chat |
+| Proposals | `A` approve · `R` reject (asks first) · `O` apply on a host · `W` withdraw the apply request |
+| Diff viewer | `]` / `[` next and previous hunk · `}` / `{` next and previous file |
 | People | `r` change role · `X` remove · `I` invite · `B` admit a box |
 | Agents | `r` change runtime · `E` who can use it · `N` (or `enter` on a row under "Available on this device") add it as an agent |
 | Hosts | `b` set this device's checkout for apply on host |
-| Notifications | `R` mark all read |
+| Notifications | `M` mark all read |
 | Settings | `space` / `enter` toggle |
 | Passkey prompt | `enter` open the browser · `f` use a recovery-words file · `esc` cancel |
 

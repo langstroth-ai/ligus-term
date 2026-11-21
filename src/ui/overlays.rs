@@ -233,6 +233,19 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
                 t,
             );
         }
+        Some(Overlay::Confirm { title, question, yes, .. }) => {
+            message(
+                f,
+                area,
+                title,
+                vec![
+                    Line::styled(question.clone(), t.text()),
+                    Line::raw(""),
+                    Line::from(vec![Span::styled("y", t.accent()), Span::styled(format!(" {yes} · any other key backs out"), t.dim())]),
+                ],
+                t,
+            );
+        }
         Some(Overlay::Invite { code }) => {
             let lines = match code {
                 None => vec![Line::styled("Creating an invite…", t.dim())],
@@ -253,7 +266,9 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
 }
 
 fn message(f: &mut Frame, area: Rect, title: &str, lines: Vec<Line>, t: &Theme) {
-    let r = center(area, 64, lines.len() as u16 + 4);
+    let w = 64.min(area.width);
+    let rows: usize = lines.iter().map(|l| super::wrap(&l.to_string(), w.saturating_sub(2) as usize).len()).sum();
+    let r = center(area, w, rows as u16 + 2);
     f.render_widget(Clear, r);
     let block = pane(title, true, t);
     f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }).block(block), r);

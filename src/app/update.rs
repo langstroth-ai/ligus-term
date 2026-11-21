@@ -683,9 +683,15 @@ fn paste(s: &mut State, text: &str) -> Vec<Effect> {
 }
 
 fn key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
-    // Ctrl-C always quits, whatever has focus.
+    // Ctrl-C quits whatever has focus: at once, unless this device is
+    // driving work, which asks first; a second ctrl-c then quits.
     if k.code == KeyCode::Char('c') && k.modifiers.contains(KeyModifiers::CONTROL) {
-        s.quit = true;
+        let asking = matches!(s.overlay, Some(Overlay::Confirm { action: ConfirmAction::Quit, .. }));
+        if asking || !s.presence.is_empty() || !matches!(s.phase, Phase::Main) {
+            s.quit = true;
+        } else {
+            ask_quit(s);
+        }
         return vec![];
     }
     if !s.presence.is_empty() {
@@ -1099,6 +1105,23 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
             s.overlay = None;
             vec![]
         }
+        Overlay::Confirm { action, .. } => {
+            let action = action.clone();
+            s.overlay = None;
+            if !matches!(k.code, KeyCode::Char('y') | KeyCode::Enter) {
+                return vec![];
+            }
+            match (action, ws) {
+                (ConfirmAction::Quit, _) => {
+                    s.quit = true;
+                    vec![]
+                }
+                (ConfirmAction::CancelRun(r), Some(w)) => vec![Effect::CancelRun(w, r)],
+                (ConfirmAction::Reject(p), Some(w)) => vec![Effect::Vote(w, p, VoteChoice::Reject)],
+                (ConfirmAction::RejectGate { run, stage }, Some(w)) => vec![Effect::DecideGate(w, run, stage, false)],
+                (_, None) => vec![],
+            }
+        }
         Overlay::AdmitBox { request, busy, checked, result } => {
             if *busy {
                 return vec![];
@@ -1319,7 +1342,7 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
     use Action::*;
     match action {
         Quit => {
-            s.quit = true;
+            ask_quit(s);
             vec![]
         }
         Help => {
@@ -1426,9 +1449,13 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
                 s.toast(ToastKind::Error, format!("Can't vote: {r}"));
                 return vec![];
             }
-            let choice = if action == Approve { VoteChoice::Approve } else { VoteChoice::Reject };
             let id = p.id.clone();
-            ws.map(|w| vec![Effect::Vote(w, id, choice)]).unwrap_or_default()
+            if action == Reject {
+                let title = p.title.clone();
+                confirm(s, "Reject", format!("Vote to reject \u{201c}{title}\u{201d}?"), "reject", ConfirmAction::Reject(id));
+                return vec![];
+            }
+            ws.map(|w| vec![Effect::Vote(w, id, VoteChoice::Approve)]).unwrap_or_default()
         }
         ApplyOnHost => {
             let Some(p) = s.selected_proposal() else { return vec![] };
@@ -1579,7 +1606,13 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
                 return vec![];
             };
             let (run, stage) = (r.id.clone(), gate.id.clone());
-            ws.map(|w| vec![Effect::DecideGate(w, run, stage, action == ApproveGate)]).unwrap_or_default()
+            if action == RejectGate {
+                let q =
+                    format!("Reject the gate \u{201c}{}\u{201d} of the run \u{201c}{}\u{201d}? The run stops there.", gate.name, r.name);
+                confirm(s, "Reject the gate", q, "reject", ConfirmAction::RejectGate { run, stage });
+                return vec![];
+            }
+            ws.map(|w| vec![Effect::DecideGate(w, run, stage, true)]).unwrap_or_default()
         }
         CancelRun => {
             let Some(WorkflowItem::Run(r)) = s.selected_workflow_item() else { return vec![] };
@@ -1588,8 +1621,10 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
                 s.toast(ToastKind::Info, format!("This run already {st}"));
                 return vec![];
             }
+            let q = format!("Cancel the run \u{201c}{}\u{201d}? Its stages stop and it can't be resumed.", r.name);
             let run = r.id.clone();
-            ws.map(|w| vec![Effect::CancelRun(w, run)]).unwrap_or_default()
+            confirm(s, "Cancel the run", q, "cancel the run", ConfirmAction::CancelRun(run));
+            vec![]
         }
         BindCheckout => {
             let mut buf = TextBuf::single();
@@ -1607,6 +1642,18 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             s.overlay = Some(Overlay::AdmitBox { request: TextBuf::single(), busy: false, checked: None, result: None });
             vec![]
         }
+    }
+}
+
+fn confirm(s: &mut State, title: &str, question: String, yes: &str, action: ConfirmAction) {
+    s.overlay = Some(Overlay::Confirm { title: title.into(), question, yes: yes.into(), action });
+}
+
+/// Quit, or ask first when quitting would stop work on this device.
+fn ask_quit(s: &mut State) {
+    match s.quit_guard() {
+        Some(why) => confirm(s, "Quit?", why, "quit", ConfirmAction::Quit),
+        None => s.quit = true,
     }
 }
 

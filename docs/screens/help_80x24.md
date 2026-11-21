@@ -23,7 +23,7 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 ┃ ┃  enter, l, →              Open                                           ┃ │
 ┃ ┃                                                                          ┃─╯
 ┃ ┃Anywhere                                                                  ┃
-┃ ┃  ctrl-c, q                Quit                                           ┃─╮
+┃ ┃  ctrl-c, q                Quit (asks first while work runs here)         ┃─╮
 ┃ ┃  ?, f1                    Show or hide this help                         ┃ │
 ┗━┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛─╯
 ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                   peer to peer

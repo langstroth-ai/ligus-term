@@ -23,8 +23,13 @@ fn defaults_resolve_in_context_order() {
     assert_eq!(k.resolve(&[People, Nav, Global], &plain('r'), false), Some(Action::ChangeRole));
     assert_eq!(k.resolve(&[Agents, Nav, Global], &plain('r'), false), Some(Action::ChangeRuntime));
     assert_eq!(k.resolve(&[Review, Nav, Global], &plain('R'), false), Some(Action::Reject));
-    assert_eq!(k.resolve(&[Diff, Review, Nav, Global], &plain('n'), false), Some(Action::NextHunk));
+    assert_eq!(k.resolve(&[Diff, Review, Nav, Global], &plain(']'), false), Some(Action::NextHunk));
+    // n and N keep their global meaning in the diff viewer.
+    assert_eq!(k.resolve(&[Diff, Review, Nav, Global], &plain('n'), false), Some(Action::GoNotifications));
     assert_eq!(k.resolve(&[Review, Nav, Global], &plain('n'), false), Some(Action::GoNotifications));
+    // R is reject wherever it means anything; mark-all-read is M.
+    assert_eq!(k.resolve(&[Notifications, Nav, Global], &plain('R'), false), None);
+    assert_eq!(k.resolve(&[Notifications, Nav, Global], &plain('M'), false), Some(Action::MarkAllRead));
     assert_eq!(k.resolve(&[Nav, Global], &plain('z'), false), None);
 }
 
@@ -138,4 +143,19 @@ fn missing_config_file_is_the_defaults() {
     std::fs::write(dir.path().join("bad.toml"), "theme = 3").unwrap();
     let e = Config::load(Some(&dir.path().join("bad.toml"))).unwrap_err();
     assert!(e.contains("bad.toml"), "{e}");
+}
+
+/// By default no view's keys hide a key that works anywhere (the composer,
+/// where letters type, aside): a global key means the same in every view.
+#[test]
+fn no_default_shadows_a_global_key() {
+    use ligus_term::keymap::{BINDINGS, Chord};
+    let global: Vec<Chord> =
+        BINDINGS.iter().filter(|b| b.context == Context::Global).flat_map(|b| b.keys.iter().map(|k| Chord::parse(k).unwrap())).collect();
+    for b in BINDINGS.iter().filter(|b| !matches!(b.context, Context::Global | Context::Composer)) {
+        for k in b.keys {
+            let c = Chord::parse(k).unwrap();
+            assert!(!global.contains(&c), "[keys.{}] {} = {k} hides a global key", b.context.name(), b.name);
+        }
+    }
 }

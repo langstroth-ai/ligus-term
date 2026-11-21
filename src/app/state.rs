@@ -263,6 +263,24 @@ pub enum Overlay {
     },
     /// The checkout this device applies the workspace's proposals in.
     BindCheckout(TextBuf),
+    /// "Are you sure?" before something that can't be undone from here:
+    /// `y` (or enter) goes ahead, any other key backs out.
+    Confirm {
+        title: String,
+        question: String,
+        /// What `y` does, as the key hint says it ("quit", "cancel the run").
+        yes: String,
+        action: ConfirmAction,
+    },
+}
+
+/// What a [`Overlay::Confirm`] does on `y`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConfirmAction {
+    Quit,
+    CancelRun(RunId),
+    Reject(ProposalId),
+    RejectGate { run: RunId, stage: String },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -568,6 +586,34 @@ impl State {
             View::Notifications => vec![Notifications, Nav, Global],
             View::Settings => vec![Settings, Nav, Global],
         }
+    }
+
+    /// Whether this device drives `r` (holds its coordinator lease).
+    pub fn drives_here(&self, r: &Run) -> bool {
+        r.driver
+            .as_deref()
+            .is_some_and(|d| d == "This device" || d == self.device.device_name || self.hosts.iter().any(|h| h.this_device && h.label == d))
+    }
+
+    /// Why quitting now would stop work on this device: a run it drives, or
+    /// an agent's turn running here. `None` when nothing would stop.
+    pub fn quit_guard(&self) -> Option<String> {
+        let runs: Vec<&Run> = self.runs.iter().filter(|r| !r.status.is_terminal() && self.drives_here(r)).collect();
+        if let Some(r) = runs.first() {
+            let more = if runs.len() > 1 { format!(" and {} more", runs.len() - 1) } else { String::new() };
+            return Some(format!(
+                "This device drives the run \u{201c}{}\u{201d}{more}. Quitting stops driving it until lt runs here again.",
+                r.name
+            ));
+        }
+        let here = |a: &&Agent| match &a.host {
+            None => true,
+            Some(id) => self.hosts.iter().any(|h| &h.id == id && h.this_device),
+        };
+        if let Some(a) = self.agents.iter().filter(here).find(|a| a.status == AgentStatus::Busy) {
+            return Some(format!("@{} is working on this device. Quitting stops its turn.", a.handle));
+        }
+        None
     }
 
     /// The runtimes found on this device that no agent here uses yet.

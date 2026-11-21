@@ -23,7 +23,7 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 ┃                ┃  enter, l, →              Open                                           ┃                │
 ┃                ┃                                                                          ┃                │
 ┃                ┃Anywhere                                                                  ┃                │
-┃                ┃  ctrl-c, q                Quit                                           ┃                │
+┃                ┃  ctrl-c, q                Quit (asks first while work runs here)         ┃                │
 ┃                ┃  ?, f1                    Show or hide this help                         ┃                │
 ┃                ┃  esc                      Back / close                                   ┃                │
 ┃                ┃  w, ctrl-w                Switch workspace                               ┃                │

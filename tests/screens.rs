@@ -610,3 +610,21 @@ async fn help_scrolls_to_the_end() {
     let chats = top.find("Write a message").unwrap();
     assert!(top.find("Quit").is_none_or(|q| q > chats), "{top}");
 }
+
+/// Quitting while this device drives a run asks first; so does cancelling a
+/// run.
+#[tokio::test]
+async fn confirm_quit_and_cancel_run() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char('q')).await;
+    assert!(!h.state.quit);
+    snap("confirm_quit", "Quitting while this device drives a run", h.screen(W, H));
+    h.key(KeyCode::Esc).await;
+    h.key(KeyCode::Char('f')).await;
+    h.key(KeyCode::Down).await;
+    h.key(KeyCode::Down).await;
+    h.key(KeyCode::Char('X')).await;
+    snap("confirm_cancel_run", "Cancelling a run asks first", h.screen(W, H));
+    h.key(KeyCode::Char('y')).await;
+    assert!(h.screen(W, H).contains("canceled"), "{}", h.screen(W, H));
+}

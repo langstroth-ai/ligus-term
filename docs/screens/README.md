@@ -52,6 +52,8 @@ INSTA_UPDATE=always LT_WRITE_SCREENS=1 cargo test --test screens
 | People: refused actions with the reason | [people_refused.md](people_refused.md) |
 | Changing a role | [role_picker.md](role_picker.md) |
 | Confirm a removal | [confirm_remove.md](confirm_remove.md) |
+| Quitting while this device drives a run | [confirm_quit.md](confirm_quit.md) |
+| Cancelling a run asks first | [confirm_cancel_run.md](confirm_cancel_run.md) |
 | Admit a box: its join request | [admit_box.md](admit_box.md) |
 | Admit a box: the sealed admission | [admit_box_sealed.md](admit_box_sealed.md) |
 | Passkey sheet | [presence.md](presence.md) |

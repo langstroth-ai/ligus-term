@@ -15,13 +15,13 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                                ┃│                                                          │
 ┃                                                ┃│X Remove from the workspace                               │
 ┃                                                ┃│I Create an invite                                        │
-┃                      ┏ Remove member ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓er) as a service      │
+┃                                                ┃│B Admit a box (ligus serve or a worker) as a service      │
+┃                      ┏ Remove member ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                      │
 ┃                      ┃Remove Lin from the workspace?                                ┃                      │
-┃                      ┃                                                              ┃                      │
-┃                      ┃y confirm (needs your passkey) · any other key cancels        ┃ed your passkey.      │
-┃                      ┃                                                              ┃                      │
-┃                      ┃                                                              ┃                      │
+┃                      ┃                                                              ┃ed your passkey.      │
+┃                      ┃y confirm (needs your passkey) · any other key cancels        ┃                      │
 ┃                      ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                      │
+┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │

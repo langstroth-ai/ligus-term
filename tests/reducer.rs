@@ -651,8 +651,16 @@ fn workflows_view_starts_runs_and_decides_gates() {
     // The run: approve its waiting gate.
     key(&mut s, KeyCode::Down);
     assert_eq!(key(&mut s, KeyCode::Char('A')), vec![Effect::DecideGate(w.clone(), RunId::new("r1"), "signoff".into(), true)]);
-    assert_eq!(key(&mut s, KeyCode::Char('R')), vec![Effect::DecideGate(w.clone(), RunId::new("r1"), "signoff".into(), false)]);
-    assert_eq!(key(&mut s, KeyCode::Char('X')), vec![Effect::CancelRun(w.clone(), RunId::new("r1"))]);
+    // Rejecting the gate and cancelling the run ask first: y goes ahead,
+    // any other key backs out.
+    assert!(key(&mut s, KeyCode::Char('R')).is_empty());
+    assert!(matches!(&s.overlay, Some(Overlay::Confirm { action: ConfirmAction::RejectGate { .. }, .. })));
+    assert_eq!(key(&mut s, KeyCode::Char('y')), vec![Effect::DecideGate(w.clone(), RunId::new("r1"), "signoff".into(), false)]);
+    assert!(key(&mut s, KeyCode::Char('X')).is_empty());
+    assert!(key(&mut s, KeyCode::Char('n')).is_empty());
+    assert!(s.overlay.is_none(), "n backs out");
+    assert!(key(&mut s, KeyCode::Char('X')).is_empty());
+    assert_eq!(key(&mut s, KeyCode::Char('y')), vec![Effect::CancelRun(w.clone(), RunId::new("r1"))]);
 
     // A change from the driver lands in place; a settled run has no gate.
     let mut done = run_waiting("r1");
@@ -844,4 +852,113 @@ fn an_unsupported_cli_is_explained_not_added() {
     });
     assert!(key(&mut s, KeyCode::Esc).is_empty());
     assert!(s.overlay.is_none());
+}
+
+/// `q` quits at once when nothing runs here; while this device drives a
+/// run it asks first (any other key stays), and ctrl-c twice always quits.
+#[test]
+fn quitting_asks_while_this_device_drives_a_run() {
+    let mut s = main_state();
+    key(&mut s, KeyCode::Char('q'));
+    assert!(s.quit, "nothing runs here: q quits");
+
+    let mut s = main_state();
+    let w = WorkspaceId::new("a");
+    update(&mut s, Msg::Runs(w.clone(), Ok(vec![run_waiting("r1")])));
+    key(&mut s, KeyCode::Char('q'));
+    assert!(!s.quit);
+    let Some(Overlay::Confirm { action: ConfirmAction::Quit, question, .. }) = &s.overlay else { panic!("{:?}", s.overlay) };
+    assert!(question.contains("drives the run") && question.contains("Ship"), "{question}");
+    key(&mut s, KeyCode::Char('n'));
+    assert!(!s.quit && s.overlay.is_none());
+    key(&mut s, KeyCode::Char('q'));
+    key(&mut s, KeyCode::Char('y'));
+    assert!(s.quit);
+
+    let mut s = main_state();
+    update(&mut s, Msg::Runs(w.clone(), Ok(vec![run_waiting("r1")])));
+    mods(&mut s, KeyCode::Char('c'), KeyModifiers::CONTROL);
+    assert!(!s.quit && s.overlay.is_some());
+    mods(&mut s, KeyCode::Char('c'), KeyModifiers::CONTROL);
+    assert!(s.quit, "a second ctrl-c quits");
+
+    // A run another device drives, or one that ended, doesn't hold lt.
+    let mut s = main_state();
+    let mut elsewhere = run_waiting("r2");
+    elsewhere.driver = Some("ada-studio".into());
+    let mut done = run_waiting("r3");
+    done.status = RunStatus::Completed;
+    update(&mut s, Msg::Runs(w, Ok(vec![elsewhere, done])));
+    key(&mut s, KeyCode::Char('q'));
+    assert!(s.quit);
+}
+
+/// Rejecting a proposal asks first; approving doesn't.
+#[test]
+fn rejecting_a_proposal_asks_first() {
+    let mut s = main_state();
+    let w = WorkspaceId::new("a");
+    key(&mut s, KeyCode::Char('p'));
+    update(&mut s, Msg::Proposals(w.clone(), Ok(vec![proposal("p1", ProposalStatus::Open)])));
+    assert!(key(&mut s, KeyCode::Char('R')).is_empty());
+    assert!(matches!(&s.overlay, Some(Overlay::Confirm { action: ConfirmAction::Reject(_), .. })));
+    assert!(key(&mut s, KeyCode::Esc).is_empty());
+    assert!(s.overlay.is_none());
+    key(&mut s, KeyCode::Char('R'));
+    assert_eq!(key(&mut s, KeyCode::Char('y')), vec![Effect::Vote(w.clone(), ProposalId::new("p1"), VoteChoice::Reject)]);
+    assert_eq!(key(&mut s, KeyCode::Char('A')), vec![Effect::Vote(w, ProposalId::new("p1"), VoteChoice::Approve)]);
+}
+
+/// R means reject only: Notifications marks all read with M; n and N keep
+/// their global meaning in the diff viewer (hunks are ] and [).
+#[test]
+fn keys_mean_one_thing_everywhere() {
+    let mut s = main_state();
+    key(&mut s, KeyCode::Char('n'));
+    assert_eq!(s.view, View::Notifications);
+    assert!(key(&mut s, KeyCode::Char('R')).is_empty());
+    assert_eq!(key(&mut s, KeyCode::Char('M')), vec![Effect::MarkNotificationsRead]);
+
+    let w = WorkspaceId::new("a");
+    key(&mut s, KeyCode::Char('p'));
+    update(&mut s, Msg::Proposals(w.clone(), Ok(vec![proposal("p1", ProposalStatus::Open)])));
+    key(&mut s, KeyCode::Enter);
+    let d = Diff { files: vec![FileDiff { path: "a".into(), added: 1, removed: 0, hunks: vec![] }] };
+    update(&mut s, Msg::Diff(w, ProposalId::new("p1"), Ok(d)));
+    assert_eq!(s.focus, Focus::Detail);
+    key(&mut s, KeyCode::Char('n'));
+    assert_eq!(s.view, View::Notifications, "n opens Notifications from the diff too");
+}
+
+/// A background failure on the sync channel is a toast; sync states are
+/// the status bar's.
+#[test]
+fn sync_states_and_background_failures() {
+    let mut s = main_state();
+    let w = WorkspaceId::new("a");
+    update(&mut s, Msg::Event(Event::Sync { workspace: w.clone(), status: "synced".into() }));
+    assert_eq!(s.sync_status.get(&w).map(String::as_str), Some("synced"));
+    assert!(s.toasts.is_empty());
+    update(&mut s, Msg::Event(Event::Sync { workspace: w.clone(), status: "turn failed: no runtime".into() }));
+    assert_eq!(s.sync_status.get(&w).map(String::as_str), Some("synced"));
+    assert!(s.toasts.last().is_some_and(|t| t.kind == ToastKind::Error && t.text.contains("turn failed")));
+}
+
+/// Help scrolls to its last line and straight back, in steps the terminal's
+/// height allows.
+#[test]
+fn help_scrolls_within_bounds() {
+    let mut s = main_state();
+    update(&mut s, Msg::Resize(80, 24));
+    key(&mut s, KeyCode::Char('?'));
+    key(&mut s, KeyCode::Char('G'));
+    let Some(Overlay::Help { scroll: end }) = s.overlay.clone() else { panic!() };
+    assert!(end > 0);
+    assert_eq!(end, ligus_term::ui::help_max_scroll(&s, 24));
+    key(&mut s, KeyCode::Char('j'));
+    assert_eq!(s.overlay, Some(Overlay::Help { scroll: end }), "no scrolling past the end");
+    key(&mut s, KeyCode::Char('k'));
+    assert_eq!(s.overlay, Some(Overlay::Help { scroll: end - 1 }));
+    key(&mut s, KeyCode::Char('x'));
+    assert!(s.overlay.is_none(), "another key closes it");
 }

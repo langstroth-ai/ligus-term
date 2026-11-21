@@ -164,7 +164,7 @@ macro_rules! b {
 }
 
 pub const BINDINGS: &[Binding] = &[
-    b!(Global, Quit, "quit", "Quit", ["ctrl-c", "q"]),
+    b!(Global, Quit, "quit", "Quit (asks first while work runs here)", ["ctrl-c", "q"]),
     b!(Global, Help, "help", "Show or hide this help", ["?", "f1"]),
     b!(Global, Back, "back", "Back / close", ["esc"]),
     b!(Global, SwitchWorkspace, "switch_workspace", "Switch workspace", ["w", "ctrl-w"]),
@@ -196,11 +196,11 @@ pub const BINDINGS: &[Binding] = &[
     b!(Composer, CancelCompose, "cancel", "Leave the composer (keeps the draft)", ["esc"]),
     b!(Composer, Complete, "complete", "Accept the @mention", ["tab"]),
     b!(Review, Approve, "approve", "Approve", ["A"]),
-    b!(Review, Reject, "reject", "Reject", ["R"]),
+    b!(Review, Reject, "reject", "Reject (asks first)", ["R"]),
     b!(Review, ApplyOnHost, "apply_on_host", "Apply on a host", ["O"]),
     b!(Review, WithdrawApply, "withdraw_apply", "Withdraw the apply request", ["W"]),
-    b!(Diff, NextHunk, "next_hunk", "Next hunk", ["]", "n"]),
-    b!(Diff, PrevHunk, "prev_hunk", "Previous hunk", ["[", "N"]),
+    b!(Diff, NextHunk, "next_hunk", "Next hunk", ["]"]),
+    b!(Diff, PrevHunk, "prev_hunk", "Previous hunk", ["["]),
     b!(Diff, NextFile, "next_file", "Next file", ["}"]),
     b!(Diff, PrevFile, "prev_file", "Previous file", ["{"]),
     b!(People, ChangeRole, "change_role", "Change role", ["r"]),
@@ -211,11 +211,11 @@ pub const BINDINGS: &[Binding] = &[
     b!(Agents, ToggleAccess, "toggle_access", "Who can use the agent: only me or everyone", ["E"]),
     b!(Agents, AddAgent, "add_agent", "Add the selected runtime on this device as an agent", ["N"]),
     b!(Settings, Toggle, "toggle", "Toggle", ["space", "enter"]),
-    b!(Notifications, MarkAllRead, "mark_all_read", "Mark all read", ["R"]),
+    b!(Notifications, MarkAllRead, "mark_all_read", "Mark all read", ["M"]),
     b!(Workflows, StartRun, "start_run", "Start a run of this workflow", ["S"]),
     b!(Workflows, ApproveGate, "approve_gate", "Approve the run's waiting gate", ["A"]),
-    b!(Workflows, RejectGate, "reject_gate", "Reject the run's waiting gate", ["R"]),
-    b!(Workflows, CancelRun, "cancel_run", "Cancel the run", ["X"]),
+    b!(Workflows, RejectGate, "reject_gate", "Reject the run's waiting gate (asks first)", ["R"]),
+    b!(Workflows, CancelRun, "cancel_run", "Cancel the run (asks first)", ["X"]),
     b!(Hosts, BindCheckout, "bind_checkout", "Set this device's checkout for apply", ["b"]),
 ];
 
