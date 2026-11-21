@@ -602,7 +602,9 @@ end
 class ScriptsAreExecutable < Minitest::Test
   def test_every_script_a_workflow_runs_directly_is_executable_in_git
     yml = Dir[File.join(ROOT, ".github/{workflows,actions}/**/*.yml")].map { |f| File.read(f) }.join("\n")
-    run = yml.scan(%r{(?<![\w/-]|bash |sh |ruby |python3 )(scripts/[\w.-]+\.(?:sh|py|rb))}).flatten.uniq
+    # Commands only: `run: scripts/x.sh …` or a run-block line starting with it
+    # (not `bash scripts/…`, and not a `- scripts/…` paths-filter entry).
+    run = yml.scan(%r{^\s*(?:run:\s*)?(scripts/[\w.-]+\.(?:sh|py|rb))\b}).flatten.uniq
     refute_empty run
     modes = Open3.capture2("git", "-C", ROOT, "ls-files", "-s", *run).first
     run.each do |s|
