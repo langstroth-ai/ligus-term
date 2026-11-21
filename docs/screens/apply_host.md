@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                          ┃│                                                                │
 ┃                                          ┃│                                                                │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────╯
-↑↓ proposals  enter diff  A approve  R reject  O apply  ? help                     lt on this terminal · demo
+↑↓ proposals  enter diff  A approve  R reject  O apply  ? help       peer to peer · lt on this terminal · demo
 ```

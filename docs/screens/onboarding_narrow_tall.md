@@ -1,6 +1,6 @@
 # First run in a narrow, tall terminal: the mark above the form
 
-Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
+Rendered by `tests/screens.rs` (80×40, the in-memory demo backend).
 
 ```text
 

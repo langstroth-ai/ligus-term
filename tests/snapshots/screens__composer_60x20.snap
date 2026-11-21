@@ -1,0 +1,24 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[AT]+1• │ 1 Chats 2 3 4 5 6 7 8(1) 9          Apiary Tracker
+╭ Chats ───────────────╮╭ Inspection log refactor ─────────╮
+│  Inspection lo… 12m  ││  mite counts. Can we switch to   │
+│  #dev                ││  mites per 100 bees?             │
+│  ⊘ Queen cell … 50m  ││                                  │
+│  #dev                ││@coder  via claude-code  38m      │
+│  Release notes   1d  ││  Yes. The wash sample size is    │
+│                      ││  already recorded, so it's a     │
+│                      ││  small change. I'll propose it.  │
+│                      ││                                  │
+│                      ││Ada  12m                          │
+│                      ││  @Mara can you review the        │
+│                      ││  threshold? 3 per 100 is what the│
+│                      ││ ┏ Mention ━━━━━━━━━━━━━━━━━━━━━━━┓
+│                      │╰─┃@coder           Agent          ┃
+│                      │  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+│                      │┏ Message the room ━━━━━━━━━━━━━━━━┓
+│                      │┃@co                               ┃
+╰──────────────────────╯┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+enter send  alt-enter newline  @ mention  esc leave  f1 help

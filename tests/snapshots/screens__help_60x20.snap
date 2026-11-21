@@ -1,0 +1,24 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[AT]+1• │ 1 Chats 2 3 4 5 6 7 8(1) 9          Apiary Tracker
+┏ Help · 1-16 of 83 · ↑↓ pgup pgdn g G · esc closes ━━━━━━━┓
+┃lt keybindings, for what has focus first. Rebind any of th┃
+┃                                                          ┃
+┃Chats                                                     ┃
+┃  i                        Write a message                ┃
+┃  N                        New chat                       ┃
+┃  L                        Lock this chat down            ┃
+┃  U                        Clear the lockdown             ┃
+┃                                                          ┃
+┃Lists                                                     ┃
+┃  ↑, k                     Up                             ┃
+┃  ↓, j                     Down                           ┃
+┃  pgup, ctrl-u             Page up                        ┃
+┃  pgdn, ctrl-d             Page down                      ┃
+┃  home, g                  First                          ┃
+┃  end, G                   Last                           ┃
+┃  enter, l, →              Open                           ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+↑↓ scroll  pgup/pgdn page  g/G top/end  esc close

@@ -1,0 +1,24 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[AT]+1• │ 1 2 3 4 5 6 7 People 8(1) 9         Apiary Tracker
+┏ People ━━━━━━━━━━━━━━━━━┓╭ Member ───────────────────────╮
+┃  Mara · you  owner  foun┃│Mara  owner                    │
+┃  Ada  admin             ┃│                               │
+┃  Lin  contributor       ┃│Founder: nobody can remove or  │
+┃  Sam  viewer            ┃│demote them.                   │
+┃  sff box  contributor  s┃│Role (r)                       │
+┃                         ┃│  (•) owner                    │
+┃                         ┃│  ( ) admin                    │
+┃                         ┃│  ( ) contributor              │
+┃                         ┃│  ( ) viewer                   │
+┃                         ┃│                               │
+┃                         ┃│X Leave the workspace          │
+┃                         ┃│I Create an invite             │
+┃                         ┃│B Admit a box (ligus serve or a│
+┃                         ┃│worker) as a service member    │
+┃                         ┃│                               │
+┃                         ┃│Changes to who's in the        │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━┛╰───────────────────────────────╯
+↑↓ people  r role  X remove  I invite  B admit box  ? help

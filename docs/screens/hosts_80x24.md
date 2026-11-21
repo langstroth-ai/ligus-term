@@ -1,0 +1,30 @@
+# hosts at 80×24
+
+Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
+
+```text
+[AT]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Apiary T…
+┏ Workers & hosts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  Host                 Kind    Status     Work  Agents            Repos       ┃
+┃● This device          DEVICE  online     idle  @primary @reviewe             ┃
+┃● sff                  WORKER  online     busy  @coder @scout     apiary      ┃
+┃○ ada-studio           DEVICE  3h ago     idle                                ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+No checkout bound: this device can't apply proposals here. b bind one
+A host runs agents and applies approved proposals on its checkout. A worker is
+headless.
+↑↓ hosts  b bind checkout  ? help      peer to peer · lt on this terminal · demo
+```

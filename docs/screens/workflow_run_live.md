@@ -5,10 +5,10 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ```text
 [AT] [QR]• Apiary Tracker · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Workflows 2 · Runs 3 ━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Detail ──────────────────────────────────────────────────╮
-┃▸ Implement, revie…  Inspection log refactor    ┃│Implement, review, ship  awaiting-gate                    │
+┃▸ Implement, review, ship  Inspection log ref…  ┃│Implement, review, ship  awaiting-gate                    │
 ┃▸ Weekly swarm report  Queen cell alerts        ┃│started by Mara just now · driven by This device          │
 ┃  Implement, review, sh… ●●◆ awaiting-gate now  ┃│input export the wash counts                              │
-┃  Implement, review, sh… ●●● completed now      ┃│                                                          │
+┃  Implement, review, ship ●●● completed now     ┃│                                                          │
 ┃  Weekly swarm report ● completed 1d            ┃│  ● Implement @coder  succeeded                           │
 ┃                                                ┃│      @coder finished: export the wash counts             │
 ┃                                                ┃│  ● Review @reviewer  succeeded                           │
@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────╯
-↑↓  S start  A approve gate  R reject  X cancel  ? help                            lt on this terminal · demo
+↑↓ select  S start  A approve gate  R reject  X cancel  ? help       peer to peer · lt on this terminal · demo
 ```

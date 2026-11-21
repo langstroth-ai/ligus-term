@@ -1,0 +1,54 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[AT] [QR]• Apiary Tracker · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
+┏ Workflows 2 · Runs 2 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Detail ────────────────────────────────────────────────────────────────────────────────────────────────────╮
+┃▸ Implement, review, ship  Inspection log refactor                                      ┃│Implement, review, ship                                                                                     │
+┃▸ Weekly swarm report  Queen cell alerts                                                ┃│in Inspection log refactor                                                                                  │
+┃  Implement, review, ship ●●◆ awaiting-gate 4m                                          ┃│                                                                                                            │
+┃  Weekly swarm report ● completed 1d                                                    ┃│The coder implements, the reviewer checks it, a person signs off.                                           │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│  Implement @coder                                                                                          │
+┃                                                                                        ┃│  Review @reviewer  after implement                                                                         │
+┃                                                                                        ┃│  Sign-off gate (1 approval)  after review                                                                  │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│S Start a run: this device drives it; stages go to their agents' hosts                                      │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+↑↓ select  S start  A approve gate  R reject  X cancel  ? help                                                                                                 peer to peer · lt on this terminal · demo

@@ -1,0 +1,30 @@
+# help at 80×24
+
+Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
+
+```text
+[AT]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Apiary T…
+┏ ┏ Help · 1-20 of 83 · ↑↓ pgup pgdn g G · esc closes ━━━━━━━━━━━━━━━━━━━━━━━┓─╮
+┃ ┃lt keybindings, for what has focus first. Rebind any of them in the config┃ │
+┃ ┃                                                                          ┃ │
+┃ ┃Chats                                                                     ┃ │
+┃ ┃  i                        Write a message                                ┃ │
+┃ ┃  N                        New chat                                       ┃ │
+┃ ┃  L                        Lock this chat down                            ┃ │
+┃ ┃  U                        Clear the lockdown                             ┃ │
+┃ ┃                                                                          ┃ │
+┃ ┃Lists                                                                     ┃ │
+┃ ┃  ↑, k                     Up                                             ┃ │
+┃ ┃  ↓, j                     Down                                           ┃ │
+┃ ┃  pgup, ctrl-u             Page up                                        ┃ │
+┃ ┃  pgdn, ctrl-d             Page down                                      ┃ │
+┃ ┃  home, g                  First                                          ┃ │
+┃ ┃  end, G                   Last                                           ┃ │
+┃ ┃  enter, l, →              Open                                           ┃ │
+┃ ┃                                                                          ┃─╯
+┃ ┃Anywhere                                                                  ┃
+┃ ┃  ctrl-c, q                Quit                                           ┃─╮
+┃ ┃  ?, f1                    Show or hide this help                         ┃ │
+┗━┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛─╯
+↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                   peer to peer
+```

@@ -1,0 +1,24 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[AT]+1• │ 1 2 3 Props 4 5 6 7 8(1) 9          Apiary Tracker
+┏ Proposals ━━━━━━━━━━━━━━━━━┓╭ Record mites per 100 bees ─╮
+┃open     Record mites pe…   ┃│open  by @coder · 2 files   │
+┃         1/2 approvals · …  ┃│changed · 1/2 approvals     │
+┃approved Export inspecti…   ┃│✓ Ada approved · admin      │
+┃         2/2 approvals · …  ┃│A Approve   R Reject   O    │
+┃applied  Bump the frame …   ┃│Apply on sff… (needs        │
+┃         2/2 approvals · …  ┃│approval first)             │
+┃open     Sign-off: count…   ┃╰────────────────────────────╯
+┃         0/1 approvals · …  ┃╭ Diff ──────────────────────╮
+┃open     Workflow: Swarm…   ┃│enter to view the diff      │
+┃         0/1 approvals · …  ┃│                            │
+┃                            ┃│                            │
+┃                            ┃│                            │
+┃                            ┃│                            │
+┃                            ┃│                            │
+┃                            ┃│                            │
+┃                            ┃│                            │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────╯
+↑↓ proposals  enter diff  A approve  R reject  …  ? help

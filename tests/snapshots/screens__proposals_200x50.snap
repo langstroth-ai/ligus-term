@@ -1,0 +1,54 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[AT] [QR]• Apiary Tracker · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
+┏ Proposals ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Record mites per 100 bees ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+┃open     Record mites per 100 bees                ┃│open  by @coder · 2 files changed · 1/2 approvals                                                                                                 │
+┃         1/2 approvals · @coder · 37m             ┃│✓ Ada approved · admin                                                                                                                            │
+┃approved Export inspections to CSV                ┃│A Approve   R Reject   O Apply on sff… (needs approval first)                                                                                     │
+┃         2/2 approvals · @coder · 1d              ┃│That host applies it once, on its checkout, and reports the result.                                                                               │
+┃applied  Bump the frame schema version            ┃│                                                                                                                                                  │
+┃         2/2 approvals · @reviewer · 2d           ┃│                                                                                                                                                  │
+┃open     Sign-off: count mites per 100 bees       ┃╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+┃         0/1 approvals · workflow · 4m            ┃╭ Diff ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+┃open     Workflow: Swarm check before inspecti…   ┃│enter to view the diff                                                                                                                            │
+┃         0/1 approvals · @scout · 20m             ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+↑↓ proposals  enter diff  A approve  R reject  O apply  ? help                                                                                                 peer to peer · lt on this terminal · demo

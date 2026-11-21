@@ -1,0 +1,54 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[AT] [QR]• Apiary Tracker · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
+┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Inspection log refactor ────┏ Help · 1-46 of 83 · ↑↓ pgup pgdn g G · esc closes ━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────────────────────────────────────────────╮
+┃  Inspection log refact… 12m  ┃│Ada  40m                     ┃lt keybindings, for what has focus first. Rebind any of them in the config┃                                                             │
+┃  #dev                        ┃│  The inspection log stores r┃                                                                          ┃                                                             │
+┃  ⊘ Queen cell alerts    50m  ┃│                             ┃Chats                                                                     ┃                                                             │
+┃  #dev                        ┃│@coder  via claude-code  38m ┃  i                        Write a message                                ┃                                                             │
+┃  Release notes           1d  ┃│  Yes. The wash sample size i┃  N                        New chat                                       ┃                                                             │
+┃                              ┃│                             ┃  L                        Lock this chat down                            ┃                                                             │
+┃                              ┃│Ada  12m                     ┃  U                        Clear the lockdown                             ┃                                                             │
+┃                              ┃│  @Mara can you review the th┃                                                                          ┃                                                             │
+┃                              ┃│                             ┃Lists                                                                     ┃                                                             │
+┃                              ┃│                             ┃  ↑, k                     Up                                             ┃                                                             │
+┃                              ┃│                             ┃  ↓, j                     Down                                           ┃                                                             │
+┃                              ┃│                             ┃  pgup, ctrl-u             Page up                                        ┃                                                             │
+┃                              ┃│                             ┃  pgdn, ctrl-d             Page down                                      ┃                                                             │
+┃                              ┃│                             ┃  home, g                  First                                          ┃                                                             │
+┃                              ┃│                             ┃  end, G                   Last                                           ┃                                                             │
+┃                              ┃│                             ┃  enter, l, →              Open                                           ┃                                                             │
+┃                              ┃│                             ┃                                                                          ┃                                                             │
+┃                              ┃│                             ┃Anywhere                                                                  ┃                                                             │
+┃                              ┃│                             ┃  ctrl-c, q                Quit                                           ┃                                                             │
+┃                              ┃│                             ┃  ?, f1                    Show or hide this help                         ┃                                                             │
+┃                              ┃│                             ┃  esc                      Back / close                                   ┃                                                             │
+┃                              ┃│                             ┃  w, ctrl-w                Switch workspace                               ┃                                                             │
+┃                              ┃│                             ┃  +                        Create or join a workspace                     ┃                                                             │
+┃                              ┃│                             ┃  c, 1                     Chats                                          ┃                                                             │
+┃                              ┃│                             ┃  f, 2                     Workflows and runs                             ┃                                                             │
+┃                              ┃│                             ┃  p, 3                     Proposals                                      ┃                                                             │
+┃                              ┃│                             ┃  a, 4                     Agents, runtimes and hand-offs                 ┃                                                             │
+┃                              ┃│                             ┃  h, 5                     Hosts and workers                              ┃                                                             │
+┃                              ┃│                             ┃  y, 6                     Task state and memory                          ┃                                                             │
+┃                              ┃│                             ┃  m, 7                     People                                         ┃                                                             │
+┃                              ┃│                             ┃  n, 8                     Notifications                                  ┃                                                             │
+┃                              ┃│                             ┃  s, 9                     Settings                                       ┃                                                             │
+┃                              ┃│                             ┃  tab                      Next pane                                      ┃                                                             │
+┃                              ┃│                             ┃  shift-tab                Previous pane                                  ┃                                                             │
+┃                              ┃│                             ┃                                                                          ┃                                                             │
+┃                              ┃│                             ┃Composer                                                                  ┃                                                             │
+┃                              ┃│                             ┃  enter                    Send                                           ┃                                                             │
+┃                              ┃│                             ┃  alt-enter, ctrl-j, shift-enter New line                                 ┃                                                             │
+┃                              ┃│                             ┃  esc                      Leave the composer (keeps the draft)           ┃                                                             │
+┃                              ┃│                             ┃  tab                      Accept the @mention                            ┃                                                             │
+┃                              ┃│                             ┃                                                                          ┃                                                             │
+┃                              ┃│                             ┃Proposals                                                                 ┃                                                             │
+┃                              ┃╰─────────────────────────────┃  A                        Approve                                        ┃─────────────────────────────────────────────────────────────╯
+┃                              ┃                              ┃  R                        Reject                                         ┃
+┃                              ┃╭ Message the room ───────────┃  O                        Apply on a host                                ┃─────────────────────────────────────────────────────────────╮
+┃                              ┃│i to write · @ mentions an ag┃  W                        Withdraw the apply request                     ┃                                                             │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰─────────────────────────────┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛─────────────────────────────────────────────────────────────╯
+↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                                                                                                              peer to peer · lt on this terminal · demo

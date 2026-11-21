@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 │                                          │┃+    pub const TREATMENT_THRESHOLD: f32 = 3.0;                  ┃
 │                                          │┃                                                                ┃
 ╰──────────────────────────────────────────╯┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-↑↓ scroll  ] next hunk  [ prev hunk  A approve  R reject  O apply                  lt on this terminal · demo
+↑↓ scroll  ] next hunk  [ prev hunk  A approve  R reject  O apply  ? help                         peer to peer
 ```

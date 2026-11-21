@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 This device applies approved proposals in /srv/apiary  (b change)
 A host runs agents and applies approved proposals on its checkout. A worker is headless.
 
-↑↓ hosts  b bind checkout  ? help                                                  lt on this terminal · demo
+↑↓ hosts  b bind checkout  ? help                                    peer to peer · lt on this terminal · demo
 ```

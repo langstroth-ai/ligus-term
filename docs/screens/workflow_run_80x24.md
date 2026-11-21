@@ -1,0 +1,30 @@
+# workflow_run at 80×24
+
+Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
+
+```text
+[AT]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Apiary T…
+┏ Workflows 2 · Runs 2 ━━━━━━━━━━━━┓╭ Detail ──────────────────────────────────╮
+┃▸ Implement, review, ship         ┃│Implement, review, ship  awaiting-gate    │
+┃▸ Weekly swarm report  Queen ce…  ┃│started by Mara 30m ago · driven by This  │
+┃  Implemen… ●●◆ awaiting-gate 4m  ┃│device                                    │
+┃  Weekly swarm r… ● completed 1d  ┃│input count mites per 100 bees            │
+┃                                  ┃│                                          │
+┃                                  ┃│  ● Implement @coder  succeeded           │
+┃                                  ┃│      Changed the inspection struct and…  │
+┃                                  ┃│  ● Review @reviewer  succeeded           │
+┃                                  ┃│      Looks right; the wash sample is v…  │
+┃                                  ┃│  ◆ Sign-off gate (1 approval)            │
+┃                                  ┃│awaiting-approval                         │
+┃                                  ┃│                                          │
+┃                                  ┃│A approve the gate  R reject it           │
+┃                                  ┃│X cancel the run                          │
+┃                                  ┃│enter open its chat                       │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────╯
+↑↓ select  S start  A approve gate  R reject  X cancel  ? help      peer to peer
+```

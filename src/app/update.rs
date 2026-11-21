@@ -18,6 +18,8 @@ pub enum Msg {
     Paste(String),
     /// Wall clock, for ages and toasts.
     Tick(Millis),
+    /// The terminal's new size (columns, rows).
+    Resize(u16, u16),
     Event(Event),
     Startup(Result<StartupState>),
     Workspaces(Result<Vec<WorkspaceSummary>>),
@@ -157,6 +159,14 @@ pub fn update(s: &mut State, msg: Msg) -> Vec<Effect> {
             s.now = now;
             s.toasts.iter_mut().for_each(|t| t.ttl = t.ttl.saturating_sub(1));
             s.toasts.retain(|t| t.ttl > 0);
+            vec![]
+        }
+        Msg::Resize(w, h) => {
+            s.term = (w, h);
+            let max = crate::ui::help_max_scroll(s, h);
+            if let Some(Overlay::Help { scroll }) = &mut s.overlay {
+                *scroll = (*scroll).min(max);
+            }
             vec![]
         }
         Msg::Event(e) => event(s, e),
@@ -613,8 +623,15 @@ fn event(s: &mut State, e: Event) -> Vec<Effect> {
             }
             vec![]
         }
+        // "synced", "sync failed: …", "sync off: …" are the status bar's;
+        // anything else on this channel is a background failure (a turn,
+        // a workflow, an apply) worth a toast.
         Event::Sync { workspace, status } => {
-            s.sync_status.insert(workspace, status);
+            if status.starts_with("sync") {
+                s.sync_status.insert(workspace, status);
+            } else {
+                s.toast(ToastKind::Error, status);
+            }
             vec![]
         }
         Event::ChatsChanged { .. }
@@ -884,14 +901,18 @@ fn list_nav(sel: &mut Sel, len: usize, a: crate::keymap::Action) -> bool {
 fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
     let nav = s.keymap.resolve(&[crate::keymap::Context::Nav], &k, false);
     let ws = s.active.clone();
+    let help_max = if matches!(s.overlay, Some(Overlay::Help { .. })) { crate::ui::help_max_scroll(s, s.term.1) } else { 0 };
     let Some(overlay) = s.overlay.as_mut() else { return vec![] };
     match overlay {
         Overlay::Help { scroll } => {
+            let page = (s.term.1 as usize).saturating_sub(6).max(1);
             match nav {
-                Some(Action::Down) => *scroll += 1,
+                Some(Action::Down) => *scroll = (*scroll + 1).min(help_max),
                 Some(Action::Up) => *scroll = scroll.saturating_sub(1),
-                Some(Action::PageDown) => *scroll += 10,
-                Some(Action::PageUp) => *scroll = scroll.saturating_sub(10),
+                Some(Action::PageDown) => *scroll = (*scroll + page).min(help_max),
+                Some(Action::PageUp) => *scroll = scroll.saturating_sub(page),
+                Some(Action::Top) => *scroll = 0,
+                Some(Action::Bottom) => *scroll = help_max,
                 _ => s.overlay = None,
             }
             vec![]

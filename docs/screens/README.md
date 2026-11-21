@@ -1,7 +1,8 @@
 # Screens
 
 Text captures of every `lt` screen, rendered by the snapshot tests in
-`tests/screens.rs` into a ratatui `TestBackend` (110×32) against the
+`tests/screens.rs` into a ratatui `TestBackend` (110×32 unless the file
+says otherwise) against the
 in-memory demo backend. Colors aren't captured here; the dark, light and
 mono themes render the same text, except the Ligus mark on the first-run
 and empty screens, which mono draws as a silhouette.
@@ -61,3 +62,26 @@ INSTA_UPDATE=always LT_WRITE_SCREENS=1 cargo test --test screens
 
 SVG images of a few screens, in color, are in
 [assets/screens](../../assets/screens), from `cargo run --example screenshots`.
+
+## At 80×24
+
+The default terminal size. `tests/screens.rs` also checks every main view at
+60×20 and 200×50 (snapshots in `tests/snapshots/`): the top bar shortens its
+labels, then shows one workspace tile and the view digits, instead of cutting
+views off; the status bar keeps the help key and drops hints from the right.
+
+| Screen | File |
+|---|---|
+| Chats | [chat_80x24.md](chat_80x24.md) |
+| Composer with the @mention popup | [composer_80x24.md](composer_80x24.md) |
+| Workflows | [workflows_80x24.md](workflows_80x24.md) |
+| A run waiting on its gate | [workflow_run_80x24.md](workflow_run_80x24.md) |
+| Proposals | [proposals_80x24.md](proposals_80x24.md) |
+| Proposals with the diff | [diff_80x24.md](diff_80x24.md) |
+| Agents (panes by priority) | [agents_80x24.md](agents_80x24.md) |
+| Hosts | [hosts_80x24.md](hosts_80x24.md) |
+| Task state and memory | [memory_80x24.md](memory_80x24.md) |
+| People | [people_80x24.md](people_80x24.md) |
+| Notifications | [notifications_80x24.md](notifications_80x24.md) |
+| Settings | [settings_80x24.md](settings_80x24.md) |
+| Help (scrollable) | [help_80x24.md](help_80x24.md) |

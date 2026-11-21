@@ -1,0 +1,28 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[AT]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Apiary T…
+┏ Proposals ━━━━━━━━━━━━━━━━━━━┓╭ Record mites per 100 bees ───────────────────╮
+┃open     Record mites per …   ┃│open  by @coder · 2 files changed · 1/2       │
+┃         1/2 approvals · @c…  ┃│approvals                                     │
+┃approved Export inspection…   ┃│✓ Ada approved · admin                        │
+┃         2/2 approvals · @c…  ┃│A Approve   R Reject   O Apply on sff… (needs │
+┃applied  Bump the frame sc…   ┃│approval first)                               │
+┃         2/2 approvals · @r…  ┃│That host applies it once, on its checkout,   │
+┃open     Sign-off: count m…   ┃╰──────────────────────────────────────────────╯
+┃         0/1 approvals · wo…  ┃╭ Diff ────────────────────────────────────────╮
+┃open     Workflow: Swarm c…   ┃│enter to view the diff                        │
+┃         0/1 approvals · @s…  ┃│                                              │
+┃                              ┃│                                              │
+┃                              ┃│                                              │
+┃                              ┃│                                              │
+┃                              ┃│                                              │
+┃                              ┃│                                              │
+┃                              ┃│                                              │
+┃                              ┃│                                              │
+┃                              ┃│                                              │
+┃                              ┃│                                              │
+┃                              ┃│                                              │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────╯
+↑↓ proposals  enter diff  A approve  R reject  O apply  ? help      peer to peer

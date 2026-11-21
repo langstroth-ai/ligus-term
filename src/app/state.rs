@@ -40,6 +40,14 @@ impl View {
             v => v.title(),
         }
     }
+    /// Shorter still, for an 80-column top bar.
+    pub fn tiny(self) -> &'static str {
+        match self {
+            View::Workflows => "Flows",
+            View::Settings => "Setup",
+            v => v.short(),
+        }
+    }
     pub fn title(self) -> &'static str {
         match self {
             View::Chats => "Chats",
@@ -397,6 +405,9 @@ pub struct State {
     /// Ring the terminal bell once (a mention arrived).
     pub bell: bool,
     pub quit: bool,
+    /// The terminal's size (columns, rows), for scroll limits; 0×0 until
+    /// the first resize message.
+    pub term: (u16, u16),
 }
 
 impl State {
@@ -453,6 +464,7 @@ impl State {
             theme_name: "dark".into(),
             bell: false,
             quit: false,
+            term: (0, 0),
         }
     }
 
@@ -531,8 +543,17 @@ impl State {
 
     /// The key contexts in effect, most specific first.
     pub fn contexts(&self) -> Vec<Context> {
+        if self.view == View::Chats && self.focus == Focus::Composer && (self.overlay.is_some() || !self.presence.is_empty()) {
+            return vec![Context::Chat, Context::Nav, Context::Global];
+        }
+        self.view_contexts()
+    }
+
+    /// The key contexts of the view and pane with focus, overlays aside
+    /// (what the help overlay lists first).
+    pub fn view_contexts(&self) -> Vec<Context> {
         use Context::*;
-        if self.view == View::Chats && self.focus == Focus::Composer && self.overlay.is_none() && self.presence.is_empty() {
+        if self.view == View::Chats && self.focus == Focus::Composer {
             return vec![Composer, Global];
         }
         match self.view {

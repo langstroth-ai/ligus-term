@@ -33,4 +33,4 @@ expression: screen
 │                              │┏ Message the room ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 │                              │┃Thanks! @co                                                                 ┃
 ╰──────────────────────────────╯┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-enter send  alt-enter newline  @ mention  esc leave                                lt on this terminal · demo
+enter send  alt-enter newline  @ mention  esc leave  f1 help         peer to peer · lt on this terminal · demo

@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────── ✓ Confirmed with your passkey
-↑↓ people  r role  X remove  I invite  B admit box  ? help                         lt on this terminal · demo
+↑↓ people  r role  X remove  I invite  B admit box  ? help           peer to peer · lt on this terminal · demo
 ```

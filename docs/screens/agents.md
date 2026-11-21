@@ -11,6 +11,8 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃@reviewer    idle     codex        This device        Everyone               reviews diffs                  ┃
 ┃@scout       idle     ollama       sff · online       Everyone                                              ┃
 ┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ╭ Available on this device · N or enter adds an agent ───────────────────────────────────────────────────────╮
 │Runtime                  Model            Version   Status     Detail                                       │
@@ -24,8 +26,6 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭ Hand-offs ─────────────────────────────────────────────────────────────────────────────────────────────────╮
 │@coder → @reviewer review the mites-per-100 change 20m                                                      │
-│                                                                                                            │
-│                                                                                                            │
 ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭ Runtimes ──────────────────────────────────────────────────────────────────────────────────────────────────╮
 │Runtime       Kind                     Model                              Where         Status              │
@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 │ollama        Ollama (local)           qwen3-coder:30b                    local server  Configured          │
 │copilot       GitHub Copilot CLI       default                            local CLI     Not configured      │
 ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-↑↓ agents  r runtime  E who can use  N add agent  ? help                           lt on this terminal · demo
+↑↓ agents  N add agent  r runtime  E who can use  ? help             peer to peer · lt on this terminal · demo
 ```

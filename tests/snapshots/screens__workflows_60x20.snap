@@ -1,0 +1,24 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[AT]+1• │ 1 2 Flows 3 4 5 6 7 8(1) 9          Apiary Tracker
+┏ Workflows 2 · Runs 2 ━━━┓╭ Detail ───────────────────────╮
+┃▸ Implement, review, s…  ┃│Implement, review, ship        │
+┃▸ Weekly swarm report    ┃│in Inspection log refactor     │
+┃  Impleme… ●●◆ awaiting-g┃│                               │
+┃  Weekly … ● completed 1d┃│The coder implements, the      │
+┃                         ┃│reviewer checks it, a person   │
+┃                         ┃│signs off.                     │
+┃                         ┃│                               │
+┃                         ┃│  Implement @coder             │
+┃                         ┃│  Review @reviewer  after      │
+┃                         ┃│implement                      │
+┃                         ┃│  Sign-off gate (1 approval)   │
+┃                         ┃│after review                   │
+┃                         ┃│                               │
+┃                         ┃│S Start a run: this device     │
+┃                         ┃│drives it; stages go to their  │
+┃                         ┃│agents' hosts                  │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━┛╰───────────────────────────────╯
+↑↓ select  S start  A approve gate  R reject  …  ? help

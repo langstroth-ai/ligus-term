@@ -8,6 +8,7 @@ mod proposals;
 mod splash;
 mod views;
 
+pub use overlays::help_max_scroll;
 pub use proposals::apply_text;
 
 use ratatui::Frame;
@@ -18,7 +19,7 @@ use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph};
 use unicode_width::UnicodeWidthStr;
 
 use crate::app::state::{Focus, Phase, State, ToastKind, View};
-use crate::backend::model::initials;
+use crate::backend::model::{SyncMode, initials};
 use crate::keymap::{Action, Context};
 use crate::theme::Theme;
 
@@ -55,55 +56,182 @@ fn draw_main(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
 }
 
 /// `[AT] Apiary Tracker · owner │ Chats  Proposals …` with a mention dot on
-/// other workspaces.
+/// other workspaces. When the terminal is narrow the bar degrades step by
+/// step (shorter labels, one workspace tile, the view digits, then only the
+/// current view) instead of cutting views off, and never hides the
+/// Notifications badge.
 fn draw_top_bar(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
-    let mut spans = vec![];
-    for (i, w) in s.workspaces.iter().enumerate() {
-        let active = s.active.as_ref() == Some(&w.id);
-        let tile = format!("[{}]", initials(&w.name));
-        let style = if active { t.accent().add_modifier(Modifier::REVERSED) } else { t.dim() };
-        if i > 0 {
-            spans.push(Span::raw(" "));
-        }
-        spans.push(Span::styled(tile, style));
-        if w.mentioned && !active {
-            spans.push(Span::styled("•", t.fg(t.mention)));
-        }
-    }
-    if let Some(w) = s.active_workspace() {
-        spans.push(Span::styled(format!(" {} ", w.name), t.accent()));
-        spans.push(Span::styled(format!("· {} ", w.your_role.label()), t.dim()));
-    }
-    spans.push(Span::styled("│ ", t.dim()));
-    let used: usize = spans.iter().map(|s| s.content.width()).sum();
-    let label = |v: View, short: bool| {
-        let mut l = if short { v.short() } else { v.title() }.to_string();
-        if v == View::Notifications {
-            let n = s.unread_notifications();
-            if n > 0 {
-                l = format!("{l} {n}");
-            }
-        }
-        l
-    };
-    // Full titles two apart when they fit, else shorter ones one apart.
-    let fits =
-        |short: bool, gap: usize| View::ALL.iter().map(|v| label(*v, short).width() + gap).sum::<usize>() + used <= area.width as usize;
-    let (short, gap) = [(false, 2), (false, 1), (true, 1)].into_iter().find(|(s, g)| fits(*s, *g)).unwrap_or((true, 1));
-    for v in View::ALL {
-        let style = if v == s.view { t.accent().add_modifier(Modifier::UNDERLINED) } else { t.text() };
-        spans.push(Span::styled(label(v, short), style));
-        spans.push(Span::raw(" ".repeat(gap)));
+    let width = area.width as usize;
+    let combos = [
+        (Ws::Full, Tabs::Titles(2)),
+        (Ws::Full, Tabs::Titles(1)),
+        (Ws::Full, Tabs::Short),
+        (Ws::Full, Tabs::Tiny),
+        (Ws::Tile, Tabs::Tiny),
+        (Ws::Tile, Tabs::Digits),
+        (Ws::Tile, Tabs::Current),
+    ];
+    let (level, mut spans, tabs) = combos
+        .into_iter()
+        .map(|(ws, tabs)| (ws, workspace_spans(s, t, ws), tabs_spans(s, t, tabs)))
+        .find(|(_, w, tabs)| spans_width(w) + spans_width(tabs) <= width)
+        .unwrap_or_else(|| (Ws::Tile, workspace_spans(s, t, Ws::Tile), tabs_spans(s, t, Tabs::Current)));
+    spans.extend(tabs);
+    // With one tile, the workspace's name goes on the right when it fits.
+    let room = width.saturating_sub(spans_width(&spans) + 2);
+    if level == Ws::Tile
+        && let Some(w) = s.active_workspace()
+        && room >= w.name.width().min(8)
+    {
+        let name = trunc(&w.name, room);
+        spans.push(Span::raw(" ".repeat(width - spans_width(&spans) - name.width())));
+        spans.push(Span::styled(name, t.accent()));
     }
     f.render_widget(Paragraph::new(Line::from(spans)), area);
 }
 
-/// Key hints for what has focus, and the device on the right.
-fn draw_status(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
+/// How much of the workspace part of the top bar to show.
+#[derive(Clone, Copy, PartialEq)]
+enum Ws {
+    /// Every workspace's tile, the active one's name and your role.
+    Full,
+    /// The active tile and how many others.
+    Tile,
+}
+
+/// How the view tabs are labelled.
+#[derive(Clone, Copy, PartialEq)]
+enum Tabs {
+    /// Full titles, this many spaces apart.
+    Titles(usize),
+    /// Short titles, one space apart.
+    Short,
+    /// Shorter titles, one space apart.
+    Tiny,
+    /// Digits, with the current view's short title.
+    Digits,
+    /// Only the current view, between arrows.
+    Current,
+}
+
+fn spans_width(spans: &[Span]) -> usize {
+    spans.iter().map(|s| s.content.width()).sum()
+}
+
+/// The workspace part of the top bar, ending in `│ `.
+fn workspace_spans(s: &State, t: &Theme, level: Ws) -> Vec<Span<'static>> {
+    let mut spans: Vec<Span<'static>> = vec![];
+    let active = s.active_workspace();
+    let tile_style = t.accent().add_modifier(Modifier::REVERSED);
+    if level == Ws::Full {
+        for (i, w) in s.workspaces.iter().enumerate() {
+            let is_active = s.active.as_ref() == Some(&w.id);
+            if i > 0 {
+                spans.push(Span::raw(" "));
+            }
+            spans.push(Span::styled(format!("[{}]", initials(&w.name)), if is_active { tile_style } else { t.dim() }));
+            if w.mentioned && !is_active {
+                spans.push(Span::styled("•", t.fg(t.mention)));
+            }
+        }
+        if let Some(w) = active {
+            spans.push(Span::styled(format!(" {} ", w.name), t.accent()));
+            spans.push(Span::styled(format!("· {} ", w.your_role.label()), t.dim()));
+        }
+        spans.push(Span::styled("│ ", t.dim()));
+        return spans;
+    }
+    if let Some(w) = active {
+        spans.push(Span::styled(format!("[{}]", initials(&w.name)), tile_style));
+    }
+    let others = s.workspaces.len().saturating_sub(usize::from(active.is_some()));
+    if others > 0 {
+        spans.push(Span::styled(format!("+{others}"), t.dim()));
+        if s.workspaces.iter().any(|w| w.mentioned && s.active.as_ref() != Some(&w.id)) {
+            spans.push(Span::styled("•", t.fg(t.mention)));
+        }
+    }
+    spans.push(Span::styled(" │ ", t.dim()));
+    spans
+}
+
+/// The view tabs, labelled as `level` says.
+fn tabs_spans(s: &State, t: &Theme, level: Tabs) -> Vec<Span<'static>> {
+    let unread = s.unread_notifications();
+    let style = |v: View| if v == s.view { t.accent().add_modifier(Modifier::UNDERLINED) } else { t.text() };
+    let digit = |v: View| View::ALL.iter().position(|x| *x == v).map(|i| i + 1).unwrap_or(0);
+    let badge = |v: View| if v == View::Notifications && unread > 0 { format!(" {unread}") } else { String::new() };
+    let mut spans = vec![];
+    match level {
+        Tabs::Titles(_) | Tabs::Short | Tabs::Tiny => {
+            let gap = if let Tabs::Titles(g) = level { g } else { 1 };
+            for (i, v) in View::ALL.into_iter().enumerate() {
+                if i > 0 {
+                    spans.push(Span::raw(" ".repeat(gap)));
+                }
+                let title = match level {
+                    Tabs::Short => v.short(),
+                    Tabs::Tiny => v.tiny(),
+                    _ => v.title(),
+                };
+                spans.push(Span::styled(format!("{title}{}", badge(v)), style(v)));
+            }
+        }
+        Tabs::Digits => {
+            for (i, v) in View::ALL.into_iter().enumerate() {
+                if i > 0 {
+                    spans.push(Span::raw(" "));
+                }
+                let label = if v == s.view {
+                    format!("{} {}{}", digit(v), v.tiny(), badge(v))
+                } else if v == View::Notifications && unread > 0 {
+                    format!("{}({unread})", digit(v))
+                } else {
+                    digit(v).to_string()
+                };
+                spans.push(Span::styled(label, style(v)));
+            }
+        }
+        Tabs::Current => {
+            spans.push(Span::styled("‹ ", t.dim()));
+            spans.push(Span::styled(format!("{} {}{}", digit(s.view), s.view.tiny(), badge(s.view)), style(s.view)));
+            spans.push(Span::styled(" ›", t.dim()));
+            if s.view != View::Notifications && unread > 0 {
+                spans.push(Span::styled(format!(" {}({unread})", digit(View::Notifications)), t.text()));
+            }
+        }
+    }
+    spans
+}
+
+/// The right of the status bar: how the active workspace syncs, and whether
+/// the last sync worked.
+pub(crate) fn sync_label(s: &State, t: &Theme) -> Option<Span<'static>> {
+    let w = s.active_workspace()?;
+    Some(match &w.sync {
+        SyncMode::Local => Span::styled("this device only", t.dim()),
+        SyncMode::Peer => Span::styled("peer to peer", t.dim()),
+        SyncMode::Relay(_) => match s.sync_status.get(&w.id).map(String::as_str) {
+            Some("synced") => Span::styled("⇅ synced", t.fg(t.good)),
+            Some(st) if st.starts_with("sync off") => Span::styled("⚠ sync off", t.fg(t.bad).add_modifier(Modifier::BOLD)),
+            Some(st) if st.starts_with("sync") => Span::styled("⚠ sync failed", t.fg(t.bad).add_modifier(Modifier::BOLD)),
+            _ => Span::styled("⇅ relay", t.dim()),
+        },
+    })
+}
+
+/// The key hints for what has focus, the help key last.
+fn status_hints(s: &State) -> (Vec<String>, String) {
     let k = &s.keymap;
     let h = |ctx, a, label: &str| format!("{} {label}", k.hint(ctx, a));
     use Action::*;
     use Context as C;
+    if let Some(crate::app::state::Overlay::Help { .. }) = &s.overlay {
+        return (
+            vec!["↑↓ scroll".into(), format!("{}/{} page", k.hint(C::Nav, PageUp), k.hint(C::Nav, PageDown)), "g/G top/end".into()],
+            "esc close".into(),
+        );
+    }
     let hints: Vec<String> = match (s.view, s.focus) {
         (View::Chats, Focus::Composer) => vec![
             h(C::Composer, Send, "send"),
@@ -117,7 +245,6 @@ fn draw_status(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             h(C::Chat, NewChat, "new chat"),
             h(C::Global, FocusNext, "pane"),
             h(C::Global, SwitchWorkspace, "workspaces"),
-            h(C::Global, Help, "help"),
         ],
         (View::Proposals, Focus::Detail) => vec![
             "↑↓ scroll".into(),
@@ -133,7 +260,6 @@ fn draw_status(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             h(C::Review, Approve, "approve"),
             h(C::Review, Reject, "reject"),
             h(C::Review, ApplyOnHost, "apply"),
-            h(C::Global, Help, "help"),
         ],
         (View::People, _) => vec![
             "↑↓ people".into(),
@@ -141,35 +267,80 @@ fn draw_status(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             h(C::People, RemoveMember, "remove"),
             h(C::People, Invite, "invite"),
             h(C::People, AdmitBox, "admit box"),
-            h(C::Global, Help, "help"),
         ],
         (View::Agents, _) => vec![
             "↑↓ agents".into(),
+            h(C::Agents, AddAgent, "add agent"),
             h(C::Agents, ChangeRuntime, "runtime"),
             h(C::Agents, ToggleAccess, "who can use"),
-            h(C::Agents, AddAgent, "add agent"),
-            h(C::Global, Help, "help"),
         ],
-        (View::Notifications, _) => {
-            vec!["↑↓".into(), h(C::Nav, Select, "open"), h(C::Notifications, MarkAllRead, "mark all read"), h(C::Global, Help, "help")]
-        }
-        (View::Settings, _) => vec!["↑↓".into(), h(C::Settings, Toggle, "toggle"), h(C::Global, Help, "help")],
-        (View::Hosts, _) => vec!["↑↓ hosts".into(), h(C::Hosts, BindCheckout, "bind checkout"), h(C::Global, Help, "help")],
+        (View::Notifications, _) => vec!["↑↓ select".into(), h(C::Nav, Select, "open"), h(C::Notifications, MarkAllRead, "mark all read")],
+        (View::Settings, _) => vec!["↑↓ select".into(), h(C::Settings, Toggle, "toggle")],
+        (View::Hosts, _) => vec!["↑↓ hosts".into(), h(C::Hosts, BindCheckout, "bind checkout")],
         (View::Workflows, _) => vec![
-            "↑↓".into(),
+            "↑↓ select".into(),
             h(C::Workflows, StartRun, "start"),
             h(C::Workflows, ApproveGate, "approve gate"),
             h(C::Workflows, RejectGate, "reject"),
             h(C::Workflows, CancelRun, "cancel"),
-            h(C::Global, Help, "help"),
         ],
-        (View::Memory, _) => vec!["↑↓ task state and memory".into(), h(C::Global, Help, "help")],
+        (View::Memory, _) => vec!["↑↓ task state and memory".into()],
     };
-    let right = format!("{} · {}", s.device.device_name, s.device.backend_label);
-    let left = hints.join("  ");
-    let pad = (area.width as usize).saturating_sub(left.width() + right.width() + 1);
-    let line = Line::from(vec![Span::styled(left, t.dim()), Span::raw(" ".repeat(pad)), Span::styled(right, t.dim())]);
-    f.render_widget(Paragraph::new(line), area);
+    // While a text field has the keyboard only a command chord (f1) helps.
+    let help = if s.typing_text() {
+        k.keys(C::Global, Help).iter().find(|c| c.is_command()).map(|c| format!("{c} help"))
+    } else {
+        Some(h(C::Global, Help, "help"))
+    };
+    (hints, help.unwrap_or_default())
+}
+
+/// Key hints on the left, cut from the right (the help key always stays),
+/// and the sync state and this device on the right, at least two columns
+/// apart.
+fn draw_status(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
+    let width = area.width as usize;
+    let (hints, help) = status_hints(s);
+    let sync = sync_label(s, t);
+    let device = format!("{} · {}", s.device.device_name, s.device.backend_label);
+    let rights: Vec<Vec<Span>> = {
+        let mut r = vec![];
+        let sep = Span::styled(" · ", t.dim());
+        match &sync {
+            Some(sy) => {
+                r.push(vec![sy.clone(), sep, Span::styled(device.clone(), t.dim())]);
+                r.push(vec![sy.clone()]);
+            }
+            None => r.push(vec![Span::styled(device.clone(), t.dim())]),
+        }
+        r.push(vec![]);
+        r
+    };
+    let left_text = |n: usize| {
+        let mut parts: Vec<&str> = hints.iter().take(n).map(String::as_str).collect();
+        if n < hints.len() {
+            parts.push("…");
+        }
+        if !help.is_empty() {
+            parts.push(&help);
+        }
+        parts.join("  ")
+    };
+    for n in (0..=hints.len()).rev() {
+        let left = left_text(n);
+        for right in &rights {
+            let rw = spans_width(right);
+            let gap = if rw == 0 { 0 } else { 2 };
+            if left.width() + gap + rw <= width {
+                let pad = width - left.width() - rw;
+                let mut spans = vec![Span::styled(left, t.dim()), Span::raw(" ".repeat(pad))];
+                spans.extend(right.iter().cloned());
+                f.render_widget(Paragraph::new(Line::from(spans)), area);
+                return;
+            }
+        }
+    }
+    f.render_widget(Paragraph::new(Line::styled(trunc(&left_text(0), width), t.dim())), area);
 }
 
 fn draw_toasts(f: &mut Frame, area: Rect, s: &State, t: &Theme) {

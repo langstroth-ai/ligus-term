@@ -1,0 +1,54 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[AT] [QR]• Apiary Tracker · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
+┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Member ────────────────────────────────────────────────────────────────────────────────────────────────────╮
+┃  Mara · you  owner  founder                                                            ┃│Mara  owner                                                                                                 │
+┃  Ada  admin                                                                            ┃│                                                                                                            │
+┃  Lin  contributor                                                                      ┃│Founder: nobody can remove or demote them.                                                                  │
+┃  Sam  viewer                                                                           ┃│Role (r)                                                                                                    │
+┃  sff box  contributor  service                                                         ┃│  (•) owner                                                                                                 │
+┃                                                                                        ┃│  ( ) admin                                                                                                 │
+┃                                                                                        ┃│  ( ) contributor                                                                                           │
+┃                                                                                        ┃│  ( ) viewer                                                                                                │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│X Leave the workspace                                                                                       │
+┃                                                                                        ┃│I Create an invite                                                                                          │
+┃                                                                                        ┃│B Admit a box (ligus serve or a worker) as a service member                                                 │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│Changes to who's in the workspace need your passkey.                                                        │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+↑↓ people  r role  X remove  I invite  B admit box  ? help                                                                                                     peer to peer · lt on this terminal · demo

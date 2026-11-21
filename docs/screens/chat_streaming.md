@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                              ┃╭ Message the room ──────────────────────────────────────────────────────────╮
 ┃                              ┃│i to write · @ mentions an agent or a person                                │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────────────────╯
-↑↓ chats  i write  N new chat  tab pane  w workspaces  ? help                      lt on this terminal · demo
+↑↓ chats  i write  N new chat  tab pane  w workspaces  ? help        peer to peer · lt on this terminal · demo
 ```

@@ -18,10 +18,16 @@ const W: u16 = 110;
 const H: u16 = 32;
 
 fn snap(name: &str, title: &str, screen: String) {
+    snap_at(name, title, W, H, screen);
+}
+
+/// A snapshot, and with `LT_WRITE_SCREENS` its capture in `docs/screens/`
+/// (rendered at `w`×`h`).
+fn snap_at(name: &str, title: &str, w: u16, h: u16, screen: String) {
     if std::env::var_os("LT_WRITE_SCREENS").is_some() {
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("docs/screens");
         std::fs::create_dir_all(&dir).unwrap();
-        let md = format!("# {title}\n\nRendered by `tests/screens.rs` ({W}×{H}, the in-memory demo backend).\n\n```text\n{screen}```\n");
+        let md = format!("# {title}\n\nRendered by `tests/screens.rs` ({w}×{h}, the in-memory demo backend).\n\n```text\n{screen}```\n");
         std::fs::write(dir.join(format!("{name}.md")), md).unwrap();
     }
     insta::assert_snapshot!(name, screen);
@@ -44,10 +50,10 @@ async fn onboarding_splash_by_terminal_size() {
     assert!(wide.contains(MARK), "{wide}");
     let narrow = h.screen(80, H);
     assert!(!narrow.contains(MARK), "{narrow}");
-    snap("onboarding_narrow", "First run in a narrow terminal: no mark", narrow);
+    snap_at("onboarding_narrow", "First run in a narrow terminal: no mark", 80, H, narrow);
     let tall = h.screen(80, 40);
     assert!(tall.contains(MARK), "{tall}");
-    snap("onboarding_narrow_tall", "First run in a narrow, tall terminal: the mark above the form", tall);
+    snap_at("onboarding_narrow_tall", "First run in a narrow, tall terminal: the mark above the form", 80, 40, tall);
     // Too small for the form and the mark: the form alone.
     assert!(!h.screen(60, 20).contains(MARK));
 }
@@ -417,7 +423,7 @@ async fn settings() {
 async fn help_overlay() {
     let mut h = demo().await;
     h.key(KeyCode::Char('?')).await;
-    snap("help", "Help: keybindings", h.screen(W, 44));
+    snap_at("help", "Help: keybindings", W, 44, h.screen(W, 44));
 }
 
 #[tokio::test]
@@ -443,7 +449,7 @@ async fn empty_chat_splash() {
     assert!(h.screen(W, H).contains('▀'), "{}", h.screen(W, H));
     let short = h.screen(W, 18);
     assert!(!short.contains('▀') && short.contains("Start a conversation"), "{short}");
-    snap("new_workspace_short", "A new workspace in a short terminal: the welcome without the mark", short);
+    snap_at("new_workspace_short", "A new workspace in a short terminal: the welcome without the mark", W, 18, short);
 }
 
 #[tokio::test]
@@ -500,4 +506,107 @@ async fn overlays_render_in_a_tiny_terminal() {
     for (w, ht) in [(1, 1), (3, 3), (5, 4), (8, 6)] {
         let _ = h.screen(w, ht);
     }
+}
+
+/// The terminal sizes every main view is checked at besides 110×32: the
+/// default terminal (80×24), a small one (60×20) and a large one (200×50).
+const SIZES: [(u16, u16); 3] = [(80, 24), (60, 20), (200, 50)];
+
+/// Each main view, as reached by keys from the demo's start.
+async fn view_at(name: &str) -> Harness {
+    let mut h = demo().await;
+    let keys: &[KeyCode] = match name {
+        "chat" => &[],
+        "composer" => &[KeyCode::Char('i'), KeyCode::Char('@'), KeyCode::Char('c'), KeyCode::Char('o')],
+        "workflows" => &[KeyCode::Char('f')],
+        "workflow_run" => &[KeyCode::Char('f'), KeyCode::Down, KeyCode::Down],
+        "proposals" => &[KeyCode::Char('p')],
+        "diff" => &[KeyCode::Char('p'), KeyCode::Enter],
+        "agents" => &[KeyCode::Char('a')],
+        "hosts" => &[KeyCode::Char('h')],
+        "memory" => &[KeyCode::Char('y')],
+        "people" => &[KeyCode::Char('m')],
+        "notifications" => &[KeyCode::Char('n')],
+        "settings" => &[KeyCode::Char('s')],
+        "help" => &[KeyCode::Char('?')],
+        _ => unreachable!("{name}"),
+    };
+    for k in keys {
+        h.key(*k).await;
+    }
+    h
+}
+
+const VIEWS: [&str; 13] = [
+    "chat",
+    "composer",
+    "workflows",
+    "workflow_run",
+    "proposals",
+    "diff",
+    "agents",
+    "hosts",
+    "memory",
+    "people",
+    "notifications",
+    "settings",
+    "help",
+];
+
+/// Every main view at 80×24, 60×20 and 200×50: the tabs never lose a view
+/// (People, Notifications with its badge and Settings were cut off at 80
+/// columns), the status bar never runs into the device label, and nothing
+/// panics.
+#[tokio::test]
+async fn every_view_at_every_size() {
+    for view in VIEWS {
+        let mut h = view_at(view).await;
+        for (w, ht) in SIZES {
+            h.send(Msg::Resize(w, ht)).await;
+            let screen = h.screen(w, ht);
+            let top = screen.lines().next().unwrap_or("");
+            // Every view stays reachable from the top bar: by name, or by
+            // its digit when the bar is down to digits.
+            let all_named = ["Chats", "Props", "Agents", "Hosts", "People", "Notifs", "Setup"].iter().all(|v| top.contains(v))
+                || ["Chats", "Proposals", "Agents", "Hosts", "People", "Notifications", "Settings"].iter().all(|v| top.contains(v));
+            let digits = (1..=9).all(|d| top.contains(&d.to_string()));
+            assert!(all_named || digits || top.contains('‹'), "{view} at {w}x{ht}: views cut off: {top}");
+            // The unread badge survives.
+            let n = h.state.unread_notifications();
+            assert!(
+                n > 0 && (top.contains(&format!(" {n}")) || top.contains(&format!("({n})"))),
+                "{view} at {w}x{ht}: no unread badge: {top}"
+            );
+            // The status bar keeps the help key, two columns from the right zone.
+            let status = screen.lines().nth(ht as usize - 1).unwrap_or("");
+            assert!(status.contains("help") || status.contains("close") || view == "composer", "{view} at {w}x{ht}: {status}");
+            assert!(!status.contains("helplt"), "{view} at {w}x{ht}: {status}");
+            let name = format!("{view}_{w}x{ht}");
+            let title = format!("{view} at {w}×{ht}");
+            if (w, ht) == (80, 24) {
+                snap_at(&name, &title, w, ht, screen);
+            } else {
+                insta::assert_snapshot!(name, screen);
+            }
+        }
+    }
+}
+
+/// Help scrolls to its end and back, with no dead zone past the end.
+#[tokio::test]
+async fn help_scrolls_to_the_end() {
+    let mut h = view_at("help").await;
+    h.send(Msg::Resize(80, 24)).await;
+    h.key(KeyCode::Char('G')).await;
+    let end = h.screen(80, 24);
+    assert!(end.contains("Cancel"), "the passkey keys close the list: {end}");
+    h.key(KeyCode::Up).await;
+    let up = h.screen(80, 24);
+    assert_ne!(end, up, "one up from the end moves at once");
+    h.key(KeyCode::Char('g')).await;
+    assert!(h.screen(80, 24).contains("for what has focus first"));
+    // The view's own keys come first: Chats, then Lists.
+    let top = h.screen(80, 24);
+    let chats = top.find("Write a message").unwrap();
+    assert!(top.find("Quit").is_none_or(|q| q > chats), "{top}");
 }

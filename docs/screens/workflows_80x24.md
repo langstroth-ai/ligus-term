@@ -1,0 +1,30 @@
+# workflows at 80×24
+
+Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
+
+```text
+[AT]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Apiary T…
+┏ Workflows 2 · Runs 2 ━━━━━━━━━━━━┓╭ Detail ──────────────────────────────────╮
+┃▸ Implement, review, ship         ┃│Implement, review, ship                   │
+┃▸ Weekly swarm report  Queen ce…  ┃│in Inspection log refactor                │
+┃  Implemen… ●●◆ awaiting-gate 4m  ┃│                                          │
+┃  Weekly swarm r… ● completed 1d  ┃│The coder implements, the reviewer        │
+┃                                  ┃│checks it, a person signs off.            │
+┃                                  ┃│                                          │
+┃                                  ┃│  Implement @coder                        │
+┃                                  ┃│  Review @reviewer  after implement       │
+┃                                  ┃│  Sign-off gate (1 approval)  after review│
+┃                                  ┃│                                          │
+┃                                  ┃│S Start a run: this device drives it;     │
+┃                                  ┃│stages go to their agents' hosts          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────╯
+↑↓ select  S start  A approve gate  R reject  X cancel  ? help      peer to peer
+```

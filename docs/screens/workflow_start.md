@@ -5,9 +5,9 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ```text
 [AT] [QR]• Apiary Tracker · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Workflows 2 · Runs 2 ━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Detail ──────────────────────────────────────────────────╮
-┃▸ Implement, revie…  Inspection log refactor    ┃│Implement, review, ship                                   │
+┃▸ Implement, review, ship  Inspection log ref…  ┃│Implement, review, ship                                   │
 ┃▸ Weekly swarm report  Queen cell alerts        ┃│in Inspection log refactor                                │
-┃  Implement, review, sh… ●●● completed now      ┃│                                                          │
+┃  Implement, review, ship ●●● completed now     ┃│                                                          │
 ┃  Weekly swarm report ● completed 1d            ┃│The coder implements, the reviewer checks it, a person    │
 ┃                                                ┃│signs off.                                                │
 ┃                                                ┃│                                                          │
@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────╯
-↑↓  S start  A approve gate  R reject  X cancel  ? help                            lt on this terminal · demo
+↑↓ select  S start  A approve gate  R reject  X cancel  f1 help      peer to peer · lt on this terminal · demo
 ```

@@ -1,0 +1,24 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[AT]+1• │ 1 2 3 4 5 6 7 8(1) 9 Setup          Apiary Tracker
+┏ Settings ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃You                                                       ┃
+┃  Name            Mara                                    ┃
+┃  Safety code     4821 0937 5512                          ┃
+┃                                                          ┃
+┃Notifications and agents                                  ┃
+┃ [x] Notify me when I'm @mentioned  a terminal bell and a ┃
+┃toast                                                     ┃
+┃ [ ] Let agents edit files and run commands  on this      ┃
+┃device's hosts                                            ┃
+┃                                                          ┃
+┃This device                                               ┃
+┃  Device          lt on this terminal                     ┃
+┃  Data dir        ~/.ligus-term                           ┃
+┃  Secret store    none (demo)                             ┃
+┃  Backend         demo                                    ┃
+┃  Sync            no relay: peer to peer, or this device  ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+↑↓ select  space toggle  ? help                 peer to peer

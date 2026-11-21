@@ -10,6 +10,8 @@ expression: screen
 ┃@reviewer    idle     codex        This device        Everyone               reviews diffs                  ┃
 ┃@scout       idle     ollama       sff · online       Everyone                                              ┃
 ┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ╭ Available on this device · N or enter adds an agent ───────────────────────────────────────────────────────╮
 │Runtime                  Model            Version   Status     Detail                                       │
@@ -23,8 +25,6 @@ expression: screen
 ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭ Hand-offs ─────────────────────────────────────────────────────────────────────────────────────────────────╮
 │@coder → @reviewer review the mites-per-100 change 20m                                                      │
-│                                                                                                            │
-│                                                                                                            │
 ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭ Runtimes ──────────────────────────────────────────────────────────────────────────────────────────────────╮
 │Runtime       Kind                     Model                              Where         Status              │
@@ -33,4 +33,4 @@ expression: screen
 │ollama        Ollama (local)           qwen3-coder:30b                    local server  Configured          │
 │copilot       GitHub Copilot CLI       default                            local CLI     Not configured      │
 ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-↑↓ agents  r runtime  E who can use  N add agent  ? help                           lt on this terminal · demo
+↑↓ agents  N add agent  r runtime  E who can use  ? help             peer to peer · lt on this terminal · demo

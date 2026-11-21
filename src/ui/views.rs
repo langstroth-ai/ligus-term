@@ -7,6 +7,8 @@ use ratatui::style::Modifier;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{List, ListItem, ListState, Paragraph, Row, Table, TableState, Wrap};
 
+use unicode_width::UnicodeWidthStr;
+
 use super::{pane, trunc};
 use crate::app::state::WorkflowItem;
 use crate::app::state::{State, ago, ago_phrase};
@@ -24,17 +26,8 @@ fn host_badge(s: &State, host: Option<&crate::backend::model::HostId>) -> (Strin
 
 pub fn agents(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     let available = s.available_local();
-    // The "Available on this device" pane: one row per runtime (up to five
-    // shown), or the two or three lines of its empty state.
-    let avail_h = 3 + available.len().clamp(2, 5) as u16;
-    let [top, av, us, ho, bottom] = Layout::vertical([
-        Constraint::Min(5),
-        Constraint::Length(avail_h),
-        Constraint::Length(5),
-        Constraint::Length(5),
-        Constraint::Length((s.runtimes.len() as u16 + 3).clamp(4, 8)),
-    ])
-    .areas(area);
+    let ([top, av, us, ho, bottom], hidden) = agents_layout(s, available.len(), area);
+    let title = if hidden.is_empty() { "Agents".to_string() } else { format!("Agents · a taller terminal shows {}", hidden.join(", ")) };
     let rows: Vec<Row> = s
         .agents
         .iter()
@@ -78,7 +71,7 @@ pub fn agents(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         ],
     )
     .header(header)
-    .block(pane("Agents", s.agent_sel.index < s.agents.len(), t))
+    .block(pane(&title, s.agent_sel.index < s.agents.len(), t))
     .row_highlight_style(t.selected());
     let on_agents = s.agent_sel.index < s.agents.len();
     let mut st = TableState::default().with_selected(on_agents.then_some(s.agent_sel.index));
@@ -111,7 +104,9 @@ pub fn agents(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     )
     .header(header)
     .block(pane("Runtimes", false, t));
-    f.render_widget(table, bottom);
+    if bottom.height > 0 {
+        f.render_widget(table, bottom);
+    }
     let w = ho.width.saturating_sub(4) as usize;
     let lines: Vec<Line> = if s.handoffs.is_empty() {
         vec![Line::styled("No hand-offs yet.", t.dim())]
@@ -128,8 +123,80 @@ pub fn agents(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             })
             .collect()
     };
-    f.render_widget(Paragraph::new(lines).block(pane("Hand-offs", false, t)), ho);
-    f.render_widget(Paragraph::new(usage_lines(s.agents.get(s.agent_sel.index), t)).block(pane("Usage on this device", false, t)), us);
+    if ho.height > 0 {
+        f.render_widget(Paragraph::new(lines).block(pane("Hand-offs", false, t)), ho);
+    }
+    if us.height > 0 {
+        let usage = usage_lines(s.agents.get(s.agent_sel.index), t);
+        f.render_widget(Paragraph::new(usage).wrap(Wrap { trim: true }).block(pane("Usage on this device", false, t)), us);
+    }
+}
+
+/// The Agents view's panes, by priority: the agents, what this device could
+/// add, the runtimes, the selected agent's usage, then the hand-offs. Each
+/// pane in turn gets what it wants (or what is left, if that is at least its
+/// smallest size); one that won't fit is left out (an empty `Rect`) and
+/// named in the second value, rather than squeezing every pane to a header.
+/// What is left over goes to the agents. On a wide terminal usage and
+/// hand-offs share a row. On screen the order stays agents, available,
+/// usage, hand-offs, runtimes.
+fn agents_layout(s: &State, available: usize, area: Rect) -> ([Rect; 5], Vec<&'static str>) {
+    const AGENTS: usize = 0;
+    const AVAIL: usize = 1;
+    const USAGE: usize = 2;
+    const HANDOFFS: usize = 3;
+    const RUNTIMES: usize = 4;
+    let pair = area.width >= 140;
+    // (wanted, smallest) heights, borders and table headers included.
+    let mut wants = [(0u16, 0u16); 5];
+    wants[AGENTS] = ((s.agents.len() as u16 + 3).min((area.height / 2).max(5)), 4);
+    wants[AVAIL] = (3 + available.clamp(2, 5) as u16, 4);
+    wants[RUNTIMES] = ((s.runtimes.len() as u16 + 3).clamp(4, 8), 4);
+    wants[USAGE] = (5, 4);
+    wants[HANDOFFS] = (s.handoffs.len().clamp(1, 3) as u16 + 2, 3);
+    if pair {
+        // One row for both: the taller of the two.
+        wants[USAGE] = (wants[USAGE].0.max(wants[HANDOFFS].0), 4);
+        wants[HANDOFFS] = (0, 0);
+    }
+    let priority = [AGENTS, AVAIL, RUNTIMES, USAGE, HANDOFFS];
+    let mut h = [0u16; 5];
+    let mut left = area.height;
+    let mut hidden = vec![];
+    for i in priority {
+        let give = wants[i].0.min(left);
+        if wants[i].1 > 0 && give >= wants[i].1 {
+            h[i] = give;
+            left -= give;
+        } else if wants[i].1 > 0 {
+            hidden.push(match i {
+                AVAIL => "available",
+                RUNTIMES => "runtimes",
+                USAGE if pair => "usage and hand-offs",
+                USAGE => "usage",
+                HANDOFFS => "hand-offs",
+                _ => "agents",
+            });
+        }
+    }
+    h[AGENTS] += left;
+    let mut y = area.y;
+    let mut take = |height: u16| {
+        let r = Rect { y, height, ..area };
+        y += height;
+        r
+    };
+    let top = take(h[AGENTS]);
+    let av = take(h[AVAIL]);
+    let (us, ho) = if pair {
+        let row = take(h[USAGE]);
+        let [a, b] = Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)]).areas(row);
+        (a, b)
+    } else {
+        (take(h[USAGE]), take(h[HANDOFFS]))
+    };
+    let rt = take(h[RUNTIMES]);
+    ([top, av, us, ho, rt], hidden)
 }
 
 /// What this device could run agents on and no agent here uses yet, each
@@ -218,7 +285,7 @@ fn usage_lines<'a>(a: Option<&crate::backend::model::Agent>, t: &Theme) -> Vec<L
         } else {
             rows.iter().map(|r| format!("{}: {}", r.member, r.summary())).collect::<Vec<_>>().join(" · ")
         };
-        Line::from(vec![Span::styled(format!("{label:<11}"), t.dim()), Span::styled(text, t.text())])
+        Line::from(vec![Span::styled(format!("{label:<11} "), t.dim()), Span::styled(text, t.text())])
     };
     vec![
         row(&format!("Today {}", u.day.get(5..).unwrap_or("")), &u.today),
@@ -495,19 +562,22 @@ pub fn workflows(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         .iter()
         .map(|d| {
             let style = if d.enabled { t.text().add_modifier(Modifier::BOLD) } else { t.disabled() };
-            ListItem::new(Line::from(vec![
-                Span::styled("▸ ", t.accent()),
-                Span::styled(trunc(&d.name, w.saturating_sub(d.chat_title.len() + 6)), style),
-                Span::styled(format!("  {}", d.chat_title), t.dim()),
-            ]))
+            // The name first; the chat's title gets what is left.
+            let name = trunc(&d.name, w.saturating_sub(2));
+            let room = w.saturating_sub(2 + name.width() + 2);
+            let chat = if room >= 6 { format!("  {}", trunc(&d.chat_title, room)) } else { String::new() };
+            ListItem::new(Line::from(vec![Span::styled("▸ ", t.accent()), Span::styled(name, style), Span::styled(chat, t.dim())]))
         })
         .collect();
     items.extend(s.runs.iter().map(|r| {
         let marks: Vec<Span> = r.stages.iter().map(|st| stage_mark(st.status, t)).collect();
-        let mut spans = vec![Span::styled(format!("  {} ", trunc(&r.name, 22)), t.text())];
+        let age = ago(s.now, r.updated_at);
+        let tail = marks.len() + 1 + r.status.label().width() + 1 + age.width();
+        let name = trunc(&r.name, w.saturating_sub(tail + 3).max(8));
+        let mut spans = vec![Span::styled(format!("  {name} "), t.text())];
         spans.extend(marks);
         spans.push(Span::styled(format!(" {}", r.status.label()), run_status_style(r.status, t)));
-        spans.push(Span::styled(format!(" {}", ago(s.now, r.updated_at)), t.dim()));
+        spans.push(Span::styled(format!(" {age}"), t.dim()));
         ListItem::new(Line::from(spans))
     }));
     let title = format!("Workflows {} · Runs {}", s.workflows.len(), s.runs.len());

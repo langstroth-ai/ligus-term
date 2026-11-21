@@ -310,15 +310,22 @@ fn switcher(f: &mut Frame, area: Rect, s: &State, sel: usize, t: &Theme) {
     f.render_widget(Paragraph::new(Line::styled("enter switch · 1-9 jump · + create or join · esc close", t.dim())), foot);
 }
 
-fn help(f: &mut Frame, area: Rect, s: &State, scroll: usize, t: &Theme) {
-    let mut lines = vec![Line::styled("lt keybindings. Rebind any of them in the config file ([keys.<context>]).", t.dim()), Line::raw("")];
-    for ctx in Context::ALL {
+/// The help overlay's lines: the keys of what has focus first (as
+/// configured), then every other context, then the passkey prompt's.
+pub fn help_lines(s: &State, t: &Theme) -> Vec<Line<'static>> {
+    let first = s.view_contexts();
+    let order: Vec<Context> = first.iter().copied().chain(Context::ALL.into_iter().filter(|c| !first.contains(c))).collect();
+    let mut lines = vec![
+        Line::styled("lt keybindings, for what has focus first. Rebind any of them in the config file ([keys.<context>]).", t.dim()),
+        Line::raw(""),
+    ];
+    for ctx in order {
         lines.push(Line::styled(ctx.title(), t.accent()));
         for b in BINDINGS.iter().filter(|b| b.context == ctx) {
             let keys: Vec<String> = s.keymap.keys(ctx, b.action).iter().map(|c| c.to_string()).collect();
             let keys = if keys.is_empty() { "unbound".to_string() } else { keys.join(", ") };
             lines.push(Line::from(vec![
-                Span::styled(format!("  {keys:<32} "), t.text().add_modifier(Modifier::BOLD)),
+                Span::styled(format!("  {keys:<24} "), t.text().add_modifier(Modifier::BOLD)),
                 Span::styled(b.help, t.text()),
             ]));
         }
@@ -326,16 +333,38 @@ fn help(f: &mut Frame, area: Rect, s: &State, scroll: usize, t: &Theme) {
     }
     lines.push(Line::styled("Passkey prompt", t.accent()));
     for (k, h) in [("enter, o", "Open the browser to confirm"), ("f", "Use your recovery-words file instead"), ("esc, c", "Cancel")] {
-        lines.push(Line::from(vec![Span::styled(format!("  {k:<32} "), t.text().add_modifier(Modifier::BOLD)), Span::styled(h, t.text())]));
+        lines.push(Line::from(vec![Span::styled(format!("  {k:<24} "), t.text().add_modifier(Modifier::BOLD)), Span::styled(h, t.text())]));
     }
-    let r = center(area, 76, area.height.saturating_sub(2));
+    lines
+}
+
+/// How far the help overlay scrolls in a terminal `height` rows tall (the
+/// reducer clamps to it, so scrolling back up never hits a dead zone).
+pub fn help_max_scroll(s: &State, height: u16) -> usize {
+    let len = help_lines(s, &Theme::MONO).len();
+    if height == 0 {
+        len.saturating_sub(1)
+    } else {
+        len.saturating_sub(help_rect(Rect::new(0, 0, 80, height)).height.saturating_sub(2) as usize)
+    }
+}
+
+fn help_rect(area: Rect) -> Rect {
+    center(area, 76, area.height.saturating_sub(2))
+}
+
+fn help(f: &mut Frame, area: Rect, s: &State, scroll: usize, t: &Theme) {
+    let lines = help_lines(s, t);
+    let r = help_rect(area);
     f.render_widget(Clear, r);
-    let block = pane("Help · ↑↓ scroll · any other key closes", true, t);
     let inner_h = r.height.saturating_sub(2) as usize;
     let max = lines.len().saturating_sub(inner_h);
     let start = scroll.min(max);
+    let end = (start + inner_h).min(lines.len());
+    let more = if max == 0 { String::new() } else { format!(" · {}-{end} of {}", start + 1, lines.len()) };
+    let title = format!("Help{more} · ↑↓ pgup pgdn g G · esc closes");
     let shown: Vec<Line> = lines.into_iter().skip(start).collect();
-    f.render_widget(Paragraph::new(shown).block(block), r);
+    f.render_widget(Paragraph::new(shown).block(pane(&title, true, t)), r);
 }
 
 fn presence(f: &mut Frame, area: Rect, p: &PresenceSheet, queued: usize, t: &Theme) {

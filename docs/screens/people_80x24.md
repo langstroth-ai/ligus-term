@@ -1,0 +1,30 @@
+# people at 80×24
+
+Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
+
+```text
+[AT]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Apiary T…
+┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Member ──────────────────────────────────╮
+┃  Mara · you  owner  founder      ┃│Mara  owner                               │
+┃  Ada  admin                      ┃│                                          │
+┃  Lin  contributor                ┃│Founder: nobody can remove or demote them.│
+┃  Sam  viewer                     ┃│Role (r)                                  │
+┃  sff box  contributor  service   ┃│  (•) owner                               │
+┃                                  ┃│  ( ) admin                               │
+┃                                  ┃│  ( ) contributor                         │
+┃                                  ┃│  ( ) viewer                              │
+┃                                  ┃│                                          │
+┃                                  ┃│X Leave the workspace                     │
+┃                                  ┃│I Create an invite                        │
+┃                                  ┃│B Admit a box (ligus serve or a worker) as│
+┃                                  ┃│a service member                          │
+┃                                  ┃│                                          │
+┃                                  ┃│Changes to who's in the workspace need    │
+┃                                  ┃│your passkey.                             │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────╯
+↑↓ people  r role  X remove  I invite  B admit box  ? help          peer to peer
+```

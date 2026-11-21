@@ -118,7 +118,7 @@ async fn event_loop(
             let msg = match ev {
                 TermEvent::Key(k) if k.kind != KeyEventKind::Release => Msg::Key(k),
                 TermEvent::Paste(p) => Msg::Paste(p),
-                TermEvent::Resize(..) => Msg::Tick(now_ms()),
+                TermEvent::Resize(w, h) => Msg::Resize(w, h),
                 _ => continue,
             };
             if t.send(msg).is_err() {
@@ -153,6 +153,9 @@ async fn event_loop(
         });
     };
     spawn(&mut tasks, Effect::Startup);
+    if let Ok(size) = terminal.size() {
+        update(state, Msg::Resize(size.width, size.height));
+    }
 
     terminal.draw(|f| crate::ui::draw(f, state, &theme))?;
     while let Some(msg) = rx.recv().await {
