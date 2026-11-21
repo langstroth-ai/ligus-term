@@ -596,3 +596,18 @@ class CutRelease < Minitest::Test
     refute_includes JSON.dump(CUT), "secrets.HOMEBREW", "cut-release itself needs no other secrets"
   end
 end
+
+# A script a workflow runs as `scripts/x.sh` must be executable in git, or the
+# runner stops with "Permission denied" (v0.1.1's first cut did, on macOS).
+class ScriptsAreExecutable < Minitest::Test
+  def test_every_script_a_workflow_runs_directly_is_executable_in_git
+    yml = Dir[File.join(ROOT, ".github/{workflows,actions}/**/*.yml")].map { |f| File.read(f) }.join("\n")
+    run = yml.scan(%r{(?<![\w/-]|bash |sh |ruby |python3 )(scripts/[\w.-]+\.(?:sh|py|rb))}).flatten.uniq
+    refute_empty run
+    modes = Open3.capture2("git", "-C", ROOT, "ls-files", "-s", *run).first
+    run.each do |s|
+      mode = modes.lines.find { |l| l.split("\t").last.strip == s }&.split&.first
+      assert_equal "100755", mode, "#{s} is run directly by a workflow but isn't executable in git (git update-index --chmod=+x #{s})"
+    end
+  end
+end
