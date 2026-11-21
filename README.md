@@ -496,6 +496,7 @@ app's or the CLI's.
 | `LT_NO_BROWSER` | `1`: passkey prompts show the page's address for a browser on another device |
 | `LT_PRESENCE_PORT` | the loopback port passkey prompts listen on (default any free port) |
 | `NO_COLOR` | the mono theme, unless a theme is set |
+| `LT_COLOR_DEPTH` | `truecolor`, `256` or `16`; by default 24-bit colour needs `COLORTERM=truecolor`, else lt uses the nearest of 256 colours (16 on a basic `TERM` such as `linux`) |
 
 `lt help env` lists every variable `lt` reads, with its default, including
 `LIGUS_SECRETS_DIR`, `LIGUS_MCP_MIN_ROLE` and the ones agent detection

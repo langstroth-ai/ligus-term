@@ -110,6 +110,18 @@ pub const ENV: &[EnvVar] = &[
     EnvVar { name: "PATH", default: "-", meaning: "where detection finds claude, codex, copilot and agy" },
     EnvVar { name: "HOME", default: "-", meaning: "the default data dir's parent; without it, ./ligus-term-data" },
     EnvVar { name: "NO_COLOR", default: "-", meaning: "any value: the mono theme, unless a theme is set" },
+    EnvVar {
+        name: "COLORTERM",
+        default: "-",
+        meaning: "truecolor or 24bit: 24-bit colour; otherwise lt uses the nearest of 256 colours (or 16, see TERM)",
+    },
+    EnvVar {
+        name: "TERM",
+        default: "-",
+        meaning: "without COLORTERM, a basic terminal (linux, vt100, xterm, screen, *-16color) gets the 16 ANSI \
+                  colours, so your terminal's palette applies; anything else 256",
+    },
+    EnvVar { name: "LT_COLOR_DEPTH", default: "detected", meaning: "truecolor, 256 or 16: overrides the detection" },
     EnvVar { name: "COLORFGBG", default: "-", meaning: "the auto theme reads the background from it (7 or 15 is light), else dark" },
 ];
 
@@ -943,6 +955,9 @@ brew install says lt conflicts with localtunnel
 
 Colours look wrong
   --theme dark|light|mono, or theme in the config; NO_COLOR gives mono.
+  Settings shows the colour depth lt picked: 24-bit with COLORTERM=truecolor,
+  else 256, or 16 on a basic TERM. LT_COLOR_DEPTH=truecolor|256|16 overrides it
+  (tmux without truecolor passthrough wants 256).
 
 Still stuck: lt --version, then open an issue at
 https://github.com/langstroth-ai/ligus-term/issues (never paste recovery

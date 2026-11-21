@@ -8,7 +8,7 @@ use ligus_term::backend::fake::{FakeBackend, FakeConfig};
 use ligus_term::backend::real::{RealBackend, RealConfig};
 use ligus_term::cli::Args;
 use ligus_term::config::{Config, default_config_text};
-use ligus_term::theme::{Theme, ThemeChoice};
+use ligus_term::theme::{ColorDepth, Theme, ThemeChoice};
 use ligus_term::{app, paths, plain};
 
 fn env(k: &str) -> Option<String> {
@@ -68,7 +68,8 @@ async fn run() -> anyhow::Result<()> {
     let config = Config::load(config_path.as_deref()).unwrap_or_else(|e| fail(e));
     let keymap = config.keymap().unwrap_or_else(|e| fail(format!("config: {e}")));
     let choice = args.theme.or(config.theme).unwrap_or(ThemeChoice::Auto);
-    let theme = Theme::resolve(choice, env);
+    let depth = ColorDepth::detect(env);
+    let theme = Theme::resolve(choice, env).with_depth(depth);
 
     let mut real = None;
     let backend: Arc<dyn Backend> = if args.demo {
@@ -111,6 +112,6 @@ async fn run() -> anyhow::Result<()> {
 
     let mut state = State::new(backend.device(), keymap, app::runtime::now_ms());
     state.config_path = config_path.map(|p| p.display().to_string());
-    state.theme_name = theme.name.to_string();
+    state.theme_name = if theme.mono { theme.name.to_string() } else { format!("{} ({})", theme.name, depth.label()) };
     app::runtime::run_tui(backend, state, theme).await
 }
