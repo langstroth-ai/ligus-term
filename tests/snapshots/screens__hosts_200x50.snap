@@ -2,11 +2,11 @@
 source: tests/screens.rs
 expression: screen
 ---
-[AT] [QR]• Apiary Tracker · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
+[NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
 ┏ Workers & hosts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃  Host                 Kind    Status     Work  Agents                                                                                                                                    Repos       ┃
 ┃● This device          DEVICE  online     idle  @primary @reviewer                                                                                                                                    ┃
-┃● sff                  WORKER  online     busy  @coder @scout                                                                                                                             apiary      ┃
+┃● sff                  WORKER  online     busy  @coder @scout                                                                                                                             northwind-ap┃
 ┃○ ada-studio           DEVICE  3h ago     idle                                                                                                                                                        ┃
 ┃                                                                                                                                                                                                      ┃
 ┃                                                                                                                                                                                                      ┃

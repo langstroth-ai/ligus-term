@@ -2,7 +2,7 @@
 source: tests/screens.rs
 expression: screen
 ---
-[AT]+1• │ 1 2 3 4 Agents 5 6 7 8(1) 9         Apiary Tracker
+[NA]+1• │ 1 2 3 4 Agents 5 6 7 8(1) 9          Northwind API
 ┏ Agents · a taller terminal shows usage, hand-offs ━━━━━━━┓
 ┃Agent   Statu Runtime Runs on     Who can use   Doing     ┃
 ┃@primar idle  claude- This device Everyone      answers un┃

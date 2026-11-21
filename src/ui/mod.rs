@@ -55,7 +55,7 @@ fn draw_main(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     draw_status(f, status, s, t);
 }
 
-/// `[AT] Apiary Tracker · owner │ Chats  Proposals …` with a mention dot on
+/// `[NA] Northwind API · owner │ Chats  Proposals …` with a mention dot on
 /// other workspaces. When the terminal is narrow the bar degrades step by
 /// step (shorter labels, one workspace tile, the view digits, then only the
 /// current view) instead of cutting views off, and never hides the

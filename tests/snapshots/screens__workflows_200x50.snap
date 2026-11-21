@@ -2,12 +2,12 @@
 source: tests/screens.rs
 expression: screen
 ---
-[AT] [QR]• Apiary Tracker · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
+[NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
 ┏ Workflows 2 · Runs 2 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Detail ────────────────────────────────────────────────────────────────────────────────────────────────────╮
-┃▸ Implement, review, ship  Inspection log refactor                                      ┃│Implement, review, ship                                                                                     │
-┃▸ Weekly swarm report  Queen cell alerts                                                ┃│in Inspection log refactor                                                                                  │
+┃▸ Implement, review, ship  Fix flaky checkout test                                      ┃│Implement, review, ship                                                                                     │
+┃▸ Weekly security digest  Migrate auth to passkeys                                      ┃│in Fix flaky checkout test                                                                                  │
 ┃  Implement, review, ship ●●◆ awaiting-gate 4m                                          ┃│                                                                                                            │
-┃  Weekly swarm report ● completed 1d                                                    ┃│The coder implements, the reviewer checks it, a person signs off.                                           │
+┃  Weekly security digest ● completed 1d                                                 ┃│The coder implements, the reviewer checks it, a person signs off.                                           │
 ┃                                                                                        ┃│                                                                                                            │
 ┃                                                                                        ┃│  Implement @coder                                                                                          │
 ┃                                                                                        ┃│  Review @reviewer  after implement                                                                         │

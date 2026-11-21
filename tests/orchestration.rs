@@ -356,7 +356,7 @@ async fn lt_founds_a_deployment_admits_a_box_and_drives_a_workflow() {
     })
     .await;
     assert_eq!(done.status, RunStatus::Completed, "{done:?}");
-    assert_eq!(done.stages[2].excerpt, "Hello from the hive.");
+    assert_eq!(done.stages[2].excerpt, "Hello from the agent.");
     assert!(a.saw(|e| matches!(e, Event::RunChanged { run: r, .. } if r.id == run.id && r.status == RunStatus::AwaitingGate)));
     // The record can be read completed a moment before its event goes out.
     until("the run's completed event", || async {
@@ -434,7 +434,7 @@ async fn invites_are_checked_before_joining() {
     let relay = serve(ligus_runtime::test_relay::router()).await;
     let a = device(&tmp.path().join("ana"), "lt Ana", &relay);
     let b = device(&tmp.path().join("ben"), "lt Ben", &relay);
-    let created = a.b.create_workspace("Ana", "Bee Yard").await.unwrap();
+    let created = a.b.create_workspace("Ana", "Acme Web").await.unwrap();
     let words = tmp.path().join("words.txt");
     std::fs::write(&words, created.recovery_words.join(" ")).unwrap();
     #[cfg(unix)]
@@ -448,12 +448,12 @@ async fn invites_are_checked_before_joining() {
     let invite = a.b.create_invite(&created.workspace.id, Role::Contributor).await.unwrap();
     let check = b.b.inspect_invite(&invite).await.unwrap();
     assert_eq!(check.trust, InviteTrust::Unknown);
-    assert_eq!(check.workspace_name, "Bee Yard");
+    assert_eq!(check.workspace_name, "Acme Web");
     assert!(check.safety_code.is_some());
     b.b.join_workspace("Ben", &invite).await.unwrap();
 
     // Now Ana is a co-member: her next invite (to a second workspace) is known…
-    let second = a.b.create_workspace("Ana", "Queen Rearing").await.unwrap();
+    let second = a.b.create_workspace("Ana", "Design System").await.unwrap();
     let words2 = tmp.path().join("words2.txt");
     std::fs::write(&words2, second.recovery_words.join(" ")).unwrap();
     #[cfg(unix)]
@@ -501,7 +501,7 @@ async fn a_deferred_turn_nobody_answers_is_answered_here() {
     let a = device(&tmp.path().join("ana"), "lt Ana", &relay);
     let (clock, mut hand) = DeferredClock::manual();
     let b = device_with(&tmp.path().join("ben"), "lt Ben", &relay, |c| c.deferred_clock = Some(clock));
-    let created = a.b.create_workspace("Ana", "Bee Yard").await.unwrap();
+    let created = a.b.create_workspace("Ana", "Acme Web").await.unwrap();
     let ws = created.workspace.id.clone();
     let wsu = Uuid::parse_str(ws.as_str()).unwrap();
     on_service(&a, move |svc| {
@@ -527,7 +527,7 @@ async fn a_deferred_turn_nobody_answers_is_answered_here() {
     *a.words_file.lock().unwrap() = Some(words);
     let invite = a.b.create_invite(&ws, Role::Contributor).await.unwrap();
     b.b.join_workspace("Ben", &invite).await.unwrap();
-    let chat = a.b.create_chat(&ws, "Varroa").await.unwrap();
+    let chat = a.b.create_chat(&ws, "Flaky tests").await.unwrap();
     until("Ben to see the chat and the agent", || async {
         let c = b.b.chats(&ws).await.unwrap().into_iter().any(|c| c.id == chat.id);
         let ag = b.b.agents(&ws).await.unwrap().into_iter().any(|x| x.handle == "coder");
@@ -554,7 +554,7 @@ async fn a_deferred_turn_nobody_answers_is_answered_here() {
     // Ana's device goes away; Ben asks her agent. The turn is hers, so Ben's
     // device defers to it; nobody answers, so after the wait Ben's does.
     a.b.shutdown();
-    let sent = b.b.send_message(&ws, &chat.id, "@coder are the mites under 3?").await.unwrap();
+    let sent = b.b.send_message(&ws, &chat.id, "@coder is the build under 3 minutes?").await.unwrap();
     tokio::time::sleep(Duration::from_millis(800)).await;
     let early = b.b.transcript(&ws, &chat.id).await.unwrap();
     assert!(!early.iter().any(|m| matches!(m.author, Author::Agent { .. })), "answered before the deferral ran out");
@@ -566,7 +566,7 @@ async fn a_deferred_turn_nobody_answers_is_answered_here() {
         t.into_iter().find(|m| matches!(&m.author, Author::Agent { handle, .. } if handle == "coder") && !m.streaming)
     })
     .await;
-    assert_eq!(reply.text, "Hello from the hive.");
+    assert_eq!(reply.text, "Hello from the agent.");
     assert!(reply.at >= sent.at);
     // People's beats never became events: only agents think, nobody types.
     assert!(!b.saw(|e| matches!(e, Event::Thinking { agent, .. } if !agent.starts_with('@'))));
@@ -584,7 +584,7 @@ async fn the_fallback_never_runs_someone_elses_personal_agent() {
     let (model, calls) = fake_model_counted().await;
     let a = device(&tmp.path().join("ana"), "lt Ana", &relay);
     let b = device_with(&tmp.path().join("ben"), "lt Ben", &relay, |c| c.deferred_timeout = Duration::from_secs(2));
-    let created = a.b.create_workspace("Ana", "Bee Yard").await.unwrap();
+    let created = a.b.create_workspace("Ana", "Acme Web").await.unwrap();
     let ws = created.workspace.id.clone();
     let wsu = Uuid::parse_str(ws.as_str()).unwrap();
     on_service(&a, move |svc| {
@@ -606,7 +606,7 @@ async fn the_fallback_never_runs_someone_elses_personal_agent() {
     *a.words_file.lock().unwrap() = Some(words);
     let invite = a.b.create_invite(&ws, Role::Contributor).await.unwrap();
     b.b.join_workspace("Ben", &invite).await.unwrap();
-    let chat = a.b.create_chat(&ws, "Varroa").await.unwrap();
+    let chat = a.b.create_chat(&ws, "Flaky tests").await.unwrap();
     until("Ben to see the chat and the agent", || async {
         let c = b.b.chats(&ws).await.unwrap().into_iter().any(|c| c.id == chat.id);
         let ag = b.b.agents(&ws).await.unwrap().into_iter().any(|x| x.handle == "coder");
@@ -614,7 +614,7 @@ async fn the_fallback_never_runs_someone_elses_personal_agent() {
     })
     .await;
     a.b.shutdown();
-    b.b.send_message(&ws, &chat.id, "@coder are the mites under 3?").await.unwrap();
+    b.b.send_message(&ws, &chat.id, "@coder is the build under 3 minutes?").await.unwrap();
     let note = until("the refusal on Ben's device", || async {
         let t = b.b.transcript(&ws, &chat.id).await.unwrap();
         t.into_iter().find(|m| matches!(&m.author, Author::Agent { handle, .. } if handle == "coder") && !m.streaming)
@@ -635,7 +635,7 @@ async fn a_checkout_is_bound_per_workspace() {
     let tmp = tempfile::tempdir().unwrap();
     let relay = serve(ligus_runtime::test_relay::router()).await;
     let a = device(&tmp.path().join("ana"), "lt Ana", &relay);
-    let ws = a.b.create_workspace("Ana", "Bee Yard").await.unwrap().workspace.id;
+    let ws = a.b.create_workspace("Ana", "Acme Web").await.unwrap().workspace.id;
     assert_eq!(a.b.checkout(&ws).await.unwrap(), None);
     let plain_dir = tmp.path().join("not-a-repo");
     std::fs::create_dir_all(&plain_dir).unwrap();
@@ -662,7 +662,7 @@ async fn a_held_workspace_is_never_rejoined_from_another_invite() {
     let evil = serve(ligus_runtime::test_relay::router()).await;
     let a = device(&tmp.path().join("ana"), "lt Ana", &relay);
     let b = device(&tmp.path().join("ben"), "lt Ben", &relay);
-    let created = a.b.create_workspace("Ana", "Bee Yard").await.unwrap();
+    let created = a.b.create_workspace("Ana", "Acme Web").await.unwrap();
     let words = tmp.path().join("words.txt");
     std::fs::write(&words, created.recovery_words.join(" ")).unwrap();
     #[cfg(unix)]
@@ -710,7 +710,7 @@ async fn the_fallback_re_resolves_its_responder_when_it_fires() {
     let a = device(&tmp.path().join("ana"), "lt Ana", &relay);
     let (clock, mut hand) = DeferredClock::manual();
     let b = device_with(&tmp.path().join("ben"), "lt Ben", &relay, |c| c.deferred_clock = Some(clock));
-    let created = a.b.create_workspace("Ana", "Bee Yard").await.unwrap();
+    let created = a.b.create_workspace("Ana", "Acme Web").await.unwrap();
     let ws = created.workspace.id.clone();
     let wsu = Uuid::parse_str(ws.as_str()).unwrap();
     // Ana's agents live on workers that are offline: nobody answers them,
@@ -741,7 +741,7 @@ async fn the_fallback_re_resolves_its_responder_when_it_fires() {
     *a.words_file.lock().unwrap() = Some(words);
     let invite = a.b.create_invite(&ws, Role::Contributor).await.unwrap();
     b.b.join_workspace("Ben", &invite).await.unwrap();
-    let chat = a.b.create_chat(&ws, "Varroa").await.unwrap();
+    let chat = a.b.create_chat(&ws, "Flaky tests").await.unwrap();
     let has = |agents: &[Agent], h: &str| agents.iter().any(|x| x.handle == h);
     until("Ben to see the chat and the agents", || async {
         let c = b.b.chats(&ws).await.unwrap().into_iter().any(|c| c.id == chat.id);
@@ -750,8 +750,8 @@ async fn the_fallback_re_resolves_its_responder_when_it_fires() {
     })
     .await;
 
-    let to_coder = b.b.send_message(&ws, &chat.id, "@coder are the mites under 3?").await.unwrap();
-    let to_scout = b.b.send_message(&ws, &chat.id, "@scout any queen cells?").await.unwrap();
+    let to_coder = b.b.send_message(&ws, &chat.id, "@coder is the build under 3 minutes?").await.unwrap();
+    let to_scout = b.b.send_message(&ws, &chat.id, "@scout any new advisories?").await.unwrap();
     // While the turns wait, Ana removes the coder.
     on_service(&a, move |svc| svc.remove_agent(workspace_config_session_id(wsu), wsu, coder).unwrap()).await;
     until("Ben to see the coder gone", || async { (!has(&b.b.agents(&ws).await.unwrap(), "coder")).then_some(()) }).await;
@@ -790,7 +790,7 @@ async fn an_invite_is_on_the_relay_before_its_code_is_shown() {
     // Ana's sync loop never runs a round of its own after the first.
     let a = device_with(&tmp.path().join("ana"), "lt Ana", &relay, |c| c.sync_every = Duration::from_secs(3600));
     let b = device(&tmp.path().join("ben"), "lt Ben", &relay);
-    let created = a.b.create_workspace("Ana", "Bee Yard").await.unwrap();
+    let created = a.b.create_workspace("Ana", "Acme Web").await.unwrap();
     let words = tmp.path().join("words.txt");
     std::fs::write(&words, created.recovery_words.join(" ")).unwrap();
     #[cfg(unix)]
@@ -815,9 +815,9 @@ async fn a_host_beat_counts_only_in_its_own_workspace() {
     let tmp = tempfile::tempdir().unwrap();
     let relay = serve(ligus_runtime::test_relay::router()).await;
     let a = device(&tmp.path().join("ana"), "lt Ana", &relay);
-    let yard = a.b.create_workspace("Ana", "Bee Yard").await.unwrap().workspace.id;
+    let yard = a.b.create_workspace("Ana", "Acme Web").await.unwrap().workspace.id;
     let yard_u = Uuid::parse_str(yard.as_str()).unwrap();
-    // A worker of the Bee Yard, last seen long ago: offline.
+    // A worker of the Acme Web, last seen long ago: offline.
     let worker = Uuid::new_v4().to_string();
     {
         let worker = worker.clone();
@@ -835,7 +835,7 @@ async fn a_host_beat_counts_only_in_its_own_workspace() {
         DeploymentSpec { name: "Other".into(), relay_url: relay.clone(), room: "other-room".into(), key: "other-key".into(), token: None };
     let other = a.b.connect_deployment("Ana", spec).await.unwrap().workspace.id;
     let other_u = Uuid::parse_str(other.as_str()).unwrap();
-    // They publish a beat for the Bee Yard's worker in their own room.
+    // They publish a beat for the Acme Web's worker in their own room.
     let ring = ligus_runtime::keyring::KeyringEngine::passphrase(other_u, ligus_core::derive_workspace_key("other-key"));
     for _ in 0..10 {
         ligus_runtime::host_presence::publish_host_beat(&RelayClient::new(&relay), "other-room", &ring, &worker).await.unwrap();

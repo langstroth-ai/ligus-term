@@ -3,11 +3,11 @@
 Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 
 ```text
-[AT]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Apiary T…
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
 ┏ Workers & hosts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃  Host                 Kind    Status     Work  Agents            Repos       ┃
 ┃● This device          DEVICE  online     idle  @primary @reviewe             ┃
-┃● sff                  WORKER  online     busy  @coder @scout     apiary      ┃
+┃● sff                  WORKER  online     busy  @coder @scout     northwind-ap┃
 ┃○ ada-studio           DEVICE  3h ago     idle                                ┃
 ┃                                                                              ┃
 ┃                                                                              ┃

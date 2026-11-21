@@ -2,35 +2,35 @@
 source: tests/screens.rs
 expression: screen
 ---
-[AT] [QR]• Apiary Tracker · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
-╭ Proposals ───────────────────────────────╮╭ Record mites per 100 bees ─────────────────────────────────────╮
-│open     Record mites per 100 bees        ││open  by @coder · 2 files changed · 1/2 approvals               │
+[NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
+╭ Proposals ───────────────────────────────╮╭ Inject the clock into checkout tests ──────────────────────────╮
+│open     Inject the clock into checkou…   ││open  by @coder · 2 files changed · 1/2 approvals               │
 │         1/2 approvals · @coder · 37m     ││✓ Ada approved · admin                                          │
-│approved Export inspections to CSV        ││A Approve   R Reject   O Apply on sff… (needs approval first)   │
+│approved Export orders to CSV             ││A Approve   R Reject   O Apply on sff… (needs approval first)   │
 │         2/2 approvals · @coder · 1d      ││That host applies it once, on its checkout, and reports the     │
-│applied  Bump the frame schema version    ││result.                                                         │
+│applied  Bump the order schema version    ││result.                                                         │
 │         2/2 approvals · @reviewer · 2d   ││                                                                │
-│open     Sign-off: count mites per 100…   │╰────────────────────────────────────────────────────────────────╯
+│open     Sign-off: inject a fake clock    │╰────────────────────────────────────────────────────────────────╯
 │         0/1 approvals · workflow · 4m    │┏ Diff · 2 files · hunk 2/3 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-│open     Workflow: Swarm check before …   │┃@@ -40,9 +42,13 @@ impl Inspection {                            ┃
-│         0/1 approvals · @scout · 20m     │┃     pub fn needs_treatment(&self) -> bool {                    ┃
-│                                          │┃-        self.mites > 9                                         ┃
+│open     Workflow: Dependency audit be…   │┃@@ -40,9 +42,13 @@ impl Checkout {                              ┃
+│         0/1 approvals · @scout · 20m     │┃     pub fn is_expired(&self) -> bool {                         ┃
+│                                          │┃-        self.started.elapsed().as_secs() > 30                  ┃
 │                                          │┃-    }                                                          ┃
-│                                          │┃+        // 3 per 100 is the usual action threshold in late sum…┃
-│                                          │┃+        self.mites_per_100 >= TREATMENT_THRESHOLD              ┃
+│                                          │┃+        // 30 seconds matches the payment provider's session t…┃
+│                                          │┃+        self.clock.now() - self.started_at >= Self::SESSION_TI…┃
 │                                          │┃+    }                                                          ┃
 │                                          │┃+                                                               ┃
-│                                          │┃+    pub const TREATMENT_THRESHOLD: f32 = 3.0;                  ┃
+│                                          │┃+    pub const SESSION_TIMEOUT_MS: Millis = 30_000;             ┃
 │                                          │┃                                                                ┃
 │                                          │┃     pub fn summary(&self) -> String {                          ┃
 │                                          │┃                                                                ┃
-│                                          │┃▌tests/inspections.rs +8 −0                                     ┃
+│                                          │┃▌tests/checkout.rs +8 −0                                        ┃
 │                                          │┃@@ -0,0 +1,8 @@                                                 ┃
-│                                          │┃+use apiary::Inspection;                                        ┃
+│                                          │┃+use northwind::Checkout;                                       ┃
 │                                          │┃+                                                               ┃
 │                                          │┃+#[test]                                                        ┃
-│                                          │┃+fn three_per_hundred_needs_treatment() {                       ┃
-│                                          │┃+    let i = Inspection::sample(3.0);                           ┃
-│                                          │┃+    assert!(i.needs_treatment());                              ┃
+│                                          │┃+fn expires_after_thirty_seconds() {                            ┃
+│                                          │┃+    let c = Checkout::at_fake_time(30_000);                    ┃
+│                                          │┃+    assert!(c.is_expired());                                   ┃
 ╰──────────────────────────────────────────╯┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ↑↓ scroll  ] next hunk  [ prev hunk  A approve  R reject  O apply  ? help                         peer to peer

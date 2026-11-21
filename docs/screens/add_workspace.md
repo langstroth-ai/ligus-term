@@ -3,18 +3,18 @@
 Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 
 ```text
-[AT] [QR]• Apiary Tracker · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
-┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Inspection log refactor ───────────────────────────────────────────────────╮
-┃  Inspection log refact… 12m  ┃│Ada  40m                                                                    │
-┃  #dev                        ┃│  The inspection log stores raw mite counts. Can we switch to mites per 100 │
-┃  ⊘ Queen cell alerts    50m  ┃│  bees?                                                                     │
+[NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
+┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ───────────────────────────────────────────────────╮
+┃  Fix flaky checkout te… 12m  ┃│Ada  40m                                                                    │
+┃  #dev                        ┃│  The checkout test fails about one run in ten. Can we stop it reading the  │
+┃  ⊘ Migrate auth to pas… 50m  ┃│  wall clock?                                                               │
 ┃  #dev                        ┃│                                                                            │
-┃  Release notes           1d  ┃│@coder  via claude-code  38m                                                │
-┃                              ┃│  Yes. The wash sample size is already recorded, so it's a small change.    │
+┃  Weekly release notes    1d  ┃│@coder  via claude-code  38m                                                │
+┃                              ┃│  Yes. The payment tests already use a fake clock, so it's a small change.  │
 ┃                  ┏ Add a workspace ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                  │
 ┃                  ┃› (•) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃                  │
 ┃                  ┃                                                                      ┃                  │
-┃                  ┃  Workspace name e.g. Apiary Tracker                                  ┃e club uses.      │
+┃                  ┃  Workspace name e.g. Northwind API                                   ┃ provider uses.   │
 ┃                  ┃  No server needed: it lives on this device until you invite someone. ┃                  │
 ┃                  ┃                                                                      ┃                  │
 ┃                  ┃                                                                      ┃                  │

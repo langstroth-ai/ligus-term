@@ -1344,18 +1344,18 @@ mod tests {
     async fn script_lists_opens_and_streams() {
         let out =
             run_script(FakeBackend::demo(FakeConfig::instant()), "chats\nopen 1\nsay @coder fix it\nwait 5\nproposals\nmembers\n").await;
-        assert!(out.contains("chat\t1\tc-log\tInspection log refactor\tunread mentioned"), "{out}");
-        assert!(out.contains("message\tApiary Tracker\tc-log\tAda\tThe inspection log stores raw mite counts."), "{out}");
-        assert!(out.contains("thinking\tc-log\t@coder"), "{out}");
-        assert!(out.contains("message\tApiary Tracker\tc-log\t@coder\tLooked at the inspection log."), "{out}");
-        assert!(out.contains("Tighten the varroa threshold check"), "{out}");
+        assert!(out.contains("chat\t1\tc-checkout\tFix flaky checkout test\tunread mentioned"), "{out}");
+        assert!(out.contains("message\tNorthwind API\tc-checkout\tAda\tThe checkout test fails about one run in ten."), "{out}");
+        assert!(out.contains("thinking\tc-checkout\t@coder"), "{out}");
+        assert!(out.contains("message\tNorthwind API\tc-checkout\t@coder\tLooked at the checkout test."), "{out}");
+        assert!(out.contains("Inject a clock into the session check"), "{out}");
         assert!(out.contains("member\t4\tm-sam\tSam\tviewer\t\tremove: allowed"), "{out}");
     }
 
     #[tokio::test]
     async fn first_run_create_prints_recovery_words() {
         let out =
-            run_script(FakeBackend::new(FakeConfig::instant()), "workspaces\nname Mara\ncreate Bee Yard\nwait 1\nconfirm 101\nwait 2\n")
+            run_script(FakeBackend::new(FakeConfig::instant()), "workspaces\nname Mara\ncreate Acme Web\nwait 1\nconfirm 101\nwait 2\n")
                 .await;
         assert!(out.contains("first-run"), "{out}");
         assert!(out.contains("presence\t101\tpasskeyRegistered"), "{out}");
@@ -1386,7 +1386,7 @@ mod tests {
     #[tokio::test]
     async fn one_shot_create_takes_its_name_from_the_flag() {
         let tmp = tempfile::tempdir().unwrap();
-        let cmd = format!("create Bee Yard --out {}/w", tmp.path().display());
+        let cmd = format!("create Acme Web --out {}/w", tmp.path().display());
         let (code, out) = one_shot(FakeBackend::new(FakeConfig::instant()), &cmd).await;
         assert_eq!(code, 1);
         assert!(out.contains("tell us your name first"), "{out}");
@@ -1405,21 +1405,18 @@ mod tests {
         assert_eq!(code, 0);
         assert_eq!(
             out,
-            "workflow\t1\twf-review\tImplement, review, ship\tInspection log refactor\timplement:@coder review:@reviewer signoff:gate (1 approval)\tstartable\n\
-             workflow\t2\twf-report\tWeekly swarm report\tQueen cell alerts\tsummarize:@scout\tstartable\n"
+            "workflow\t1\twf-review\tImplement, review, ship\tFix flaky checkout test\timplement:@coder review:@reviewer signoff:gate (1 approval)\tstartable\n\
+             workflow\t2\twf-report\tWeekly security digest\tMigrate auth to passkeys\tsummarize:@scout\tstartable\n"
         );
         let (code, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "runs").await;
         assert_eq!(code, 0);
-        assert!(
-            out.starts_with("run\t1\trun-7\tawaiting-gate\tImplement, review, ship\t2/3\tThis device\tcount mites per 100 bees\n"),
-            "{out}"
-        );
+        assert!(out.starts_with("run\t1\trun-7\tawaiting-gate\tImplement, review, ship\t2/3\tThis device\tinject a fake clock\n"), "{out}");
         let (_, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "hosts").await;
-        assert!(out.contains("host\t2\th-sff\tsff\tworker\tonline\t\tbusy\t@coder @scout\tapiary\n"), "{out}");
+        assert!(out.contains("host\t2\th-sff\tsff\tworker\tonline\t\tbusy\t@coder @scout\tnorthwind-api\n"), "{out}");
         let (_, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "proposals").await;
         assert!(out.lines().any(|l| l.starts_with("proposal\t") && l.ends_with("\tgate")), "{out}");
         let (_, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "tasks").await;
-        assert!(out.contains("task\tc-log\t@coder\tworking\t40\tactive\twiring the CSV export"), "{out}");
+        assert!(out.contains("task\tc-checkout\t@coder\tworking\t40\tactive\twiring the CSV export"), "{out}");
     }
 
     /// Agent access controls: each agent says who may use it and whether
@@ -1473,7 +1470,7 @@ mod tests {
         let (code, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "run 2 this week").await;
         assert_eq!(code, 0, "{out}");
         assert!(out.lines().next().unwrap().starts_with("run\t1\trun-"), "{out}");
-        assert!(out.contains("\trunning\tWeekly swarm report\t0/1\tThis device\tthis week"), "{out}");
+        assert!(out.contains("\trunning\tWeekly security digest\t0/1\tThis device\tthis week"), "{out}");
         assert!(out.contains("\tsummarize\tsucceeded\t@scout\t\t@scout finished: this week"), "{out}");
         assert!(out.trim_end().lines().last().unwrap().starts_with("run-done\trun-"), "{out}");
         let (code, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "frobnicate").await;

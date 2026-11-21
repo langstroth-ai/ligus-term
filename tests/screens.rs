@@ -82,7 +82,7 @@ async fn onboarding_join_with_invite() {
     h.key(KeyCode::Tab).await;
     h.key(KeyCode::Right).await;
     h.key(KeyCode::Tab).await;
-    h.send(Msg::Paste("fake-invite:Bee-Yard".into())).await;
+    h.send(Msg::Paste("fake-invite:Acme-Web".into())).await;
     snap("onboarding_join", "First run: join with an invite", h.screen(W, H));
     h.key(KeyCode::Enter).await;
     snap("onboarding_join_checked", "Join: who the invite is from, checked before joining", h.screen(W, H));
@@ -121,7 +121,7 @@ async fn workflows_and_runs() {
     snap("workflow_run_done", "The gate approved: the run completes", h.screen(W, H));
     h.key(KeyCode::Char('g')).await;
     h.key(KeyCode::Char('S')).await;
-    h.chars("export the wash counts").await;
+    h.chars("export the order history").await;
     snap("workflow_start", "Starting a run", h.screen(W, H));
     h.key(KeyCode::Enter).await;
     snap("workflow_run_live", "A run started here, live", h.screen(W, H));
@@ -160,7 +160,7 @@ async fn bind_a_checkout() {
     let mut h = demo().await;
     h.key(KeyCode::Char('h')).await;
     h.key(KeyCode::Char('b')).await;
-    h.chars("/srv/apiary").await;
+    h.chars("/srv/northwind-api").await;
     snap("bind_checkout", "Binding this device's checkout for apply on host", h.screen(W, H));
     h.key(KeyCode::Enter).await;
     snap("hosts_bound", "Hosts with a bound checkout", h.screen(W, H));
@@ -171,7 +171,7 @@ async fn onboarding_error_without_a_name() {
     let mut h = Harness::new(false).await;
     h.key(KeyCode::Tab).await;
     h.key(KeyCode::Tab).await;
-    h.chars("Apiary").await;
+    h.chars("Northwind").await;
     h.key(KeyCode::Enter).await;
     snap("onboarding_error", "First run: a validation error", h.screen(W, H));
 }
@@ -182,7 +182,7 @@ async fn passkey_create_then_recovery_key() {
     h.chars("Mara").await;
     h.key(KeyCode::Tab).await;
     h.key(KeyCode::Tab).await;
-    h.chars("Bee Yard").await;
+    h.chars("Acme Web").await;
     h.key(KeyCode::Enter).await;
     snap("passkey_create", "Creating a workspace asks for a passkey", h.screen(W, H));
     h.key(KeyCode::Enter).await; // open the (simulated) browser
@@ -237,8 +237,8 @@ async fn chat_multiline_composer() {
 #[tokio::test]
 async fn chat_streaming_reply() {
     let mut h = demo().await;
-    let ws = WorkspaceId::new("ws-apiary");
-    let chat = ChatId::new("c-log");
+    let ws = WorkspaceId::new("ws-northwind");
+    let chat = ChatId::new("c-checkout");
     h.send(Msg::Event(Event::Thinking { workspace: ws.clone(), chat: chat.clone(), agent: "@reviewer".into(), on: true })).await;
     let message = Message {
         id: MessageId::new("s1"),
@@ -254,10 +254,10 @@ async fn chat_streaming_reply() {
         workspace: ws.clone(),
         chat: chat.clone(),
         message: MessageId::new("s1"),
-        call: ToolCall { name: "read_file".into(), preview: "src/inspections.rs".into(), ok: true },
+        call: ToolCall { name: "read_file".into(), preview: "src/checkout.rs".into(), ok: true },
     }))
     .await;
-    for d in ["Three ", "per ", "100 ", "matches ", "the ", "club's "] {
+    for d in ["Thirty ", "seconds ", "matches ", "the ", "provider's "] {
         h.send(Msg::Event(Event::MessageDelta {
             workspace: ws.clone(),
             chat: chat.clone(),
@@ -458,7 +458,7 @@ async fn empty_chat_splash() {
     h.chars("Mara").await;
     h.key(KeyCode::Tab).await;
     h.key(KeyCode::Tab).await;
-    h.chars("Bee Yard").await;
+    h.chars("Acme Web").await;
     h.key(KeyCode::Enter).await;
     h.key(KeyCode::Enter).await;
     h.key(KeyCode::Enter).await;
@@ -489,8 +489,8 @@ async fn light_and_mono_themes_change_styles_not_text() {
 #[tokio::test]
 async fn remote_text_cannot_reorder_or_hide_what_is_shown() {
     let mut h = demo().await;
-    let ws = WorkspaceId::new("ws-apiary");
-    let chat = ChatId::new("c-log");
+    let ws = WorkspaceId::new("ws-northwind");
+    let chat = ChatId::new("c-checkout");
     let bad = "ok \u{1b}]52;c;eA==\u{7}\u{1b}[2J \u{202e}gnp.exe\u{202c} \u{2067}x\u{2069} a\u{200b}b \u{feff}\u{9b}";
     let message = Message {
         id: MessageId::new("hostile"),

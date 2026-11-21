@@ -2,7 +2,7 @@
 source: tests/screens.rs
 expression: screen
 ---
-[AT]+1• │ 1 2 3 4 5 6 7 People 8(1) 9         Apiary Tracker
+[NA]+1• │ 1 2 3 4 5 6 7 People 8(1) 9          Northwind API
 ┏ People ━━━━━━━━━━━━━━━━━┓╭ Member ───────────────────────╮
 ┃  Mara · you  owner  foun┃│Mara  owner                    │
 ┃  Ada  admin             ┃│                               │

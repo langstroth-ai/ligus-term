@@ -2,17 +2,17 @@
 source: tests/screens.rs
 expression: screen
 ---
-[AT]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Apiary T…
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
 ┏ Workflows 2 · Runs 2 ━━━━━━━━━━━━┓╭ Detail ──────────────────────────────────╮
 ┃▸ Implement, review, ship         ┃│Implement, review, ship  awaiting-gate    │
-┃▸ Weekly swarm report  Queen ce…  ┃│started by Mara 30m ago · driven by This  │
+┃▸ Weekly security digest  Migra…  ┃│started by Mara 30m ago · driven by This  │
 ┃  Implemen… ●●◆ awaiting-gate 4m  ┃│device                                    │
-┃  Weekly swarm r… ● completed 1d  ┃│input count mites per 100 bees            │
+┃  Weekly securit… ● completed 1d  ┃│input inject a fake clock                 │
 ┃                                  ┃│                                          │
 ┃                                  ┃│  ● Implement @coder  succeeded           │
-┃                                  ┃│      Changed the inspection struct and…  │
+┃                                  ┃│      Changed the checkout struct and t…  │
 ┃                                  ┃│  ● Review @reviewer  succeeded           │
-┃                                  ┃│      Looks right; the wash sample is v…  │
+┃                                  ┃│      Looks right; the timeout has a te…  │
 ┃                                  ┃│  ◆ Sign-off gate (1 approval)            │
 ┃                                  ┃│awaiting-approval                         │
 ┃                                  ┃│                                          │

@@ -3,22 +3,22 @@
 Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 
 ```text
-[AT] [QR]• Apiary Tracker · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
-┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Inspection log refactor ───────────────────────────────────────────────────╮
-┃  Inspection log refact… 12m  ┃│Ada  40m                                                                    │
-┃  #dev                        ┃│  The inspection log stores raw mite counts. Can we switch to mites per 100 │
-┃  ⊘ Queen cell alerts    50m  ┃│  bees?                                                                     │
+[NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
+┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ───────────────────────────────────────────────────╮
+┃  Fix flaky checkout te… 12m  ┃│Ada  40m                                                                    │
+┃  #dev                        ┃│  The checkout test fails about one run in ten. Can we stop it reading the  │
+┃  ⊘ Migrate auth to pas… 50m  ┃│  wall clock?                                                               │
 ┃  #dev                        ┃│                                                                            │
-┃  Release notes           1d  ┃│@coder  via claude-code  38m                                                │
-┃                              ┃│  Yes. The wash sample size is already recorded, so it's a small change.    │
+┃  Weekly release notes    1d  ┃│@coder  via claude-code  38m                                                │
+┃                              ┃│  Yes. The payment tests already use a fake clock, so it's a small change.  │
 ┃                              ┃│  I'll propose it.                                                          │
 ┃                              ┃│                                                                            │
 ┃                              ┃│Ada  12m                                                                    │
-┃                              ┃│  @Mara can you review the threshold? 3 per 100 is what the club uses.      │
+┃                              ┃│  @Mara can you review the timeout? 30 seconds is what the provider uses.   │
 ┃                              ┃│                                                                            │
 ┃                              ┃│@coder  via claude-code  now  generating                                    │
-┃                              ┃│  ⚒ read_file src/inspections.rs done                                       │
-┃                              ┃│  Three per 100 matches the club's ▍                                        │
+┃                              ┃│  ⚒ read_file src/checkout.rs done                                          │
+┃                              ┃│  Thirty seconds matches the provider's ▍                                   │
 ┃                              ┃│                                                                            │
 ┃                              ┃│                                                                            │
 ┃                              ┃│                                                                            │

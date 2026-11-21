@@ -2,16 +2,16 @@
 source: tests/screens.rs
 expression: screen
 ---
-[AT] [QR]• Apiary Tracker · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
+[NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
 ┏ Task state 2 · Memory 3 · 1 proposed ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Detail ────────────────────────────────────────────────────────────────────────────────────────────────────╮
 ┃@coder working 40% wiring the CSV export                                                ┃│@coder  working                                                                                             │
-┃@scout done 100% checked the swarm-cell post                                            ┃│in Inspection log refactor · 2m ago                                                                         │
-┃◇ Treatment threshold  varroa                                                           ┃│                                                                                                            │
-┃◇ Wash sample  inspections                                                              ┃│wiring the CSV export                                                                                       │
+┃@scout done 100% checked the passkey fallback thread                                    ┃│in Fix flaky checkout test · 2m ago                                                                         │
+┃◇ Session timeout  checkout                                                             ┃│                                                                                                            │
+┃◇ Test clock  testing                                                                   ┃│wiring the CSV export                                                                                       │
 ┃◇ Release cadence  process                                                              ┃│[████████░░░░░░░░░░░░] 40%                                                                                  │
 ┃                                                                                        ┃│                                                                                                            │
 ┃                                                                                        ┃│Open questions                                                                                              │
-┃                                                                                        ┃│  ? include colonies with no inspection?                                                                    │
+┃                                                                                        ┃│  ? include cancelled orders?                                                                               │
 ┃                                                                                        ┃│                                                                                                            │
 ┃                                                                                        ┃│                                                                                                            │
 ┃                                                                                        ┃│                                                                                                            │

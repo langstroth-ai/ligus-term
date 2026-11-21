@@ -48,7 +48,7 @@ pub struct Theme {
 }
 
 impl Theme {
-    /// Honey on the terminal's dark background. The inks are the Ligus
+    /// Amber on the terminal's dark background. The inks are the Ligus
     /// brand tokens (`ligus-brand-tokens.json`): paper for text, soft for
     /// dim, honeyLight for the accent, activeLight for mentions, tileTopDark
     /// for the selection.

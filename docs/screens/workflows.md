@@ -3,12 +3,12 @@
 Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 
 ```text
-[AT] [QR]• Apiary Tracker · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
+[NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Workflows 2 · Runs 2 ━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Detail ──────────────────────────────────────────────────╮
-┃▸ Implement, review, ship  Inspection log ref…  ┃│Implement, review, ship                                   │
-┃▸ Weekly swarm report  Queen cell alerts        ┃│in Inspection log refactor                                │
+┃▸ Implement, review, ship  Fix flaky checkout…  ┃│Implement, review, ship                                   │
+┃▸ Weekly security digest  Migrate auth to pas…  ┃│in Fix flaky checkout test                                │
 ┃  Implement, review, ship ●●◆ awaiting-gate 4m  ┃│                                                          │
-┃  Weekly swarm report ● completed 1d            ┃│The coder implements, the reviewer checks it, a person    │
+┃  Weekly security digest ● completed 1d         ┃│The coder implements, the reviewer checks it, a person    │
 ┃                                                ┃│signs off.                                                │
 ┃                                                ┃│                                                          │
 ┃                                                ┃│  Implement @coder                                        │

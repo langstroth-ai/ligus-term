@@ -2,7 +2,7 @@
 source: tests/screens.rs
 expression: screen
 ---
-[AT]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Apiary T…
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
 ┏ Settings ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃You                                                                           ┃
 ┃  Name            Mara                                                        ┃

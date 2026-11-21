@@ -4,6 +4,19 @@ All notable changes to `lt`, the Ligus terminal app (Ligus is short for
 ligustica). Versions follow [semver](https://semver.org); releases are on
 [GitHub](https://github.com/langstroth-ai/ligus-term/releases).
 
+## v0.1.3 (unreleased)
+
+### Changed
+
+- The demo (`lt --demo`) shows an ordinary software team: a "Northwind API"
+  workspace with chats such as "Fix flaky checkout test", "Migrate auth to
+  passkeys" and "Weekly release notes", a checkout-timeout proposal, and
+  the "Implement, review, ship" and "Weekly security digest" workflows,
+  plus a small "docs-site" workspace. It has the same agents, runtimes,
+  hosts, proposals, runs, people, memory and notifications as before, in
+  the same states. The help examples, screen captures, README images and
+  demo GIF use the same names.
+
 ## v0.1.2
 
 ### Added

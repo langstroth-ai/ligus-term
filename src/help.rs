@@ -152,7 +152,7 @@ pub const COMMANDS: &[Cmd] = &[
                 for the session, so set it in the same input as create or join; a one-shot command takes \
                 --name NAME instead.",
         prints: "ok",
-        example: "printf 'name Ada\\ncreate Apiary --out words.txt\\nwait\\n' | lt --plain",
+        example: "printf 'name Ada\\ncreate Northwind --out words.txt\\nwait\\n' | lt --plain",
     },
     Cmd {
         name: "create",
@@ -162,7 +162,7 @@ pub const COMMANDS: &[Cmd] = &[
                 --out FILE they go to a new owner-only file instead. A one-shot create needs --out, and \
                 on a new device --name NAME.",
         prints: "created, recovery-key, invite",
-        example: "lt --name Ada create Apiary --out words.txt",
+        example: "lt --name Ada create Northwind --out words.txt",
     },
     Cmd {
         name: "join",
@@ -212,7 +212,7 @@ pub const COMMANDS: &[Cmd] = &[
         prints: "opened, lockdown, message",
         example: "open 1",
     },
-    Cmd { name: "new", usage: "new TITLE", about: "Start a chat and open it.", prints: "opened", example: "new Mite counts" },
+    Cmd { name: "new", usage: "new TITLE", about: "Start a chat and open it.", prints: "opened", example: "new Flaky tests" },
     Cmd {
         name: "say",
         usage: "say TEXT",
@@ -427,7 +427,7 @@ pub const COMMANDS: &[Cmd] = &[
         about: "Show or set this device's git checkout for the workspace, where proposals applied on this \
                 device land. Kept in this device's data dir, never synced.",
         prints: "checkout",
-        example: "lt --plain checkout ~/src/apiary",
+        example: "lt --plain checkout ~/src/northwind-api",
     },
     Cmd {
         name: "wait",
@@ -713,7 +713,7 @@ here, or with LT_NO_BROWSER=1 one on another device (a presence-url record;
 lt help troubleshooting).
 
   lt --plain runs
-  lt --plain --workspace Apiary run 1 \"fix the flaky test\"
+  lt --plain --workspace Northwind run 1 \"fix the flaky test\"
 
 Secrets never ride argv or stdout in one-shot mode: connect takes the key and
 token only as @FILE (owner-only), and create, connect and a bearer admit write
@@ -728,7 +728,7 @@ a true/false setting is a boolean; everything else is a string.
 
   lt --plain --json agents
   lt --plain hosts --json
-  {\"record\":\"workspace\",\"n\":1,\"id\":\"...\",\"name\":\"Apiary\",\"role\":\"owner\",\"sync\":\"...\"}
+  {\"record\":\"workspace\",\"n\":1,\"id\":\"...\",\"name\":\"Northwind\",\"role\":\"owner\",\"sync\":\"...\"}
 
 Records (keyword: fields; | separates variants by field count). An ok record
 names what was done, then that command's arguments (args in JSON).
@@ -896,7 +896,7 @@ A keychain password prompt on macOS, or no keychain at all (a container, CI)
 
 \"tell us your name first\" (a one-shot create or join on a new device)
   Give your name with --name:
-    lt --name Ada create Apiary --out words.txt
+    lt --name Ada create Northwind --out words.txt
     lt --name Ada join CODE
 
 Passkeys with no browser (SSH, a headless box)
@@ -912,7 +912,7 @@ Passkeys with no browser (SSH, a headless box)
     # on the device with the browser:
     ssh -L 127.0.0.1:8765:127.0.0.1:8765 THIS-HOST   (never with -g)
     # on THIS-HOST, in that session:
-    LT_NO_BROWSER=1 LT_PRESENCE_PORT=8765 lt --name Ada create Apiary --out words.txt
+    LT_NO_BROWSER=1 LT_PRESENCE_PORT=8765 lt --name Ada create Northwind --out words.txt
   lt shows the page's address on your terminal (below the prompt in the app;
   in plain mode on the controlling terminal, never on stdout, so a log or a
   pipe never holds it) instead of opening a browser; open it on the other
@@ -1019,8 +1019,8 @@ mod tests {
     #[test]
     fn json_names_fields_and_unescapes() {
         assert_eq!(
-            record_json("workspace\t1\tws-1\tApiary\towner\tsynced"),
-            r#"{"record":"workspace","n":1,"id":"ws-1","name":"Apiary","role":"owner","sync":"synced"}"#
+            record_json("workspace\t1\tws-1\tNorthwind\towner\tsynced"),
+            r#"{"record":"workspace","n":1,"id":"ws-1","name":"Northwind","role":"owner","sync":"synced"}"#
         );
         assert_eq!(record_json("error\tc-1\tline\\none"), r#"{"record":"error","chat":"c-1","message":"line\none"}"#);
         assert_eq!(record_json("ok\taccess\t@coder\teveryone"), r#"{"record":"ok","what":"access","args":["@coder","everyone"]}"#);

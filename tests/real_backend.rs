@@ -24,7 +24,7 @@ use ligus_term::backend::{Backend, Event};
 use support::*;
 use uuid::Uuid;
 
-const DIFF: &str = "diff --git a/hive.txt b/hive.txt\nnew file mode 100644\n--- /dev/null\n+++ b/hive.txt\n@@ -0,0 +1 @@\n+ligustica\n";
+const DIFF: &str = "diff --git a/notes.txt b/notes.txt\nnew file mode 100644\n--- /dev/null\n+++ b/notes.txt\n@@ -0,0 +1 @@\n+ligustica\n";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn two_devices_work_together_through_a_relay() {
@@ -39,7 +39,7 @@ async fn two_devices_work_together_through_a_relay() {
     assert_eq!((st.your_name, st.workspaces.len()), (None, 0));
 
     // ── Create: a founder passkey (browser `create`) and a recovery key.
-    let created = a.b.create_workspace("Ana", "Bee Yard").await.unwrap();
+    let created = a.b.create_workspace("Ana", "Acme Web").await.unwrap();
     let ws = created.workspace.id.clone();
     let wsu = Uuid::parse_str(ws.as_str()).unwrap();
     assert_eq!(created.recovery_words.len(), 24);
@@ -88,7 +88,7 @@ async fn two_devices_work_together_through_a_relay() {
     assert!(b.b.join_workspace("Ben", "not an invite").await.is_err());
     let joined = b.b.join_workspace("Ben", &invite).await.unwrap();
     assert_eq!(joined.id, ws);
-    assert_eq!(joined.name, "Bee Yard");
+    assert_eq!(joined.name, "Acme Web");
     assert_eq!(joined.your_role, Role::Contributor);
     assert!(matches!(joined.can_invite, Allowed::No(_)));
 
@@ -116,7 +116,7 @@ async fn two_devices_work_together_through_a_relay() {
     assert!(hosts.iter().any(|h| h.this_device && h.label == "This device"));
 
     // ── Chat: Ana opens one, Ben sees it.
-    let chat = a.b.create_chat(&ws, "Varroa plan").await.unwrap();
+    let chat = a.b.create_chat(&ws, "Flaky tests plan").await.unwrap();
     until("Ben to see the chat", || async { b.b.chats(&ws).await.unwrap().into_iter().find(|c| c.id == chat.id) }).await;
 
     // ── Agent access: coder is Ana's personal agent, "Only me" by default.
@@ -162,11 +162,11 @@ async fn two_devices_work_together_through_a_relay() {
     let reply = until("the agent's reply on Ben's device", || async {
         let t = b.b.transcript(&ws, &chat.id).await.unwrap();
         t.into_iter().find(|m| {
-            matches!(&m.author, Author::Agent { handle, .. } if handle == "coder") && !m.streaming && m.text == "Hello from the hive."
+            matches!(&m.author, Author::Agent { handle, .. } if handle == "coder") && !m.streaming && m.text == "Hello from the agent."
         })
     })
     .await;
-    assert_eq!(reply.text, "Hello from the hive.");
+    assert_eq!(reply.text, "Hello from the agent.");
     let rid = reply.id.clone();
     // Ben's device saw it finish: a done event, or the whole reply at once
     // when one sync brought all of it.
@@ -180,14 +180,14 @@ async fn two_devices_work_together_through_a_relay() {
     })
     .await;
     assert!(a.saw(|e| matches!(e, Event::MessageDelta { .. })), "Ana's device streamed it");
-    let answers = b.b.transcript(&ws, &chat.id).await.unwrap().iter().filter(|m| m.text == "Hello from the hive.").count();
+    let answers = b.b.transcript(&ws, &chat.id).await.unwrap().iter().filter(|m| m.text == "Hello from the agent.").count();
     assert_eq!(answers, 1, "answered once");
 
     // ── Local-send gate: Ana asks her own agent; her device answers at once.
     a.b.send_message(&ws, &chat.id, "@coder and again?").await.unwrap();
     until("the second reply", || async {
         let t = a.b.transcript(&ws, &chat.id).await.unwrap();
-        (t.iter().filter(|m| matches!(m.author, Author::Agent { .. }) && !m.streaming && m.text == "Hello from the hive.").count() == 2)
+        (t.iter().filter(|m| matches!(m.author, Author::Agent { .. }) && !m.streaming && m.text == "Hello from the agent.").count() == 2)
             .then_some(())
     })
     .await;
@@ -211,7 +211,7 @@ async fn two_devices_work_together_through_a_relay() {
     git(&repo, &["config", "user.email", "t@example.com"]);
     git(&repo, &["config", "user.name", "t"]);
     git(&repo, &["config", "core.autocrlf", "false"]);
-    std::fs::write(repo.join("README.md"), "bees\n").unwrap();
+    std::fs::write(repo.join("README.md"), "readme\n").unwrap();
     git(&repo, &["add", "-A"]);
     git(&repo, &["commit", "-qm", "init"]);
     a.b.bind_checkout(&ws, &repo).unwrap();
@@ -220,7 +220,7 @@ async fn two_devices_work_together_through_a_relay() {
     let pid = tokio::task::spawn_blocking(move || {
         let mut svc = svc.lock().unwrap();
         let author = svc.author().id.clone();
-        let p = ligus_core::ActionProposal::file_diff("Add hive.txt", author, DIFF.into(), vec!["hive.txt".into()]);
+        let p = ligus_core::ActionProposal::file_diff("Add notes.txt", author, DIFF.into(), vec!["notes.txt".into()]);
         let id = p.id;
         svc.upsert_proposal(chat_u, wsu, p).unwrap();
         id
@@ -231,7 +231,7 @@ async fn two_devices_work_together_through_a_relay() {
     let seen = until("Ben to see the proposal", || async { b.b.proposals(&ws).await.unwrap().into_iter().find(|p| p.id == pid) }).await;
     assert_eq!((seen.status, seen.can_vote.clone()), (ProposalStatus::Open, Allowed::Yes));
     let diff = b.b.proposal_diff(&ws, &pid).await.unwrap();
-    assert_eq!(diff.files[0].path, "hive.txt");
+    assert_eq!(diff.files[0].path, "notes.txt");
     assert_eq!(diff.files[0].added, 1);
     let voted = b.b.vote(&ws, &pid, VoteChoice::Approve).await.unwrap();
     assert_eq!(voted.status, ProposalStatus::Approved);
@@ -419,7 +419,7 @@ async fn local_runtimes_are_found_and_added_as_agents() {
         c.detect_env = Some(env);
         c.ollama_url = Some(ollama.clone());
     });
-    let ws = d.b.create_workspace("Ana", "Bee Yard").await.unwrap().workspace.id;
+    let ws = d.b.create_workspace("Ana", "Acme Web").await.unwrap().workspace.id;
     let wsu = Uuid::parse_str(ws.as_str()).unwrap();
     assert!(d.b.agents(&ws).await.unwrap().is_empty());
 

@@ -3,16 +3,16 @@
 Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 
 ```text
-[AT]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Apiary T…
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
 ┏ Task state 2 · Memory 3 · 1 propo┓╭ Detail ──────────────────────────────────╮
 ┃@coder working 40% wiring the…    ┃│@coder  working                           │
-┃@scout done 100% checked th…      ┃│in Inspection log refactor · 2m ago       │
-┃◇ Treatment t…  varroa            ┃│                                          │
-┃◇ Wash sample  inspections        ┃│wiring the CSV export                     │
+┃@scout done 100% checked th…      ┃│in Fix flaky checkout test · 2m ago       │
+┃◇ Session tim…  checkout          ┃│                                          │
+┃◇ Test clock  testing             ┃│wiring the CSV export                     │
 ┃◇ Release cad…  process           ┃│[████████░░░░░░░░░░░░] 40%                │
 ┃                                  ┃│                                          │
 ┃                                  ┃│Open questions                            │
-┃                                  ┃│  ? include colonies with no inspection?  │
+┃                                  ┃│  ? include cancelled orders?             │
 ┃                                  ┃│                                          │
 ┃                                  ┃│                                          │
 ┃                                  ┃│                                          │

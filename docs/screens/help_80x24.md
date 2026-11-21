@@ -3,10 +3,10 @@
 Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 
 ```text
-[AT]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Apiary T…
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
 ┏ ┏ Help · 1-20 of 83 · ↑↓ pgup pgdn g G · esc closes ━━━━━━━━━━━━━━━━━━━━━━━┓─╮
 ┃ ┃lt keybindings, for what has focus first. Rebind any of them in the config┃ │
-┃ ┃                                                                          ┃ │
+┃ ┃                                                                          ┃e│
 ┃ ┃Chats                                                                     ┃ │
 ┃ ┃  i                        Write a message                                ┃ │
 ┃ ┃  N                        New chat                                       ┃ │
@@ -14,7 +14,7 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 ┃ ┃  U                        Clear the lockdown                             ┃ │
 ┃ ┃                                                                          ┃ │
 ┃ ┃Lists                                                                     ┃ │
-┃ ┃  ↑, k                     Up                                             ┃ │
+┃ ┃  ↑, k                     Up                                             ┃t│
 ┃ ┃  ↓, j                     Down                                           ┃ │
 ┃ ┃  pgup, ctrl-u             Page up                                        ┃ │
 ┃ ┃  pgdn, ctrl-d             Page down                                      ┃ │

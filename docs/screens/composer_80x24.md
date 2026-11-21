@@ -3,19 +3,19 @@
 Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 
 ```text
-[AT]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Apiary T…
-╭ Chats ───────────────╮╭ Inspection log refactor ─────────────────────────────╮
-│  Inspection lo… 12m  ││Ada  40m                                              │
-│  #dev                ││  The inspection log stores raw mite counts. Can we   │
-│  ⊘ Queen cell … 50m  ││  switch to mites per 100 bees?                       │
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
+╭ Chats ───────────────╮╭ Fix flaky checkout test ─────────────────────────────╮
+│  Fix flaky che… 12m  ││Ada  40m                                              │
+│  #dev                ││  The checkout test fails about one run in ten. Can we│
+│  ⊘ Migrate aut… 50m  ││  stop it reading the wall clock?                     │
 │  #dev                ││                                                      │
-│  Release notes   1d  ││@coder  via claude-code  38m                          │
-│                      ││  Yes. The wash sample size is already recorded, so   │
+│  Weekly release… 1d  ││@coder  via claude-code  38m                          │
+│                      ││  Yes. The payment tests already use a fake clock, so │
 │                      ││  it's a small change. I'll propose it.               │
 │                      ││                                                      │
 │                      ││Ada  12m                                              │
-│                      ││  @Mara can you review the threshold? 3 per 100 is    │
-│                      ││  what the club uses.                                 │
+│                      ││  @Mara can you review the timeout? 30 seconds is what│
+│                      ││  the provider uses.                                  │
 │                      ││                                                      │
 │                      ││                                                      │
 │                      ││                                                      │

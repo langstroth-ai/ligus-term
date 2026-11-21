@@ -62,7 +62,7 @@ pub struct Args {
     pub print_config: bool,
     /// Your name, for plain mode on a device that has no identity yet: a
     /// one-shot create, join or connect on a new device uses it (lt --name
-    /// Ada create Apiary --out words.txt). Ignored once the device has one.
+    /// Ada create Northwind --out words.txt). Ignored once the device has one.
     #[arg(long, value_name = "NAME")]
     pub name: Option<String>,
     /// The workspace plain mode uses (a name, an id or a number; default the

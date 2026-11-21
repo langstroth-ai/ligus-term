@@ -41,7 +41,7 @@ pub async fn fake_model() -> String {
 pub async fn fake_model_counted() -> (String, Arc<std::sync::atomic::AtomicUsize>) {
     let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let seen = calls.clone();
-    let words = ["Hello ", "from ", "the ", "hive."];
+    let words = ["Hello ", "from ", "the ", "agent."];
     let body: String = words
         .iter()
         .map(|w| format!("data: {}\n\n", serde_json::json!({"choices": [{"index": 0, "delta": {"content": w}}]})))

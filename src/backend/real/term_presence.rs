@@ -362,7 +362,7 @@ mod tests {
             Duration::from_secs(5),
         ));
         let key = RecoveryKey::generate().unwrap();
-        let bad = words_file(tmp.path(), &"bee ".repeat(24));
+        let bad = words_file(tmp.path(), &"word ".repeat(24));
         let p2 = p.clone();
         let asked = tokio::task::spawn_blocking(move || p2.confirm(&request()));
         let mut problems = 0;

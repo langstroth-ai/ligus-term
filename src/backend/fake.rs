@@ -156,13 +156,13 @@ impl FakeBackend {
             let mut w = b.world.lock().unwrap();
             w.your_name = Some("Mara".into());
             w.settings.your_name = "Mara".into();
-            seed_apiary(&mut w);
-            seed_queens(&mut w);
+            seed_northwind(&mut w);
+            seed_docs(&mut w);
             w.notifications.push(Notification {
                 id: NotificationId::new("n1"),
-                workspace: WorkspaceId::new("ws-apiary"),
-                chat: Some(ChatId::new("c-log")),
-                text: "Ada mentioned you in Inspection log refactor".into(),
+                workspace: WorkspaceId::new("ws-northwind"),
+                chat: Some(ChatId::new("c-checkout")),
+                text: "Ada mentioned you in Fix flaky checkout test".into(),
                 at: DEMO_NOW - 12 * MIN,
                 read: false,
             });
@@ -430,14 +430,15 @@ impl FakeBackend {
             };
             me.emit(Event::Thinking { workspace: ws.clone(), chat: chat.clone(), agent: who, on: false });
             me.emit(Event::MessageAdded { workspace: ws.clone(), message: msg.clone() });
-            let call = ToolCall { name: "read_file".into(), preview: "src/inspections.rs".into(), ok: true };
+            let call = ToolCall { name: "read_file".into(), preview: "src/checkout.rs".into(), ok: true };
             me.emit(Event::ToolActivity { workspace: ws.clone(), chat: chat.clone(), message: msg.id.clone(), call: call.clone() });
             let reply = if files_proposal {
                 format!(
-                    "Looked at the inspection log. I changed the varroa threshold check and added a test.\n\nFiled it as a proposal for review, @{your_name}."
+                    "Looked at the checkout test. I injected a fake clock into the session check and added a test.\n\nFiled it as a proposal for review, @{your_name}."
                 )
             } else {
-                "Here's what I found: the inspection log keeps one row per frame, so a colony summary needs a group-by. Want me to propose a change?".to_string()
+                "Here's what I found: the checkout test reads the wall clock, so it fails when CI is slow. Want me to propose a change?"
+                    .to_string()
             };
             for word in reply.split_inclusive(' ') {
                 tokio::time::sleep(me.cfg.stream_delay).await;
@@ -469,7 +470,7 @@ impl FakeBackend {
                     let p = Proposal {
                         id: id.clone(),
                         chat: Some(chat.clone()),
-                        title: "Tighten the varroa threshold check".into(),
+                        title: "Inject a clock into the session check".into(),
                         author: format!("@{}", agent.handle),
                         kind: ProposalKind::Change,
                         status: ProposalStatus::Open,
@@ -484,7 +485,7 @@ impl FakeBackend {
                     };
                     if let Ok(wsd) = w.ws(&ws) {
                         wsd.proposals.insert(0, p.clone());
-                        wsd.diffs.insert(id, threshold_diff());
+                        wsd.diffs.insert(id, clock_diff());
                     }
                     let nid = NotificationId::new(w.next("n-"));
                     let n = Notification {
@@ -575,9 +576,9 @@ fn fnv(s: &str) -> u64 {
 /// 24 words, deterministic per workspace (a demo, not a key).
 fn demo_words(seed: &str) -> Vec<String> {
     const W: [&str; 32] = [
-        "amber", "brood", "comb", "drone", "ember", "frame", "glade", "honey", "ivory", "jelly", "keel", "linden", "meadow", "nectar",
-        "orchard", "pollen", "queen", "resin", "smoke", "thyme", "umber", "veil", "wax", "yarrow", "zephyr", "clover", "basket", "lantern",
-        "harbor", "willow", "cedar", "maple",
+        "amber", "brook", "coral", "dune", "ember", "fern", "glade", "hazel", "ivory", "juniper", "keel", "linden", "meadow", "north",
+        "orchard", "pebble", "quartz", "river", "slate", "thyme", "umber", "valley", "walnut", "yarrow", "zephyr", "clover", "basket",
+        "lantern", "harbor", "willow", "cedar", "maple",
     ];
     let mut h = fnv(seed);
     (0..24)
@@ -682,38 +683,38 @@ fn line_del(s: &str) -> DiffLine {
     DiffLine::Removed(s.into())
 }
 
-fn threshold_diff() -> Diff {
+fn clock_diff() -> Diff {
     Diff {
         files: vec![
             FileDiff {
-                path: "src/inspections.rs".into(),
+                path: "src/checkout.rs".into(),
                 added: 9,
                 removed: 3,
                 hunks: vec![
                     Hunk {
-                        header: "@@ -12,7 +12,9 @@ pub struct Inspection {".into(),
+                        header: "@@ -12,7 +12,9 @@ pub struct Checkout {".into(),
                         lines: vec![
-                            line_ctx("    pub colony: ColonyId,"),
-                            line_ctx("    pub frames: Vec<FrameNote>,"),
-                            line_del("    pub mites: u32,"),
-                            line_add("    /// Mites per 100 bees, from an alcohol wash."),
-                            line_add("    pub mites_per_100: f32,"),
-                            line_add("    pub wash_sample: u32,"),
-                            line_ctx("    pub queen_seen: bool,"),
+                            line_ctx("    pub cart: CartId,"),
+                            line_ctx("    pub items: Vec<LineItem>,"),
+                            line_del("    pub started: Instant,"),
+                            line_add("    /// Injected, so tests set the time instead of reading the wall clock."),
+                            line_add("    pub clock: Arc<dyn Clock>,"),
+                            line_add("    pub started_at: Millis,"),
+                            line_ctx("    pub paid: bool,"),
                             line_ctx("}"),
                         ],
                     },
                     Hunk {
-                        header: "@@ -40,9 +42,13 @@ impl Inspection {".into(),
+                        header: "@@ -40,9 +42,13 @@ impl Checkout {".into(),
                         lines: vec![
-                            line_ctx("    pub fn needs_treatment(&self) -> bool {"),
-                            line_del("        self.mites > 9"),
+                            line_ctx("    pub fn is_expired(&self) -> bool {"),
+                            line_del("        self.started.elapsed().as_secs() > 30"),
                             line_del("    }"),
-                            line_add("        // 3 per 100 is the usual action threshold in late summer."),
-                            line_add("        self.mites_per_100 >= TREATMENT_THRESHOLD"),
+                            line_add("        // 30 seconds matches the payment provider's session timeout."),
+                            line_add("        self.clock.now() - self.started_at >= Self::SESSION_TIMEOUT_MS"),
                             line_add("    }"),
                             line_add(""),
-                            line_add("    pub const TREATMENT_THRESHOLD: f32 = 3.0;"),
+                            line_add("    pub const SESSION_TIMEOUT_MS: Millis = 30_000;"),
                             line_ctx(""),
                             line_ctx("    pub fn summary(&self) -> String {"),
                         ],
@@ -721,18 +722,18 @@ fn threshold_diff() -> Diff {
                 ],
             },
             FileDiff {
-                path: "tests/inspections.rs".into(),
+                path: "tests/checkout.rs".into(),
                 added: 8,
                 removed: 0,
                 hunks: vec![Hunk {
                     header: "@@ -0,0 +1,8 @@".into(),
                     lines: vec![
-                        line_add("use apiary::Inspection;"),
+                        line_add("use northwind::Checkout;"),
                         line_add(""),
                         line_add("#[test]"),
-                        line_add("fn three_per_hundred_needs_treatment() {"),
-                        line_add("    let i = Inspection::sample(3.0);"),
-                        line_add("    assert!(i.needs_treatment());"),
+                        line_add("fn expires_after_thirty_seconds() {"),
+                        line_add("    let c = Checkout::at_fake_time(30_000);"),
+                        line_add("    assert!(c.is_expired());"),
                         line_add("}"),
                         line_add(""),
                     ],
@@ -742,12 +743,12 @@ fn threshold_diff() -> Diff {
     }
 }
 
-fn seed_apiary(w: &mut World) {
-    let id = WorkspaceId::new("ws-apiary");
+fn seed_northwind(w: &mut World) {
+    let id = WorkspaceId::new("ws-northwind");
     let mut ws = Ws {
         summary: Some(WorkspaceSummary {
             id: id.clone(),
-            name: "Apiary Tracker".into(),
+            name: "Northwind API".into(),
             mentioned: false,
             sync: SyncMode::Peer,
             your_role: Role::Owner,
@@ -824,47 +825,47 @@ fn seed_apiary(w: &mut World) {
         },
     ];
     ws.chats = vec![
-        chat("c-log", "Inspection log refactor", Some("dev"), DEMO_NOW - 12 * MIN, true, true),
-        chat("c-alerts", "Queen cell alerts", Some("dev"), DEMO_NOW - 50 * MIN, false, false),
-        chat("c-notes", "Release notes", None, DEMO_NOW - 26 * 60 * MIN, false, false),
+        chat("c-checkout", "Fix flaky checkout test", Some("dev"), DEMO_NOW - 12 * MIN, true, true),
+        chat("c-auth", "Migrate auth to passkeys", Some("dev"), DEMO_NOW - 50 * MIN, false, false),
+        chat("c-notes", "Weekly release notes", None, DEMO_NOW - 26 * 60 * MIN, false, false),
     ];
     ws.chats[1].lockdown =
         Some(Lockdown { reasons: vec!["prompt-injection marker in a tool result (fetch_url)".into()], clear: Allowed::Yes });
     ws.messages.insert(
-        ChatId::new("c-log"),
+        ChatId::new("c-checkout"),
         vec![
             msg(
                 "m1",
-                "c-log",
+                "c-checkout",
                 human("m-ada", "Ada"),
-                "The inspection log stores raw mite counts. Can we switch to mites per 100 bees?",
+                "The checkout test fails about one run in ten. Can we stop it reading the wall clock?",
                 DEMO_NOW - 40 * MIN,
             ),
             msg(
                 "m2",
-                "c-log",
+                "c-checkout",
                 bot("coder", "claude-code"),
-                "Yes. The wash sample size is already recorded, so it's a small change. I'll propose it.",
+                "Yes. The payment tests already use a fake clock, so it's a small change. I'll propose it.",
                 DEMO_NOW - 38 * MIN,
             ),
             msg(
                 "m3",
-                "c-log",
+                "c-checkout",
                 human("m-ada", "Ada"),
-                "@Mara can you review the threshold? 3 per 100 is what the club uses.",
+                "@Mara can you review the timeout? 30 seconds is what the provider uses.",
                 DEMO_NOW - 12 * MIN,
             ),
         ],
     );
     ws.messages.insert(
-        ChatId::new("c-alerts"),
+        ChatId::new("c-auth"),
         vec![
-            msg("m4", "c-alerts", human("m-lin", "Lin"), "@scout check the forum post about swarm cells", DEMO_NOW - 55 * MIN),
+            msg("m4", "c-auth", human("m-lin", "Lin"), "@scout check the forum thread about passkey fallbacks", DEMO_NOW - 55 * MIN),
             Message {
-                tools: vec![ToolCall { name: "fetch_url".into(), preview: "https://forum.example/swarm-cells".into(), ok: true }],
+                tools: vec![ToolCall { name: "fetch_url".into(), preview: "https://forum.example/passkey-fallbacks".into(), ok: true }],
                 ..msg(
                     "m5",
-                    "c-alerts",
+                    "c-auth",
                     bot("scout", "ollama"),
                     "The page contained instructions aimed at agents, so this chat is locked down.",
                     DEMO_NOW - 50 * MIN,
@@ -874,20 +875,14 @@ fn seed_apiary(w: &mut World) {
     );
     ws.messages.insert(
         ChatId::new("c-notes"),
-        vec![msg(
-            "m6",
-            "c-notes",
-            human("m-you", "Mara"),
-            "Draft notes for 0.4: frame-level notes, export to CSV.",
-            DEMO_NOW - 26 * 60 * MIN,
-        )],
+        vec![msg("m6", "c-notes", human("m-you", "Mara"), "Draft notes for 0.4: order history, export to CSV.", DEMO_NOW - 26 * 60 * MIN)],
     );
     let p1 = ProposalId::new("p-1");
     ws.proposals = vec![
         Proposal {
             id: p1.clone(),
-            chat: Some(ChatId::new("c-log")),
-            title: "Record mites per 100 bees".into(),
+            chat: Some(ChatId::new("c-checkout")),
+            title: "Inject the clock into checkout tests".into(),
             author: "@coder".into(),
             kind: ProposalKind::Change,
             status: ProposalStatus::Open,
@@ -903,7 +898,7 @@ fn seed_apiary(w: &mut World) {
         Proposal {
             id: ProposalId::new("p-2"),
             chat: Some(ChatId::new("c-notes")),
-            title: "Export inspections to CSV".into(),
+            title: "Export orders to CSV".into(),
             author: "@coder".into(),
             kind: ProposalKind::Change,
             status: ProposalStatus::Approved,
@@ -922,7 +917,7 @@ fn seed_apiary(w: &mut World) {
         Proposal {
             id: ProposalId::new("p-3"),
             chat: Some(ChatId::new("c-notes")),
-            title: "Bump the frame schema version".into(),
+            title: "Bump the order schema version".into(),
             author: "@reviewer".into(),
             kind: ProposalKind::Change,
             status: ProposalStatus::Applied,
@@ -936,7 +931,7 @@ fn seed_apiary(w: &mut World) {
             can_vote: Allowed::No("already applied".into()),
         },
     ];
-    ws.diffs.insert(p1, threshold_diff());
+    ws.diffs.insert(p1, clock_diff());
     ws.diffs.insert(
         ProposalId::new("p-2"),
         Diff {
@@ -947,9 +942,9 @@ fn seed_apiary(w: &mut World) {
                 hunks: vec![Hunk {
                     header: "@@ -1,3 +1,7 @@".into(),
                     lines: vec![
-                        line_ctx("use crate::Inspection;"),
-                        line_add("pub fn to_csv(rows: &[Inspection]) -> String {"),
-                        line_add("    rows.iter().map(Inspection::csv_row).collect::<Vec<_>>().join(\"\\n\")"),
+                        line_ctx("use crate::Order;"),
+                        line_add("pub fn to_csv(rows: &[Order]) -> String {"),
+                        line_add("    rows.iter().map(Order::csv_row).collect::<Vec<_>>().join(\"\\n\")"),
                         line_add("}"),
                         line_add(""),
                     ],
@@ -969,7 +964,7 @@ fn seed_orchestration(ws: &mut Ws) {
     if let Some(h) = ws.hosts.iter_mut().find(|h| h.id.as_str() == "h-sff") {
         h.busy = true;
         h.agents = vec!["coder".into(), "scout".into()];
-        h.repos = vec!["apiary".into()];
+        h.repos = vec!["northwind-api".into()];
     }
     if let Some(h) = ws.hosts.iter_mut().find(|h| h.this_device) {
         h.agents = vec!["primary".into(), "reviewer".into()];
@@ -980,8 +975,8 @@ fn seed_orchestration(ws: &mut Ws) {
     }
     let review = workflow_def(
         "wf-review",
-        "c-log",
-        "Inspection log refactor",
+        "c-checkout",
+        "Fix flaky checkout test",
         "Implement, review, ship",
         "The coder implements, the reviewer checks it, a person signs off.",
         Some("What to change"),
@@ -993,10 +988,10 @@ fn seed_orchestration(ws: &mut Ws) {
     );
     let report = workflow_def(
         "wf-report",
-        "c-alerts",
-        "Queen cell alerts",
-        "Weekly swarm report",
-        "The scout summarizes the week's alerts.",
+        "c-auth",
+        "Migrate auth to passkeys",
+        "Weekly security digest",
+        "The scout summarizes the week's advisories.",
         None,
         vec![stage("summarize", "Summarize", "@scout", &[])],
     );
@@ -1006,11 +1001,11 @@ fn seed_orchestration(ws: &mut Ws) {
             workflow: review.id.clone(),
             chat: review.chat.clone(),
             name: review.name.clone(),
-            input: "count mites per 100 bees".into(),
+            input: "inject a fake clock".into(),
             status: RunStatus::AwaitingGate,
             stages: vec![
-                stage_run("implement", "Implement", "@coder", StageStatus::Succeeded, "Changed the inspection struct and the threshold."),
-                stage_run("review", "Review", "@reviewer", StageStatus::Succeeded, "Looks right; the wash sample is validated."),
+                stage_run("implement", "Implement", "@coder", StageStatus::Succeeded, "Changed the checkout struct and the timeout check."),
+                stage_run("review", "Review", "@reviewer", StageStatus::Succeeded, "Looks right; the timeout has a test."),
                 StageRun {
                     gate: Some(ProposalId::new("p-gate-7")),
                     ..stage_run("signoff", "Sign-off", "gate (1 approval)", StageStatus::AwaitingApproval, "")
@@ -1028,7 +1023,7 @@ fn seed_orchestration(ws: &mut Ws) {
             name: report.name.clone(),
             input: String::new(),
             status: RunStatus::Completed,
-            stages: vec![stage_run("summarize", "Summarize", "@scout", StageStatus::Succeeded, "Two queen cells, both capped.")],
+            stages: vec![stage_run("summarize", "Summarize", "@scout", StageStatus::Succeeded, "Two advisories, both patched.")],
             started_by: "Ada".into(),
             started_at: DEMO_NOW - 26 * 60 * MIN,
             updated_at: DEMO_NOW - 26 * 60 * MIN + 3 * MIN,
@@ -1038,9 +1033,9 @@ fn seed_orchestration(ws: &mut Ws) {
     ws.workflows = vec![review, report];
     ws.proposals.push(Proposal {
         id: ProposalId::new("p-gate-7"),
-        chat: Some(ChatId::new("c-log")),
+        chat: Some(ChatId::new("c-checkout")),
         kind: ProposalKind::Gate,
-        title: "Sign-off: count mites per 100 bees".into(),
+        title: "Sign-off: inject a fake clock".into(),
         author: "workflow".into(),
         status: ProposalStatus::Open,
         files_changed: 0,
@@ -1054,9 +1049,9 @@ fn seed_orchestration(ws: &mut Ws) {
     });
     ws.proposals.push(Proposal {
         id: ProposalId::new("p-wf-1"),
-        chat: Some(ChatId::new("c-alerts")),
+        chat: Some(ChatId::new("c-auth")),
         kind: ProposalKind::Workflow,
-        title: "Workflow: Swarm check before inspections".into(),
+        title: "Workflow: Dependency audit before releases".into(),
         author: "@scout".into(),
         status: ProposalStatus::Open,
         files_changed: 0,
@@ -1072,28 +1067,28 @@ fn seed_orchestration(ws: &mut Ws) {
     ws.diffs.insert(ProposalId::new("p-wf-1"), Diff { files: vec![] });
     ws.memory = Memory {
         entries: vec![
-            memory_entry("mem-1", "Treatment threshold", "3 mites per 100 bees in late summer; 2 in spring.", &["varroa"], "Ada", 3),
-            memory_entry("mem-2", "Wash sample", "Half a cup of bees is about 300; record the count.", &["inspections"], "@coder", 1),
-            memory_entry("mem-3", "Release cadence", "Tag a release after each inspection season.", &["process"], "Mara", 2),
+            memory_entry("mem-1", "Session timeout", "30 seconds at checkout; 15 minutes in the admin console.", &["checkout"], "Ada", 3),
+            memory_entry("mem-2", "Test clock", "Tests use the fake clock; never sleep in a test.", &["testing"], "@coder", 1),
+            memory_entry("mem-3", "Release cadence", "Tag a release every second Tuesday.", &["process"], "Mara", 2),
         ],
         open_proposals: 1,
     };
     ws.tasks = vec![
         TaskState {
-            chat: ChatId::new("c-log"),
+            chat: ChatId::new("c-checkout"),
             agent: "coder".into(),
             status: "working".into(),
             summary: "wiring the CSV export".into(),
             progress: Some(40),
-            open_questions: vec!["include colonies with no inspection?".into()],
+            open_questions: vec!["include cancelled orders?".into()],
             at: DEMO_NOW - 2 * MIN,
             active: true,
         },
         TaskState {
-            chat: ChatId::new("c-alerts"),
+            chat: ChatId::new("c-auth"),
             agent: "scout".into(),
             status: "done".into(),
-            summary: "checked the swarm-cell post".into(),
+            summary: "checked the passkey fallback thread".into(),
             progress: Some(100),
             open_questions: vec![],
             at: DEMO_NOW - 50 * MIN,
@@ -1101,10 +1096,10 @@ fn seed_orchestration(ws: &mut Ws) {
         },
     ];
     ws.handoffs = vec![Handoff {
-        chat: ChatId::new("c-log"),
+        chat: ChatId::new("c-checkout"),
         from: "coder".into(),
         to: "reviewer".into(),
-        task: "review the mites-per-100 change".into(),
+        task: "review the fake-clock change".into(),
         at: DEMO_NOW - 20 * MIN,
     }];
 }
@@ -1160,12 +1155,12 @@ fn memory_entry(id: &str, title: &str, body: &str, tags: &[&str], author: &str, 
     }
 }
 
-fn seed_queens(w: &mut World) {
-    let id = WorkspaceId::new("ws-queens");
+fn seed_docs(w: &mut World) {
+    let id = WorkspaceId::new("ws-docs");
     let mut ws = Ws {
         summary: Some(WorkspaceSummary {
             id: id.clone(),
-            name: "queen-rearing".into(),
+            name: "docs-site".into(),
             mentioned: true,
             sync: SyncMode::Relay("https://relay.example.org".into()),
             your_role: Role::Viewer,
@@ -1187,12 +1182,12 @@ fn seed_queens(w: &mut World) {
         agents: vec![],
         repos: vec![],
     }];
-    ws.chats = vec![chat("c-graft", "Grafting calendar", None, DEMO_NOW - 5 * MIN, true, true)];
+    ws.chats = vec![chat("c-launch", "Docs launch plan", None, DEMO_NOW - 5 * MIN, true, true)];
     ws.chats[0].lockdown =
         Some(Lockdown { reasons: vec!["locked by a member".into()], clear: Allowed::No("a member can clear it".into()) });
     ws.messages.insert(
-        ChatId::new("c-graft"),
-        vec![msg("g1", "c-graft", human("m-jo", "Jo"), "@Mara graft day moves to Saturday.", DEMO_NOW - 5 * MIN)],
+        ChatId::new("c-launch"),
+        vec![msg("g1", "c-launch", human("m-jo", "Jo"), "@Mara the docs freeze moves to Friday.", DEMO_NOW - 5 * MIN)],
     );
     w.order.push(id.clone());
     w.ws.insert(id, ws);
@@ -1558,7 +1553,7 @@ impl Backend for FakeBackend {
                 let def = workflow_def(
                     &format!("wf-{}", p.id),
                     p.chat.as_ref().map(|c| c.as_str()).unwrap_or_default(),
-                    "Queen cell alerts",
+                    "Migrate auth to passkeys",
                     &name,
                     "Proposed by an agent and approved.",
                     None,
@@ -2033,14 +2028,14 @@ mod tests {
     use futures::StreamExt;
 
     fn ws() -> WorkspaceId {
-        WorkspaceId::new("ws-apiary")
+        WorkspaceId::new("ws-northwind")
     }
 
     #[tokio::test]
     async fn agent_reply_streams_and_files_a_proposal() {
         let b = FakeBackend::demo(FakeConfig::instant());
         let mut ev = b.events();
-        b.send_message(&ws(), &ChatId::new("c-log"), "@coder please fix the threshold").await.unwrap();
+        b.send_message(&ws(), &ChatId::new("c-checkout"), "@coder please fix the flaky test").await.unwrap();
         let mut deltas = String::new();
         let mut saw_typing = false;
         loop {
@@ -2048,7 +2043,7 @@ mod tests {
                 Event::Thinking { on: true, agent, .. } => saw_typing = agent == "@coder",
                 Event::MessageDelta { delta, .. } => deltas.push_str(&delta),
                 Event::ProposalChanged { proposal, .. } => {
-                    assert_eq!(proposal.title, "Tighten the varroa threshold check");
+                    assert_eq!(proposal.title, "Inject a clock into the session check");
                     break;
                 }
                 _ => {}
@@ -2056,7 +2051,7 @@ mod tests {
         }
         assert!(saw_typing);
         assert!(deltas.contains("Filed it as a proposal"));
-        let t = b.transcript(&ws(), &ChatId::new("c-log")).await.unwrap();
+        let t = b.transcript(&ws(), &ChatId::new("c-checkout")).await.unwrap();
         assert!(!t.last().unwrap().streaming);
     }
 
@@ -2086,7 +2081,7 @@ mod tests {
         let admin = sff.can_set_role.iter().find(|(r, _)| *r == Role::Admin).unwrap();
         assert_eq!(admin.1, Allowed::No("a service member holds at most Contributor".into()));
         // In the other workspace I'm a Viewer.
-        let ms = b.members(&WorkspaceId::new("ws-queens")).await.unwrap();
+        let ms = b.members(&WorkspaceId::new("ws-docs")).await.unwrap();
         let jo = ms.iter().find(|m| m.name == "Jo").unwrap();
         assert_eq!(jo.can_remove, Allowed::No("nobody cuts the workspace's founder".into()));
         let me = ms.iter().find(|m| m.you).unwrap();

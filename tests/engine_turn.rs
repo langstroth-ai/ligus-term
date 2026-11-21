@@ -54,12 +54,12 @@ async fn an_agent_turn_uses_tools_edits_in_its_worktree_and_files_a_proposal() {
     let relay = serve(ligus_runtime::test_relay::router()).await;
     let (model, bodies) = scripted_model(vec![
         tool_call("c1", "read_file", json!({"path": "README.md"})),
-        tool_call("c2", "write_file", json!({"path": "greeting.txt", "content": "hello from the hive\n"})),
+        tool_call("c2", "write_file", json!({"path": "greeting.txt", "content": "hello from the agent\n"})),
         vec![json!({"content": "Added greeting.txt."})],
     ])
     .await;
     let a = device(&tmp.path().join("ana"), "lt Ana", &relay);
-    let created = a.b.create_workspace("Ana", "Bee Yard").await.unwrap();
+    let created = a.b.create_workspace("Ana", "Acme Web").await.unwrap();
     let ws = created.workspace.id.clone();
     let wsu = Uuid::parse_str(ws.as_str()).unwrap();
 
@@ -81,7 +81,7 @@ async fn an_agent_turn_uses_tools_edits_in_its_worktree_and_files_a_proposal() {
     let repo = tmp.path().join("repo");
     std::fs::create_dir_all(&repo).unwrap();
     git(&repo, &["init", "-q", "-b", "main"]);
-    std::fs::write(repo.join("README.md"), "# Bee Yard\n").unwrap();
+    std::fs::write(repo.join("README.md"), "# Acme Web\n").unwrap();
     git(&repo, &["add", "-A"]);
     git(&repo, &["-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-qm", "init"]);
     a.b.bind_checkout(&ws, &repo).unwrap();
@@ -107,7 +107,7 @@ async fn an_agent_turn_uses_tools_edits_in_its_worktree_and_files_a_proposal() {
             assert!(tools.contains(&t), "{t} offered: {tools:?}");
         }
         assert!(!tools.contains(&"run_command"), "no shell unless the setting and the Owner's rule allow it");
-        assert!(b[1].to_string().contains("# Bee Yard"), "the file's contents reached the model");
+        assert!(b[1].to_string().contains("# Acme Web"), "the file's contents reached the model");
     }
 
     // The tool calls were shown live.
@@ -132,5 +132,5 @@ async fn an_agent_turn_uses_tools_edits_in_its_worktree_and_files_a_proposal() {
     .await;
     let diff = a.b.proposal_diff(&ws, &proposal.id).await.unwrap();
     let text = format!("{diff:?}");
-    assert!(text.contains("greeting.txt") && text.contains("hello from the hive"), "{text}");
+    assert!(text.contains("greeting.txt") && text.contains("hello from the agent"), "{text}");
 }

@@ -31,7 +31,7 @@ Escape Sleep 300ms
 # Workflows, then start a run of "Implement, review, ship".
 Type "f" Sleep 1.5s
 Type "S" Sleep 800ms
-Type "export the wash counts" Sleep 600ms
+Type "export the order history" Sleep 600ms
 Enter
 # The stages run on the demo's agents, then the gate waits.
 Sleep 3.5s

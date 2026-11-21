@@ -3,7 +3,7 @@
 Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 
 ```text
-[AT] [QR]• Apiary Tracker · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
+[NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃Agent        Status   Runtime      Runs on            Who can use            Doing                          ┃
 ┃@primary     idle     claude-code  This device        Everyone               answers untagged messages      ┃
@@ -25,7 +25,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 │                                                                                                            │
 ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭ Hand-offs ─────────────────────────────────────────────────────────────────────────────────────────────────╮
-│@coder → @reviewer review the mites-per-100 change 20m                                                      │
+│@coder → @reviewer review the fake-clock change 20m                                                         │
 ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭ Runtimes ──────────────────────────────────────────────────────────────────────────────────────────────────╮
 │Runtime       Kind                     Model                              Where         Status              │

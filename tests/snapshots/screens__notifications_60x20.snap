@@ -2,9 +2,9 @@
 source: tests/screens.rs
 expression: screen
 ---
-[AT]+1• │ 1 2 3 4 5 6 7 8 Notifs 1 9          Apiary Tracker
+[NA]+1• │ 1 2 3 4 5 6 7 8 Notifs 1 9           Northwind API
 ┏ Notifications ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃● Ada mentioned you in Inspecti…  Apiary Tracker · 12m    ┃
+┃● Ada mentioned you in Fix flaky…  Northwind API · 12m    ┃
 ┃                                                          ┃
 ┃                                                          ┃
 ┃                                                          ┃

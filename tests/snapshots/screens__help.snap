@@ -2,18 +2,18 @@
 source: tests/screens.rs
 expression: screen
 ---
-[AT] [QR]• Apiary Tracker · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
+[NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Chats ━━━━━━━━━┏ Help · 1-40 of 83 · ↑↓ pgup pgdn g G · esc closes ━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
-┃  Inspection log┃lt keybindings, for what has focus first. Rebind any of them in the config┃                │
-┃  #dev          ┃                                                                          ┃o mites per 100 │
-┃  ⊘ Queen cell a┃Chats                                                                     ┃                │
+┃  Fix flaky chec┃lt keybindings, for what has focus first. Rebind any of them in the config┃                │
+┃  #dev          ┃                                                                          ┃it reading the  │
+┃  ⊘ Migrate auth┃Chats                                                                     ┃                │
 ┃  #dev          ┃  i                        Write a message                                ┃                │
-┃  Release notes ┃  N                        New chat                                       ┃                │
-┃                ┃  L                        Lock this chat down                            ┃mall change.    │
+┃  Weekly release┃  N                        New chat                                       ┃                │
+┃                ┃  L                        Lock this chat down                            ┃ small change.  │
 ┃                ┃  U                        Clear the lockdown                             ┃                │
 ┃                ┃                                                                          ┃                │
 ┃                ┃Lists                                                                     ┃                │
-┃                ┃  ↑, k                     Up                                             ┃club uses.      │
+┃                ┃  ↑, k                     Up                                             ┃rovider uses.   │
 ┃                ┃  ↓, j                     Down                                           ┃                │
 ┃                ┃  pgup, ctrl-u             Page up                                        ┃                │
 ┃                ┃  pgdn, ctrl-d             Page down                                      ┃                │

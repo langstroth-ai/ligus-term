@@ -2,16 +2,16 @@
 source: tests/screens.rs
 expression: screen
 ---
-[AT] [QR]• Apiary Tracker · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
-╭ Chats ───────────────────────╮╭ Inspection log refactor ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│  Inspection log refact… 12m  ││Ada  40m                                                                                                                                                              │
-│  #dev                        ││  The inspection log stores raw mite counts. Can we switch to mites per 100 bees?                                                                                     │
-│  ⊘ Queen cell alerts    50m  ││                                                                                                                                                                      │
+[NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
+╭ Chats ───────────────────────╮╭ Fix flaky checkout test ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│  Fix flaky checkout te… 12m  ││Ada  40m                                                                                                                                                              │
+│  #dev                        ││  The checkout test fails about one run in ten. Can we stop it reading the wall clock?                                                                                │
+│  ⊘ Migrate auth to pas… 50m  ││                                                                                                                                                                      │
 │  #dev                        ││@coder  via claude-code  38m                                                                                                                                          │
-│  Release notes           1d  ││  Yes. The wash sample size is already recorded, so it's a small change. I'll propose it.                                                                             │
+│  Weekly release notes    1d  ││  Yes. The payment tests already use a fake clock, so it's a small change. I'll propose it.                                                                           │
 │                              ││                                                                                                                                                                      │
 │                              ││Ada  12m                                                                                                                                                              │
-│                              ││  @Mara can you review the threshold? 3 per 100 is what the club uses.                                                                                                │
+│                              ││  @Mara can you review the timeout? 30 seconds is what the provider uses.                                                                                             │
 │                              ││                                                                                                                                                                      │
 │                              ││                                                                                                                                                                      │
 │                              ││                                                                                                                                                                      │

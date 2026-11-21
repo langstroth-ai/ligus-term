@@ -2,18 +2,18 @@
 source: tests/screens.rs
 expression: screen
 ---
-[AT]+1• │ 1 2 3 4 5 6 Memory 7 8(1) 9         Apiary Tracker
+[NA]+1• │ 1 2 3 4 5 6 Memory 7 8(1) 9          Northwind API
 ┏ Task state 2 · Memory 3 ┓╭ Detail ───────────────────────╮
 ┃@coder working 40% w…    ┃│@coder  working                │
-┃@scout done 100% c…      ┃│in Inspection log refactor · 2m│
-┃◇ Tr…  varroa            ┃│ago                            │
-┃◇ Wa…  inspections       ┃│                               │
+┃@scout done 100% c…      ┃│in Fix flaky checkout test · 2m│
+┃◇ Se…  checkout          ┃│ago                            │
+┃◇ Te…  testing           ┃│                               │
 ┃◇ Re…  process           ┃│wiring the CSV export          │
 ┃                         ┃│[████████░░░░░░░░░░░░] 40%     │
 ┃                         ┃│                               │
 ┃                         ┃│Open questions                 │
-┃                         ┃│  ? include colonies with no   │
-┃                         ┃│inspection?                    │
+┃                         ┃│  ? include cancelled orders?  │
+┃                         ┃│                               │
 ┃                         ┃│                               │
 ┃                         ┃│                               │
 ┃                         ┃│                               │

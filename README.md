@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/lt-lockup-dark.svg">
-    <img alt="lt, the Ligus terminal: the Ligus mark (seven honeycomb cells) beside the wordmark lt" src="assets/lt-lockup-light.svg" width="418" height="100">
+    <img alt="lt, the Ligus terminal: the Ligus mark (seven hexagonal cells) beside the wordmark lt" src="assets/lt-lockup-light.svg" width="418" height="100">
   </picture>
 </p>
 
@@ -295,7 +295,7 @@ device to apply one, bind the workspace's checkout: Hosts, then `b`, and
 the path to a git checkout (or `lt --plain checkout PATH`). The binding is
 kept in this device's data dir and never synced.
 
-![The proposals queue in lt: open, approved and applied proposals on the left; on the right a proposal's votes and actions above a diff of src/inspections.rs](assets/screens/proposals.svg)
+![The proposals queue in lt: open, approved and applied proposals on the left; on the right a proposal's votes and actions above a diff of src/checkout.rs](assets/screens/proposals.svg)
 
 ### Agent tools
 
@@ -443,7 +443,7 @@ ahead of time:
 
 ```sh
 ssh -L 127.0.0.1:8765:127.0.0.1:8765 box   # from the device with the browser; never -g
-LT_NO_BROWSER=1 LT_PRESENCE_PORT=8765 lt --name Ada create Apiary --out words.txt
+LT_NO_BROWSER=1 LT_PRESENCE_PORT=8765 lt --name Ada create Northwind --out words.txt
 ```
 
 Open the address it shows on your terminal (below the prompt in the app;

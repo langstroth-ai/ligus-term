@@ -3,7 +3,7 @@
 Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 
 ```text
-[AT] [QR] queen-rearing · viewer │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
+[NA] [DS] docs-site · viewer │ Chats Workflows Proposals Agents Hosts Memory People Notifications 1 Settings
 ┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Member ──────────────────────────────────────────────────╮
 ┃  Jo  owner  founder                            ┃│Jo  owner                                                 │
 ┃  Mara · you  viewer                            ┃│                                                          │

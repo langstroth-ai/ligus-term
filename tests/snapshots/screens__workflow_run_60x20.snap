@@ -2,18 +2,18 @@
 source: tests/screens.rs
 expression: screen
 ---
-[AT]+1• │ 1 2 Flows 3 4 5 6 7 8(1) 9          Apiary Tracker
+[NA]+1• │ 1 2 Flows 3 4 5 6 7 8(1) 9           Northwind API
 ┏ Workflows 2 · Runs 2 ━━━┓╭ Detail ───────────────────────╮
 ┃▸ Implement, review, s…  ┃│Implement, review, ship        │
-┃▸ Weekly swarm report    ┃│awaiting-gate                  │
+┃▸ Weekly security dige…  ┃│awaiting-gate                  │
 ┃  Impleme… ●●◆ awaiting-g┃│started by Mara 30m ago ·      │
 ┃  Weekly … ● completed 1d┃│driven by This device          │
-┃                         ┃│input count mites per 100 be…  │
+┃                         ┃│input inject a fake clock      │
 ┃                         ┃│                               │
 ┃                         ┃│  ● Implement @coder  succeeded│
-┃                         ┃│      Changed the inspection…  │
+┃                         ┃│      Changed the checkout s…  │
 ┃                         ┃│  ● Review @reviewer  succeeded│
-┃                         ┃│      Looks right; the wash …  │
+┃                         ┃│      Looks right; the timeo…  │
 ┃                         ┃│  ◆ Sign-off gate (1 approval) │
 ┃                         ┃│awaiting-approval              │
 ┃                         ┃│                               │

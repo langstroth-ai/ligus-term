@@ -112,7 +112,7 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
     let vf = form.field == FormField::Value;
     match form.mode {
         FormMode::Create => {
-            lines.push(field_line("Workspace name", &form.ws_name, vf, w, "e.g. Apiary Tracker", t));
+            lines.push(field_line("Workspace name", &form.ws_name, vf, w, "e.g. Northwind API", t));
             lines.push(Line::styled("  No server needed: it lives on this device until you invite someone.", t.dim()));
         }
         FormMode::Join => {

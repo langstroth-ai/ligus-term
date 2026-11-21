@@ -2,7 +2,7 @@
 source: tests/screens.rs
 expression: screen
 ---
-[AT] [QR]• Apiary Tracker · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
+[NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
 ┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Member ────────────────────────────────────────────────────────────────────────────────────────────────────╮
 ┃  Mara · you  owner  founder                                                            ┃│Mara  owner                                                                                                 │
 ┃  Ada  admin                                                                            ┃│                                                                                                            │

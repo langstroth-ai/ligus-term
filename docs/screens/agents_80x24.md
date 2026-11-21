@@ -3,7 +3,7 @@
 Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 
 ```text
-[AT]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Apiary T…
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
 ┏ Agents · a taller terminal shows usage ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃Agent      Status Runtime    Runs on         Who can use         Doing        ┃
 ┃@primary   idle   claude-cod This device     Everyone            answers untag┃
@@ -17,7 +17,7 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 │Ollama (local)           qwen3:8b                   ready      Ollama at 127.0│
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭ Hand-offs ───────────────────────────────────────────────────────────────────╮
-│@coder → @reviewer review the mites-per-100 change 20m                        │
+│@coder → @reviewer review the fake-clock change 20m                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭ Runtimes ────────────────────────────────────────────────────────────────────╮
 │Runtime     Kind                  Model          Where       Status           │

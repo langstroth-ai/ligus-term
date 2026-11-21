@@ -3,12 +3,12 @@
 Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 
 ```text
-[AT]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Apiary T…
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
 ┏ Workflows 2 · Runs 2 ━━━━━━━━━━━━┓╭ Detail ──────────────────────────────────╮
 ┃▸ Implement, review, ship         ┃│Implement, review, ship                   │
-┃▸ Weekly swarm report  Queen ce…  ┃│in Inspection log refactor                │
+┃▸ Weekly security digest  Migra…  ┃│in Fix flaky checkout test                │
 ┃  Implemen… ●●◆ awaiting-gate 4m  ┃│                                          │
-┃  Weekly swarm r… ● completed 1d  ┃│The coder implements, the reviewer        │
+┃  Weekly securit… ● completed 1d  ┃│The coder implements, the reviewer        │
 ┃                                  ┃│checks it, a person signs off.            │
 ┃                                  ┃│                                          │
 ┃                                  ┃│  Implement @coder                        │

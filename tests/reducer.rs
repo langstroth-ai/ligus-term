@@ -132,7 +132,7 @@ fn empty_startup_is_first_run_and_asks_for_a_name() {
     // Enter on the value with no name: an error, no effect.
     key(&mut s, KeyCode::Tab);
     key(&mut s, KeyCode::Tab);
-    typed(&mut s, "Apiary");
+    typed(&mut s, "Northwind");
     assert!(key(&mut s, KeyCode::Enter).is_empty());
     let Phase::Onboarding(f) = &s.phase else { panic!() };
     assert_eq!(f.error.as_deref(), Some("Tell us your name first"));
@@ -146,9 +146,9 @@ fn create_then_recovery_then_main() {
     typed(&mut s, "Mara");
     key(&mut s, KeyCode::Tab);
     key(&mut s, KeyCode::Tab);
-    typed(&mut s, "Bee Yard");
+    typed(&mut s, "Acme Web");
     let fx = key(&mut s, KeyCode::Enter);
-    assert_eq!(fx, vec![Effect::CreateWorkspace { your_name: "Mara".into(), name: "Bee Yard".into() }]);
+    assert_eq!(fx, vec![Effect::CreateWorkspace { your_name: "Mara".into(), name: "Acme Web".into() }]);
     // Busy: keys are ignored while the passkey is created.
     assert!(key(&mut s, KeyCode::Enter).is_empty());
     let created = Created { workspace: ws("new", Role::Owner), recovery_words: vec!["amber".into(); 24], invite: None };
@@ -189,7 +189,7 @@ fn pasting_on_the_mode_row_switches_to_join() {
 
 fn check(trust: InviteTrust) -> InviteCheck {
     InviteCheck {
-        workspace_name: "Bee Yard".into(),
+        workspace_name: "Acme Web".into(),
         relay_url: "https://relay.example".into(),
         founder_name: Some("Ana".into()),
         safety_code: Some("aaaa-bbbb".into()),
@@ -745,10 +745,10 @@ fn binding_a_checkout() {
     let mut s = main_state();
     let w = WorkspaceId::new("a");
     key(&mut s, KeyCode::Char('h'));
-    update(&mut s, Msg::Checkout(w.clone(), Ok(Some("/srv/apiary".into()))));
+    update(&mut s, Msg::Checkout(w.clone(), Ok(Some("/srv/northwind-api".into()))));
     key(&mut s, KeyCode::Char('b'));
-    assert!(matches!(&s.overlay, Some(Overlay::BindCheckout(b)) if b.text == "/srv/apiary"));
-    for _ in 0.."/srv/apiary".len() {
+    assert!(matches!(&s.overlay, Some(Overlay::BindCheckout(b)) if b.text == "/srv/northwind-api"));
+    for _ in 0.."/srv/northwind-api".len() {
         key(&mut s, KeyCode::Backspace);
     }
     assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::SetCheckout(w, None)]);

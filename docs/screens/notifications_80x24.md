@@ -3,9 +3,9 @@
 Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 
 ```text
-[AT]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Apiary T…
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
 ┏ Notifications ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃● Ada mentioned you in Inspection log refactor  Apiary Tracker · 12m          ┃
+┃● Ada mentioned you in Fix flaky checkout test  Northwind API · 12m           ┃
 ┃                                                                              ┃
 ┃                                                                              ┃
 ┃                                                                              ┃

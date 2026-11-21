@@ -2,16 +2,16 @@
 source: tests/screens.rs
 expression: screen
 ---
-[AT] [QR]• Apiary Tracker · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
+[NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Workflows 2 · Runs 3 ━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Detail ──────────────────────────────────────────────────╮
-┃▸ Implement, review, ship  Inspection log ref…  ┃│Implement, review, ship  awaiting-gate                    │
-┃▸ Weekly swarm report  Queen cell alerts        ┃│started by Mara just now · driven by This device          │
-┃  Implement, review, sh… ●●◆ awaiting-gate now  ┃│input export the wash counts                              │
+┃▸ Implement, review, ship  Fix flaky checkout…  ┃│Implement, review, ship  awaiting-gate                    │
+┃▸ Weekly security digest  Migrate auth to pas…  ┃│started by Mara just now · driven by This device          │
+┃  Implement, review, sh… ●●◆ awaiting-gate now  ┃│input export the order history                            │
 ┃  Implement, review, ship ●●● completed now     ┃│                                                          │
-┃  Weekly swarm report ● completed 1d            ┃│  ● Implement @coder  succeeded                           │
-┃                                                ┃│      @coder finished: export the wash counts             │
+┃  Weekly security digest ● completed 1d         ┃│  ● Implement @coder  succeeded                           │
+┃                                                ┃│      @coder finished: export the order history           │
 ┃                                                ┃│  ● Review @reviewer  succeeded                           │
-┃                                                ┃│      @reviewer finished: export the wash counts          │
+┃                                                ┃│      @reviewer finished: export the order history        │
 ┃                                                ┃│  ◆ Sign-off gate (1 approval)  awaiting-approval         │
 ┃                                                ┃│                                                          │
 ┃                                                ┃│A approve the gate  R reject it                           │

@@ -346,8 +346,8 @@ async fn main() {
 }
 
 async fn stream_reply(h: &mut Harness) {
-    let ws = WorkspaceId::new("ws-apiary");
-    let chat = ChatId::new("c-log");
+    let ws = WorkspaceId::new("ws-northwind");
+    let chat = ChatId::new("c-checkout");
     h.send(Msg::Event(Event::Thinking { workspace: ws.clone(), chat: chat.clone(), agent: "@reviewer".into(), on: true })).await;
     let message = Message {
         id: MessageId::new("s1"),
@@ -359,7 +359,7 @@ async fn stream_reply(h: &mut Harness) {
         tools: vec![],
     };
     h.send(Msg::Event(Event::MessageAdded { workspace: ws.clone(), message })).await;
-    for (name, preview) in [("read_file", "src/inspections.rs"), ("edit_file", "src/inspections.rs")] {
+    for (name, preview) in [("read_file", "src/checkout.rs"), ("edit_file", "src/checkout.rs")] {
         h.send(Msg::Event(Event::ToolActivity {
             workspace: ws.clone(),
             chat: chat.clone(),
@@ -368,7 +368,7 @@ async fn stream_reply(h: &mut Harness) {
         }))
         .await;
     }
-    for d in "The threshold now reads mites per 100 bees: three per 100 matches the club's guidance, so ".split_inclusive(' ') {
+    for d in "The session check now reads the injected clock: thirty seconds matches the provider's timeout, so ".split_inclusive(' ') {
         h.send(Msg::Event(Event::MessageDelta {
             workspace: ws.clone(),
             chat: chat.clone(),

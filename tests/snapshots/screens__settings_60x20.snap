@@ -2,7 +2,7 @@
 source: tests/screens.rs
 expression: screen
 ---
-[AT]+1• │ 1 2 3 4 5 6 7 8(1) 9 Setup          Apiary Tracker
+[NA]+1• │ 1 2 3 4 5 6 7 8(1) 9 Setup           Northwind API
 ┏ Settings ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃You                                                       ┃
 ┃  Name            Mara                                    ┃

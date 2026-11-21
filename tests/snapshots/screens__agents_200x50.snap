@@ -2,7 +2,7 @@
 source: tests/screens.rs
 expression: screen
 ---
-[AT] [QR]• Apiary Tracker · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
+[NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
 ┏ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃Agent        Status   Runtime      Runs on            Who can use            Doing                                                                                                                    ┃
 ┃@primary     idle     claude-code  This device        Everyone               answers untagged messages                                                                                                ┃
@@ -40,7 +40,7 @@ expression: screen
 │Ollama (local)           qwen3:8b                   ready      Ollama at 127.0.0.1:11434                                                                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭ Usage on this device ────────────────────────────────────────────────────────────────────────────╮╭ Hand-offs ───────────────────────────────────────────────────────────────────────────────────────╮
-│Usage is shown to the agent's owner, on the device that runs it.                                  ││@coder → @reviewer review the mites-per-100 change 20m                                            │
+│Usage is shown to the agent's owner, on the device that runs it.                                  ││@coder → @reviewer review the fake-clock change 20m                                               │
 │                                                                                                  ││                                                                                                  │
 │                                                                                                  ││                                                                                                  │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯╰──────────────────────────────────────────────────────────────────────────────────────────────────╯

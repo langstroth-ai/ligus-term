@@ -14,10 +14,10 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
                                  ┃Safety code    4821 0937 5512  (compare it with people you invite)    ┃
                                  ┃                                                                      ┃
           ▄▀▀▄▄   ▄▄┏ Create a passkey ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓              ┃
-        ▀▀▀▀▀▀▀▀ ▀▀▀┃Create a Ligus passkey for “Bee Yard”                               ┃              ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀┃Create a Ligus passkey for “Acme Web”                               ┃              ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀┃                                                                    ┃eployment     ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀┃Event   passkeyRegistered                                           ┃              ┃
-     ▄▀▀▀▄▄▀▀▄▄▀▀▀▄▄┃Digest  575fada78451d68e                                            ┃              ┃
+     ▄▀▀▀▄▄▀▀▄▄▀▀▀▄▄┃Digest  acb329c140f4de86                                            ┃              ┃
     ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀┃                                                                    ┃vite someone. ┃
     ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀┃Your browser opens the workspace's passkey page (ligus.ai by        ┃              ┃
      ▀▀▀▀▀▀▄▄▀▀▀▀▀▀▀┃default). Check the digest there matches, then use Touch ID, Windows┃              ┃

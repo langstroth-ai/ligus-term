@@ -2,11 +2,11 @@
 source: tests/screens.rs
 expression: screen
 ---
-[AT]+1• │ 1 2 3 4 5 Hosts 6 7 8(1) 9          Apiary Tracker
+[NA]+1• │ 1 2 3 4 5 Hosts 6 7 8(1) 9           Northwind API
 ┏ Workers & hosts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ Host             Kind  Status   Work Agents     Repos    ┃
 ┃ This device      DEVIC online   idle @primary @          ┃
-┃ sff              WORKE online   busy @coder @sc apiary   ┃
+┃ sff              WORKE online   busy @coder @sc northwind┃
 ┃ ada-studio       DEVIC 3h ago   idle                     ┃
 ┃                                                          ┃
 ┃                                                          ┃

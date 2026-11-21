@@ -35,7 +35,7 @@ fn piped_stdout_uses_plain_mode() {
     c.arg("--demo");
     let (code, out, _) = run(c, "workspaces\nmembers\nquit\n");
     assert_eq!(code, 0);
-    assert!(out.contains("workspace\t1\tws-apiary\tApiary Tracker\towner"), "{out}");
+    assert!(out.contains("workspace\t1\tws-northwind\tNorthwind API\towner"), "{out}");
     assert!(out.contains("member\t2\tm-ada\tAda\tadmin"), "{out}");
     assert!(!out.contains('\u{1b}'), "no escape codes in plain mode");
     assert!(!out.contains(['▀', '▄', '█']), "no splash art in plain mode: {out}");
@@ -122,7 +122,7 @@ fn one_shot_commands_exit_with_a_status() {
     assert!(!out.contains("ready\t"), "one-shot prints only the command's records: {out}");
 
     let (mut c, _home) = lt();
-    c.args(["--demo", "--plain", "--workspace", "queen-rearing", "workflows"]);
+    c.args(["--demo", "--plain", "--workspace", "docs-site", "workflows"]);
     let (code, out, _) = run(c, "");
     assert_eq!((code, out.as_str()), (0, ""));
 
@@ -167,7 +167,7 @@ fn one_shot_commands_exit_with_a_status() {
 fn one_shot_create_takes_a_name() {
     let (mut c, home) = lt();
     let data = home.path().join("lt");
-    c.env("LT_DATA_DIR", &data).env("LIGUS_SECRET_BACKEND", "file").args(["create", "Apiary", "--out", "w.txt"]);
+    c.env("LT_DATA_DIR", &data).env("LIGUS_SECRET_BACKEND", "file").args(["create", "Northwind", "--out", "w.txt"]);
     let (_, out, _) = run(c, "");
     assert!(out.contains("tell us your name first"), "{out}");
 }
