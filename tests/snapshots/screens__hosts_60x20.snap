@@ -4,10 +4,10 @@ expression: screen
 ---
 [AT]+1• │ 1 2 3 4 5 Hosts 6 7 8(1) 9          Apiary Tracker
 ┏ Workers & hosts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃  Host    Kind    Status     Work  Agents     Repos       ┃
-┃● This de DEVICE  online     idle  @primary @             ┃
-┃● sff     WORKER  online     busy  @coder @sc apiary      ┃
-┃○ ada-stu DEVICE  3h ago     idle                         ┃
+┃ Host             Kind  Status   Work Agents     Repos    ┃
+┃ This device      DEVIC online   idle @primary @          ┃
+┃ sff              WORKE online   busy @coder @sc apiary   ┃
+┃ ada-studio       DEVIC 3h ago   idle                     ┃
 ┃                                                          ┃
 ┃                                                          ┃
 ┃                                                          ┃

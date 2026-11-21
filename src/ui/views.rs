@@ -59,20 +59,10 @@ pub fn agents(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         .collect();
     let header =
         Row::new(vec!["Agent", "Status", "Runtime", "Runs on", "Who can use", "Doing"]).style(t.dim().add_modifier(Modifier::BOLD));
-    let table = Table::new(
-        rows,
-        [
-            Constraint::Length(12),
-            Constraint::Length(8),
-            Constraint::Length(12),
-            Constraint::Length(18),
-            Constraint::Length(22),
-            Constraint::Min(12),
-        ],
-    )
-    .header(header)
-    .block(pane(&title, s.agent_sel.index < s.agents.len(), t))
-    .row_highlight_style(t.selected());
+    let table = Table::new(rows, columns(&[12, 8, 12, 18, 22, 12], top.width))
+        .header(header)
+        .block(pane(&title, s.agent_sel.index < s.agents.len(), t))
+        .row_highlight_style(t.selected());
     let on_agents = s.agent_sel.index < s.agents.len();
     let mut st = TableState::default().with_selected(on_agents.then_some(s.agent_sel.index));
     f.render_stateful_widget(table, top, &mut st);
@@ -98,12 +88,8 @@ pub fn agents(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         })
         .collect();
     let header = Row::new(vec!["Runtime", "Kind", "Model", "Where", "Status"]).style(t.dim().add_modifier(Modifier::BOLD));
-    let table = Table::new(
-        rows,
-        [Constraint::Length(13), Constraint::Length(24), Constraint::Min(14), Constraint::Length(13), Constraint::Length(20)],
-    )
-    .header(header)
-    .block(pane("Runtimes", false, t));
+    let table =
+        Table::new(rows, columns_with_fill(&[13, 24, 14, 13, 20], 2, bottom.width)).header(header).block(pane("Runtimes", false, t));
     if bottom.height > 0 {
         f.render_widget(table, bottom);
     }
@@ -130,6 +116,31 @@ pub fn agents(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         let usage = usage_lines(s.agents.get(s.agent_sel.index), t);
         f.render_widget(Paragraph::new(usage).wrap(Wrap { trim: true }).block(pane("Usage on this device", false, t)), us);
     }
+}
+
+/// Table columns of these widths, the last one taking what is left, in a
+/// table `width` wide (borders included). When they don't fit, each is
+/// shrunk in proportion: the widths are worked out here, so the layout
+/// never asks the solver for more than there is (which it settles
+/// differently from one run to the next).
+fn columns(widths: &[u16], width: u16) -> Vec<Constraint> {
+    columns_with_fill(widths, widths.len().saturating_sub(1), width)
+}
+
+/// As [`columns`], with column `fill` taking what is left.
+fn columns_with_fill(widths: &[u16], fill: usize, width: u16) -> Vec<Constraint> {
+    // Borders, and one column of spacing between columns.
+    let room = width.saturating_sub(2 + widths.len().saturating_sub(1) as u16);
+    let total: u16 = widths.iter().sum();
+    if total <= room {
+        return widths.iter().enumerate().map(|(i, w)| if i == fill { Constraint::Min(*w) } else { Constraint::Length(*w) }).collect();
+    }
+    let mut out: Vec<u16> = widths.iter().map(|w| ((u32::from(*w) * u32::from(room)) / u32::from(total.max(1))) as u16).collect();
+    let used: u16 = out.iter().sum();
+    if let Some(f) = out.get_mut(fill) {
+        *f += room.saturating_sub(used);
+    }
+    out.into_iter().map(Constraint::Length).collect()
 }
 
 /// The Agents view's panes, by priority: the agents, what this device could
@@ -251,13 +262,7 @@ fn local_runtimes(f: &mut Frame, area: Rect, s: &State, available: &[&crate::bac
         })
         .collect();
     let header = Row::new(vec!["Runtime", "Model", "Version", "Status", "Detail"]).style(t.dim().add_modifier(Modifier::BOLD));
-    let table = Table::new(
-        rows,
-        [Constraint::Length(24), Constraint::Length(16), Constraint::Length(9), Constraint::Length(10), Constraint::Min(12)],
-    )
-    .header(header)
-    .block(block)
-    .row_highlight_style(t.selected());
+    let table = Table::new(rows, columns(&[24, 16, 9, 10, 12], area.width)).header(header).block(block).row_highlight_style(t.selected());
     let mut st = TableState::default().with_selected(selected);
     f.render_stateful_widget(table, area, &mut st);
 }
@@ -324,21 +329,10 @@ pub fn hosts(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         })
         .collect();
     let header = Row::new(vec!["", "Host", "Kind", "Status", "Work", "Agents", "Repos"]).style(t.dim().add_modifier(Modifier::BOLD));
-    let table = Table::new(
-        rows,
-        [
-            Constraint::Length(1),
-            Constraint::Length(20),
-            Constraint::Length(7),
-            Constraint::Length(10),
-            Constraint::Length(5),
-            Constraint::Min(10),
-            Constraint::Length(12),
-        ],
-    )
-    .header(header)
-    .block(pane("Workers & hosts", true, t))
-    .row_highlight_style(t.selected());
+    let table = Table::new(rows, columns_with_fill(&[1, 20, 7, 10, 5, 10, 12], 5, area.width))
+        .header(header)
+        .block(pane("Workers & hosts", true, t))
+        .row_highlight_style(t.selected());
     let mut st = TableState::default().with_selected(if s.hosts.is_empty() { None } else { Some(s.host_sel.index) });
     let [table_area, note] = Layout::vertical([Constraint::Min(3), Constraint::Length(3)]).areas(area);
     if s.hosts.is_empty() {

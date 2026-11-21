@@ -224,18 +224,15 @@ fn stage_lines(r: &Run) -> Vec<String> {
         .collect()
 }
 
-/// Write the passkey page's address straight to the controlling terminal.
-#[cfg(not(test))]
+/// Write the passkey page's address straight to the controlling terminal
+/// (unit tests have none to write to).
 fn to_tty(url: &str) -> std::io::Result<()> {
     use std::io::Write;
+    if cfg!(test) {
+        return Err(std::io::Error::other("no terminal in tests"));
+    }
     let mut tty = std::fs::OpenOptions::new().write(true).open("/dev/tty")?;
     writeln!(tty, "\npasskey page (open it on the other device):\n{}\n", clean(url))
-}
-
-/// Tests have no terminal to write to.
-#[cfg(test)]
-fn to_tty(_: &str) -> std::io::Result<()> {
-    Err(std::io::Error::other("no terminal in tests"))
 }
 
 /// Format a backend event as a line; `None` for events plain mode skips
