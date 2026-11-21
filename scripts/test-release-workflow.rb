@@ -613,3 +613,15 @@ class ScriptsAreExecutable < Minitest::Test
     end
   end
 end
+
+# The decoded certificate lands in an extensionless temp file, so `security
+# import` must be told it's PKCS#12 ("Unknown format in import" otherwise;
+# v0.1.1's second cut failed on it).
+class CertificateImport < Minitest::Test
+  def test_the_certificate_is_imported_as_pkcs12
+    sign = File.read(File.join(ROOT, "scripts/macos-sign.sh"))
+    imports = sign.lines.grep(/security import/)
+    refute_empty imports
+    imports.each { |l| assert_match(/-f pkcs12/, l, "security import needs -f pkcs12: #{l.strip}") }
+  end
+end

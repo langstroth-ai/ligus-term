@@ -70,7 +70,7 @@ case "$cmd" in
     security create-keychain -p "$kc_pass" "$kc"
     security set-keychain-settings -lut 21600 "$kc"
     security unlock-keychain -p "$kc_pass" "$kc"
-    security import "$p12" -k "$kc" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+    security import "$p12" -f pkcs12 -k "$kc" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
     security set-key-partition-list -S apple-tool:,apple: -s -k "$kc_pass" "$kc" > /dev/null
     # Search it first, after the user's existing keychains.
     # shellcheck disable=SC2046
