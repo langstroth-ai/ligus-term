@@ -27,6 +27,7 @@ INSTA_UPDATE=always LT_WRITE_SCREENS=1 cargo test --test screens
 | The recovery key, shown once | [recovery_key.md](recovery_key.md) |
 | A new workspace | [new_workspace.md](new_workspace.md) |
 | A new workspace in a short terminal: the welcome without the mark | [new_workspace_short.md](new_workspace_short.md) |
+| Start-up: the cursor in the composer | [start.md](start.md) |
 | Chats: list and transcript | [chat.md](chat.md) |
 | An agent streaming its reply | [chat_streaming.md](chat_streaming.md) |
 | Composer with the @mention popup | [chat_mentions.md](chat_mentions.md) |

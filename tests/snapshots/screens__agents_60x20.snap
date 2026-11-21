@@ -16,9 +16,9 @@ expression: screen
 │Ollama (loca qwen3:8b              ready      Ollama at 12│
 ╰──────────────────────────────────────────────────────────╯
 ╭ Runtimes ────────────────────────────────────────────────╮
-│Runtime Kind    Model          Where         Status       │
-│claude- Claude  default        local CLI     Configured · │
-│codex   Codex   default        local CLI     Configured   │
-│ollama  Ollama  qwen3-coder:30 local server  Configured   │
+│Runtime       Kind          Model          Where   Status │
+│claude-code   Claude Code   default        local C Configu│
+│codex         Codex         default        local C Configu│
+│ollama        Ollama (local qwen3-coder:30 local s Configu│
 ╰──────────────────────────────────────────────────────────╯
 ↑↓ agents  N add agent  r runtime  E who can use  ? help

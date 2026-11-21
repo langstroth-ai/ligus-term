@@ -426,6 +426,9 @@ pub struct State {
     /// The terminal's size (columns, rows), for scroll limits; 0×0 until
     /// the first resize message.
     pub term: (u16, u16),
+    /// The first chat opened after start-up gets the cursor in its
+    /// composer, so typing works at once (esc leaves it).
+    pub compose_on_open: bool,
 }
 
 impl State {
@@ -483,6 +486,7 @@ impl State {
             bell: false,
             quit: false,
             term: (0, 0),
+            compose_on_open: true,
         }
     }
 

@@ -191,8 +191,23 @@ async fn passkey_create_then_recovery_key() {
     snap("new_workspace", "A new workspace", h.screen(W, H));
 }
 
+/// The demo, with the cursor moved from the composer (where it starts) to
+/// the chat list, so the keys below drive views.
 async fn demo() -> Harness {
-    Harness::new(true).await
+    let mut h = Harness::new(true).await;
+    assert_eq!(h.state.focus, ligus_term::app::state::Focus::Composer);
+    h.key(KeyCode::Esc).await;
+    h
+}
+
+/// lt starts with the cursor in the open chat's composer: typing works at
+/// once, and esc leaves it for the keys.
+#[tokio::test]
+async fn starts_in_the_composer() {
+    let mut h = Harness::new(true).await;
+    snap("start", "Start-up: the cursor in the composer", h.screen(W, H));
+    h.chars("hi").await;
+    assert_eq!(h.state.composer.text, "hi");
 }
 
 #[tokio::test]
@@ -326,6 +341,7 @@ async fn agents_add_from_this_device() {
 async fn agents_nothing_on_this_device() {
     let fake = FakeBackend::demo(Harness::cfg()).with_local(vec![]);
     let mut h = Harness::with(fake).await;
+    h.key(KeyCode::Esc).await;
     h.key(KeyCode::Char('a')).await;
     let screen = h.screen(W, H);
     snap("agents_empty", "Agents: nothing found on this device", screen.clone());

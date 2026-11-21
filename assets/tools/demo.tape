@@ -26,6 +26,8 @@ Show
 
 Type "lt --demo --theme dark" Sleep 400ms Enter
 Sleep 1.5s
+# The cursor starts in the composer: esc leaves it for the keys.
+Escape Sleep 300ms
 # Workflows, then start a run of "Implement, review, ship".
 Type "f" Sleep 1.5s
 Type "S" Sleep 800ms

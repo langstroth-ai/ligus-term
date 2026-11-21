@@ -403,7 +403,7 @@ The default keys (all can be rebound, see [Configure](#configure)):
 |---|---|
 | Anywhere | `q` / `ctrl-c` quit (while this device drives a run or an agent's turn it asks first; a second `ctrl-c` quits) · `?` / `f1` help · `esc` back · `w` / `ctrl-w` workspaces · `+` add a workspace · `tab` / `shift-tab` next or previous pane |
 | Lists | `↑ ↓` or `j k` move · `pgup pgdn` (`ctrl-u ctrl-d`) · `g G` (`home end`) first and last · `enter` (`l`, `→`) open |
-| Chats | `i` write · `N` new chat · `L` lock the chat down · `U` clear the lockdown |
+| Chats | `i` write (lt starts with the cursor in the open chat's composer; `esc` leaves it) · `N` new chat · `L` lock the chat down · `U` clear the lockdown |
 | Composer | `enter` send · `alt-enter` / `ctrl-j` new line (`shift-enter` too, in terminals with the kitty keyboard protocol) · `@` mention, then `tab` or `enter` to accept · `esc` leave (the draft is kept) |
 | Workflows | `S` start a run (asks for its input) · `A` / `R` approve or reject the run's waiting gate (reject asks first) · `X` cancel the run (asks first) · `enter` on a run opens its chat |
 | Proposals | `A` approve · `R` reject (asks first) · `O` apply on a host · `W` withdraw the apply request |

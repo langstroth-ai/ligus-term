@@ -98,6 +98,11 @@ fn main_state() -> State {
         fx,
         vec![Effect::LoadTranscript(WorkspaceId::new("a"), ChatId::new("c1")), Effect::MarkRead(WorkspaceId::new("a"), ChatId::new("c1"))]
     );
+    // The first chat opens with the cursor in its composer; esc leaves it
+    // for the list, where the other tests start.
+    assert_eq!(s.focus, Focus::Composer);
+    key(&mut s, KeyCode::Esc);
+    assert_eq!(s.focus, Focus::List);
     update(
         &mut s,
         Msg::Mentionables(

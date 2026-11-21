@@ -219,6 +219,13 @@ fn draw_composer(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         f.render_widget(Paragraph::new(Line::styled(hint, t.dim())), inner);
         return;
     }
+    if s.composer.text.is_empty() {
+        let esc = s.keymap.hint(Context::Composer, Action::CancelCompose);
+        let hint = format!("Type a message · @ mentions an agent or a person · {esc} for keys");
+        f.render_widget(Paragraph::new(Line::styled(hint, t.dim())), inner);
+        f.set_cursor_position(Position::new(inner.x, inner.y));
+        return;
+    }
     let lines = s.composer.lines();
     let (row, col) = s.composer.cursor_pos();
     let h = inner.height as usize;

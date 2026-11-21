@@ -310,6 +310,7 @@ async fn main() {
 
     // A workflow run waiting on its sign-off gate.
     let mut h = Harness::new(true).await;
+    h.key(KeyCode::Esc).await; // the cursor starts in the composer
     h.key(KeyCode::Char('f')).await;
     h.key(KeyCode::Down).await;
     h.key(KeyCode::Down).await;
@@ -317,11 +318,13 @@ async fn main() {
 
     // Agents: what each is doing and which host it runs on; runtimes.
     let mut h = Harness::new(true).await;
+    h.key(KeyCode::Esc).await; // the cursor starts in the composer
     h.key(KeyCode::Char('a')).await;
     write(&dir, "agents", "lt: agents, the hosts they run on, hand-offs and runtimes", &buffer(&h, W, 30, &t));
 
     // A proposal with its diff.
     let mut h = Harness::new(true).await;
+    h.key(KeyCode::Esc).await; // the cursor starts in the composer
     h.key(KeyCode::Char('p')).await;
     h.key(KeyCode::Enter).await;
     write(&dir, "proposals", "lt: the proposal queue with a diff", &buffer(&h, W, H, &t));
@@ -333,6 +336,7 @@ async fn main() {
 
     // Help: every keybinding.
     let mut h = Harness::new(true).await;
+    h.key(KeyCode::Esc).await; // the cursor starts in the composer
     h.key(KeyCode::Char('?')).await;
     write(&dir, "help", "lt: the keybindings", &buffer(&h, W, 42, &t));
 

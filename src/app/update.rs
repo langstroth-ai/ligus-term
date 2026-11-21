@@ -206,7 +206,11 @@ pub fn update(s: &mut State, msg: Msg) -> Vec<Effect> {
                 && let Some(c) = s.chats.get(s.chat_sel.index)
             {
                 let id = c.id.clone();
-                return open_chat(s, id);
+                let fx = open_chat(s, id);
+                if std::mem::take(&mut s.compose_on_open) && s.view == View::Chats && s.overlay.is_none() {
+                    s.focus = Focus::Composer;
+                }
+                return fx;
             }
             vec![]
         }
