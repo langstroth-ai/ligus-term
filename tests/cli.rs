@@ -139,9 +139,35 @@ fn one_shot_commands_exit_with_a_status() {
     c.args(["--demo", "--plain", "frobnicate"]);
     assert_eq!(run(c, "").0, 2);
 
+    // A command runs without --plain too; an unknown one is refused before
+    // any data dir is opened.
     let (mut c, _home) = lt();
     c.args(["--demo", "runs"]);
+    let (code, out, _) = run(c, "");
+    assert_eq!(code, 0);
+    assert!(out.starts_with("run\t1\t"), "{out}");
+    let (mut c, home) = lt();
+    c.args(["frobnicate"]);
     let (code, _, err) = run(c, "");
     assert_eq!(code, 2);
-    assert!(err.contains("lt --plain COMMAND"), "{err}");
+    assert!(err.contains("unknown command frobnicate") && err.contains("lt help"), "{err}");
+    assert!(!home.path().join(".ligus-term").exists(), "nothing opened");
+
+    // --json numbers are numbers.
+    let (mut c, _home) = lt();
+    c.args(["--demo", "runs", "--json"]);
+    let (code, out, _) = run(c, "");
+    assert_eq!(code, 0);
+    let v: serde_json::Value = serde_json::from_str(out.lines().next().unwrap()).unwrap();
+    assert_eq!(v["n"], serde_json::json!(1), "{out}");
+}
+
+/// A one-shot create on a new device takes its name from --name.
+#[test]
+fn one_shot_create_takes_a_name() {
+    let (mut c, home) = lt();
+    let data = home.path().join("lt");
+    c.env("LT_DATA_DIR", &data).env("LIGUS_SECRET_BACKEND", "file").args(["create", "Apiary", "--out", "w.txt"]);
+    let (_, out, _) = run(c, "");
+    assert!(out.contains("tell us your name first"), "{out}");
 }

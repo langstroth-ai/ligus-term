@@ -45,7 +45,17 @@ async fn run() -> anyhow::Result<()> {
     if ligus_term::cli::take_trailing_json(&mut args.command) {
         args.json = true;
     }
-    let plain_mode = args.plain || args.json;
+    // A command runs one-shot in plain mode, with or without --plain.
+    let plain_mode = args.plain || args.json || !args.command.is_empty();
+    // Without --plain, an unknown command (a typo) is refused on stderr
+    // before any data dir is opened; with it, as an error record.
+    if let Some(name) = args.command.first()
+        && !args.plain
+        && !args.json
+        && !plain::COMMANDS.contains(&name.as_str())
+    {
+        fail(format!("unknown command {name}: lt help lists the commands, lt help COMMAND explains one"));
+    }
     if args.print_config {
         print!("{}", default_config_text());
         return Ok(());
@@ -72,14 +82,12 @@ async fn run() -> anyhow::Result<()> {
         Arc::new(b)
     };
 
-    if !args.command.is_empty() && !plain_mode {
-        fail("a command runs in plain mode: lt --plain COMMAND (lt help COMMAND explains it)");
-    }
     if plain_mode || !std::io::stdout().is_terminal() || !std::io::stdin().is_terminal() {
         let opts = plain::PlainOpts {
             one_shot: (!args.command.is_empty()).then(|| args.command.join(" ")),
             workspace: args.workspace.clone(),
             json: args.json,
+            name: args.name.clone(),
             presence: args
                 .recovery_words_file
                 .as_ref()

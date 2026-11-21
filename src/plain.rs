@@ -7,7 +7,7 @@
 //! scan. `help` lists the commands; EOF waits for running actions, then
 //! exits.
 //!
-//! One-shot: `lt --plain COMMAND [ARGS…]` runs one command and exits, for
+//! One-shot: `lt COMMAND [ARGS…]` (`--plain` optional) runs one command and exits, for
 //! scripts and other agents. It prints only that command's records (and any
 //! passkey prompt it raises), and exits 0 on success, 1 when it printed an
 //! `error` record (or a run it followed didn't complete), 2 for a command
@@ -137,6 +137,8 @@ pub struct PlainOpts {
     pub presence: Option<PresenceAnswer>,
     /// Write each record as one JSON object per line (`--json`).
     pub json: bool,
+    /// Your name for a device with no identity yet (`--name`).
+    pub name: Option<String>,
 }
 
 /// The exit code for a usage error (an unknown one-shot command).
@@ -286,7 +288,7 @@ where
     if let Some(cmd) = &opts.one_shot {
         let name = cmd.split_whitespace().next().unwrap_or("");
         if !COMMANDS.contains(&name) {
-            emit(&out, format!("error\tunknown command {name}: lt --plain help lists them")).await;
+            emit(&out, format!("error\tunknown command {name}: lt help lists them")).await;
             return Ok(EXIT_USAGE);
         }
     }
@@ -309,7 +311,7 @@ where
     let session = Arc::new(Mutex::new(Session {
         ws: chosen,
         chat: None,
-        your_name: st.your_name.clone(),
+        your_name: st.your_name.clone().filter(|n| !n.is_empty()).or_else(|| opts.name.clone()),
         workspaces: st.workspaces.clone(),
         chats: vec![],
         proposals: vec![],
@@ -1337,6 +1339,23 @@ mod tests {
         let opts = PlainOpts { one_shot: Some(cmd.into()), ..Default::default() };
         let code = run_with(Arc::new(b), &b""[..], Box::new(Sink(buf.clone())), opts).await.unwrap();
         (code, String::from_utf8(buf.lock().unwrap().clone()).unwrap())
+    }
+
+    /// A one-shot create on a new device: refused without a name, done with
+    /// --name.
+    #[tokio::test]
+    async fn one_shot_create_takes_its_name_from_the_flag() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cmd = format!("create Bee Yard --out {}/w", tmp.path().display());
+        let (code, out) = one_shot(FakeBackend::new(FakeConfig::instant()), &cmd).await;
+        assert_eq!(code, 1);
+        assert!(out.contains("tell us your name first"), "{out}");
+        let buf = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let opts = PlainOpts { one_shot: Some(cmd), name: Some("Ada".into()), ..Default::default() };
+        let code = run_with(Arc::new(FakeBackend::new(FakeConfig::instant())), &b""[..], Box::new(Sink(buf.clone())), opts).await.unwrap();
+        let out = String::from_utf8(buf.lock().unwrap().clone()).unwrap();
+        assert_eq!(code, 0, "{out}");
+        assert!(out.contains("created\t"), "{out}");
     }
 
     /// One-shot: only the command's records, tab-separated, and an exit code.

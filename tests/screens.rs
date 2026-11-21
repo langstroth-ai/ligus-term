@@ -550,6 +550,10 @@ async fn view_at(name: &str) -> Harness {
     for k in keys {
         h.key(*k).await;
     }
+    // Extra quiet windows, for a loaded machine running every test at once.
+    for _ in 0..3 {
+        h.settle().await;
+    }
     h
 }
 

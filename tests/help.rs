@@ -189,7 +189,7 @@ fn json_output_from_the_binary() {
         assert_eq!(code, 0, "{args:?}: {err}");
         let first = out.lines().next().unwrap_or_default();
         assert!(
-            first.starts_with(r#"{"record":"workspace","n":"1","id":"ws-apiary","name":"Apiary Tracker","role":"owner""#),
+            first.starts_with(r#"{"record":"workspace","n":1,"id":"ws-apiary","name":"Apiary Tracker","role":"owner""#),
             "{args:?}: {out}"
         );
         for l in out.lines() {

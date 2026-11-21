@@ -330,8 +330,9 @@ terminal or forge a record.
 printf 'chats\nopen 1\nsay @coder fix the threshold\nwait\nproposals\n' | lt --demo --plain
 ```
 
-**One command, for scripts and other agents:** `lt --plain COMMAND
-[ARGS…]` runs one command, prints only its records, and exits with:
+**One command, for scripts and other agents:** `lt COMMAND [ARGS…]` (with
+or without `--plain`) runs one command, prints only its records, and exits
+with:
 
 | Exit | Meaning |
 |---|---|
@@ -341,8 +342,10 @@ printf 'chats\nopen 1\nsay @coder fix the threshold\nwait\nproposals\n' | lt --d
 
 **JSON:** `--json` (or a trailing `--json` on a one-shot listing command)
 writes each record as one JSON object per line: `record` is the keyword,
-the fields are named (`lt help plain` lists them), every value is a
-string.
+the fields are named (`lt help plain` lists them). Counts (`n`, `added`,
+`removed`, `turns`, `uncosted`, `cost_usd`, `progress`, `open`) are JSON
+numbers, `null` when missing; a true/false setting is a boolean; the rest
+are strings.
 
 ```sh
 lt --plain --json agents

@@ -18,8 +18,8 @@ pub const LONG_VERSION: &str = concat!(
 /// lt: a full Ligus client in the terminal.
 ///
 /// With no command, lt opens the full-screen app. `lt --plain` is a line
-/// mode for screen readers and scripts, and `lt --plain COMMAND` runs one
-/// command and exits. `lt help TOPIC` explains the rest.
+/// mode for screen readers and scripts, and `lt COMMAND` (or `lt --plain
+/// COMMAND`) runs one command and exits. `lt help TOPIC` explains the rest.
 #[derive(Parser, Debug)]
 #[command(
     name = "lt",
@@ -60,6 +60,11 @@ pub struct Args {
     /// Print a config file with every default and exit.
     #[arg(long)]
     pub print_config: bool,
+    /// Your name, for plain mode on a device that has no identity yet: a
+    /// one-shot create, join or connect on a new device uses it (lt --name
+    /// Ada create Apiary --out words.txt). Ignored once the device has one.
+    #[arg(long, value_name = "NAME")]
+    pub name: Option<String>,
     /// The workspace plain mode uses (a name, an id or a number; default the
     /// first).
     #[arg(long, value_name = "WORKSPACE")]
@@ -69,9 +74,10 @@ pub struct Args {
     /// (create, connect) always needs the browser.
     #[arg(long, value_name = "PATH")]
     pub recovery_words_file: Option<PathBuf>,
-    /// With --plain: run this one command and exit (0 ok, 1 an error or an
-    /// unfinished run, 2 an unknown command), e.g. lt --plain run 1 "fix the
-    /// tests". Without --plain, only `help [TOPIC|COMMAND|FLAG]`.
+    /// Run this one command in plain mode and exit (0 ok, 1 an error or an
+    /// unfinished run, 2 an unknown command), e.g. lt run 1 "fix the
+    /// tests"; --plain is optional. lt help [TOPIC|COMMAND|FLAG] needs no
+    /// device.
     #[arg(trailing_var_arg = true, value_name = "COMMAND")]
     pub command: Vec<String>,
 }

@@ -16,7 +16,7 @@ pub const EXIT_CODES: &str = concat!(
     "  0  success\n",
     "  1  a one-shot command printed an error record, or a run it followed didn't\n",
     "     complete; also an error while running (printed to stderr)\n",
-    "  2  an unknown command or help topic, a bad flag, a command without --plain,\n",
+    "  2  an unknown command or help topic, a bad flag,\n",
     "     or a data dir, config file, LT_RELAY_URL or device lt can't use at start-up",
 );
 
@@ -125,7 +125,8 @@ pub const COMMANDS: &[Cmd] = &[
         name: "name",
         usage: "name TEXT",
         about: "Set your name before the first create or join (it names this device's identity). It lasts \
-                for the session, so set it in the same input as create or join.",
+                for the session, so set it in the same input as create or join; a one-shot command takes \
+                --name NAME instead.",
         prints: "ok",
         example: "printf 'name Ada\\ncreate Apiary --out words.txt\\nwait\\n' | lt --plain",
     },
@@ -135,16 +136,17 @@ pub const COMMANDS: &[Cmd] = &[
         about: "Create a workspace on this device (no server needed; with LT_RELAY_URL it syncs through that \
                 relay). Asks for a new passkey in the browser. Prints the 24 recovery words once; with \
                 --out FILE they go to a new owner-only file instead. A one-shot create needs --out, and \
-                your name must already be set (use stdin for a first run).",
+                on a new device --name NAME.",
         prints: "created, recovery-key, invite",
-        example: "lt --plain create Apiary --out words.txt",
+        example: "lt --name Ada create Apiary --out words.txt",
     },
     Cmd {
         name: "join",
         usage: "join CODE",
-        about: "Join a workspace with an invite code. Check it first with check CODE.",
+        about: "Join a workspace with an invite code. Check it first with check CODE. Needs no passkey, \
+                so it is the way onto a headless device; on a new device add --name NAME.",
         prints: "joined",
-        example: "lt --plain join hivews1:...",
+        example: "lt --name Ada join hivews1:...",
     },
     Cmd {
         name: "check",
@@ -499,8 +501,9 @@ fn unescape(s: &str) -> String {
 }
 
 /// A plain record (keyword, tab, fields) as one JSON object: `record` is
-/// the keyword, the fields are named as in [`RECORDS`], every value is a
-/// string, and fields past the names go in `args`.
+/// the keyword, the fields are named as in [`RECORDS`] (counts as numbers,
+/// see [`NUMBER_FIELDS`]; the rest strings), and fields past the names go in
+/// `args`.
 pub fn record_json(line: &str) -> String {
     let mut parts = line.split('\t');
     let kind = parts.next().unwrap_or("");
@@ -515,7 +518,7 @@ pub fn record_json(line: &str) -> String {
     let q = |s: &str| serde_json::to_string(s).unwrap_or_else(|_| "\"\"".into());
     let mut out = format!("{{\"record\":{}", q(kind));
     for (name, v) in names.iter().zip(&fields) {
-        let _ = write!(out, ",{}:{}", q(name), q(v));
+        let _ = write!(out, ",{}:{}", q(name), typed(kind, name, v, &fields).unwrap_or_else(|| q(v)));
     }
     if fields.len() > names.len() {
         let rest: Vec<String> = fields[names.len()..].iter().map(|f| q(f)).collect();
@@ -523,6 +526,29 @@ pub fn record_json(line: &str) -> String {
     }
     out.push('}');
     out
+}
+
+/// Fields that are numbers in JSON (an empty or `-` value is `null`).
+pub const NUMBER_FIELDS: &[&str] = &["n", "added", "removed", "turns", "uncosted", "cost_usd", "progress", "open"];
+
+/// A field's JSON value when it isn't a string: a number for the numeric
+/// fields (and a passkey prompt's id), `true`/`false` for a toggle setting.
+fn typed(kind: &str, name: &str, v: &str, fields: &[String]) -> Option<String> {
+    let number = NUMBER_FIELDS.contains(&name) || (name == "id" && kind.starts_with("presence"));
+    if number {
+        let v = v.trim_start_matches('+').trim();
+        // A diff's removed lines print as -3: the count is 3.
+        let v = if name == "removed" { v.trim_start_matches('-') } else { v };
+        if v.is_empty() || v == "-" {
+            return Some("null".into());
+        }
+        return v.parse::<f64>().ok().filter(|f| f.is_finite()).map(|_| v.to_string());
+    }
+    let toggle = fields.first().is_some_and(|k| matches!(k.as_str(), "notify_mentions" | "agents_may_edit"));
+    if kind == "setting" && name == "value" && toggle && matches!(v, "true" | "false") {
+        return Some(v.to_string());
+    }
+    None
 }
 
 /// The topics `lt help TOPIC` knows, with a line each.
@@ -653,8 +679,9 @@ field is written \\n (a backslash is \\\\), so it can't forge a record.
 
   printf 'chats\\nopen 1\\nsay @coder fix it\\nwait\\nproposals\\n' | lt --plain
 
-One-shot: lt --plain COMMAND [ARGS...] runs one command, prints only its records
-(and any passkey prompt it raises) and exits. --workspace picks the workspace;
+One-shot: lt COMMAND [ARGS...] (or lt --plain COMMAND ...) runs one command,
+prints only its records (and any passkey prompt it raises) and exits. On a new
+device, --name NAME names its identity for create, join or connect. --workspace picks the workspace;
 passkey confirmations open the browser, or use --recovery-words-file PATH. A new
 passkey (create, connect) always needs the browser.
 
@@ -667,12 +694,14 @@ their secret to a new owner-only --out FILE.
 
 JSON: --json (or a trailing --json on a one-shot listing command) writes each
 record as one JSON object per line. \"record\" is the keyword; the fields are
-named as below, every value is a string, unescaped (real line breaks), and
-fields past the names go in \"args\".
+named as below and unescaped (real line breaks); fields past the names go in
+\"args\". Counts are JSON numbers (n, added, removed, turns, uncosted,
+cost_usd, progress, open, and a presence record's id), null when missing;
+a true/false setting is a boolean; everything else is a string.
 
   lt --plain --json agents
   lt --plain hosts --json
-  {\"record\":\"workspace\",\"n\":\"1\",\"id\":\"...\",\"name\":\"Apiary\",\"role\":\"owner\",\"sync\":\"...\"}
+  {\"record\":\"workspace\",\"n\":1,\"id\":\"...\",\"name\":\"Apiary\",\"role\":\"owner\",\"sync\":\"...\"}
 
 Records (keyword: fields; | separates variants by field count). An ok record
 names what was done, then that command's arguments (args in JSON).
@@ -839,8 +868,9 @@ A keychain password prompt on macOS, or no keychain at all (a container, CI)
   Someone founded it already: ask one of its Admins for an invite and join.
 
 \"tell us your name first\" (a one-shot create or join on a new device)
-  A one-shot command can't set your name. Use stdin for the first one:
-    printf 'name Ada\\ncreate Apiary --out words.txt\\nwait\\n' | lt --plain
+  Give your name with --name:
+    lt --name Ada create Apiary --out words.txt
+    lt --name Ada join CODE
 
 Passkeys with no browser (SSH, a headless box)
   Confirmations take your 24 recovery words from an owner-only file: press f
@@ -848,11 +878,9 @@ Passkeys with no browser (SSH, a headless box)
   \"others can read ...\": chmod 600 the file. Creating a passkey (create,
   connect) needs a browser.
 
-\"a command runs in plain mode\" (exit 2)
-  Add --plain: lt --plain COMMAND. Only lt help works without it.
-
 \"unknown command\" (exit 2)
-  lt --plain help lists the commands; lt help COMMAND explains one.
+  lt help lists the commands; lt help COMMAND explains one. A command runs
+  with or without --plain: lt agents and lt --plain agents are the same.
 
 \"... is bound to both ...\" (exit 2)
   Two actions share a key in one context of your config file. lt --print-config
@@ -941,12 +969,25 @@ mod tests {
     fn json_names_fields_and_unescapes() {
         assert_eq!(
             record_json("workspace\t1\tws-1\tApiary\towner\tsynced"),
-            r#"{"record":"workspace","n":"1","id":"ws-1","name":"Apiary","role":"owner","sync":"synced"}"#
+            r#"{"record":"workspace","n":1,"id":"ws-1","name":"Apiary","role":"owner","sync":"synced"}"#
         );
         assert_eq!(record_json("error\tc-1\tline\\none"), r#"{"record":"error","chat":"c-1","message":"line\none"}"#);
         assert_eq!(record_json("ok\taccess\t@coder\teveryone"), r#"{"record":"ok","what":"access","args":["@coder","everyone"]}"#);
         assert_eq!(record_json("ok\tlock"), r#"{"record":"ok","what":"lock"}"#);
         assert_eq!(record_json("line\t+\ta \\\\n b"), r#"{"record":"line","kind":"+","text":"a \\n b"}"#);
+        // Counts are numbers, a missing one is null, a setting is a bool.
+        assert_eq!(record_json("file\tsrc/a.rs\t+9\t-3"), r#"{"record":"file","path":"src/a.rs","added":9,"removed":3}"#);
+        assert_eq!(
+            record_json("usage\t@coder\tmonth\tMara\t41\t0\t0.1800"),
+            r#"{"record":"usage","agent":"@coder","period":"month","member":"Mara","turns":41,"uncosted":0,"cost_usd":0.1800}"#
+        );
+        assert_eq!(
+            record_json("task\tc-1\t@coder\tworking\t\tactive\tx"),
+            r#"{"record":"task","chat":"c-1","agent":"@coder","status":"working","progress":null,"state":"active","summary":"x"}"#
+        );
+        assert_eq!(record_json("setting\tnotify_mentions\ttrue"), r#"{"record":"setting","key":"notify_mentions","value":true}"#);
+        assert_eq!(record_json("setting\tname\ttrue"), r#"{"record":"setting","key":"name","value":"true"}"#);
+        assert_eq!(record_json("presence-done\t101\tok\t"), r#"{"record":"presence-done","id":101,"result":"ok","error":""}"#);
     }
 
     /// The variables detection reads (by presence, or as a config dir) are
