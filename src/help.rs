@@ -41,6 +41,18 @@ pub const ENV: &[EnvVar] = &[
         default: "none: workspaces stay on this device",
         meaning: "the relay new workspaces sync through, an http(s) URL; needed to invite anyone",
     },
+    EnvVar {
+        name: "LT_NO_BROWSER",
+        default: "off",
+        meaning: "1/true/on/yes: a passkey prompt shows its page's address (for a browser on another device that \
+                  reaches this one's loopback, e.g. over ssh -L) instead of opening a browser here",
+    },
+    EnvVar {
+        name: "LT_PRESENCE_PORT",
+        default: "any free port",
+        meaning: "the 127.0.0.1 port a passkey prompt listens on for the browser's answer; fix it to forward it \
+                  ahead of time (ssh -L PORT:127.0.0.1:PORT)",
+    },
     EnvVar { name: "LT_AGENT_TOOLS", default: "on", meaning: "0/false/off/no turns off agent tools for turns run on this device" },
     EnvVar {
         name: "LT_RUN_COMMAND",
@@ -476,6 +488,7 @@ pub const RECORDS: &[(&str, &[&[&str]])] = &[
     ("proposal-changed", &[&["id", "status", "votes", "title"]]),
     ("presence", &[&["id", "kind", "digest", "summary", "answers"]]),
     ("presence-problem", &[&["id", "error"]]),
+    ("presence-url", &[&["id", "port", "url", "note"]]),
     ("presence-done", &[&["id", "result", "error"]]),
     ("sync", &[&["workspace", "status"]]),
     ("run-changed", &[&["id", "status", "name", "done"]]),
@@ -529,7 +542,7 @@ pub fn record_json(line: &str) -> String {
 }
 
 /// Fields that are numbers in JSON (an empty or `-` value is `null`).
-pub const NUMBER_FIELDS: &[&str] = &["n", "added", "removed", "turns", "uncosted", "cost_usd", "progress", "open"];
+pub const NUMBER_FIELDS: &[&str] = &["n", "added", "removed", "turns", "uncosted", "cost_usd", "progress", "open", "port"];
 
 /// A field's JSON value when it isn't a string: a number for the numeric
 /// fields (and a passkey prompt's id), `true`/`false` for a toggle setting.
@@ -681,9 +694,11 @@ field is written \\n (a backslash is \\\\), so it can't forge a record.
 
 One-shot: lt COMMAND [ARGS...] (or lt --plain COMMAND ...) runs one command,
 prints only its records (and any passkey prompt it raises) and exits. On a new
-device, --name NAME names its identity for create, join or connect. --workspace picks the workspace;
-passkey confirmations open the browser, or use --recovery-words-file PATH. A new
-passkey (create, connect) always needs the browser.
+device, --name NAME names its identity for create, join or connect.
+--workspace picks the workspace. Passkey confirmations open the browser, or use
+--recovery-words-file PATH. A new passkey (create, connect) needs a browser:
+here, or with LT_NO_BROWSER=1 one on another device (a presence-url record;
+lt help troubleshooting).
 
   lt --plain runs
   lt --plain --workspace Apiary run 1 \"fix the flaky test\"
@@ -875,8 +890,26 @@ A keychain password prompt on macOS, or no keychain at all (a container, CI)
 Passkeys with no browser (SSH, a headless box)
   Confirmations take your 24 recovery words from an owner-only file: press f
   at the prompt, use confirm ID file PATH, or start with --recovery-words-file.
-  \"others can read ...\": chmod 600 the file. Creating a passkey (create,
-  connect) needs a browser.
+  \"others can read ...\": chmod 600 the file.
+
+  Creating a passkey (create, connect) needs a browser somewhere, because the
+  passkey lives in a browser's authenticator (Touch ID, a phone, a security
+  key) and the passkey page hands its answer back to lt on 127.0.0.1. With no
+  browser on this device, use one on another device that reaches this one's
+  loopback over SSH:
+    # on the device with the browser:
+    ssh -L 8765:127.0.0.1:8765 THIS-HOST
+    # on THIS-HOST, in that session:
+    LT_NO_BROWSER=1 LT_PRESENCE_PORT=8765 lt --name Ada create Apiary --out words.txt
+  lt prints the page's address (a presence-url record, or below the prompt in
+  the app) instead of opening a browser; open it on the other device. The
+  address holds a one-time secret for that prompt: don't paste it anywhere
+  else. Printing the address alone isn't enough: without the port forward the
+  other browser's answer goes to its own 127.0.0.1, not to lt.
+
+  To put a headless device in a workspace without any passkey, join instead:
+  create the workspace where a browser is (the desktop app, or lt on your
+  laptop), invite this device, then lt --name NAME join CODE here.
 
 \"unknown command\" (exit 2)
   lt help lists the commands; lt help COMMAND explains one. A command runs

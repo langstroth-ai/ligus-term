@@ -71,7 +71,8 @@ pub struct Args {
     pub workspace: Option<String>,
     /// Answer passkey confirmations in plain mode with this recovery-words
     /// file (owner-only, chmod 600), instead of the browser. A new passkey
-    /// (create, connect) always needs the browser.
+    /// (create, connect) needs a browser: here, or with LT_NO_BROWSER=1 one
+    /// on another device (lt help troubleshooting).
     #[arg(long, value_name = "PATH")]
     pub recovery_words_file: Option<PathBuf>,
     /// Run this one command in plain mode and exit (0 ok, 1 an error or an

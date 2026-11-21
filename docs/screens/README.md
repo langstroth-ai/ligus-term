@@ -59,6 +59,7 @@ INSTA_UPDATE=always LT_WRITE_SCREENS=1 cargo test --test screens
 | Admit a box: the sealed admission | [admit_box_sealed.md](admit_box_sealed.md) |
 | Passkey sheet | [presence.md](presence.md) |
 | Passkey sheet: recovery-words file | [presence_recovery.md](presence_recovery.md) |
+| Passkey sheet with no browser here: the address for another device | [presence_no_browser.md](presence_no_browser.md) |
 | Notifications | [notifications.md](notifications.md) |
 | Settings | [settings.md](settings.md) |
 | Help: keybindings | [help.md](help.md) |

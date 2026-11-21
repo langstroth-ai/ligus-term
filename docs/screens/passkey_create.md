@@ -12,20 +12,20 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
                                  ┃Ligus is short for ligustica, the Italian honeybee.                   ┃
                                  ┃This terminal is its own Ligus device, with its own keys.             ┃
                                  ┃Safety code    4821 0937 5512  (compare it with people you invite)    ┃
-                    ┏ Create a passkey ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓              ┃
-          ▄▀▀▄▄   ▄▄┃Create a Ligus passkey for “Bee Yard”                               ┃              ┃
-        ▀▀▀▀▀▀▀▀ ▀▀▀┃                                                                    ┃              ┃
-        ▀▀▀▀▀▀▀▀ ▀▀▀┃Event   passkeyRegistered                                           ┃eployment     ┃
-        ▀▀▀▀▀▀▀▀ ▀▀▀┃Digest  575fada78451d68e                                            ┃              ┃
-     ▄▀▀▀▄▄▀▀▄▄▀▀▀▄▄┃                                                                    ┃              ┃
-    ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀┃Your browser opens the workspace's passkey page (ligus.ai by        ┃vite someone. ┃
-    ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀┃default). Check the digest there matches, then use Touch ID, Windows┃              ┃
-     ▀▀▀▀▀▀▄▄▀▀▀▀▀▀▀┃Hello, your phone or a security key.                                ┃              ┃
-        ▄▄▀▀▀▀▀▄ ▄▀▀┃                                                                    ┃              ┃
-        ▀▀▀▀▀▀▀▀ ▀▀▀┃enter open the browser   esc cancel                                 ┃ quit         ┃
-        ▀▀▀▀▀▀▀▀ ▀▀▀┃                                                                    ┃              ┃
-          ▀▀▀▀▀   ▀▀┃                                                                    ┃              ┃
-                    ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛              ┃
+                                 ┃                                                                      ┃
+          ▄▀▀▄▄   ▄▄┏ Create a passkey ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓              ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀┃Create a Ligus passkey for “Bee Yard”                               ┃              ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀┃                                                                    ┃eployment     ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀┃Event   passkeyRegistered                                           ┃              ┃
+     ▄▀▀▀▄▄▀▀▄▄▀▀▀▄▄┃Digest  575fada78451d68e                                            ┃              ┃
+    ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀┃                                                                    ┃vite someone. ┃
+    ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀┃Your browser opens the workspace's passkey page (ligus.ai by        ┃              ┃
+     ▀▀▀▀▀▀▄▄▀▀▀▀▀▀▀┃default). Check the digest there matches, then use Touch ID, Windows┃              ┃
+        ▄▄▀▀▀▀▀▄ ▄▀▀┃Hello, your phone or a security key.                                ┃              ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀┃                                                                    ┃ quit         ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀┃enter open the browser   esc cancel                                 ┃              ┃
+          ▀▀▀▀▀   ▀▀┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛              ┃
+                                 ┃                                                                      ┃
                                  ┃                                                                      ┃
                                  ┃                                                                      ┃
                                  ┃                                                                      ┃

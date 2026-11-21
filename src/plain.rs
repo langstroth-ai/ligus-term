@@ -246,6 +246,12 @@ pub fn event_line(e: &Event, names: &dyn Fn(&WorkspaceId) -> String) -> Option<S
             format!("presence\t{}\t{}\t{}\t{}\t{how}", p.id.0, esc(&p.kind), esc(&p.digest_short), esc(&p.summary))
         }
         Event::PresenceProblem { id, error } => format!("presence-problem\t{}\t{}", id.0, esc(error)),
+        Event::PresenceUrl { id, url, port } => format!(
+            "presence-url\t{}\t{port}\t{}\topen it in a browser on a device whose 127.0.0.1:{port} reaches this one \
+             (ssh -L {port}:127.0.0.1:{port} THIS-HOST); it is a one-time secret for this prompt",
+            id.0,
+            esc(url)
+        ),
         Event::PresenceDone { id, ok, error } => {
             format!("presence-done\t{}\t{}\t{}", id.0, if *ok { "ok" } else { "failed" }, esc(error.as_deref().unwrap_or("")))
         }
@@ -378,7 +384,11 @@ where
                     let answer = if p.op == PresenceOp::Create { PresenceAnswer::Browser } else { a };
                     let _ = backend.answer_presence(p.id, answer).await;
                 }
-                let quiet = one_shot && !matches!(e, Event::PresencePrompt(_) | Event::PresenceProblem { .. } | Event::PresenceDone { .. });
+                let quiet = one_shot
+                    && !matches!(
+                        e,
+                        Event::PresencePrompt(_) | Event::PresenceProblem { .. } | Event::PresenceUrl { .. } | Event::PresenceDone { .. }
+                    );
                 if !quiet && let Some(line) = event_line(&e, &name_of) {
                     emit(&out, line).await;
                 }

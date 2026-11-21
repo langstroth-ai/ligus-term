@@ -11,21 +11,21 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃  Sam  viewer                                   ┃│  ( ) owner                                               │
 ┃  sff box  contributor  service                 ┃│  ( ) admin                                               │
 ┃                                                ┃│  (•) contributor                                         │
+┃                                                ┃│  ( ) viewer                                              │
+┃                                                ┃│                                                          │
 ┃                   ┏ Confirm with passkey ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                   │
 ┃                   ┃Remove Lin from the workspace                                       ┃                   │
-┃                   ┃                                                                    ┃                   │
+┃                   ┃                                                                    ┃ as a service      │
 ┃                   ┃Event   memberRemoved                                               ┃                   │
-┃                   ┃Digest  405d68465fd0fa10                                            ┃ as a service      │
-┃                   ┃                                                                    ┃                   │
+┃                   ┃Digest  405d68465fd0fa10                                            ┃                   │
+┃                   ┃                                                                    ┃your passkey.      │
 ┃                   ┃Path to a file holding your 24 recovery words (chmod 600):          ┃                   │
-┃                   ┃› ~/ligus-words.txt▏                                                ┃your passkey.      │
+┃                   ┃› ~/ligus-words.txt▏                                                ┃                   │
 ┃                   ┃                                                                    ┃                   │
 ┃                   ┃enter confirm   esc back                                            ┃                   │
-┃                   ┃                                                                    ┃                   │
-┃                   ┃                                                                    ┃                   │
-┃                   ┃                                                                    ┃                   │
-┃                   ┃                                                                    ┃                   │
 ┃                   ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                   │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │

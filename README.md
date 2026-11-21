@@ -434,6 +434,24 @@ a file holding your 24 recovery words, the same file the `ligus` CLI's
 `--recovery-words-file` flag takes. It must be readable only by you
 (`chmod 600`).
 
+Creating a passkey (`create`, `connect`) can't use the recovery words: the
+new passkey lives in a browser's authenticator. With no browser on this
+device, use one on another device that reaches this one's loopback over
+SSH. `LT_NO_BROWSER=1` shows the passkey page's address instead of opening
+a browser, and `LT_PRESENCE_PORT` fixes the port so it can be forwarded
+ahead of time:
+
+```sh
+ssh -L 8765:127.0.0.1:8765 box          # from the device with the browser
+LT_NO_BROWSER=1 LT_PRESENCE_PORT=8765 lt --name Ada create Apiary --out words.txt
+```
+
+Open the address it prints (a `presence-url` record; in the app, below the
+prompt) on the other device. The address is a one-time secret for that
+prompt. Or skip the passkey on that box: create the workspace where a
+browser is, invite the box, and `lt --name NAME join CODE` there. `lt help
+troubleshooting` has the details.
+
 ## Configure
 
 The config file is `~/.config/ligus-term/config.toml` on Linux and
@@ -475,6 +493,8 @@ app's or the CLI's.
 | `LT_AGENT_TOOLS` | `0` turns off agent tools for turns run here (default on) |
 | `LT_RUN_COMMAND` | `1` allows the `run_command` shell tool where the chat allows it (default off) |
 | `LIGUS_SECRET_BACKEND` | the secret store (`file` for owner-only files) |
+| `LT_NO_BROWSER` | `1`: passkey prompts show the page's address for a browser on another device |
+| `LT_PRESENCE_PORT` | the loopback port passkey prompts listen on (default any free port) |
 | `NO_COLOR` | the mono theme, unless a theme is set |
 
 `lt help env` lists every variable `lt` reads, with its default, including

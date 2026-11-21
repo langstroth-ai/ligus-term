@@ -124,6 +124,13 @@ pub enum Event {
         ok: bool,
         error: Option<String>,
     },
+    /// No browser here: the passkey page's address for a browser on
+    /// another device, and the loopback port it must reach.
+    PresenceUrl {
+        id: PresenceId,
+        url: String,
+        port: u16,
+    },
     /// Sync status, shown in the status bar.
     Sync {
         workspace: WorkspaceId,

@@ -74,6 +74,12 @@ impl std::fmt::Display for HandOffError {
 /// sessions, which print the path instead) can stand in.
 pub trait Opener: Send + Sync {
     fn open(&self, page: &Path) -> io::Result<()>;
+    /// Open the page whose address is `url`. The default opens the private
+    /// redirect page; an opener that shows the address for a browser on
+    /// another device (no browser here) uses `url`.
+    fn open_url(&self, page: &Path, _url: &str) -> io::Result<()> {
+        self.open(page)
+    }
 }
 
 /// `open` on macOS, `xdg-open` elsewhere. The argument is the redirect
@@ -188,24 +194,28 @@ pub fn redirect_page(dir: &Path, url: &str) -> io::Result<PathBuf> {
     Ok(path)
 }
 
-/// Run one ceremony: listen, open the browser, wait for `POST /<nonce>`.
-/// `cancel` resolving stops the wait (the sheet's Cancel, or the person
-/// choosing the recovery-words file instead).
+/// Run one ceremony: listen on `127.0.0.1:port` (0: any free port), open
+/// the browser, wait for `POST /<nonce>`. `cancel` resolving stops the wait
+/// (the sheet's Cancel, or the person choosing the recovery-words file
+/// instead).
 pub async fn hand_off(
     presence_dir: &Path,
     page_url: &str,
     fragment: &str,
     opener: &dyn Opener,
+    port: u16,
     cancel: impl std::future::Future<Output = ()>,
     wait: Duration,
 ) -> Result<HandOff, HandOffError> {
     let io = |e: io::Error| HandOffError::Io(e.to_string());
-    let listener = TcpListener::bind("127.0.0.1:0").await.map_err(io)?;
+    let listener = TcpListener::bind(("127.0.0.1", port))
+        .await
+        .map_err(|e| HandOffError::Io(format!("couldn't listen on 127.0.0.1:{port} for the passkey page: {e}")))?;
     let port = listener.local_addr().map_err(io)?.port();
     let nonce = nonce().map_err(io)?;
     let url = format!("{page_url}#{fragment}&p={port}&n={nonce}");
     let page = redirect_page(presence_dir, &url).map_err(|e| HandOffError::Io(format!("couldn't prepare the passkey page: {e}")))?;
-    if let Err(e) = opener.open(&page) {
+    if let Err(e) = opener.open_url(&page, &url) {
         let _ = std::fs::remove_file(&page);
         return Err(HandOffError::Browser(e.to_string()));
     }
@@ -419,7 +429,7 @@ mod tests {
         let pdir = dir.path().join("presence");
         let browser = FakeBrowser { seen_url: Mutex::new(None), wrong_nonce_first: true };
         let frag = get_fragment("ligus.ai", "Y2hhbA", &["cred1".into()], "memberRemoved", "Remove Ada");
-        let r = hand_off(&pdir, DEFAULT_PAGE_URL, &frag, &browser, std::future::pending(), Duration::from_secs(10)).await.unwrap();
+        let r = hand_off(&pdir, DEFAULT_PAGE_URL, &frag, &browser, 0, std::future::pending(), Duration::from_secs(10)).await.unwrap();
         assert_eq!(r.credential_id, "abc");
         assert_eq!(r.signature, "c2ln");
         let url = browser.seen_url.lock().unwrap().clone().unwrap();
@@ -444,9 +454,9 @@ mod tests {
     #[tokio::test]
     async fn cancel_and_timeout() {
         let dir = tempfile::tempdir().unwrap();
-        let r = hand_off(dir.path(), DEFAULT_PAGE_URL, "op=get", &NoBrowser, async {}, Duration::from_secs(10)).await;
+        let r = hand_off(dir.path(), DEFAULT_PAGE_URL, "op=get", &NoBrowser, 0, async {}, Duration::from_secs(10)).await;
         assert_eq!(r, Err(HandOffError::Cancelled));
-        let r = hand_off(dir.path(), DEFAULT_PAGE_URL, "op=get", &NoBrowser, std::future::pending(), Duration::from_millis(20)).await;
+        let r = hand_off(dir.path(), DEFAULT_PAGE_URL, "op=get", &NoBrowser, 0, std::future::pending(), Duration::from_millis(20)).await;
         assert_eq!(r, Err(HandOffError::TimedOut));
     }
 
@@ -473,7 +483,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let browser = Staller(FakeBrowser { seen_url: Mutex::new(None), wrong_nonce_first: false });
         let started = std::time::Instant::now();
-        let r = hand_off(dir.path(), DEFAULT_PAGE_URL, "op=get", &browser, std::future::pending(), Duration::from_secs(4)).await;
+        let r = hand_off(dir.path(), DEFAULT_PAGE_URL, "op=get", &browser, 0, std::future::pending(), Duration::from_secs(4)).await;
         assert_eq!(r.map(|h| h.credential_id), Ok("abc".to_string()), "after {:?}", started.elapsed());
     }
 

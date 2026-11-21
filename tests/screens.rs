@@ -648,3 +648,24 @@ async fn confirm_quit_and_cancel_run() {
     h.key(KeyCode::Char('y')).await;
     assert!(h.screen(W, H).contains("canceled"), "{}", h.screen(W, H));
 }
+
+/// No browser on this device (LT_NO_BROWSER): the prompt shows the page's
+/// address below the sheet, full width, for a browser on another device.
+#[tokio::test]
+async fn presence_without_a_browser_here() {
+    use ligus_term::app::state::PresenceStage;
+    let mut h = demo().await;
+    h.key(KeyCode::Char('m')).await;
+    h.key(KeyCode::Down).await;
+    h.key(KeyCode::Down).await;
+    h.key(KeyCode::Char('X')).await;
+    h.key(KeyCode::Char('y')).await;
+    let p = h.state.presence.front_mut().expect("a passkey prompt");
+    p.stage = PresenceStage::WaitingBrowser;
+    let url = "https://ligus.ai/presence#op=get&rp=ligus.ai&c=Y2hhbGxlbmdl&cred=&k=memberRemoved&s=Remove%20Lin&p=8765&n=bm9uY2Utbm9uY2U";
+    p.remote = Some((url.into(), 8765));
+    let screen = h.screen(W, H);
+    assert!(screen.lines().any(|l| l.starts_with("https://ligus.ai/presence#op=get")), "{screen}");
+    assert!(screen.contains("8765:127.0.0.1:8765"), "{screen}");
+    snap("presence_no_browser", "Passkey sheet with no browser here: the address for another device", screen);
+}

@@ -72,6 +72,12 @@ pub struct RealConfig {
     pub opener: Arc<dyn Opener>,
     /// How long a passkey prompt waits for the browser.
     pub presence_wait: Duration,
+    /// The loopback port passkey prompts listen on (`LT_PRESENCE_PORT`; 0:
+    /// any free port).
+    pub presence_port: u16,
+    /// Show the passkey page's address instead of opening a browser
+    /// (`LT_NO_BROWSER`), for a browser on another device.
+    pub no_browser: bool,
     /// Answer with the Claude Code CLI when a chat or agent names no
     /// workspace runtime (the desktop's keyless fallback). Off in tests.
     pub cli_fallback: bool,
@@ -105,6 +111,8 @@ impl RealConfig {
             sync_every: Duration::from_secs(3),
             opener: Arc::new(presence::SystemOpener),
             presence_wait: presence::WAIT,
+            presence_port: 0,
+            no_browser: false,
             cli_fallback: true,
             beat_every: Duration::from_secs(ligus_runtime::host_presence::HOST_BEAT_EVERY_SECS as u64),
             stage_timeout: Duration::from_secs(300),
@@ -201,8 +209,10 @@ impl RealBackend {
         let secrets = ligus_runtime::secret_store::init_for_data_dir(&cfg.data_dir, None);
         let rt = tokio::runtime::Handle::try_current().map_err(|e| e.to_string())?;
         let (tx, _) = broadcast::channel(4096);
-        let presence =
-            Arc::new(TermPresence::new(tx.clone(), rt.clone(), cfg.data_dir.join("presence"), cfg.opener.clone(), cfg.presence_wait));
+        let presence = Arc::new(
+            TermPresence::new(tx.clone(), rt.clone(), cfg.data_dir.join("presence"), cfg.opener.clone(), cfg.presence_wait)
+                .hand_off_on(cfg.presence_port, cfg.no_browser),
+        );
         let list = WorkspaceList::load(&cfg.data_dir, secrets.as_ref(), SECRET_SCOPE);
         let inner = Arc::new(Inner {
             local: Mutex::new(LocalState::load(&cfg.data_dir)),

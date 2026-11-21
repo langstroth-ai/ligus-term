@@ -31,6 +31,11 @@ pub struct TermPresence {
     presence_dir: PathBuf,
     opener: Arc<dyn Opener>,
     wait: Duration,
+    /// The loopback port the hand-off listens on (0: any free one).
+    port: u16,
+    /// Show the hand-off page's address instead of opening a browser here
+    /// (for a browser on another device that reaches this loopback).
+    no_browser: bool,
 }
 
 /// What a ceremony asks the browser for.
@@ -47,7 +52,25 @@ impl TermPresence {
         opener: Arc<dyn Opener>,
         wait: Duration,
     ) -> Self {
-        Self { tx, pending: Mutex::new(HashMap::new()), next: AtomicU64::new(1), rt, presence_dir, opener, wait }
+        Self {
+            tx,
+            pending: Mutex::new(HashMap::new()),
+            next: AtomicU64::new(1),
+            rt,
+            presence_dir,
+            opener,
+            wait,
+            port: 0,
+            no_browser: false,
+        }
+    }
+
+    /// Listen on `port` (0: any) and, with `no_browser`, show the page's
+    /// address in the prompt instead of opening a browser on this device.
+    pub fn hand_off_on(mut self, port: u16, no_browser: bool) -> Self {
+        self.port = port;
+        self.no_browser = no_browser;
+        self
     }
 
     /// Deliver the person's answer to prompt `id`.
@@ -118,11 +141,14 @@ impl TermPresence {
                 }
                 Some(PresenceAnswer::Browser) => {
                     let mut interrupt = None;
+                    let show = ShowUrl { tx: self.tx.clone(), id, port: self.port };
+                    let opener: &dyn Opener = if self.no_browser { &show } else { self.opener.as_ref() };
                     let r = presence::hand_off(
                         &self.presence_dir,
                         &req.policy.page_url(),
                         &fragment(req, ask),
-                        self.opener.as_ref(),
+                        opener,
+                        self.port,
                         async { interrupt = rx.recv().await },
                         self.wait,
                     )
@@ -149,6 +175,29 @@ impl TermPresence {
         let key = RecoveryKey::from_words(&words.join(" ")).map_err(|e| Fixable(format!("those words aren't a recovery key: {}", e.0)))?;
         // The recovery key signs the very challenge requested.
         Ok(key.assert(&req.challenge))
+    }
+}
+
+/// No browser here: the prompt shows the hand-off page's address, to open
+/// in a browser on another device whose `127.0.0.1:<port>` reaches this
+/// one's (an SSH port forward). The address carries the prompt's one-time
+/// nonce and challenge, so it goes to this prompt only, never to a file or
+/// a command line.
+struct ShowUrl {
+    tx: broadcast::Sender<Event>,
+    id: PresenceId,
+    port: u16,
+}
+
+impl Opener for ShowUrl {
+    fn open(&self, _: &std::path::Path) -> std::io::Result<()> {
+        Err(std::io::Error::other("no browser on this device"))
+    }
+    fn open_url(&self, _: &std::path::Path, url: &str) -> std::io::Result<()> {
+        // The port actually listened on, from the address itself.
+        let port = url.rsplit("&p=").next().and_then(|r| r.split('&').next()).and_then(|p| p.parse().ok()).unwrap_or(self.port);
+        let _ = self.tx.send(Event::PresenceUrl { id: self.id, url: url.to_string(), port });
+        Ok(())
     }
 }
 
@@ -231,6 +280,57 @@ mod tests {
             summary: "Remove member x".into(),
             policy: ligus_core::presence::PresencePolicy::ligus(),
         }
+    }
+
+    /// No browser here: the prompt shows the page's address (on the fixed
+    /// port, never opening a browser), and a browser elsewhere that reaches
+    /// that port (here: this test) answers the very challenge.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn no_browser_shows_the_address_and_takes_the_answer_on_the_fixed_port() {
+        let tmp = tempfile::tempdir().unwrap();
+        let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+        let (tx, mut rx) = broadcast::channel(64);
+        let p = Arc::new(
+            TermPresence::new(
+                tx,
+                tokio::runtime::Handle::current(),
+                tmp.path().join("presence"),
+                Arc::new(NoBrowser),
+                Duration::from_secs(5),
+            )
+            .hand_off_on(port, true),
+        );
+        let p2 = p.clone();
+        let asked = tokio::task::spawn_blocking(move || p2.confirm(&request()));
+        let mut shown = None;
+        while let Ok(e) = rx.recv().await {
+            match e {
+                Event::PresencePrompt(pr) => p.answer(pr.id, PresenceAnswer::Browser).unwrap(),
+                Event::PresenceUrl { url, port: shown_port, .. } => {
+                    assert_eq!(shown_port, port);
+                    assert!(url.starts_with("https://ligus.ai/presence#op=get") && url.contains(&format!("&p={port}&n=")), "{url}");
+                    let nonce = url.rsplit("&n=").next().unwrap().to_string();
+                    let client = b64url(format!("{{\"challenge\":\"{}\"}}", b64url(&[7u8; 32])).as_bytes());
+                    shown = Some(url);
+                    std::thread::spawn(move || {
+                        use std::io::{Read, Write};
+                        let body = format!("credentialId=abc&clientDataJSON={client}&signature=c2ln&authenticatorData=YXV0aA");
+                        let mut s = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
+                        write!(s, "POST /{nonce} HTTP/1.1\r\nHost: x\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: {}\r\n\r\n{body}", body.len()).unwrap();
+                        let mut resp = String::new();
+                        let _ = s.read_to_string(&mut resp);
+                    });
+                }
+                Event::PresenceProblem { error, .. } => panic!("{error}"),
+                Event::PresenceDone { ok, error, .. } => {
+                    assert!(ok, "{error:?}");
+                    break;
+                }
+                _ => {}
+            }
+        }
+        assert!(shown.is_some());
+        assert_eq!(asked.await.unwrap().unwrap().credential_id, "abc");
     }
 
     fn words_file(dir: &std::path::Path, text: &str) -> String {

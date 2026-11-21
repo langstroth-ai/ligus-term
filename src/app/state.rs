@@ -207,6 +207,9 @@ pub struct PresenceSheet {
     pub prompt: PresencePrompt,
     pub stage: PresenceStage,
     pub error: Option<String>,
+    /// No browser here: the page's address for another device's browser,
+    /// and the loopback port that browser must reach.
+    pub remote: Option<(String, u16)>,
 }
 
 #[allow(clippy::large_enum_variant)]

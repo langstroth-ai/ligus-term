@@ -409,6 +409,24 @@ fn presence(f: &mut Frame, area: Rect, p: &PresenceSheet, queued: usize, t: &The
             keys.extend([Span::styled("esc", t.accent()), Span::styled(" cancel", t.text())]);
             lines.push(Line::from(keys));
         }
+        PresenceStage::WaitingBrowser if p.remote.is_some() => {
+            let port = p.remote.as_ref().map(|r| r.1).unwrap_or(0);
+            lines.push(Line::styled(
+                format!(
+                    "No browser on this device: open the address below in a browser on another device whose \
+                     127.0.0.1:{port} reaches this one (ssh -L {port}:127.0.0.1:{port} to this host)."
+                ),
+                t.text(),
+            ));
+            lines.push(Line::styled("It is a one-time secret for this prompt: don't paste it anywhere else.", t.dim()));
+            lines.push(Line::raw(""));
+            let mut keys = vec![];
+            if !create {
+                keys.extend([Span::styled("f", t.accent()), Span::styled(" use recovery-words file   ", t.text())]);
+            }
+            keys.extend([Span::styled("esc", t.accent()), Span::styled(" cancel", t.text())]);
+            lines.push(Line::from(keys));
+        }
         PresenceStage::WaitingBrowser => {
             lines.push(Line::styled("Waiting for your passkey… finish in the browser.", t.fg(t.warn)));
             lines.push(Line::styled("No browser here (SSH)? Use the recovery-words file instead.", t.dim()));
@@ -441,7 +459,22 @@ fn presence(f: &mut Frame, area: Rect, p: &PresenceSheet, queued: usize, t: &The
     if queued > 1 {
         lines.push(Line::styled(format!("{} more waiting", queued - 1), t.dim()));
     }
-    let r = center(area, 70, lines.len() as u16 + 6);
+    // The address goes below the sheet, full width and borderless, so a
+    // selection copies only the address (a browser drops the line breaks).
+    let url_rows = match (&p.stage, &p.remote) {
+        (PresenceStage::WaitingBrowser, Some((url, _))) => super::wrap(url, area.width.max(1) as usize).len() as u16,
+        _ => 0,
+    };
+    let sheet_w = 70.min(area.width);
+    let sheet_h = lines.iter().map(|l| super::wrap(&l.to_string(), sheet_w.saturating_sub(2) as usize).len() as u16).sum::<u16>() + 2;
+    let r = center(area, sheet_w, sheet_h + url_rows);
+    let r = Rect { height: r.height.saturating_sub(url_rows), ..r };
     f.render_widget(Clear, r);
     f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }).block(pane(title, true, t)), r);
+    if let (PresenceStage::WaitingBrowser, Some((url, _))) = (&p.stage, &p.remote) {
+        let u = Rect { x: area.x, y: r.bottom(), width: area.width, height: url_rows.min(area.bottom().saturating_sub(r.bottom())) };
+        f.render_widget(Clear, u);
+        let rows: Vec<Line> = super::wrap(url, area.width.max(1) as usize).into_iter().map(|l| Line::styled(l, t.accent())).collect();
+        f.render_widget(Paragraph::new(rows), u);
+    }
 }

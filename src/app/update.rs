@@ -606,7 +606,7 @@ fn event(s: &mut State, e: Event) -> Vec<Effect> {
             vec![]
         }
         Event::PresencePrompt(p) => {
-            s.presence.push_back(PresenceSheet { prompt: p, stage: PresenceStage::Asking, error: None });
+            s.presence.push_back(PresenceSheet { prompt: p, stage: PresenceStage::Asking, error: None, remote: None });
             vec![]
         }
         Event::PresenceProblem { id, error } => {
@@ -615,6 +615,12 @@ fn event(s: &mut State, e: Event) -> Vec<Effect> {
                 if p.stage == PresenceStage::WaitingBrowser {
                     p.stage = PresenceStage::Asking;
                 }
+            }
+            vec![]
+        }
+        Event::PresenceUrl { id, url, port } => {
+            if let Some(p) = s.presence.iter_mut().find(|p| p.prompt.id == id) {
+                p.remote = Some((url, port));
             }
             vec![]
         }

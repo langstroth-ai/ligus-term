@@ -1,0 +1,36 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[AT] [QR]• Apiary Tracker · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
+┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Member ──────────────────────────────────────────────────╮
+┃  Mara · you  owner  founder                    ┃│Lin  contributor                                          │
+┃  Ada  admin                                    ┃│                                                          │
+┃  Lin  contributor                              ┃│Role (r)                                                  │
+┃  Sam  viewer                                   ┃│  ( ) owner                                               │
+┃  sff box  contributor  service                 ┃│  ( ) admin                                               │
+┃                                                ┃│  (•) contributor                                         │
+┃                   ┏ Confirm with passkey ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                   │
+┃                   ┃Remove Lin from the workspace                                       ┃                   │
+┃                   ┃                                                                    ┃                   │
+┃                   ┃Event   memberRemoved                                               ┃                   │
+┃                   ┃Digest  405d68465fd0fa10                                            ┃ as a service      │
+┃                   ┃                                                                    ┃                   │
+┃                   ┃No browser on this device: open the address below in a browser on   ┃                   │
+┃                   ┃another device whose 127.0.0.1:8765 reaches this one (ssh -L        ┃your passkey.      │
+┃                   ┃8765:127.0.0.1:8765 to this host).                                  ┃                   │
+┃                   ┃It is a one-time secret for this prompt: don't paste it anywhere    ┃                   │
+┃                   ┃else.                                                               ┃                   │
+┃                   ┃                                                                    ┃                   │
+┃                   ┃f use recovery-words file   esc cancel                              ┃                   │
+┃                   ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                   │
+https://ligus.ai/presence#op=get&rp=ligus.ai&c=Y2hhbGxlbmdl&cred=&k=memberRemoved&s=Remove%20Lin&p=8765&n=bm9u
+Y2Utbm9uY2U
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────╯
+↑↓ people  r role  X remove  I invite  B admit box  ? help           peer to peer · lt on this terminal · demo
