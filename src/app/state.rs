@@ -241,6 +241,11 @@ pub enum Overlay {
         checked: Option<JoinRequestCheck>,
         result: Option<BoxAdmission>,
     },
+    /// Add an agent on a runtime of this device: its name.
+    AddAgent {
+        runtime: LocalRuntime,
+        name: TextBuf,
+    },
     /// The input for a workflow run.
     StartRun {
         workflow: WorkflowId,
@@ -359,6 +364,9 @@ pub struct State {
 
     pub agents: Vec<Agent>,
     pub runtimes: Vec<Runtime>,
+    /// What this device could run agents on; `None` while looking.
+    pub local: Option<Vec<LocalRuntime>>,
+    /// Over the agents, then the runtimes available on this device.
     pub agent_sel: Sel,
     pub hosts: Vec<Host>,
     pub host_sel: Sel,
@@ -421,6 +429,7 @@ impl State {
             diff: None,
             agents: vec![],
             runtimes: vec![],
+            local: None,
             agent_sel: Sel::default(),
             hosts: vec![],
             host_sel: Sel::default(),
@@ -538,6 +547,22 @@ impl State {
             View::Notifications => vec![Notifications, Nav, Global],
             View::Settings => vec![Settings, Nav, Global],
         }
+    }
+
+    /// The runtimes found on this device that no agent here uses yet.
+    pub fn available_local(&self) -> Vec<&LocalRuntime> {
+        self.local.iter().flatten().filter(|l| l.available()).collect()
+    }
+
+    /// Rows of the Agents view's list: the agents, then what is available.
+    pub fn agent_rows(&self) -> usize {
+        self.agents.len() + self.available_local().len()
+    }
+
+    /// The available runtime selected in the Agents view, if the selection
+    /// is past the agents.
+    pub fn selected_local(&self) -> Option<&LocalRuntime> {
+        self.agent_sel.index.checked_sub(self.agents.len()).and_then(|i| self.available_local().get(i).copied())
     }
 
     pub fn toast(&mut self, kind: ToastKind, text: impl Into<String>) {

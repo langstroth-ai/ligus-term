@@ -37,6 +37,8 @@ commands (N is a number from the last list, or an id):
   approve N / reject N vote                     apply N [H]  apply on host H (default: first online worker)
   agents / runtimes / hosts / members / notifications / settings
   access N everyone|owner  who can use agent N (yours: everyone, or only you)
+  available            what this device could run agents on (CLIs, Ollama, API keys)
+  add-agent N [NAME]   add runtime N from available as an agent: yours, only you, on this device
   role M ROLE          change a member's role   remove M     remove a member
   invite               create an invite code    admit [REQUEST] [--out FILE]  admit a box (ligusjoin1:,
                        first prints its fingerprint to compare with the box before the passkey prompt;
@@ -72,6 +74,7 @@ struct Session {
     hosts: Vec<Host>,
     workflows: Vec<Workflow>,
     runs: Vec<Run>,
+    local: Vec<LocalRuntime>,
     /// One-shot (`lt --plain COMMAND`): a secret never rides argv or stdout.
     one_shot: bool,
 }
@@ -160,6 +163,8 @@ const COMMANDS: &[&str] = &[
     "members",
     "role",
     "access",
+    "available",
+    "add-agent",
     "remove",
     "invite",
     "admit",
@@ -307,6 +312,7 @@ where
         hosts: vec![],
         workflows: vec![],
         runs: vec![],
+        local: vec![],
         one_shot,
     }));
     if !one_shot {
@@ -1169,6 +1175,60 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                 Err(e) => fail(e.0).await,
             }
         }
+        "available" => match b.local_runtimes(ws.as_ref().unwrap()).await {
+            Ok(l) => {
+                if l.is_empty() {
+                    say("available\tnone\tinstall Claude Code, Codex, the Copilot CLI or agy, start Ollama, or set an API key".into())
+                        .await;
+                }
+                for (i, x) in l.iter().enumerate() {
+                    let state = match (&x.unsupported, x.ready) {
+                        (Some(_), _) => "unsupported",
+                        (None, true) => "ready",
+                        (None, false) => "not ready",
+                    };
+                    let used = if x.used_by.is_empty() {
+                        "unused".to_string()
+                    } else {
+                        format!("used by {}", x.used_by.iter().map(|a| format!("@{a}")).collect::<Vec<_>>().join(" "))
+                    };
+                    say(format!(
+                        "available\t{}\t{}\t{}\t{}\t{}\t{state}\t{}\t{used}\t{}",
+                        i + 1,
+                        esc(&x.id),
+                        x.kind.label(),
+                        esc(x.model.as_deref().unwrap_or("default")),
+                        esc(x.version.as_deref().unwrap_or("")),
+                        esc(x.unsupported.as_deref().unwrap_or(&x.detail)),
+                        esc(&x.suggested_name),
+                    ))
+                    .await;
+                }
+                s.lock().await.local = l;
+            }
+            Err(e) => fail(e.0).await,
+        },
+        "add-agent" => {
+            let w = ws.unwrap();
+            if s.lock().await.local.is_empty() {
+                match b.local_runtimes(&w).await {
+                    Ok(l) => s.lock().await.local = l,
+                    Err(e) => return fail(e.0).await,
+                }
+            }
+            let mut parts = arg.split_whitespace();
+            let which = parts.next().unwrap_or("");
+            let l = { pick(&s.lock().await.local, which, |l| l.id.as_str()).cloned() };
+            let Some(l) = l else { return fail(format!("no runtime {which} (list them with available)")).await };
+            let name = parts.next().map(str::to_string).unwrap_or_else(|| l.suggested_name.clone());
+            match b.add_local_agent(&w, &l.id, &name).await {
+                Ok(handle) => {
+                    s.lock().await.local.clear();
+                    say(format!("ok\tadd-agent\t@{}\t{}\towner\tthis device", esc(&handle), esc(&l.id))).await
+                }
+                Err(e) => fail(e.0).await,
+            }
+        }
         "invite" => match b.create_invite(ws.as_ref().unwrap(), Role::Contributor).await {
             Ok(code) => say(format!("invite\t{}", esc(&code))).await,
             Err(e) => fail(e.0).await,
@@ -1306,6 +1366,31 @@ mod tests {
         let (code, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "access scout owner").await;
         assert_eq!(code, 1, "only its owner: {out}");
         let (code, _) = one_shot(FakeBackend::demo(FakeConfig::instant()), "access coder nobody").await;
+        assert_eq!(code, 1);
+    }
+
+    /// `available` lists what this device could run agents on; `add-agent`
+    /// adds one (yours, only you, this device); nothing found says so.
+    #[tokio::test]
+    async fn available_runtimes_and_add_agent() {
+        let (code, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "available").await;
+        assert_eq!(code, 0);
+        assert!(
+            out.contains(
+                "available\t1\tlocal:claude-code\tClaude Code\tdefault\t2.1.3\tready\tsigned in (claude login)\tused by @primary\t"
+            ),
+            "{out}"
+        );
+        assert!(out.lines().any(|l| l.contains("local:copilot") && l.contains("\tnot ready\t") && l.contains("\tunused\t")), "{out}");
+        let (code, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "add-agent 3").await;
+        assert_eq!((code, out.as_str()), (0, "ok\tadd-agent\t@copilot\tlocal:copilot\towner\tthis device\n"));
+        let (code, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "add-agent local:codex reviewer").await;
+        assert_eq!(code, 1, "a taken name is refused: {out}");
+        assert!(out.contains("already taken"), "{out}");
+        let (code, out) = one_shot(FakeBackend::demo(FakeConfig::instant()).with_local(vec![]), "available").await;
+        assert_eq!(code, 0);
+        assert!(out.starts_with("available\tnone\t"), "{out}");
+        let (code, _) = one_shot(FakeBackend::demo(FakeConfig::instant()), "add-agent 9").await;
         assert_eq!(code, 1);
     }
 

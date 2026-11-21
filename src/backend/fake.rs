@@ -89,6 +89,8 @@ struct World {
     seq: u64,
     clock: Millis,
     presence: HashMap<PresenceId, mpsc::UnboundedSender<PresenceAnswer>>,
+    /// What this "device" has installed (its `used_by` filled per workspace).
+    local: Vec<LocalRuntime>,
 }
 
 impl World {
@@ -135,8 +137,16 @@ impl FakeBackend {
             seq: 100,
             clock: DEMO_NOW,
             presence: HashMap::new(),
+            local: demo_local(),
         };
         Self { world: Arc::new(Mutex::new(world)), tx, cfg }
+    }
+
+    /// The same device with `local` as what is installed on it (empty:
+    /// nothing found).
+    pub fn with_local(self, local: Vec<LocalRuntime>) -> Self {
+        self.lock().local = local;
+        self
     }
 
     /// A device with two workspaces, chats, proposals and people.
@@ -597,6 +607,41 @@ fn agent(id: &str, handle: &str, runtime: &str, host: Option<&str>, role: Option
 
 fn runtime(id: &str, kind: RuntimeKind, model: Option<&str>, configured: bool, active: bool) -> Runtime {
     Runtime { id: RuntimeId::new(id), label: kind.label().into(), kind, model: model.map(Into::into), configured, active }
+}
+
+/// What the demo device has installed: Claude Code and Codex (signed in),
+/// the Copilot CLI (not signed in) and Ollama with one model.
+fn demo_local() -> Vec<LocalRuntime> {
+    let l = |id: &str, kind, model: Option<&str>, version: Option<&str>, ready, detail: &str, name: &str| LocalRuntime {
+        id: RuntimeId::new(id),
+        kind,
+        model: model.map(Into::into),
+        version: version.map(Into::into),
+        ready,
+        detail: detail.into(),
+        used_by: vec![],
+        unsupported: None,
+        suggested_name: name.into(),
+    };
+    vec![
+        l("local:claude-code", RuntimeKind::ClaudeCode, None, Some("2.1.3"), true, "signed in (claude login)", "claude"),
+        l("local:codex", RuntimeKind::Codex, None, Some("0.98.0"), true, "signed in (codex login)", "codex"),
+        l(
+            "local:copilot",
+            RuntimeKind::Copilot,
+            None,
+            Some("1.0.106"),
+            false,
+            "no Copilot CLI login found: run `copilot login` in a terminal",
+            "copilot",
+        ),
+        l("local:ollama/qwen3:8b", RuntimeKind::Ollama, Some("qwen3:8b"), None, true, "Ollama at 127.0.0.1:11434", "qwen3"),
+    ]
+}
+
+/// Every agent's handle and member's name in `ws`.
+fn taken_names(ws: &Ws) -> Vec<String> {
+    ws.agents.iter().map(|a| a.handle.clone()).chain(ws.members.iter().map(|m| m.name.clone())).collect()
 }
 
 fn member(id: &str, name: &str, role: Role, founder: bool, service: bool) -> MemberRec {
@@ -1596,6 +1641,73 @@ impl Backend for FakeBackend {
 
     async fn hosts(&self, workspace: &WorkspaceId) -> Result<Vec<Host>> {
         Ok(self.lock().ws(workspace)?.hosts.clone())
+    }
+
+    async fn local_runtimes(&self, workspace: &WorkspaceId) -> Result<Vec<LocalRuntime>> {
+        let mut w = self.lock();
+        let local = w.local.clone();
+        let ws = w.ws(workspace)?;
+        let taken = taken_names(ws);
+        Ok(local
+            .into_iter()
+            .map(|mut l| {
+                // Used when an agent here names it, or a workspace runtime of
+                // its kind (and model), as the real backend counts it.
+                l.used_by = ws
+                    .agents
+                    .iter()
+                    .filter(|a| a.host.is_none() || a.host.as_ref().is_some_and(|h| h.as_str() == "h-this"))
+                    .filter(|a| {
+                        a.runtime == l.id
+                            || ws.runtimes.iter().any(|r| {
+                                r.id == a.runtime && r.kind == l.kind && (l.model.is_none() || r.model.is_none() || r.model == l.model)
+                            })
+                    })
+                    .map(|a| a.handle.clone())
+                    .collect();
+                l.suggested_name = crate::backend::real::detect::unique_name(&l.suggested_name, &taken);
+                l
+            })
+            .collect())
+    }
+
+    async fn add_local_agent(&self, workspace: &WorkspaceId, runtime: &RuntimeId, name: &str) -> Result<String> {
+        let name = name.trim().trim_start_matches('@').to_string();
+        {
+            let mut w = self.lock();
+            if self.your_role(&mut w, workspace)? < Role::Contributor {
+                return err("a Viewer can't add agents: ask an Admin for Contributor");
+            }
+            let Some(l) = w.local.iter().find(|l| &l.id == runtime).cloned() else {
+                return err(format!("{runtime} isn't a runtime on this device"));
+            };
+            if let Some(why) = &l.unsupported {
+                return err(why.clone());
+            }
+            let id = w.next("a-");
+            let ws = w.ws(workspace)?;
+            if let Some(why) = crate::backend::real::detect::name_refusal(&name, &taken_names(ws)) {
+                return err(why);
+            }
+            if !ws.runtimes.iter().any(|r| &r.id == runtime) {
+                ws.runtimes.push(Runtime {
+                    id: runtime.clone(),
+                    label: format!("{} (this device)", l.kind.label()),
+                    kind: l.kind,
+                    model: l.model.clone(),
+                    configured: true,
+                    active: false,
+                });
+            }
+            ws.agents.push(Agent {
+                access: "owner".into(),
+                shared: false,
+                can_manage: true,
+                ..agent(&id, &name, runtime.as_str(), None, None)
+            });
+        }
+        self.emit(Event::AgentsChanged { workspace: workspace.clone() });
+        Ok(name)
     }
 
     async fn set_agent_access(&self, workspace: &WorkspaceId, agent: &AgentId, everyone: bool) -> Result<()> {

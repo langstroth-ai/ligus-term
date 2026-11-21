@@ -11,6 +11,7 @@ use common::Harness;
 use crossterm::event::KeyCode;
 use ligus_term::app::Msg;
 use ligus_term::backend::Event;
+use ligus_term::backend::fake::FakeBackend;
 use ligus_term::backend::model::*;
 
 const W: u16 = 110;
@@ -293,6 +294,36 @@ async fn agents_and_runtimes() {
     let mut h = demo().await;
     h.key(KeyCode::Char('a')).await;
     snap("agents", "Agents and runtimes", h.screen(W, H));
+}
+
+/// Adding an agent from what this device has: the selected runtime under
+/// "Available on this device", its name prompt, and the agent in the list.
+#[tokio::test]
+async fn agents_add_from_this_device() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char('a')).await;
+    for _ in 0..4 {
+        h.key(KeyCode::Down).await;
+    }
+    h.key(KeyCode::Enter).await;
+    snap("agents_add", "Agents: add one on this device", h.screen(W, H));
+    h.key(KeyCode::Enter).await;
+    let screen = h.screen(W, H);
+    assert!(screen.lines().any(|l| l.contains("@copilot") && l.contains("Only me") && l.contains("This device")), "{screen}");
+    assert!(screen.contains("Added @copilot"), "{screen}");
+    let left: Vec<String> = h.state.available_local().iter().map(|l| l.id.to_string()).collect();
+    assert_eq!(left, vec!["local:ollama/qwen3:8b"]);
+}
+
+/// Nothing found on this device: what to install or set.
+#[tokio::test]
+async fn agents_nothing_on_this_device() {
+    let fake = FakeBackend::demo(Harness::cfg()).with_local(vec![]);
+    let mut h = Harness::with(fake).await;
+    h.key(KeyCode::Char('a')).await;
+    let screen = h.screen(W, H);
+    snap("agents_empty", "Agents: nothing found on this device", screen.clone());
+    assert!(screen.contains("No agent runtime found on this device"), "{screen}");
 }
 
 /// Agent access controls: the agent you own shows this device's usage

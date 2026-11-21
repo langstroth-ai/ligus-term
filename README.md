@@ -226,6 +226,41 @@ device and the workers: online (from heartbeats) or last seen, busy or
 idle, and their agents. Memory (`y`) shows agents' live task state and the
 workspace memory, read-only.
 
+#### Available on this device
+
+Under the agents, "Available on this device" lists what this device could
+run agents on that no agent here uses yet, found the way the desktop app
+finds it at onboarding:
+
+- **CLI agents on `PATH`**: Claude Code (`claude`), Codex (`codex`), the
+  GitHub Copilot CLI (`copilot`) and the Google Antigravity CLI (`agy`).
+  Gemini CLI is listed only to explain that it no longer serves Google AI
+  subscriptions, and can't be added.
+- **A local Ollama server** at `127.0.0.1:11434`: one row per installed
+  model.
+- **Hosted APIs** whose key is in the environment: `ANTHROPIC_API_KEY`,
+  `OPENAI_API_KEY`, `OPENROUTER_API_KEY`. `lt` keeps no provider keys in
+  its own secret store, so there is nothing more to list there.
+
+Each row shows the runtime's kind, model, version and whether it is ready
+(installed and signed in, a key set, or a model pulled), or what to run to
+fix it (`codex login`, `copilot login`, `ollama pull`). Detection never
+sends a prompt or spends quota (a CLI is only asked for `--version`),
+never opens a keychain (a sign-in counts when its file exists or its token
+variable is set; Claude Code's macOS sign-in lives in the keychain, so it
+shows as unchecked and still counts as ready) and never reads or prints a
+key.
+
+Select a row and press `N` or `enter`, name the agent (a free name is
+suggested) and press `enter`. That is the desktop's add-agent path: one
+signed roster event, an agent that is yours, "Only me" until you share it
+with `E`, and runs on this device (an Admin's is pinned to it; a
+Contributor's runs on its owner's device, this one). Its runtime is a
+device-local one (`local:codex`, `local:ollama/qwen3:8b`): a CLI uses its
+own sign-in, a hosted API reads its key from this device's environment at
+each turn. When nothing is found, the section says what to install or set.
+Plain mode: `lt --plain available`, then `lt --plain add-agent N [NAME]`.
+
 ### The proposals queue
 
 Proposals (`p`) gathers code changes, decisions, workflow gates and
@@ -293,6 +328,8 @@ lt --plain watch 2                     # follow run 2 until it ends
 lt --plain gate 2 approve              # approve run 2's waiting gate (or reject)
 lt --plain hosts                       # host  N  ID  LABEL  KIND  online|offline  this device  busy|idle  AGENTS  REPOS
 lt --plain agents                      # agent  N  @HANDLE  RUNTIME  HOST  ROLE  busy|idle|offline  DOING
+lt --plain available                   # available  N  ID  KIND  MODEL  VERSION  ready|not ready|unsupported  DETAIL  unused|used by @A  NAME
+lt --plain add-agent 2 coder           # add runtime 2 from available as @coder: yours, only you, this device
 lt --plain proposals                   # proposal  N  ID  STATUS  VOTES/QUORUM  TITLE  APPLY  change|decision|workflow|gate
 lt --plain apply 3                     # apply proposal 3 on a host (default: the first online worker)
 lt --plain tasks                       # task  CHAT  @AGENT  STATUS  PROGRESS  active|inactive  SUMMARY
@@ -339,7 +376,7 @@ The default keys (all can be rebound, see [Configure](#configure)):
 | Proposals | `A` approve · `R` reject · `O` apply on a host · `W` withdraw the apply request |
 | Diff viewer | `]` / `[` (or `n` / `N`) next and previous hunk · `}` / `{` next and previous file |
 | People | `r` change role · `X` remove · `I` invite · `B` admit a box |
-| Agents | `r` change runtime |
+| Agents | `r` change runtime · `E` who can use it · `N` (or `enter` on a row under "Available on this device") add it as an agent |
 | Hosts | `b` set this device's checkout for apply on host |
 | Notifications | `R` mark all read |
 | Settings | `space` / `enter` toggle |

@@ -28,6 +28,9 @@ pub enum Msg {
     Diff(WorkspaceId, ProposalId, Result<Diff>),
     Agents(WorkspaceId, Result<Vec<Agent>>),
     Runtimes(WorkspaceId, Result<Vec<Runtime>>),
+    LocalRuntimes(WorkspaceId, Result<Vec<LocalRuntime>>),
+    /// An agent added on a runtime of this device: its handle.
+    AgentAdded(WorkspaceId, Result<String>),
     Hosts(WorkspaceId, Result<Vec<Host>>),
     Members(WorkspaceId, Result<Vec<Member>>),
     Notifications(Result<Vec<Notification>>),
@@ -69,6 +72,10 @@ pub enum Effect {
     LoadDiff(WorkspaceId, ProposalId),
     LoadAgents(WorkspaceId),
     LoadRuntimes(WorkspaceId),
+    /// Look for runtimes on this device (CLIs, Ollama, API keys).
+    LoadLocalRuntimes(WorkspaceId),
+    /// Add an agent with this name on a runtime of this device.
+    AddLocalAgent(WorkspaceId, RuntimeId, String),
     LoadHosts(WorkspaceId),
     LoadMembers(WorkspaceId),
     LoadNotifications,
@@ -212,12 +219,25 @@ pub fn update(s: &mut State, msg: Msg) -> Vec<Effect> {
         }
         Msg::Agents(ws, Ok(a)) if is_active(s, &ws) => {
             s.agents = a;
-            s.agent_sel.clamp(s.agents.len());
+            s.agent_sel.clamp(s.agent_rows());
             vec![]
         }
         Msg::Runtimes(ws, Ok(r)) if is_active(s, &ws) => {
             s.runtimes = r;
             vec![]
+        }
+        Msg::LocalRuntimes(ws, Ok(l)) if is_active(s, &ws) => {
+            s.local = Some(l);
+            s.agent_sel.clamp(s.agent_rows());
+            vec![]
+        }
+        Msg::AgentAdded(ws, Ok(handle)) => {
+            s.toast(ToastKind::Ok, format!("Added @{handle}: it runs on this device, and only you can use it (E to share)"));
+            if is_active(s, &ws) {
+                vec![Effect::LoadAgents(ws.clone()), Effect::LoadRuntimes(ws.clone()), Effect::LoadLocalRuntimes(ws)]
+            } else {
+                vec![]
+            }
         }
         Msg::Hosts(ws, Ok(h)) if is_active(s, &ws) => {
             s.hosts = h;
@@ -392,6 +412,8 @@ pub fn update(s: &mut State, msg: Msg) -> Vec<Effect> {
         | Msg::Diff(_, _, Err(e))
         | Msg::Agents(_, Err(e))
         | Msg::Runtimes(_, Err(e))
+        | Msg::LocalRuntimes(_, Err(e))
+        | Msg::AgentAdded(_, Err(e))
         | Msg::Hosts(_, Err(e))
         | Msg::Members(_, Err(e))
         | Msg::Notifications(Err(e))
@@ -418,6 +440,7 @@ pub fn update(s: &mut State, msg: Msg) -> Vec<Effect> {
         | Msg::Diff(..)
         | Msg::Agents(..)
         | Msg::Runtimes(..)
+        | Msg::LocalRuntimes(..)
         | Msg::Hosts(..)
         | Msg::Members(..)
         | Msg::Workflows(..)
@@ -543,7 +566,11 @@ fn event(s: &mut State, e: Event) -> Vec<Effect> {
             vec![Effect::LoadHosts(workspace.clone()), Effect::LoadCheckout(workspace)]
         }
         Event::AgentsChanged { workspace } if is_active(s, &workspace) => {
-            vec![Effect::LoadAgents(workspace.clone()), Effect::LoadMentionables(workspace)]
+            let mut fx = vec![Effect::LoadAgents(workspace.clone()), Effect::LoadMentionables(workspace.clone())];
+            if s.view == View::Agents {
+                fx.extend([Effect::LoadRuntimes(workspace.clone()), Effect::LoadLocalRuntimes(workspace)]);
+            }
+            fx
         }
         Event::WorkspacesChanged => vec![Effect::LoadWorkspaces],
         Event::WorkflowsChanged { workspace } if is_active(s, &workspace) => vec![Effect::LoadWorkflows(workspace)],
@@ -624,7 +651,9 @@ fn paste(s: &mut State, text: &str) -> Vec<Effect> {
                 }
             }
         }
-        (Some(Overlay::NewChat(b)), _) | (Some(Overlay::BindCheckout(b)), _) => b.insert_str(text.trim()),
+        (Some(Overlay::NewChat(b)), _) | (Some(Overlay::BindCheckout(b)), _) | (Some(Overlay::AddAgent { name: b, .. }), _) => {
+            b.insert_str(text.trim())
+        }
         (Some(Overlay::StartRun { input, .. }), _) => input.insert_str(text),
         (Some(Overlay::AdmitBox { request, checked: None, result: None, .. }), _) => request.insert_str(text.trim()),
         (None, Phase::Main) if s.view == View::Chats && s.open_chat.is_some() => {
@@ -923,6 +952,25 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
                 vec![]
             }
         },
+        Overlay::AddAgent { runtime, name } => match k.code {
+            KeyCode::Esc => {
+                s.overlay = None;
+                vec![]
+            }
+            KeyCode::Enter => {
+                let (rt, name) = (runtime.id.clone(), name.text.trim().to_string());
+                if name.is_empty() {
+                    s.toast(ToastKind::Error, "Give the agent a name");
+                    return vec![];
+                }
+                s.overlay = None;
+                ws.map(|w| vec![Effect::AddLocalAgent(w, rt, name)]).unwrap_or_default()
+            }
+            _ => {
+                name.handle(&k);
+                vec![]
+            }
+        },
         Overlay::HostPicker { proposal, sel } => {
             let len = s.hosts.len();
             let mut i = Sel { index: *sel };
@@ -1124,6 +1172,8 @@ pub fn switch_workspace(s: &mut State, id: WorkspaceId) -> Vec<Effect> {
     s.diff = None;
     s.agents.clear();
     s.runtimes.clear();
+    s.local = None;
+    s.agent_sel = Sel::default();
     s.hosts.clear();
     s.members.clear();
     s.mentionables.clear();
@@ -1181,7 +1231,12 @@ fn go(s: &mut State, v: View) -> Vec<Effect> {
                 View::Proposals => vec![Effect::LoadProposals(w)],
                 View::People => vec![Effect::LoadMembers(w)],
                 View::Hosts => vec![Effect::LoadHosts(w.clone()), Effect::LoadCheckout(w)],
-                View::Agents => vec![Effect::LoadAgents(w.clone()), Effect::LoadRuntimes(w.clone()), Effect::LoadHandoffs(w)],
+                View::Agents => vec![
+                    Effect::LoadAgents(w.clone()),
+                    Effect::LoadRuntimes(w.clone()),
+                    Effect::LoadLocalRuntimes(w.clone()),
+                    Effect::LoadHandoffs(w),
+                ],
                 View::Workflows => vec![Effect::LoadWorkflows(w.clone()), Effect::LoadRuns(w)],
                 View::Memory => vec![Effect::LoadTasks(w.clone()), Effect::LoadMemory(w)],
                 _ => vec![],
@@ -1439,6 +1494,25 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             let everyone = a.access != "everyone";
             ws.map(|w| vec![Effect::SetAgentAccess(w, a.id.clone(), everyone)]).unwrap_or_default()
         }
+        AddAgent => {
+            let Some(l) = s.selected_local().cloned() else {
+                let hint = if s.available_local().is_empty() {
+                    "Nothing on this device to add: see \u{201c}Available on this device\u{201d}"
+                } else {
+                    "Select a runtime under \u{201c}Available on this device\u{201d} first"
+                };
+                s.toast(ToastKind::Info, hint);
+                return vec![];
+            };
+            if let Some(why) = &l.unsupported {
+                s.toast(ToastKind::Error, why.clone());
+                return vec![];
+            }
+            let mut name = TextBuf::single();
+            name.insert_str(&l.suggested_name);
+            s.overlay = Some(Overlay::AddAgent { runtime: l, name });
+            vec![]
+        }
         ChangeRuntime => {
             let Some(a) = s.agents.get(s.agent_sel.index) else { return vec![] };
             let configured: Vec<&Runtime> = s.runtimes.iter().filter(|r| r.configured).collect();
@@ -1571,7 +1645,8 @@ fn nav_action(s: &mut State, a: Action) -> Vec<Effect> {
             vec![]
         }
         View::Agents => {
-            list_nav(&mut s.agent_sel, s.agents.len(), a);
+            let rows = s.agent_rows();
+            list_nav(&mut s.agent_sel, rows, a);
             vec![]
         }
         View::Hosts => {
@@ -1678,6 +1753,8 @@ fn select(s: &mut State) -> Vec<Effect> {
                 None => vec![],
             }
         }
+        // Enter on a runtime available on this device adds it as an agent.
+        View::Agents if s.selected_local().is_some() => main_action(s, Action::AddAgent),
         View::People | View::Agents | View::Hosts | View::Memory => vec![],
     }
 }

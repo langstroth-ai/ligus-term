@@ -321,6 +321,38 @@ pub struct Runtime {
     pub active: bool,
 }
 
+/// A runtime found on this device that an agent here could run on: a CLI
+/// agent on `PATH`, a local model server, or a hosted API whose key is in
+/// the environment. Found the way the desktop's onboarding finds them, and
+/// never by sending a prompt (version checks only).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LocalRuntime {
+    /// The id an agent names it by: `local:<provider>[/<model>]`.
+    pub id: RuntimeId,
+    pub kind: RuntimeKind,
+    pub model: Option<String>,
+    /// The CLI's `--version`, when it reported one.
+    pub version: Option<String>,
+    /// Installed and signed in (or its sign-in can't be checked without
+    /// asking, which counts as ready), or a key or a model is there.
+    pub ready: bool,
+    /// How readiness was decided, or what to run to fix it. Never a secret.
+    pub detail: String,
+    /// The agents in this workspace that already run on it, here.
+    pub used_by: Vec<String>,
+    /// Ligus can't drive it (the reason), so it can't become an agent.
+    pub unsupported: Option<String>,
+    /// A name for an agent on it (`claude`, `codex`, ...).
+    pub suggested_name: String,
+}
+
+impl LocalRuntime {
+    /// Detected and not yet used by an agent in this workspace.
+    pub fn available(&self) -> bool {
+        self.used_by.is_empty()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuntimeKind {
     ClaudeCode,

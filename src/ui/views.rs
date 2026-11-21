@@ -23,8 +23,18 @@ fn host_badge(s: &State, host: Option<&crate::backend::model::HostId>) -> (Strin
 }
 
 pub fn agents(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
-    let [top, us, ho, bottom] =
-        Layout::vertical([Constraint::Percentage(45), Constraint::Length(5), Constraint::Length(5), Constraint::Min(4)]).areas(area);
+    let available = s.available_local();
+    // The "Available on this device" pane: one row per runtime (up to five
+    // shown), or the two or three lines of its empty state.
+    let avail_h = 3 + available.len().clamp(2, 5) as u16;
+    let [top, av, us, ho, bottom] = Layout::vertical([
+        Constraint::Min(5),
+        Constraint::Length(avail_h),
+        Constraint::Length(5),
+        Constraint::Length(5),
+        Constraint::Length((s.runtimes.len() as u16 + 3).clamp(4, 8)),
+    ])
+    .areas(area);
     let rows: Vec<Row> = s
         .agents
         .iter()
@@ -68,10 +78,12 @@ pub fn agents(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         ],
     )
     .header(header)
-    .block(pane("Agents", true, t))
+    .block(pane("Agents", s.agent_sel.index < s.agents.len(), t))
     .row_highlight_style(t.selected());
-    let mut st = TableState::default().with_selected(if s.agents.is_empty() { None } else { Some(s.agent_sel.index) });
+    let on_agents = s.agent_sel.index < s.agents.len();
+    let mut st = TableState::default().with_selected(on_agents.then_some(s.agent_sel.index));
     f.render_stateful_widget(table, top, &mut st);
+    local_runtimes(f, av, s, &available, t);
 
     let rows: Vec<Row> = s
         .runtimes
@@ -118,6 +130,69 @@ pub fn agents(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     };
     f.render_widget(Paragraph::new(lines).block(pane("Hand-offs", false, t)), ho);
     f.render_widget(Paragraph::new(usage_lines(s.agents.get(s.agent_sel.index), t)).block(pane("Usage on this device", false, t)), us);
+}
+
+/// What this device could run agents on and no agent here uses yet, each
+/// one a row to add as an agent; or what to install when nothing was found.
+fn local_runtimes(f: &mut Frame, area: Rect, s: &State, available: &[&crate::backend::model::LocalRuntime], t: &Theme) {
+    let selected = s.agent_sel.index.checked_sub(s.agents.len());
+    let add = s.keymap.hint(Context::Agents, Action::AddAgent);
+    let title = if available.is_empty() {
+        "Available on this device".to_string()
+    } else {
+        format!("Available on this device · {add} or enter adds an agent")
+    };
+    let block = pane(&title, selected.is_some(), t);
+    let empty = |lines: Vec<Line<'static>>| Paragraph::new(lines).wrap(Wrap { trim: true }).block(block.clone());
+    match &s.local {
+        None => return f.render_widget(empty(vec![Line::styled("Looking for agent runtimes on this device\u{2026}", t.dim())]), area),
+        Some(all) if all.is_empty() => {
+            return f.render_widget(
+                empty(vec![
+                    Line::styled("No agent runtime found on this device.", t.text()),
+                    Line::styled(
+                        "Install Claude Code, Codex, the GitHub Copilot CLI or the Antigravity CLI (agy), start Ollama, or set \
+                         ANTHROPIC_API_KEY / OPENAI_API_KEY / OPENROUTER_API_KEY, then open this tab again.",
+                        t.dim(),
+                    ),
+                ]),
+                area,
+            );
+        }
+        Some(_) if available.is_empty() => {
+            return f
+                .render_widget(empty(vec![Line::styled("Every runtime found on this device already runs an agent here.", t.dim())]), area);
+        }
+        Some(_) => {}
+    }
+    let rows: Vec<Row> = available
+        .iter()
+        .map(|l| {
+            let status = match (&l.unsupported, l.ready) {
+                (Some(_), _) => Span::styled("can't run", t.dim()),
+                (None, true) => Span::styled("ready", t.fg(t.good)),
+                (None, false) => Span::styled("not ready", t.fg(t.warn)),
+            };
+            let detail = l.unsupported.clone().unwrap_or_else(|| l.detail.clone());
+            Row::new(vec![
+                Span::styled(l.kind.label(), t.text()),
+                Span::styled(l.model.clone().unwrap_or_else(|| "default".into()), t.dim()),
+                Span::styled(l.version.clone().unwrap_or_default(), t.dim()),
+                status,
+                Span::styled(detail, t.dim()),
+            ])
+        })
+        .collect();
+    let header = Row::new(vec!["Runtime", "Model", "Version", "Status", "Detail"]).style(t.dim().add_modifier(Modifier::BOLD));
+    let table = Table::new(
+        rows,
+        [Constraint::Length(24), Constraint::Length(16), Constraint::Length(9), Constraint::Length(10), Constraint::Min(12)],
+    )
+    .header(header)
+    .block(block)
+    .row_highlight_style(t.selected());
+    let mut st = TableState::default().with_selected(selected);
+    f.render_stateful_widget(table, area, &mut st);
 }
 
 /// "Everyone" or "Only its owner" (a shared agent: "Admins only").

@@ -10,13 +10,12 @@ expression: screen
 ┃@reviewer    idle     codex        This device        Everyone               reviews diffs                  ┃
 ┃@scout       idle     ollama       sff · online       Everyone                                              ┃
 ┃                                                                                                            ┃
-┃                                                                                                            ┃
-┃                                                                                                            ┃
-┃                                                                                                            ┃
-┃                                                                                                            ┃
-┃                                                                                                            ┃
-┃                                                                                                            ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+╭ Available on this device · N or enter adds an agent ───────────────────────────────────────────────────────╮
+│Runtime                  Model            Version   Status     Detail                                       │
+│GitHub Copilot CLI       default          1.0.106   not ready  no Copilot CLI login found: run `copilot logi│
+│Ollama (local)           qwen3:8b                   ready      Ollama at 127.0.0.1:11434                    │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭ Usage on this device ──────────────────────────────────────────────────────────────────────────────────────╮
 │Usage is shown to the agent's owner, on the device that runs it.                                            │
 │                                                                                                            │
@@ -32,5 +31,6 @@ expression: screen
 │claude-code   Claude Code              default                            local CLI     Configured · Active │
 │codex         Codex                    default                            local CLI     Configured          │
 │ollama        Ollama (local)           qwen3-coder:30b                    local server  Configured          │
+│copilot       GitHub Copilot CLI       default                            local CLI     Not configured      │
 ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-↑↓ agents  r runtime  E who can use  ? help                                        lt on this terminal · demo
+↑↓ agents  r runtime  E who can use  N add agent  ? help                           lt on this terminal · demo

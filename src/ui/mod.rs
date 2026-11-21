@@ -147,6 +147,7 @@ fn draw_status(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             "↑↓ agents".into(),
             h(C::Agents, ChangeRuntime, "runtime"),
             h(C::Agents, ToggleAccess, "who can use"),
+            h(C::Agents, AddAgent, "add agent"),
             h(C::Global, Help, "help"),
         ],
         (View::Notifications, _) => {

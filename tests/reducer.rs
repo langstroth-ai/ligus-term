@@ -740,3 +740,108 @@ fn binding_a_checkout() {
     }
     assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::SetCheckout(w, None)]);
 }
+
+fn local(id: &str, kind: RuntimeKind, ready: bool, used_by: &[&str], name: &str) -> LocalRuntime {
+    LocalRuntime {
+        id: RuntimeId::new(id),
+        kind,
+        model: None,
+        version: Some("1.0.0".into()),
+        ready,
+        detail: if ready { "signed in".into() } else { "run `codex login`".into() },
+        used_by: used_by.iter().map(|s| s.to_string()).collect(),
+        unsupported: None,
+        suggested_name: name.into(),
+    }
+}
+
+fn agent(handle: &str) -> Agent {
+    Agent {
+        id: AgentId::new(format!("a-{handle}")),
+        handle: handle.into(),
+        runtime: RuntimeId::new("claude-code"),
+        role: None,
+        host: None,
+        shared: false,
+        status: AgentStatus::Idle,
+        doing: None,
+        access: "owner".into(),
+        unavailable: None,
+        can_manage: true,
+        usage: None,
+    }
+}
+
+/// Opening the Agents tab looks for runtimes on this device; the ones no
+/// agent uses follow the agents in the list, and adding one goes through a
+/// name prompt to the backend's add-agent call.
+#[test]
+fn agents_tab_offers_what_this_device_has() {
+    let mut s = main_state();
+    let a = WorkspaceId::new("a");
+    let fx = key(&mut s, KeyCode::Char('a'));
+    assert!(fx.contains(&Effect::LoadLocalRuntimes(a.clone())), "{fx:?}");
+    assert!(s.local.is_none(), "still looking");
+    update(&mut s, Msg::Agents(a.clone(), Ok(vec![agent("primary")])));
+    update(
+        &mut s,
+        Msg::LocalRuntimes(
+            a.clone(),
+            Ok(vec![
+                local("local:claude-code", RuntimeKind::ClaudeCode, true, &["primary"], "claude"),
+                local("local:codex", RuntimeKind::Codex, false, &[], "codex"),
+            ]),
+        ),
+    );
+    assert_eq!(s.available_local().len(), 1, "a runtime an agent uses isn't offered again");
+    assert_eq!(s.agent_rows(), 2);
+    assert!(s.selected_local().is_none());
+    // `N` on an agent row says where to look.
+    assert!(key(&mut s, KeyCode::Char('N')).is_empty());
+    assert!(s.overlay.is_none());
+    key(&mut s, KeyCode::Down);
+    assert_eq!(s.selected_local().map(|l| l.id.as_str()), Some("local:codex"));
+    // Enter on it: the name prompt, prefilled.
+    assert!(key(&mut s, KeyCode::Enter).is_empty());
+    match &s.overlay {
+        Some(Overlay::AddAgent { runtime, name }) => {
+            assert_eq!(runtime.id.as_str(), "local:codex");
+            assert_eq!(name.text, "codex");
+        }
+        o => panic!("{o:?}"),
+    }
+    typed(&mut s, "-2");
+    let fx = key(&mut s, KeyCode::Enter);
+    assert_eq!(fx, vec![Effect::AddLocalAgent(a.clone(), RuntimeId::new("local:codex"), "codex-2".into())]);
+    assert!(s.overlay.is_none());
+    // Added: a toast, and the lists reload.
+    let fx = update(&mut s, Msg::AgentAdded(a.clone(), Ok("codex-2".into())));
+    assert!(fx.contains(&Effect::LoadLocalRuntimes(a.clone())) && fx.contains(&Effect::LoadAgents(a.clone())), "{fx:?}");
+    assert!(s.toasts.last().unwrap().text.contains("@codex-2"));
+    // A refusal is a toast.
+    update(&mut s, Msg::AgentAdded(a.clone(), Err(BackendError("\u{201c}codex\u{201d} is already taken".into()))));
+    assert_eq!(s.toasts.last().unwrap().kind, ToastKind::Error);
+    // While on the Agents tab, a roster change looks again.
+    let fx = update(&mut s, Msg::Event(Event::AgentsChanged { workspace: a.clone() }));
+    assert!(fx.contains(&Effect::LoadLocalRuntimes(a)), "{fx:?}");
+}
+
+#[test]
+fn an_unsupported_cli_is_explained_not_added() {
+    let mut s = main_state();
+    let a = WorkspaceId::new("a");
+    key(&mut s, KeyCode::Char('a'));
+    let mut gemini = local("local:gemini", RuntimeKind::Custom, false, &[], "gemini");
+    gemini.unsupported = Some("Gemini CLI stopped serving Google AI Pro sign-ins; install agy".into());
+    update(&mut s, Msg::LocalRuntimes(a, Ok(vec![gemini])));
+    key(&mut s, KeyCode::Char('N'));
+    assert!(s.overlay.is_none());
+    assert!(s.toasts.last().unwrap().text.contains("install agy"));
+    // Esc on the name prompt cancels without a call.
+    s.overlay = Some(Overlay::AddAgent {
+        runtime: local("local:codex", RuntimeKind::Codex, true, &[], "codex"),
+        name: ligus_term::app::input::TextBuf::single(),
+    });
+    assert!(key(&mut s, KeyCode::Esc).is_empty());
+    assert!(s.overlay.is_none());
+}

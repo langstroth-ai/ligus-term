@@ -317,6 +317,13 @@ fn base_runtime(
 /// allowed) the keyless Claude Code CLI, as the desktop falls back.
 fn runtime_for(i: &Inner, ws: Uuid, runtime_id: &str) -> Result<(ResolvedRuntime, String)> {
     let rts = i.read(ws, |svc| svc.list_workspace_runtimes(ws))?;
+    // A runtime of this device (`local:…`, an agent added from "Available on
+    // this device"), unless a workspace runtime has that id.
+    if !rts.iter().any(|r| r.id == runtime_id)
+        && let Some(rt) = local_runtime(i, runtime_id)?
+    {
+        return Ok((rt, runtime_id.to_string()));
+    }
     let found = rts.iter().find(|r| r.id == runtime_id).or_else(|| rts.iter().find(|r| r.id == "*")).or(if runtime_id.is_empty() {
         rts.first()
     } else {
@@ -330,6 +337,30 @@ fn runtime_for(i: &Inner, ws: Uuid, runtime_id: &str) -> Result<(ResolvedRuntime
         )),
         None => Err(BackendError("no runtime answers here: add a workspace runtime".into())),
     }
+}
+
+/// A device-local runtime (`local:<provider>[/<model>]`): a CLI by its
+/// program, Ollama at the configured server, a hosted API with its key from
+/// this device's environment (read now, never stored).
+fn local_runtime(i: &Inner, runtime_id: &str) -> Result<Option<ResolvedRuntime>> {
+    use super::detect;
+    let Some((provider, model)) = detect::parse_local_id(runtime_id) else { return Ok(None) };
+    let (endpoint, api_key) = match provider {
+        ModelProviderKind::Ollama => {
+            let base = i.cfg.ollama_url.clone().unwrap_or_else(|| detect::OLLAMA_DEFAULT.into());
+            (ligus_runtime::provider::ollama::base_url(&base), None)
+        }
+        p if detect::key_var(p).is_some() => {
+            let var = detect::key_var(p).unwrap_or_default();
+            let key = std::env::var(var).ok().filter(|k| !k.trim().is_empty());
+            let Some(key) = key else { return Err(BackendError(format!("{var} isn't set on this device"))) };
+            (detect::api_endpoint(p).to_string(), Some(key))
+        }
+        p => (detect::program(p).to_string(), None),
+    };
+    let mut rt = base_runtime(provider, model, endpoint, api_key, ligus_core::Driver::default());
+    rt.tools = agent_tools_enabled();
+    Ok(Some(rt))
 }
 
 /// The runtime and policy a turn runs under, as the desktop and the worker

@@ -33,6 +33,8 @@ pub async fn run_effect(b: Arc<dyn Backend>, fx: Effect) -> Msg {
         LoadDiff(w, p) => Msg::Diff(w.clone(), p.clone(), b.proposal_diff(&w, &p).await),
         LoadAgents(w) => Msg::Agents(w.clone(), b.agents(&w).await),
         LoadRuntimes(w) => Msg::Runtimes(w.clone(), b.runtimes(&w).await),
+        LoadLocalRuntimes(w) => Msg::LocalRuntimes(w.clone(), b.local_runtimes(&w).await),
+        AddLocalAgent(w, r, name) => Msg::AgentAdded(w.clone(), b.add_local_agent(&w, &r, &name).await),
         LoadHosts(w) => Msg::Hosts(w.clone(), b.hosts(&w).await),
         LoadMembers(w) => Msg::Members(w.clone(), b.members(&w).await),
         LoadNotifications => Msg::Notifications(b.notifications().await),

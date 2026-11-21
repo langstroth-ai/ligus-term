@@ -37,7 +37,7 @@ What the tests cover:
 | `tests/reducer.rs` | The reducer: messages in, state and effects out, no backend |
 | `tests/keymap.rs` | Default bindings, contexts, typing rules, config overrides and errors |
 | `tests/cli.rs` | The `lt` binary: `--version`, plain mode on a pipe, refusals, the data dir |
-| `tests/real_backend.rs` | The real backend: two devices through the in-process test relay (create, invite, join, chat, streamed replies through both dispatch gates, proposals, vote, apply on host, people, hosts, lockdown), and a device reopened from disk |
+| `tests/real_backend.rs` | The real backend: two devices through the in-process test relay (create, invite, join, chat, streamed replies through both dispatch gates, proposals, vote, apply on host, people, hosts, lockdown), a device reopened from disk, and agent runtimes found on the device (stub `claude` and `codex` on a temporary `PATH`, a fake Ollama) and added as agents |
 | `tests/orchestration.rs` | Orchestration over the real backend: founding a deployment's workspace, admitting a worker-like box, a workflow run end to end (a stage on the box, a gate approved from `lt`, a local stage), host beats, the invite-signature check, the deferred-claim fallback, the checkout binding, one-shot plain mode, and that DM invites and people's presence beats are ignored |
 | `tests/support/` | Helpers for the two above: file secrets, the relay, a fake model, the software passkey, devices |
 | `src/**` unit tests | Fake backend behavior, the presence loopback hand-off, the recovery-words file, data-dir rules, text editing, plain-mode scripts and one-shot records and exit codes |

@@ -377,3 +377,105 @@ async fn an_unusable_relay_url_is_refused_at_open() {
         assert!(r.as_ref().is_err_and(|e| e.contains("LT_RELAY_URL")), "{bad}: accepted");
     }
 }
+
+/// Agent runtimes on this device: stub `claude` and `codex` CLIs on a
+/// temporary `PATH` (they answer `--version` and nothing else) and an
+/// Ollama-shaped server with one model are found, each "available"; adding
+/// one as an agent writes one signed roster event (yours, "Only me", pinned
+/// to this device), after which it is no longer offered. Nothing here reads
+/// the real environment, keychain or home dir.
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn local_runtimes_are_found_and_added_as_agents() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let tmp = tempfile::tempdir().unwrap();
+    let (bin, home) = (tmp.path().join("bin"), tmp.path().join("home"));
+    std::fs::create_dir_all(&bin).unwrap();
+    std::fs::create_dir_all(home.join(".codex")).unwrap();
+    // Codex is signed in (its auth file exists; its content is never read).
+    std::fs::write(home.join(".codex/auth.json"), "not read").unwrap();
+    let misuse = tmp.path().join("misuse.log");
+    for (name, version) in [("claude", "2.1.3 (Claude Code)"), ("codex", "codex-cli 0.98.0")] {
+        let p = bin.join(name);
+        std::fs::write(
+            &p,
+            format!(
+                "#!/bin/sh\nif [ \"$1\" = --version ]; then echo '{version}'; exit 0; fi\necho \"{name} $*\" >> '{}'\nexit 9\n",
+                misuse.display()
+            ),
+        )
+        .unwrap();
+        std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    let ollama = serve(axum::Router::new().route(
+        "/api/tags",
+        axum::routing::get(|| async { axum::Json(serde_json::json!({"models": [{"name": "qwen3:8b", "size": 1, "details": {}}]})) }),
+    ))
+    .await;
+    let relay = serve(ligus_runtime::test_relay::router()).await;
+    let env = ligus_runtime::cli_detect::DetectEnv { path: bin.clone().into_os_string(), home: home.clone(), vars: Default::default() };
+    let d = device_with(&tmp.path().join("ana"), "lt Ana", &relay, |c| {
+        c.detect_env = Some(env);
+        c.ollama_url = Some(ollama.clone());
+    });
+    let ws = d.b.create_workspace("Ana", "Bee Yard").await.unwrap().workspace.id;
+    let wsu = Uuid::parse_str(ws.as_str()).unwrap();
+    assert!(d.b.agents(&ws).await.unwrap().is_empty());
+
+    let found = d.b.local_runtimes(&ws).await.unwrap();
+    let ids: Vec<&str> = found.iter().map(|l| l.id.as_str()).collect();
+    assert_eq!(ids, vec!["local:claude-code", "local:codex", "local:ollama/qwen3:8b"], "{found:?}");
+    let codex = &found[1];
+    assert_eq!((codex.kind, codex.version.as_deref(), codex.ready), (RuntimeKind::Codex, Some("0.98.0"), true));
+    assert_eq!(codex.detail, "signed in (codex login)");
+    assert_eq!(found[0].version.as_deref(), Some("2.1.3"));
+    assert_eq!(found[2].model.as_deref(), Some("qwen3:8b"));
+    assert!(found.iter().all(|l| l.available() && l.unsupported.is_none()));
+    assert_eq!(found.iter().map(|l| l.suggested_name.as_str()).collect::<Vec<_>>(), vec!["claude", "codex", "qwen3"]);
+
+    // Add it: one signed roster event on the workspace-config log.
+    assert_eq!(d.b.add_local_agent(&ws, &RuntimeId::new("local:codex"), "codex").await.unwrap(), "codex");
+    let me = d.b.device_id().unwrap();
+    let svc = d.b.service().unwrap();
+    let (author, events) = tokio::task::spawn_blocking(move || {
+        let svc = svc.lock().unwrap();
+        (svc.author().id.clone(), svc.store().list(workspace_config_session_id(wsu)).unwrap())
+    })
+    .await
+    .unwrap();
+    let added: Vec<_> = events
+        .iter()
+        .filter_map(|e| match &e.payload {
+            ligus_core::SessionEvent::AgentUpserted { agent } if agent.name == "codex" => Some((e, agent)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(added.len(), 1);
+    let (env, agent) = added[0];
+    assert!(env.signature.is_some() && env.signer_device_id == Some(me), "signed by this device");
+    assert_eq!(agent.runtime_id, "local:codex");
+    assert_eq!(agent.owner_actor_id, author);
+    assert_eq!(agent.access, ligus_core::agent::ACCESS_OWNER);
+    assert_eq!(agent.host_id, me.to_string(), "the founder pins it to this device");
+
+    let a = d.b.agents(&ws).await.unwrap();
+    let a = a.iter().find(|a| a.handle == "codex").unwrap();
+    assert_eq!((a.host.as_ref(), a.access.as_str(), a.can_manage, a.shared), (None, "owner", true, false));
+    assert!(d.b.runtimes(&ws).await.unwrap().iter().any(|r| r.id.0 == "local:codex" && r.kind == RuntimeKind::Codex && r.configured));
+    let after = d.b.local_runtimes(&ws).await.unwrap();
+    let codex = after.iter().find(|l| l.id.0 == "local:codex").unwrap();
+    assert_eq!(codex.used_by, vec!["codex".to_string()]);
+    assert!(after.iter().find(|l| l.id.0 == "local:claude-code").unwrap().available());
+
+    // A taken or reserved name, or a runtime this device doesn't name, is refused.
+    let e = d.b.add_local_agent(&ws, &RuntimeId::new("local:claude-code"), "codex").await.unwrap_err();
+    assert!(e.0.contains("already taken"), "{e}");
+    let e = d.b.add_local_agent(&ws, &RuntimeId::new("local:claude-code"), "all").await.unwrap_err();
+    assert!(e.0.contains("reserved"), "{e}");
+    assert!(d.b.add_local_agent(&ws, &RuntimeId::new("gw"), "gateway").await.is_err());
+
+    // The stubs were only ever asked for their version.
+    assert!(!misuse.exists(), "{}", std::fs::read_to_string(&misuse).unwrap_or_default());
+    d.b.shutdown();
+}

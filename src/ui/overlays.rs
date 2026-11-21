@@ -131,6 +131,31 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             f.render_widget(Paragraph::new(lines), inner);
             f.set_cursor_position(Position::new(inner.x + buf.cursor_pos().1 as u16, inner.y));
         }
+        Some(Overlay::AddAgent { runtime, name }) => {
+            let r = center(area, 72, 8);
+            f.render_widget(Clear, r);
+            let block = pane("Add an agent on this device", true, t);
+            let inner = block.inner(r);
+            f.render_widget(block, r);
+            let what = match &runtime.model {
+                Some(m) => format!("{} · {m}", runtime.kind.label()),
+                None => runtime.kind.label().to_string(),
+            };
+            let state = if runtime.ready {
+                Span::styled(format!("  ready · {}", runtime.detail), t.fg(t.good))
+            } else {
+                Span::styled(format!("  not ready · {}", runtime.detail), t.fg(t.warn))
+            };
+            let lines = vec![
+                Line::from(vec![Span::styled("@", t.fg(t.agent)), Span::styled(name.text.clone(), t.text())]),
+                Line::from(vec![Span::styled(what, t.text()), state]),
+                Line::styled("Runs on this device. Only you can use it until you share it (E).", t.dim()),
+                Line::raw(""),
+                Line::styled("enter add · esc cancel", t.dim()),
+            ];
+            f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
+            f.set_cursor_position(Position::new(inner.x + 1 + name.cursor_pos().1 as u16, inner.y));
+        }
         Some(Overlay::HostPicker { sel, .. }) => {
             let items: Vec<ListItem> = s
                 .hosts

@@ -191,6 +191,15 @@ pub trait Backend: Send + Sync {
     async fn agents(&self, workspace: &WorkspaceId) -> Result<Vec<Agent>>;
     async fn runtimes(&self, workspace: &WorkspaceId) -> Result<Vec<Runtime>>;
     async fn hosts(&self, workspace: &WorkspaceId) -> Result<Vec<Host>>;
+    /// What this device could run agents on (CLIs on `PATH`, a local model
+    /// server, API keys in the environment), each with the workspace agents
+    /// already using it. Never prompts for a keychain, never reads a secret's
+    /// value and never sends a prompt: version checks only.
+    async fn local_runtimes(&self, workspace: &WorkspaceId) -> Result<Vec<LocalRuntime>>;
+    /// Add an agent named `name` on a [`LocalRuntime`]: yours, "Only me",
+    /// run on this device (the desktop's add-agent path, one signed roster
+    /// event). Returns its handle.
+    async fn add_local_agent(&self, workspace: &WorkspaceId, runtime: &RuntimeId, name: &str) -> Result<String>;
     async fn set_agent_runtime(&self, workspace: &WorkspaceId, agent: &AgentId, runtime: &RuntimeId) -> Result<()>;
     /// Who may use an agent: only its owner, or everyone (agent access
     /// controls; its owner's to change, an Admin's on a shared agent).

@@ -6,6 +6,18 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ## v0.1.1
 
+### Added
+
+- The Agents tab finds what this device can run agents on, the way the
+  desktop app does at onboarding: Claude Code, Codex, the Copilot and
+  Antigravity CLIs on `PATH` (version and sign-in), a local Ollama server's
+  models, and API keys in the environment. "Available on this device" lists
+  the ones no agent uses yet, with their kind, model and whether they are
+  ready; `N` (or `enter`) adds one as an agent that is yours, "Only me" and
+  runs on this device. With nothing found, it says what to install. Plain
+  mode: `available` and `add-agent N [NAME]`. Detection only runs
+  `--version`, never opens a keychain and never reads a key's value.
+
 ### Fixed
 
 - An invite code is on the relay before `lt` shows it. Creating an invite

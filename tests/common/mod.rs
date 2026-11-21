@@ -36,6 +36,21 @@ impl Harness {
             ..FakeConfig::default()
         };
         let fake = if demo { FakeBackend::demo(cfg) } else { FakeBackend::new(cfg) };
+        Self::with(fake).await
+    }
+
+    /// The fake backend's settings for tests.
+    pub fn cfg() -> FakeConfig {
+        FakeConfig {
+            stream_delay: Duration::ZERO,
+            browser_delay: Duration::from_millis(5),
+            data_dir: "~/.ligus-term".into(),
+            ..FakeConfig::default()
+        }
+    }
+
+    /// A harness over a given fake backend.
+    pub async fn with(fake: FakeBackend) -> Harness {
         let backend: Arc<dyn Backend> = Arc::new(fake);
         let mut state = State::new(backend.device(), Keymap::default(), DEMO_NOW);
         state.config_path = Some("~/.config/ligus-term/config.toml".into());

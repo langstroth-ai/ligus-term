@@ -78,7 +78,8 @@ pub trait Backend: Send + Sync {
     async fn cancel_run(&self, ws: &WorkspaceId, run: &RunId) -> Result<Run>;
     async fn decide_gate(&self, ws: &WorkspaceId, run: &RunId, stage: &str, approve: bool) -> Result<Run>;
     // … chats, transcript, send_message, proposals, vote, request_apply,
-    //   agents, handoffs, runtimes, hosts, checkout, set_checkout,
+    //   agents, handoffs, runtimes, local_runtimes, add_local_agent,
+    //   hosts, checkout, set_checkout,
     //   memory, task_state, members, set_role, remove_member,
     //   lock_chat, clear_lockdown, notifications, settings …
     async fn answer_presence(&self, id: PresenceId, answer: PresenceAnswer) -> Result<()>;
@@ -251,7 +252,9 @@ Paths are inside the crate named in each row, at the ligus `v0.1.0` tag.
 | `agents` | `session.workspace_agents` (`WorkspaceAgent`); busy when one of the last 20 messages of a chat streams for it under ten minutes old (serve's `LigusSnapshot` rule); offline when its host's beat is older than `HOST_ONLINE_WINDOW_SECS`; `doing` from its active task-state slot | |
 | `handoffs` | `session.flow.handoffs` (`HandoffCard`) across chats, newest first | |
 | `set_agent_runtime` | `add_agent` (upsert) with the new `runtime_id` | Per chat: `set_session_runtime` |
-| `runtimes` | `list_workspace_runtimes(ws)` | |
+| `runtimes` | `list_workspace_runtimes(ws)`, then the device-local runtimes (`local:…`) the workspace's agents name | |
+| `local_runtimes` | `backend::real::detect`: `cli_detect::find_on_path` and a bounded `--version` for `claude` and `codex`, `cli_detect::detect_cli_agents(env, false)` for `agy`, `copilot` and a legacy `gemini`, a 300 ms connect probe then `OllamaClient::list_models` at `RealConfig::ollama_url`, and the presence of `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `OPENROUTER_API_KEY`. `used_by`: agents hosted here naming it, or naming a workspace runtime of its kind | Never sends a prompt (no `agy models` either), never opens a keychain (sign-in from a file's existence or a variable's presence), never copies a secret (the environment is reduced to "set" markers). The Claude Code, Codex and Ollama checks repeat the desktop's `detect_environment` / `detect_providers` and `ligus setup` (outside the library); TODO: move them into `cli_detect` and call that |
+| `add_local_agent` | `add_agent(config, ws, WorkspaceAgent { runtime_id: "local:…", owner_actor_id: you, access: "owner", host_id })`: the desktop's `add_agent`, one signed `AgentUpserted` | `host_id` is this device for an Admin or Owner (pinning needs Admin), else empty (its owner's device). Names: the desktop's reserved words, no agent or member name twice. At turn time `turns::runtime_for` resolves `local:<provider>[/<model>]` to the CLI's program, Ollama at `ollama_url`, or a hosted API with its key read from this device's environment |
 | `hosts` | `list_hosts(ws)`; online and last seen from `HostPresence`, fed by `host_presence::fetch_host_beats` every `beat_every` (30 s); busy and agents from `agents` | `lt` registers itself with `ensure_host` / `touch_host` and publishes its own beat (`publish_host_beat`). Beats carry no repo coverage yet, so `repos` is empty |
 | `checkout` / `set_checkout` | device-local (`lt-state.json`), checked to be a git checkout | `apply_tick`'s `repo_for` uses it for every chat. The release has no synced repo bindings yet (PR #127, repos v2, isn't merged) |
 | `workflows` | `session.workflow_definitions` across chats; `workflow::validate` for `can_start` | Definitions belong to a chat |

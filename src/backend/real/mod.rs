@@ -18,6 +18,7 @@
 //! (`ligus_runtime::turn_dispatch`).
 
 mod deploy;
+pub(crate) mod detect;
 mod local;
 mod term_presence;
 mod turns;
@@ -85,6 +86,13 @@ pub struct RealConfig {
     /// Tests: a hand-driven clock the deferred-claim fallback waits on
     /// instead of `deferred_timeout`.
     pub deferred_clock: Option<DeferredClock>,
+    /// What runtime detection reads (`PATH`, home, credential markers);
+    /// `None` reads this process's ([`detect::process_env`]). Tests point it
+    /// at a temporary `PATH` of stub CLIs.
+    pub detect_env: Option<ligus_runtime::cli_detect::DetectEnv>,
+    /// The Ollama server detection probes and device-local Ollama agents
+    /// talk to; `None` skips it.
+    pub ollama_url: Option<String>,
 }
 
 impl RealConfig {
@@ -102,6 +110,8 @@ impl RealConfig {
             stage_timeout: Duration::from_secs(300),
             deferred_timeout: ligus_runtime::turn_dispatch::DEFERRED_CLAIM_TIMEOUT,
             deferred_clock: None,
+            detect_env: None,
+            ollama_url: Some(detect::OLLAMA_DEFAULT.into()),
         }
     }
 }
@@ -909,6 +919,7 @@ impl Backend for RealBackend {
         let ws = ws_uuid(workspace)?;
         self.call(move |i| {
             let rts = i.read(ws, |svc| svc.list_workspace_runtimes(ws))?;
+            let local = i.local_runtimes_in_use(ws, &rts)?;
             Ok(rts
                 .into_iter()
                 .enumerate()
@@ -920,6 +931,7 @@ impl Backend for RealBackend {
                     configured: turns::configured(&r),
                     active: n == 0,
                 })
+                .chain(local)
                 .collect())
         })
         .await
@@ -954,6 +966,89 @@ impl Backend for RealBackend {
                     }
                 })
                 .collect())
+        })
+        .await
+    }
+
+    async fn local_runtimes(&self, workspace: &WorkspaceId) -> Result<Vec<LocalRuntime>> {
+        let ws = ws_uuid(workspace)?;
+        let env = self.inner.cfg.detect_env.clone().unwrap_or_else(detect::process_env);
+        let mut found = {
+            let env = env.clone();
+            tokio::task::spawn_blocking(move || detect::clis(&env)).await.map_err(one_line)?
+        };
+        if let Some(url) = self.inner.cfg.ollama_url.as_deref() {
+            found.extend(detect::ollama(url).await);
+        }
+        found.extend(detect::api_keys(&env));
+        self.call(move |i| {
+            let activity = i.activity(ws)?;
+            let device = i.core()?.identity.device.id.to_string();
+            let rts = i.read(ws, |svc| svc.list_workspace_runtimes(ws))?;
+            let taken = i.taken_names(ws)?;
+            // An agent here "uses" a runtime found here when it names it, or
+            // names a workspace runtime of the same kind (and model).
+            let here: Vec<&ligus_core::WorkspaceAgent> =
+                activity.agents.iter().filter(|a| i.agent_host(a, &activity.me) == device).collect();
+            Ok(found
+                .into_iter()
+                .map(|f| {
+                    let used_by = here
+                        .iter()
+                        .filter(|a| {
+                            a.runtime_id == f.id
+                                || rts.iter().any(|r| {
+                                    r.id == a.runtime_id
+                                        && r.provider == f.provider
+                                        && f.model.as_deref().is_none_or(|m| r.model.is_empty() || r.model == m)
+                                })
+                        })
+                        .map(|a| a.name.clone())
+                        .collect();
+                    LocalRuntime {
+                        id: RuntimeId::new(f.id),
+                        kind: views::runtime_kind(f.provider),
+                        model: f.model,
+                        version: f.version,
+                        ready: f.ready,
+                        detail: f.detail,
+                        used_by,
+                        unsupported: f.unsupported,
+                        suggested_name: detect::unique_name(&f.suggested, &taken),
+                    }
+                })
+                .collect())
+        })
+        .await
+    }
+
+    async fn add_local_agent(&self, workspace: &WorkspaceId, runtime: &RuntimeId, name: &str) -> Result<String> {
+        let ws = ws_uuid(workspace)?;
+        let runtime = runtime.0.clone();
+        let name = name.trim().trim_start_matches('@').to_string();
+        if detect::parse_local_id(&runtime).is_none() {
+            return Err(BackendError(format!("{runtime} isn't a runtime on this device")));
+        }
+        self.call(move |i| {
+            if let Some(why) = detect::name_refusal(&name, &i.taken_names(ws)?) {
+                return Err(BackendError(why));
+            }
+            let device = i.core()?.identity.device.id.to_string();
+            let me = i.me();
+            let role = i.read(ws, |svc| Ok(svc.load(workspace_config_session_id(ws))?.map(|c| c.role_of(&me))))?;
+            // The desktop's add-agent: owned by you, only you may use it, on
+            // a runtime of this device. An Admin pins it to this device; a
+            // Contributor's runs on its owner's device (an unpinned agent),
+            // which is this one.
+            let mut agent = ligus_core::WorkspaceAgent::new(name.clone(), runtime);
+            agent.owner_actor_id = me;
+            agent.access = ligus_core::agent::ACCESS_OWNER.into();
+            if role.is_some_and(|r| views::role(r) >= Role::Admin) {
+                agent.host_id = device;
+            }
+            i.write(ws, |svc| svc.add_agent(workspace_config_session_id(ws), ws, agent))?;
+            i.emit(Event::AgentsChanged { workspace: WorkspaceId::new(ws.to_string()) });
+            Ok(name)
         })
         .await
     }
@@ -1422,6 +1517,40 @@ impl Inner {
 
     /// The host an agent's turns run on: its bound host, else its owner's
     /// device when that is this device (empty: some other owner's device).
+    /// The names a new agent may not take: every agent's and member's.
+    fn taken_names(&self, ws: Uuid) -> Result<Vec<String>> {
+        let config = self.read(ws, |svc| svc.load(workspace_config_session_id(ws)))?;
+        Ok(config
+            .map(|c| {
+                c.workspace_agents.iter().map(|a| a.name.clone()).chain(c.members.iter().map(|m| m.actor.display_name.clone())).collect()
+            })
+            .unwrap_or_default())
+    }
+
+    /// The device-local runtimes (`local:…`) the workspace's agents name and
+    /// no workspace runtime shadows, for the runtimes list and picker.
+    fn local_runtimes_in_use(&self, ws: Uuid, rts: &[ligus_core::WorkspaceRuntime]) -> Result<Vec<Runtime>> {
+        let mut ids: Vec<String> =
+            self.activity(ws)?.agents.iter().map(|a| a.runtime_id.clone()).filter(|id| !rts.iter().any(|r| &r.id == id)).collect();
+        ids.sort();
+        ids.dedup();
+        Ok(ids
+            .into_iter()
+            .filter_map(|id| {
+                let (provider, model) = detect::parse_local_id(&id)?;
+                let kind = views::runtime_kind(provider);
+                Some(Runtime {
+                    label: format!("{} (this device)", kind.label()),
+                    kind,
+                    model: Some(model).filter(|m| !m.is_empty()),
+                    configured: detect::key_var(provider).is_none_or(|v| std::env::var_os(v).is_some_and(|k| !k.is_empty())),
+                    active: false,
+                    id: RuntimeId::new(id),
+                })
+            })
+            .collect())
+    }
+
     fn agent_host(&self, a: &ligus_core::WorkspaceAgent, me: &str) -> String {
         if !a.host_id.is_empty() {
             return a.host_id.clone();
