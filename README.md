@@ -442,13 +442,14 @@ a browser, and `LT_PRESENCE_PORT` fixes the port so it can be forwarded
 ahead of time:
 
 ```sh
-ssh -L 8765:127.0.0.1:8765 box          # from the device with the browser
+ssh -L 127.0.0.1:8765:127.0.0.1:8765 box   # from the device with the browser; never -g
 LT_NO_BROWSER=1 LT_PRESENCE_PORT=8765 lt --name Ada create Apiary --out words.txt
 ```
 
-Open the address it prints (a `presence-url` record; in the app, below the
-prompt) on the other device. The address is a one-time secret for that
-prompt. Or skip the passkey on that box: create the workspace where a
+Open the address it shows on your terminal (below the prompt in the app;
+plain mode writes it to the controlling terminal, never to stdout) on the
+other device. The address is a one-time secret for that prompt: anyone who
+has it and reaches the port could answer it. Or skip the passkey on that box: create the workspace where a
 browser is, invite the box, and `lt --name NAME join CODE` there. `lt help
 troubleshooting` has the details.
 

@@ -51,7 +51,7 @@ pub const ENV: &[EnvVar] = &[
         name: "LT_PRESENCE_PORT",
         default: "any free port",
         meaning: "the 127.0.0.1 port a passkey prompt listens on for the browser's answer; fix it to forward it \
-                  ahead of time (ssh -L PORT:127.0.0.1:PORT)",
+                  ahead of time (ssh -L 127.0.0.1:PORT:127.0.0.1:PORT)",
     },
     EnvVar { name: "LT_AGENT_TOOLS", default: "on", meaning: "0/false/off/no turns off agent tools for turns run on this device" },
     EnvVar {
@@ -500,7 +500,7 @@ pub const RECORDS: &[(&str, &[&[&str]])] = &[
     ("proposal-changed", &[&["id", "status", "votes", "title"]]),
     ("presence", &[&["id", "kind", "digest", "summary", "answers"]]),
     ("presence-problem", &[&["id", "error"]]),
-    ("presence-url", &[&["id", "port", "url", "note"]]),
+    ("presence-url", &[&["id", "port", "address", "note"]]),
     ("presence-done", &[&["id", "result", "error"]]),
     ("sync", &[&["workspace", "status"]]),
     ("run-changed", &[&["id", "status", "name", "done"]]),
@@ -910,13 +910,16 @@ Passkeys with no browser (SSH, a headless box)
   browser on this device, use one on another device that reaches this one's
   loopback over SSH:
     # on the device with the browser:
-    ssh -L 8765:127.0.0.1:8765 THIS-HOST
+    ssh -L 127.0.0.1:8765:127.0.0.1:8765 THIS-HOST   (never with -g)
     # on THIS-HOST, in that session:
     LT_NO_BROWSER=1 LT_PRESENCE_PORT=8765 lt --name Ada create Apiary --out words.txt
-  lt prints the page's address (a presence-url record, or below the prompt in
-  the app) instead of opening a browser; open it on the other device. The
-  address holds a one-time secret for that prompt: don't paste it anywhere
-  else. Printing the address alone isn't enough: without the port forward the
+  lt shows the page's address on your terminal (below the prompt in the app;
+  in plain mode on the controlling terminal, never on stdout, so a log or a
+  pipe never holds it) instead of opening a browser; open it on the other
+  device. The address holds a one-time secret for that prompt: anyone who
+  has it and can reach the port could answer the prompt, so don't paste it
+  anywhere else. Without a terminal (lt's output captured, no tty) it isn't
+  shown at all. Printing the address alone isn't enough: without the port forward the
   other browser's answer goes to its own 127.0.0.1, not to lt.
 
   To put a headless device in a workspace without any passkey, join instead:

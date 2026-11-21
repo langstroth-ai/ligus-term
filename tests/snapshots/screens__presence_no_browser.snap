@@ -18,7 +18,7 @@ expression: screen
 ┃                   ┃                                                                    ┃                   │
 ┃                   ┃No browser on this device: open the address below in a browser on   ┃                   │
 ┃                   ┃another device whose 127.0.0.1:8765 reaches this one (ssh -L        ┃your passkey.      │
-┃                   ┃8765:127.0.0.1:8765 to this host).                                  ┃                   │
+┃                   ┃127.0.0.1:8765:127.0.0.1:8765 to this host).                        ┃                   │
 ┃                   ┃It is a one-time secret for this prompt: don't paste it anywhere    ┃                   │
 ┃                   ┃else.                                                               ┃                   │
 ┃                   ┃                                                                    ┃                   │

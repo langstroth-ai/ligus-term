@@ -80,9 +80,16 @@ async fn run() -> anyhow::Result<()> {
         cfg.relay_url = env("LT_RELAY_URL").map(|u| u.trim().to_string()).filter(|u| !u.is_empty());
         cfg.presence_port = match env("LT_PRESENCE_PORT").map(|p| p.trim().to_string()).filter(|p| !p.is_empty()) {
             None => 0,
-            Some(p) => p.parse().unwrap_or_else(|_| fail(format!("LT_PRESENCE_PORT={p} isn't a port number"))),
+            Some(p) => match p.parse::<u16>() {
+                Ok(n) if n > 0 => n,
+                _ => fail(format!("LT_PRESENCE_PORT={p} isn't a port number (1-65535)")),
+            },
         };
-        cfg.no_browser = env("LT_NO_BROWSER").is_some_and(|v| matches!(v.trim(), "1" | "true" | "on" | "yes"));
+        cfg.no_browser = match env("LT_NO_BROWSER").map(|v| v.trim().to_ascii_lowercase()).as_deref() {
+            None | Some("" | "0" | "false" | "off" | "no") => false,
+            Some("1" | "true" | "on" | "yes") => true,
+            Some(v) => fail(format!("LT_NO_BROWSER={v}: use 1 or 0")),
+        };
         let b = RealBackend::open(cfg).unwrap_or_else(|e| fail(e));
         real = Some(b.clone());
         Arc::new(b)

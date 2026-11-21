@@ -414,7 +414,7 @@ fn presence(f: &mut Frame, area: Rect, p: &PresenceSheet, queued: usize, t: &The
             lines.push(Line::styled(
                 format!(
                     "No browser on this device: open the address below in a browser on another device whose \
-                     127.0.0.1:{port} reaches this one (ssh -L {port}:127.0.0.1:{port} to this host)."
+                     127.0.0.1:{port} reaches this one (ssh -L 127.0.0.1:{port}:127.0.0.1:{port} to this host)."
                 ),
                 t.text(),
             ));

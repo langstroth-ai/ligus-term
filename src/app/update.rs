@@ -612,6 +612,7 @@ fn event(s: &mut State, e: Event) -> Vec<Effect> {
         Event::PresenceProblem { id, error } => {
             if let Some(p) = s.presence.iter_mut().find(|p| p.prompt.id == id) {
                 p.error = Some(error);
+                p.remote = None;
                 if p.stage == PresenceStage::WaitingBrowser {
                     p.stage = PresenceStage::Asking;
                 }

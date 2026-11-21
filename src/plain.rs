@@ -224,6 +224,20 @@ fn stage_lines(r: &Run) -> Vec<String> {
         .collect()
 }
 
+/// Write the passkey page's address straight to the controlling terminal.
+#[cfg(not(test))]
+fn to_tty(url: &str) -> std::io::Result<()> {
+    use std::io::Write;
+    let mut tty = std::fs::OpenOptions::new().write(true).open("/dev/tty")?;
+    writeln!(tty, "\npasskey page (open it on the other device):\n{}\n", clean(url))
+}
+
+/// Tests have no terminal to write to.
+#[cfg(test)]
+fn to_tty(_: &str) -> std::io::Result<()> {
+    Err(std::io::Error::other("no terminal in tests"))
+}
+
 /// Format a backend event as a line; `None` for events plain mode skips
 /// (streaming deltas: the whole message prints when it is done).
 pub fn event_line(e: &Event, names: &dyn Fn(&WorkspaceId) -> String) -> Option<String> {
@@ -246,12 +260,21 @@ pub fn event_line(e: &Event, names: &dyn Fn(&WorkspaceId) -> String) -> Option<S
             format!("presence\t{}\t{}\t{}\t{}\t{how}", p.id.0, esc(&p.kind), esc(&p.digest_short), esc(&p.summary))
         }
         Event::PresenceProblem { id, error } => format!("presence-problem\t{}\t{}", id.0, esc(error)),
-        Event::PresenceUrl { id, url, port } => format!(
-            "presence-url\t{}\t{port}\t{}\topen it in a browser on a device whose 127.0.0.1:{port} reaches this one \
-             (ssh -L {port}:127.0.0.1:{port} THIS-HOST); it is a one-time secret for this prompt",
-            id.0,
-            esc(url)
-        ),
+        // The address can answer a passkey creation, so it goes to the
+        // person's terminal, never to stdout (often a log or a pipe).
+        Event::PresenceUrl { id, url, port } => match to_tty(url) {
+            Ok(()) => format!(
+                "presence-url\t{}\t{port}\t(on your terminal)\tthe address is on your terminal: open it in a browser on a \
+                 device whose 127.0.0.1:{port} reaches this one (ssh -L 127.0.0.1:{port}:127.0.0.1:{port} THIS-HOST); it is a \
+                 one-time secret for this prompt",
+                id.0
+            ),
+            Err(e) => format!(
+                "presence-url\t{}\t{port}\t-\tno terminal to show the passkey page's address on ({e}); it is never written to \
+                 stdout: run lt in a terminal, or cancel {} and use a browser here",
+                id.0, id.0
+            ),
+        },
         Event::PresenceDone { id, ok, error } => {
             format!("presence-done\t{}\t{}\t{}", id.0, if *ok { "ok" } else { "failed" }, esc(error.as_deref().unwrap_or("")))
         }
@@ -1349,6 +1372,16 @@ mod tests {
         let opts = PlainOpts { one_shot: Some(cmd.into()), ..Default::default() };
         let code = run_with(Arc::new(b), &b""[..], Box::new(Sink(buf.clone())), opts).await.unwrap();
         (code, String::from_utf8(buf.lock().unwrap().clone()).unwrap())
+    }
+
+    /// The passkey page's address (a one-time secret that can answer a
+    /// passkey creation) never reaches stdout.
+    #[test]
+    fn the_passkey_address_never_reaches_stdout() {
+        let url = "https://ligus.ai/presence#op=create&c=Y2hhbA&p=8765&n=c2VjcmV0LW5vbmNl".to_string();
+        let line = event_line(&Event::PresenceUrl { id: PresenceId(3), url, port: 8765 }, &|_| String::new()).unwrap();
+        assert!(line.starts_with("presence-url\t3\t8765\t-\t"), "{line}");
+        assert!(!line.contains("c2VjcmV0") && !line.contains("Y2hhbA"), "{line}");
     }
 
     /// A one-shot create on a new device: refused without a name, done with

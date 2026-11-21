@@ -80,6 +80,11 @@ pub trait Opener: Send + Sync {
     fn open_url(&self, page: &Path, _url: &str) -> io::Result<()> {
         self.open(page)
     }
+    /// Whether it opens the private redirect page (written only then: an
+    /// opener that shows the address needs no copy of it on disk).
+    fn uses_page(&self) -> bool {
+        true
+    }
 }
 
 /// `open` on macOS, `xdg-open` elsewhere. The argument is the redirect
@@ -208,15 +213,24 @@ pub async fn hand_off(
     wait: Duration,
 ) -> Result<HandOff, HandOffError> {
     let io = |e: io::Error| HandOffError::Io(e.to_string());
-    let listener = TcpListener::bind(("127.0.0.1", port))
-        .await
-        .map_err(|e| HandOffError::Io(format!("couldn't listen on 127.0.0.1:{port} for the passkey page: {e}")))?;
+    let listener = TcpListener::bind(("127.0.0.1", port)).await.map_err(|e| {
+        HandOffError::Io(format!("couldn't listen on 127.0.0.1:{port} for the passkey page (is another process using it?): {e}"))
+    })?;
     let port = listener.local_addr().map_err(io)?.port();
     let nonce = nonce().map_err(io)?;
     let url = format!("{page_url}#{fragment}&p={port}&n={nonce}");
-    let page = redirect_page(presence_dir, &url).map_err(|e| HandOffError::Io(format!("couldn't prepare the passkey page: {e}")))?;
+    let page = if opener.uses_page() {
+        redirect_page(presence_dir, &url).map_err(|e| HandOffError::Io(format!("couldn't prepare the passkey page: {e}")))?
+    } else {
+        PathBuf::new()
+    };
+    let remove = |page: &Path| {
+        if !page.as_os_str().is_empty() {
+            let _ = std::fs::remove_file(page);
+        }
+    };
     if let Err(e) = opener.open_url(&page, &url) {
-        let _ = std::fs::remove_file(&page);
+        remove(&page);
         return Err(HandOffError::Browser(e.to_string()));
     }
     // Each connection is read on its own task (each capped at 5 s), so a
@@ -248,7 +262,7 @@ pub async fn hand_off(
         _ = cancel => Err(HandOffError::Cancelled),
         _ = tokio::time::sleep(wait) => Err(HandOffError::TimedOut),
     };
-    let _ = std::fs::remove_file(&page);
+    remove(&page);
     result
 }
 

@@ -181,8 +181,9 @@ impl TermPresence {
 /// No browser here: the prompt shows the hand-off page's address, to open
 /// in a browser on another device whose `127.0.0.1:<port>` reaches this
 /// one's (an SSH port forward). The address carries the prompt's one-time
-/// nonce and challenge, so it goes to this prompt only, never to a file or
-/// a command line.
+/// nonce and challenge (enough to answer a passkey creation), so it goes to
+/// the person's terminal only: the full-screen sheet, or plain mode's
+/// controlling terminal; never stdout, a file or a command line.
 struct ShowUrl {
     tx: broadcast::Sender<Event>,
     id: PresenceId,
@@ -198,6 +199,9 @@ impl Opener for ShowUrl {
         let port = url.rsplit("&p=").next().and_then(|r| r.split('&').next()).and_then(|p| p.parse().ok()).unwrap_or(self.port);
         let _ = self.tx.send(Event::PresenceUrl { id: self.id, url: url.to_string(), port });
         Ok(())
+    }
+    fn uses_page(&self) -> bool {
+        false
     }
 }
 
