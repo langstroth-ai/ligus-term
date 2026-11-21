@@ -4,7 +4,7 @@ All notable changes to `lt`, the Ligus terminal app (Ligus is short for
 ligustica). Versions follow [semver](https://semver.org); releases are on
 [GitHub](https://github.com/langstroth-ai/ligus-term/releases).
 
-## v0.1.2 (unreleased)
+## v0.1.2
 
 ### Added
 
