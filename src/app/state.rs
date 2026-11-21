@@ -580,7 +580,8 @@ pub enum WorkflowItem<'a> {
     Run(&'a Run),
 }
 
-/// "now", "5m", "3h", "2d": how long ago `at` was.
+/// "now", "5m", "3h", "2d": how long ago `at` was, for a column of ages.
+/// In a sentence use [`ago_phrase`] ("just now", "5m ago").
 pub fn ago(now: Millis, at: Millis) -> String {
     let s = ((now - at) / 1000).max(0);
     match s {
@@ -588,5 +589,26 @@ pub fn ago(now: Millis, at: Millis) -> String {
         60..=3599 => format!("{}m", s / 60),
         3600..=86_399 => format!("{}h", s / 3600),
         _ => format!("{}d", s / 86_400),
+    }
+}
+
+/// "just now", "5m ago", "3h ago": how long ago `at` was, for a sentence.
+pub fn ago_phrase(now: Millis, at: Millis) -> String {
+    match ago(now, at) {
+        a if a == "now" => "just now".into(),
+        a => format!("{a} ago"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ages_read_as_phrases() {
+        assert_eq!(ago(120_000, 100_000), "now");
+        assert_eq!(ago_phrase(120_000, 100_000), "just now");
+        assert_eq!(ago_phrase(400_000, 100_000), "5m ago");
+        assert_eq!(ago_phrase(3_700_000, 100_000), "1h ago");
     }
 }

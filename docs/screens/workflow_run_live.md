@@ -6,7 +6,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 [AT] [QR]• Apiary Tracker · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Workflows 2 · Runs 3 ━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Detail ──────────────────────────────────────────────────╮
 ┃▸ Implement, revie…  Inspection log refactor    ┃│Implement, review, ship  awaiting-gate                    │
-┃▸ Weekly swarm report  Queen cell alerts        ┃│started by Mara now ago · driven by This device           │
+┃▸ Weekly swarm report  Queen cell alerts        ┃│started by Mara just now · driven by This device          │
 ┃  Implement, review, sh… ●●◆ awaiting-gate now  ┃│input export the wash counts                              │
 ┃  Implement, review, sh… ●●● completed now      ┃│                                                          │
 ┃  Weekly swarm report ● completed 1d            ┃│  ● Implement @coder  succeeded                           │

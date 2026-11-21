@@ -9,7 +9,7 @@ use ratatui::widgets::{List, ListItem, ListState, Paragraph, Row, Table, TableSt
 
 use super::{pane, trunc};
 use crate::app::state::WorkflowItem;
-use crate::app::state::{State, ago};
+use crate::app::state::{State, ago, ago_phrase};
 use crate::backend::model::{AgentStatus, Allowed, HostKind, Role, RunStatus, StageStatus};
 use crate::keymap::{Action, Context};
 use crate::theme::Theme;
@@ -236,7 +236,7 @@ pub fn hosts(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             let seen = if h.online {
                 "online".to_string()
             } else {
-                h.last_seen.map(|at| format!("{} ago", ago(s.now, at))).unwrap_or_else(|| "never seen".into())
+                h.last_seen.map(|at| ago_phrase(s.now, at)).unwrap_or_else(|| "never seen".into())
             };
             let kind = match h.kind {
                 HostKind::Device => "DEVICE",
@@ -566,7 +566,10 @@ pub fn workflows(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
                 Span::styled(format!("  {}", r.status.label()), run_status_style(r.status, t)),
             ]));
             let driver = r.driver.clone().unwrap_or_else(|| "no device".into());
-            lines.push(Line::styled(format!("started by {} {} ago · driven by {driver}", r.started_by, ago(s.now, r.started_at)), t.dim()));
+            lines.push(Line::styled(
+                format!("started by {} {} · driven by {driver}", r.started_by, ago_phrase(s.now, r.started_at)),
+                t.dim(),
+            ));
             if !r.input.is_empty() {
                 lines
                     .push(Line::from(vec![Span::styled("input ", t.dim()), Span::styled(trunc(&r.input, dw.saturating_sub(6)), t.text())]));
@@ -648,7 +651,7 @@ pub fn memory(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             Span::styled(format!("@{}", ts.agent), t.fg(t.agent).add_modifier(Modifier::BOLD)),
             Span::styled(format!("  {}", ts.status), t.accent()),
         ]));
-        lines.push(Line::styled(format!("in {chat} · {} ago", ago(s.now, ts.at)), t.dim()));
+        lines.push(Line::styled(format!("in {chat} · {}", ago_phrase(s.now, ts.at)), t.dim()));
         lines.push(Line::raw(""));
         lines.extend(super::wrap(&ts.summary, dw).into_iter().map(|l| Line::styled(l, t.text())));
         if let Some(p) = ts.progress {
@@ -665,7 +668,7 @@ pub fn memory(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     } else if let Some(e) = s.memory.entries.get(i - s.tasks.len().min(i)) {
         lines.push(Line::styled(e.title.clone(), t.accent()));
         let revs = if e.revisions > 1 { format!(" · {} revisions", e.revisions) } else { String::new() };
-        lines.push(Line::styled(format!("by {} · {} ago{revs}", e.author, ago(s.now, e.at)), t.dim()));
+        lines.push(Line::styled(format!("by {} · {}{revs}", e.author, ago_phrase(s.now, e.at)), t.dim()));
         lines.push(Line::raw(""));
         lines.extend(super::wrap(&e.body, dw).into_iter().map(|l| Line::styled(l, t.text())));
         if !e.tags.is_empty() {
