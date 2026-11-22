@@ -28,6 +28,8 @@ pub enum Msg {
     Mentionables(WorkspaceId, Result<Vec<Mentionable>>),
     Proposals(WorkspaceId, Result<Vec<Proposal>>),
     Diff(WorkspaceId, ProposalId, Result<Diff>),
+    /// The selection rested on a proposal long enough to preview its diff.
+    PreviewDue(WorkspaceId, ProposalId),
     Agents(WorkspaceId, Result<Vec<Agent>>),
     Runtimes(WorkspaceId, Result<Vec<Runtime>>),
     LocalRuntimes(WorkspaceId, Result<Vec<LocalRuntime>>),
@@ -72,6 +74,9 @@ pub enum Effect {
     LoadMentionables(WorkspaceId),
     LoadProposals(WorkspaceId),
     LoadDiff(WorkspaceId, ProposalId),
+    /// Wait [`DIFF_PREVIEW_DELAY`], then answer [`Msg::PreviewDue`]: moving
+    /// through the list loads only the diff the selection rests on.
+    PreviewDiff(WorkspaceId, ProposalId),
     LoadAgents(WorkspaceId),
     LoadRuntimes(WorkspaceId),
     /// Look for runtimes on this device (CLIs, Ollama, API keys).
@@ -130,6 +135,9 @@ pub enum Effect {
     LoadCheckout(WorkspaceId),
     SetCheckout(WorkspaceId, Option<String>),
 }
+
+/// How long the proposal selection rests before its diff loads.
+pub const DIFF_PREVIEW_DELAY: std::time::Duration = std::time::Duration::from_millis(120);
 
 /// Loads for a workspace becoming active.
 fn load_workspace(ws: &WorkspaceId) -> Vec<Effect> {
@@ -225,11 +233,17 @@ pub fn update(s: &mut State, msg: Msg) -> Vec<Effect> {
         Msg::Proposals(ws, Ok(p)) if is_active(s, &ws) => {
             s.proposals = p;
             s.proposal_sel.clamp(s.proposals.len());
-            vec![]
+            // The selected proposal's diff shows without asking.
+            if s.view == View::Proposals { load_selected_diff(s) } else { vec![] }
         }
-        Msg::Diff(ws, p, Ok(d)) if is_active(s, &ws) => {
+        // A diff that arrives after the selection moved on is dropped.
+        Msg::Diff(ws, p, Ok(d)) if is_active(s, &ws) && s.selected_proposal().is_some_and(|sel| sel.id == p) => {
             s.diff = Some(DiffState { proposal: p, diff: d, scroll: 0 });
             vec![]
+        }
+        Msg::PreviewDue(ws, p) => {
+            let resting = is_active(s, &ws) && s.view == View::Proposals && s.selected_proposal().is_some_and(|sel| sel.id == p);
+            if resting { load_selected_diff(s) } else { vec![] }
         }
         Msg::Agents(ws, Ok(a)) if is_active(s, &ws) => {
             s.agents = a;
@@ -1283,7 +1297,11 @@ fn go(s: &mut State, v: View) -> Vec<Effect> {
             .active
             .clone()
             .map(|w| match v {
-                View::Proposals => vec![Effect::LoadProposals(w)],
+                View::Proposals => {
+                    let mut fx = vec![Effect::LoadProposals(w)];
+                    fx.extend(load_selected_diff(s));
+                    fx
+                }
                 View::People => vec![Effect::LoadMembers(w)],
                 View::Hosts => vec![Effect::LoadHosts(w.clone()), Effect::LoadCheckout(w)],
                 View::Agents => vec![
@@ -1719,7 +1737,7 @@ fn nav_action(s: &mut State, a: Action) -> Vec<Effect> {
             let before = s.proposal_sel.index;
             list_nav(&mut s.proposal_sel, s.proposals.len(), a);
             if before != s.proposal_sel.index {
-                return load_selected_diff(s);
+                return preview_selected_diff(s);
             }
             vec![]
         }
@@ -1755,6 +1773,17 @@ fn nav_action(s: &mut State, a: Action) -> Vec<Effect> {
             vec![]
         }
     }
+}
+
+/// The selection moved: drop the old diff and preview the new one once the
+/// selection rests, so holding ↓ through a long list loads one diff.
+fn preview_selected_diff(s: &mut State) -> Vec<Effect> {
+    let (Some(w), Some(p)) = (s.active.clone(), s.selected_proposal().map(|p| p.id.clone())) else { return vec![] };
+    if s.diff.as_ref().is_some_and(|d| d.proposal == p) {
+        return vec![];
+    }
+    s.diff = None;
+    vec![Effect::PreviewDiff(w, p)]
 }
 
 fn load_selected_diff(s: &mut State) -> Vec<Effect> {

@@ -1,0 +1,28 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
+┏ Workflows 2 · Runs 2 ━━━━━━━━━━━━┓╭ Detail ──────────────────────────────────╮
+┃▸ Implement, review, ship         ┃│Implement, review, ship                   │
+┃▸ Weekly security digest  Migra…  ┃│in Fix flaky checkout test                │
+┃  Implement, … ●●● completed now  ┃│                                          │
+┃  Weekly securit… ● completed 1d  ┃│The coder implements, the reviewer        │
+┃                                  ┃│checks it, a person signs off.            │
+┃                                  ┃│                                          │
+┃                                  ┃│  Implement @coder                        │
+┃       ┏ Start “Implement, review, ship” ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓       │
+┃       ┃What to change                                                ┃ review│
+┃       ┃export the order history                                      ┃       │
+┃       ┃enter start · esc cancel · this device drives the run         ┃t;     │
+┃       ┃                                                              ┃       │
+┃       ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛       │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────╯
+↑↓ select  S start  A approve gate  R reject  X cancel  f1 help     peer to peer

@@ -17,8 +17,30 @@ use ligus_term::backend::model::*;
 const W: u16 = 110;
 const H: u16 = 32;
 
-fn snap(name: &str, title: &str, screen: String) {
-    snap_at(name, title, W, H, screen);
+/// A screen at 110×32 (with its capture in `docs/screens/`), and the same
+/// screen at the default terminal (80×24) and a large one (200×50). The main
+/// views are checked at those sizes by `every_view_at_every_size`, which
+/// reaches them from the demo's start.
+fn snap(h: &Harness, name: &str, title: &str) {
+    snap_at(name, title, W, H, h.screen(W, H));
+    if VIEWS.contains(&name) {
+        return;
+    }
+    for (w, ht) in [(80, 24), (200, 50)] {
+        let screen = h.screen(w, ht);
+        fits(name, w, ht, &screen);
+        insta::assert_snapshot!(format!("{name}_{w}x{ht}"), screen);
+    }
+}
+
+/// What every screen keeps at any size: something drawn, and a status bar
+/// that never runs into the device label.
+fn fits(name: &str, w: u16, ht: u16, screen: &str) {
+    let lines: Vec<&str> = screen.lines().collect();
+    assert_eq!(lines.len(), ht as usize, "{name} at {w}x{ht}");
+    assert!(lines.iter().any(|l| !l.trim().is_empty()), "{name} at {w}x{ht}: nothing drawn");
+    let status = lines[ht as usize - 1];
+    assert!(!status.contains("helplt"), "{name} at {w}x{ht}: {status}");
 }
 
 /// A snapshot, and with `LT_WRITE_SCREENS` its capture in `docs/screens/`
@@ -36,7 +58,7 @@ fn snap_at(name: &str, title: &str, w: u16, h: u16, screen: String) {
 #[tokio::test]
 async fn onboarding_first_run() {
     let h = Harness::new(false).await;
-    snap("onboarding", "First run: create or join", h.screen(W, H));
+    snap(&h, "onboarding", "First run: create or join");
 }
 
 /// The Ligus mark beside the first-run form when the terminal is wide
@@ -72,7 +94,7 @@ async fn onboarding_splash_mono() {
     assert!(screen.contains('█'), "{screen}");
     // The colour themes put two pixels in one cell (`▀` on a background);
     // mono uses full and half blocks instead, so its text differs.
-    snap("onboarding_mono", "First run in the mono theme: the mark as a silhouette", screen);
+    snap_at("onboarding_mono", "First run in the mono theme: the mark as a silhouette", W, H, screen);
 }
 
 #[tokio::test]
@@ -83,9 +105,9 @@ async fn onboarding_join_with_invite() {
     h.key(KeyCode::Right).await;
     h.key(KeyCode::Tab).await;
     h.send(Msg::Paste("fake-invite:Acme-Web".into())).await;
-    snap("onboarding_join", "First run: join with an invite", h.screen(W, H));
+    snap(&h, "onboarding_join", "First run: join with an invite");
     h.key(KeyCode::Enter).await;
-    snap("onboarding_join_checked", "Join: who the invite is from, checked before joining", h.screen(W, H));
+    snap(&h, "onboarding_join_checked", "Join: who the invite is from, checked before joining");
 }
 
 #[tokio::test]
@@ -98,7 +120,7 @@ async fn onboarding_connect_a_deployment() {
     h.chars("http://127.0.0.1:18443").await;
     h.key(KeyCode::Tab).await;
     h.chars("k8s-trial-7f3a").await;
-    snap("onboarding_connect", "First run: connect a deployment (ligus-local, Kubernetes)", h.screen(W, H));
+    snap(&h, "onboarding_connect", "First run: connect a deployment (ligus-local, Kubernetes)");
     // The workspace key and the relay token never show on screen.
     h.key(KeyCode::Tab).await;
     h.chars("s3cret-workspace-key").await;
@@ -113,28 +135,28 @@ async fn onboarding_connect_a_deployment() {
 async fn workflows_and_runs() {
     let mut h = demo().await;
     h.key(KeyCode::Char('f')).await;
-    snap("workflows", "Workflows: definitions and runs", h.screen(W, H));
+    snap(&h, "workflows", "Workflows: definitions and runs");
     h.key(KeyCode::Down).await;
     h.key(KeyCode::Down).await;
-    snap("workflow_run_gate", "A run waiting on its gate", h.screen(W, H));
+    snap(&h, "workflow_run_gate", "A run waiting on its gate");
     h.key(KeyCode::Char('A')).await;
-    snap("workflow_run_done", "The gate approved: the run completes", h.screen(W, H));
+    snap(&h, "workflow_run_done", "The gate approved: the run completes");
     h.key(KeyCode::Char('g')).await;
     h.key(KeyCode::Char('S')).await;
     h.chars("export the order history").await;
-    snap("workflow_start", "Starting a run", h.screen(W, H));
+    snap(&h, "workflow_start", "Starting a run");
     h.key(KeyCode::Enter).await;
-    snap("workflow_run_live", "A run started here, live", h.screen(W, H));
+    snap(&h, "workflow_run_live", "A run started here, live");
 }
 
 #[tokio::test]
 async fn memory_and_task_state() {
     let mut h = demo().await;
     h.key(KeyCode::Char('y')).await;
-    snap("memory", "Task state and memory", h.screen(W, H));
+    snap(&h, "memory", "Task state and memory");
     h.key(KeyCode::Down).await;
     h.key(KeyCode::Down).await;
-    snap("memory_entry", "A memory entry", h.screen(W, H));
+    snap(&h, "memory_entry", "A memory entry");
 }
 
 #[tokio::test]
@@ -143,16 +165,16 @@ async fn admit_a_box() {
     h.key(KeyCode::Char('m')).await;
     h.key(KeyCode::Char('B')).await;
     h.send(Msg::Paste("ligusjoin1:eyJ2IjoxLCJsYWJlbCI6InNmZiJ9".into())).await;
-    snap("admit_box", "Admit a box: its join request", h.screen(W, H));
+    snap(&h, "admit_box", "Admit a box: its join request");
     h.key(KeyCode::Enter).await;
     // The fingerprint is on screen before any passkey prompt.
     let checked = h.screen(W, H);
     assert!(checked.contains("K3QF-7XMA-2DPL-90RW-ZT4E"), "{checked}");
     assert!(!checked.contains("Confirm with passkey"), "{checked}");
-    snap("admit_box_fingerprint", "Admit a box: compare its fingerprint", checked);
+    snap(&h, "admit_box_fingerprint", "Admit a box: compare its fingerprint");
     h.key(KeyCode::Char('y')).await;
     h.key(KeyCode::Enter).await; // the (simulated) browser confirms
-    snap("admit_box_sealed", "Admit a box: the sealed admission", h.screen(W, H));
+    snap(&h, "admit_box_sealed", "Admit a box: the sealed admission");
 }
 
 #[tokio::test]
@@ -161,9 +183,9 @@ async fn bind_a_checkout() {
     h.key(KeyCode::Char('h')).await;
     h.key(KeyCode::Char('b')).await;
     h.chars("/srv/northwind-api").await;
-    snap("bind_checkout", "Binding this device's checkout for apply on host", h.screen(W, H));
+    snap(&h, "bind_checkout", "Binding this device's checkout for apply on host");
     h.key(KeyCode::Enter).await;
-    snap("hosts_bound", "Hosts with a bound checkout", h.screen(W, H));
+    snap(&h, "hosts_bound", "Hosts with a bound checkout");
 }
 
 #[tokio::test]
@@ -173,7 +195,7 @@ async fn onboarding_error_without_a_name() {
     h.key(KeyCode::Tab).await;
     h.chars("Northwind").await;
     h.key(KeyCode::Enter).await;
-    snap("onboarding_error", "First run: a validation error", h.screen(W, H));
+    snap(&h, "onboarding_error", "First run: a validation error");
 }
 
 #[tokio::test]
@@ -184,11 +206,11 @@ async fn passkey_create_then_recovery_key() {
     h.key(KeyCode::Tab).await;
     h.chars("Acme Web").await;
     h.key(KeyCode::Enter).await;
-    snap("passkey_create", "Creating a workspace asks for a passkey", h.screen(W, H));
+    snap(&h, "passkey_create", "Creating a workspace asks for a passkey");
     h.key(KeyCode::Enter).await; // open the (simulated) browser
-    snap("recovery_key", "The recovery key, shown once", h.screen(W, H));
+    snap(&h, "recovery_key", "The recovery key, shown once");
     h.key(KeyCode::Enter).await;
-    snap("new_workspace", "A new workspace", h.screen(W, H));
+    snap(&h, "new_workspace", "A new workspace");
 }
 
 /// The demo, with the cursor moved from the composer (where it starts) to
@@ -205,7 +227,7 @@ async fn demo() -> Harness {
 #[tokio::test]
 async fn starts_in_the_composer() {
     let mut h = Harness::new(true).await;
-    snap("start", "Start-up: the cursor in the composer", h.screen(W, H));
+    snap(&h, "start", "Start-up: the cursor in the composer");
     h.chars("hi").await;
     assert_eq!(h.state.composer.text, "hi");
 }
@@ -213,7 +235,7 @@ async fn starts_in_the_composer() {
 #[tokio::test]
 async fn chat_view() {
     let h = demo().await;
-    snap("chat", "Chats: list and transcript", h.screen(W, H));
+    snap(&h, "chat", "Chats: list and transcript");
 }
 
 #[tokio::test]
@@ -221,7 +243,7 @@ async fn chat_composer_with_mentions() {
     let mut h = demo().await;
     h.key(KeyCode::Char('i')).await;
     h.chars("Thanks! @co").await;
-    snap("chat_mentions", "Composer with the @mention popup", h.screen(W, H));
+    snap(&h, "chat_mentions", "Composer with the @mention popup");
 }
 
 #[tokio::test]
@@ -231,7 +253,7 @@ async fn chat_multiline_composer() {
     h.chars("First line").await;
     h.ctrl('j').await;
     h.chars("second line").await;
-    snap("chat_multiline", "Multi-line composer", h.screen(W, H));
+    snap(&h, "chat_multiline", "Multi-line composer");
 }
 
 #[tokio::test]
@@ -266,28 +288,28 @@ async fn chat_streaming_reply() {
         }))
         .await;
     }
-    snap("chat_streaming", "An agent streaming its reply", h.screen(W, H));
+    snap(&h, "chat_streaming", "An agent streaming its reply");
 }
 
 #[tokio::test]
 async fn chat_lockdown_bar() {
     let mut h = demo().await;
     h.key(KeyCode::Down).await;
-    snap("chat_lockdown", "A locked-down chat", h.screen(W, H));
+    snap(&h, "chat_lockdown", "A locked-down chat");
 }
 
 #[tokio::test]
 async fn workspace_switcher() {
     let mut h = demo().await;
     h.key(KeyCode::Char('w')).await;
-    snap("switcher", "Workspace switcher", h.screen(W, H));
+    snap(&h, "switcher", "Workspace switcher");
 }
 
 #[tokio::test]
 async fn add_workspace_overlay() {
     let mut h = demo().await;
     h.key(KeyCode::Char('+')).await;
-    snap("add_workspace", "Create or join another workspace", h.screen(W, H));
+    snap(&h, "add_workspace", "Create or join another workspace");
 }
 
 #[tokio::test]
@@ -295,10 +317,10 @@ async fn proposals_and_diff() {
     let mut h = demo().await;
     h.key(KeyCode::Char('p')).await;
     h.key(KeyCode::Enter).await;
-    snap("proposals", "Proposals with the diff viewer", h.screen(W, H));
+    snap(&h, "proposals", "Proposals with the diff viewer");
     h.key(KeyCode::Char(']')).await;
     h.key(KeyCode::Char(']')).await;
-    snap("proposals_hunk", "Diff viewer: jumped to a later hunk", h.screen(W, H));
+    snap(&h, "proposals_hunk", "Diff viewer: jumped to a later hunk");
 }
 
 #[tokio::test]
@@ -307,14 +329,14 @@ async fn apply_on_host_picker() {
     h.key(KeyCode::Char('p')).await;
     h.key(KeyCode::Down).await;
     h.key(KeyCode::Char('O')).await;
-    snap("apply_host", "Apply on ‹host›", h.screen(W, H));
+    snap(&h, "apply_host", "Apply on ‹host›");
 }
 
 #[tokio::test]
 async fn agents_and_runtimes() {
     let mut h = demo().await;
     h.key(KeyCode::Char('a')).await;
-    snap("agents", "Agents and runtimes", h.screen(W, H));
+    snap(&h, "agents", "Agents and runtimes");
 }
 
 /// Adding an agent from what this device has: the selected runtime under
@@ -327,7 +349,7 @@ async fn agents_add_from_this_device() {
         h.key(KeyCode::Down).await;
     }
     h.key(KeyCode::Enter).await;
-    snap("agents_add", "Agents: add one on this device", h.screen(W, H));
+    snap(&h, "agents_add", "Agents: add one on this device");
     h.key(KeyCode::Enter).await;
     let screen = h.screen(W, H);
     assert!(screen.lines().any(|l| l.contains("@copilot") && l.contains("Only me") && l.contains("This device")), "{screen}");
@@ -344,7 +366,7 @@ async fn agents_nothing_on_this_device() {
     h.key(KeyCode::Esc).await;
     h.key(KeyCode::Char('a')).await;
     let screen = h.screen(W, H);
-    snap("agents_empty", "Agents: nothing found on this device", screen.clone());
+    snap(&h, "agents_empty", "Agents: nothing found on this device");
     assert!(screen.contains("No agent runtime found on this device"), "{screen}");
 }
 
@@ -373,7 +395,7 @@ async fn agents_usage_and_who_can_use() {
 async fn hosts() {
     let mut h = demo().await;
     h.key(KeyCode::Char('h')).await;
-    snap("hosts", "Hosts", h.screen(W, H));
+    snap(&h, "hosts", "Hosts");
 }
 
 #[tokio::test]
@@ -382,7 +404,7 @@ async fn people_as_owner() {
     h.key(KeyCode::Char('m')).await;
     h.key(KeyCode::Down).await;
     h.key(KeyCode::Down).await;
-    snap("people", "People: roles and actions", h.screen(W, H));
+    snap(&h, "people", "People: roles and actions");
 }
 
 #[tokio::test]
@@ -391,7 +413,7 @@ async fn people_refusals_as_viewer() {
     h.key(KeyCode::Char('w')).await;
     h.key(KeyCode::Char('2')).await;
     h.key(KeyCode::Char('m')).await;
-    snap("people_refused", "People: actions the rank rules refuse, with the reason", h.screen(W, H));
+    snap(&h, "people_refused", "People: actions the rank rules refuse, with the reason");
 }
 
 #[tokio::test]
@@ -403,7 +425,7 @@ async fn role_picker() {
     h.key(KeyCode::Down).await;
     h.key(KeyCode::Down).await;
     h.key(KeyCode::Char('r')).await;
-    snap("role_picker", "Changing a role (service member: refused roles crossed out)", h.screen(W, H));
+    snap(&h, "role_picker", "Changing a role (service member: refused roles crossed out)");
 }
 
 #[tokio::test]
@@ -413,26 +435,26 @@ async fn presence_confirm_and_recovery_file() {
     h.key(KeyCode::Down).await;
     h.key(KeyCode::Down).await;
     h.key(KeyCode::Char('X')).await;
-    snap("confirm_remove", "Confirm a removal", h.screen(W, H));
+    snap(&h, "confirm_remove", "Confirm a removal");
     h.key(KeyCode::Char('y')).await;
-    snap("presence", "Passkey sheet", h.screen(W, H));
+    snap(&h, "presence", "Passkey sheet");
     h.key(KeyCode::Char('f')).await;
     h.chars("~/ligus-words.txt").await;
-    snap("presence_recovery", "Passkey sheet: the recovery-words file", h.screen(W, H));
+    snap(&h, "presence_recovery", "Passkey sheet: the recovery-words file");
 }
 
 #[tokio::test]
 async fn notifications() {
     let mut h = demo().await;
     h.key(KeyCode::Char('n')).await;
-    snap("notifications", "Notifications", h.screen(W, H));
+    snap(&h, "notifications", "Notifications");
 }
 
 #[tokio::test]
 async fn settings() {
     let mut h = demo().await;
     h.key(KeyCode::Char('s')).await;
-    snap("settings", "Settings", h.screen(W, H));
+    snap(&h, "settings", "Settings");
 }
 
 #[tokio::test]
@@ -638,13 +660,13 @@ async fn confirm_quit_and_cancel_run() {
     let mut h = demo().await;
     h.key(KeyCode::Char('q')).await;
     assert!(!h.state.quit);
-    snap("confirm_quit", "Quitting while this device drives a run", h.screen(W, H));
+    snap(&h, "confirm_quit", "Quitting while this device drives a run");
     h.key(KeyCode::Esc).await;
     h.key(KeyCode::Char('f')).await;
     h.key(KeyCode::Down).await;
     h.key(KeyCode::Down).await;
     h.key(KeyCode::Char('X')).await;
-    snap("confirm_cancel_run", "Cancelling a run asks first", h.screen(W, H));
+    snap(&h, "confirm_cancel_run", "Cancelling a run asks first");
     h.key(KeyCode::Char('y')).await;
     assert!(h.screen(W, H).contains("canceled"), "{}", h.screen(W, H));
 }
@@ -667,5 +689,5 @@ async fn presence_without_a_browser_here() {
     let screen = h.screen(W, H);
     assert!(screen.lines().any(|l| l.starts_with("https://ligus.ai/presence#op=get")), "{screen}");
     assert!(screen.contains("8765:127.0.0.1:8765"), "{screen}");
-    snap("presence_no_browser", "Passkey sheet with no browser here: the address for another device", screen);
+    snap(&h, "presence_no_browser", "Passkey sheet with no browser here: the address for another device");
 }

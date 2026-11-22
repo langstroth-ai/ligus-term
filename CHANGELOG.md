@@ -8,6 +8,15 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Changed
 
+- Proposals shows the selected proposal's diff as soon as you select it,
+  instead of "enter to view the diff". Moving through the list loads only
+  the diff the selection rests on, so holding a key stays light; `enter`
+  still moves into the diff to scroll it.
+- Warnings have their own colour in the dark theme: an amber-orange off the
+  honey accent (the desktop's warn), so an open proposal or a warning no
+  longer looks like the accent or the focused pane. The light theme uses
+  the desktop's light amber-orange, and with 16 colours warn is the
+  terminal's yellow.
 - The demo (`lt --demo`) shows an ordinary software team: a "Northwind API"
   workspace with chats such as "Fix flaky checkout test", "Migrate auth to
   passkeys" and "Weekly release notes", a checkout-timeout proposal, and
@@ -16,6 +25,18 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   hosts, proposals, runs, people, memory and notifications as before, in
   the same states. The help examples, screen captures, README images and
   demo GIF use the same names.
+
+### Fixed
+
+- At 80×24 a locked-down chat's banner cut off the key that clears the
+  lockdown; it now comes first and the reasons end in "…". An empty chat's
+  welcome wraps instead of losing its end, and the composer's hints drop
+  whole parts rather than stopping mid-word.
+
+### Tests
+
+- Every screen, including the overlays, sheets and first-run steps, is
+  snapshot at 80×24 and 200×50 as well as 110×32.
 
 ## v0.1.2
 

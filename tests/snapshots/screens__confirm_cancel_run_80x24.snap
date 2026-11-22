@@ -1,0 +1,28 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
+┏ Workflows 2 · Runs 2 ━━━━━━━━━━━━┓╭ Detail ──────────────────────────────────╮
+┃▸ Implement, review, ship         ┃│Implement, review, ship  awaiting-gate    │
+┃▸ Weekly security digest  Migra…  ┃│started by Mara 30m ago · driven by This  │
+┃  Implemen… ●●◆ awaiting-gate 4m  ┃│device                                    │
+┃  Weekly securit… ● completed 1d  ┃│input inject a fake clock                 │
+┃                                  ┃│                                          │
+┃                                  ┃│  ● Implement @coder  succeeded           │
+┃                                  ┃│      Changed the checkout struct and t…  │
+┃       ┏ Cancel the run ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓       │
+┃       ┃Cancel the run “Implement, review, ship”? Its stages stop and ┃a te…  │
+┃       ┃it can't be resumed.                                          ┃       │
+┃       ┃                                                              ┃       │
+┃       ┃y cancel the run · any other key backs out                    ┃       │
+┃       ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛       │
+┃                                  ┃│X cancel the run                          │
+┃                                  ┃│enter open its chat                       │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────╯
+↑↓ select  S start  A approve gate  R reject  X cancel  ? help      peer to peer

@@ -480,6 +480,44 @@ fn proposals_vote_apply_and_hunk_navigation() {
     assert_eq!(s.focus, Focus::List);
 }
 
+/// The selected proposal's diff shows without enter: at once when the list
+/// arrives, and after the selection rests when it moves, so holding ↓
+/// through the list asks for one diff, not one per row.
+#[test]
+fn proposals_preview_the_selected_diff() {
+    let mut s = main_state();
+    let w = WorkspaceId::new("a");
+    let (p1, p2, p3) = (ProposalId::new("p1"), ProposalId::new("p2"), ProposalId::new("p3"));
+    let list = vec![proposal("p1", ProposalStatus::Open), proposal("p2", ProposalStatus::Open), proposal("p3", ProposalStatus::Open)];
+    // Arriving outside Proposals loads nothing extra.
+    assert!(update(&mut s, Msg::Proposals(w.clone(), Ok(list.clone()))).is_empty());
+    // Opening Proposals previews the selected one at once.
+    let fx = key(&mut s, KeyCode::Char('p'));
+    assert!(fx.contains(&Effect::LoadDiff(w.clone(), p1.clone())), "{fx:?}");
+    update(&mut s, Msg::Diff(w.clone(), p1.clone(), Ok(Diff { files: vec![] })));
+    assert_eq!(s.diff.as_ref().map(|d| d.proposal.clone()), Some(p1.clone()));
+    assert_eq!(s.focus, Focus::List, "the preview doesn't take focus");
+    // A refreshed list with the same selection keeps the diff.
+    assert!(update(&mut s, Msg::Proposals(w.clone(), Ok(list))).is_empty());
+    // Moving asks for a preview after a rest, not the diff itself.
+    assert_eq!(key(&mut s, KeyCode::Down), vec![Effect::PreviewDiff(w.clone(), p2.clone())]);
+    assert!(s.diff.is_none(), "the old diff isn't shown under the new selection");
+    assert_eq!(key(&mut s, KeyCode::Down), vec![Effect::PreviewDiff(w.clone(), p3.clone())]);
+    // The rest for p2 comes due after the selection moved on: nothing loads.
+    assert!(update(&mut s, Msg::PreviewDue(w.clone(), p2.clone())).is_empty());
+    // The selection rests on p3: its diff loads.
+    assert_eq!(update(&mut s, Msg::PreviewDue(w.clone(), p3.clone())), vec![Effect::LoadDiff(w.clone(), p3.clone())]);
+    // A slow diff for an earlier selection is dropped.
+    update(&mut s, Msg::Diff(w.clone(), p1.clone(), Ok(Diff { files: vec![] })));
+    assert!(s.diff.is_none());
+    update(&mut s, Msg::Diff(w.clone(), p3.clone(), Ok(Diff { files: vec![] })));
+    assert_eq!(s.diff.as_ref().map(|d| d.proposal.clone()), Some(p3.clone()));
+    // Leaving Proposals: a rest that comes due later loads nothing.
+    key(&mut s, KeyCode::Up);
+    key(&mut s, KeyCode::Char('c'));
+    assert!(update(&mut s, Msg::PreviewDue(w.clone(), p2)).is_empty());
+}
+
 fn member(id: &str, role: Role, remove: Allowed, roles: Allowed) -> Member {
     Member {
         id: MemberId::new(id),

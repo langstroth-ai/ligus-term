@@ -1,0 +1,28 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
+┏ Chats ━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ─────────────────────────────╮
+┃  Fix flaky che… 12m  ┃│Ada  40m                                              │
+┃  #dev                ┃│  The checkout test fails about one run in ten. Can we│
+┃  ⊘ Migrate aut… 50m  ┃│  stop it reading the wall clock?                     │
+┃  #dev                ┃│                                                      │
+┃  Weekly release… 1d  ┃│@coder  via claude-code  38m                          │
+┃                      ┃│  Yes. The payment tests already use a fake clock, so │
+┃   ┏ Workspaces ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓   │
+┃   ┃1 [NA] Northwind API  owner · peer to peer                            ┃   │
+┃   ┃2 [DS] docs-site  viewer · relay https://relay.example.org  • mentione┃   │
+┃   ┃                                                                      ┃hat│
+┃   ┃                                                                      ┃   │
+┃   ┃enter switch · 1-9 jump · + create or join · esc close                ┃   │
+┃   ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛   │
+┃                      ┃│                                                      │
+┃                      ┃│                                                      │
+┃                      ┃│                                                      │
+┃                      ┃╰──────────────────────────────────────────────────────╯
+┃                      ┃
+┃                      ┃╭ Message the room ────────────────────────────────────╮
+┃                      ┃│i to write · @ mentions an agent or a person          │
+┗━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────╯
+↑↓ chats  i write  N new chat  tab pane  w workspaces  ? help       peer to peer

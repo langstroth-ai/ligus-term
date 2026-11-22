@@ -1,0 +1,53 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                              ┏ “Acme Web” is ready ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+                                                              ┃Write down your recovery key.                                             ┃
+                                                              ┃It stands in for a lost passkey: without it, a sole owner who loses their ┃
+                                                              ┃passkeys can't govern the workspace again. It is shown once.              ┃
+                                                              ┃                                                                          ┃
+                                                              ┃  1 quartz         7 cedar         13 amber         19 basket             ┃
+                                                              ┃  2 river          8 basket        14 glade         20 slate              ┃
+                                                              ┃  3 ember          9 thyme         15 umber         21 orchard            ┃
+                                                              ┃  4 orchard       10 harbor        16 zephyr        22 north              ┃
+                                                              ┃  5 meadow        11 basket        17 dune          23 juniper            ┃
+                                                              ┃  6 willow        12 lantern       18 harbor        24 keel               ┃
+                                                              ┃                                                                          ┃
+                                                              ┃To confirm from a terminal without a browser later, keep the words in a   ┃
+                                                              ┃file only you can read (chmod 600) and give lt its path.                  ┃
+                                                              ┃                                                                          ┃
+                                                              ┃Invite code  fake-invite:Acme-Web                                         ┃
+                                                              ┃                                                                          ┃
+                                                              ┃Press enter when you've written them down.                                ┃
+                                                              ┃                                                                          ┃
+                                                              ┃                                                                          ┃
+                                                              ┃                                                                          ┃
+                                                              ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+
+
+
+
+
+
+
+
+
+
+                                                                                                                                                                          ✓ Confirmed with your passkey

@@ -1,0 +1,28 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
+┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Member ──────────────────────────────────╮
+┃  Mara · you  owner  founder      ┃│Mara  owner                               │
+┃  Ada  admin                      ┃│                                          │
+┃  Lin  contributor                ┃│Founder: nobody can remove or demote them.│
+┃  Sam  viewer                     ┃│Role (r)                                  │
+┏ Admit a box ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃A ligus serve or ligus worker box joins as its own service member             ┃
+┃(Contributor). Paste the join request it printed (ligusjoin1:…), or leave it  ┃
+┃empty for a code to put in a Kubernetes Secret or LIGUS_ADMISSION_FILE.       ┃
+┃                                                                              ┃
+┃› ligusjoin1:eyJ2IjoxLCJsYWJlbCI6InNmZiJ9                                     ┃
+┃                                                                              ┃
+┃enter check its fingerprint (empty: a bearer code) · esc cancel               ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+┃                                  ┃│your passkey.                             │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────╯
+↑↓ people  r role  X remove  I invite  B admit box  f1 help         peer to peer

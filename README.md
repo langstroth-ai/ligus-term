@@ -288,7 +288,9 @@ Plain mode: `lt --plain available`, then `lt --plain add-agent N [NAME]`.
 
 Proposals (`p`) gathers code changes, decisions, workflow gates and
 agent-authored workflows from every chat in one queue: votes against
-quorum, Approve and Reject, "Apply on ‹host›", and a diff viewer.
+quorum, Approve and Reject, "Apply on ‹host›", and a diff viewer that
+previews the selected proposal as you move through the list (`enter`
+moves into it to scroll).
 
 An approved proposal is applied by one host, in its checkout. For this
 device to apply one, bind the workspace's checkout: Hosts, then `b`, and
