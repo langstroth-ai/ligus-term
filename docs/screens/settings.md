@@ -21,9 +21,9 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃  Sync            no relay: peer to peer, or this device only                                               ┃
 ┃                                                                                                            ┃
 ┃Appearance and keys                                                                                         ┃
-┃  Theme           dark                                                                                      ┃
+┃ Theme  dark   enter switches: dark, light, mono (this session)                                             ┃
 ┃  Config file     ~/.config/ligus-term/config.toml                                                          ┃
-┃  Change the theme and rebind keys in the config file; lt --print-config shows every default.               ┃
+┃  Keep a theme and rebind keys in the config file; lt --print-config shows every default.                   ┃
 ┃                                                                                                            ┃
 ┃                                                                                                            ┃
 ┃                                                                                                            ┃

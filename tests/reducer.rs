@@ -1315,3 +1315,36 @@ fn stop_turn_and_tool_output() {
     key(&mut s, KeyCode::Char('o'));
     assert!(s.tools_expanded);
 }
+
+/// The theme switches in the app (Settings' Theme row, or the palette):
+/// dark, light, mono, round again.
+#[test]
+fn theme_switches_in_the_app() {
+    use ligus_term::theme::ThemeChoice;
+    let mut s = main_state();
+    s.theme_name = "dark (24-bit colour)".into();
+    update(
+        &mut s,
+        Msg::Settings(Ok(Settings {
+            your_name: "Mara".into(),
+            device_name: "lt".into(),
+            notify_mentions: true,
+            agents_may_edit: false,
+            relay_url: None,
+        })),
+    );
+    key(&mut s, KeyCode::Char('s'));
+    key(&mut s, KeyCode::Down);
+    key(&mut s, KeyCode::Down);
+    key(&mut s, KeyCode::Enter);
+    assert_eq!(s.theme_request, Some(ThemeChoice::Light));
+    s.theme_request = None;
+    s.theme_name = "light (24-bit colour)".into();
+    update(&mut s, Msg::ThemeChanged);
+    assert!(s.toasts.last().unwrap().text.starts_with("Theme: light"));
+    key(&mut s, KeyCode::Char('t'));
+    assert_eq!(s.theme_request, Some(ThemeChoice::Mono));
+    s.theme_name = "mono".into();
+    key(&mut s, KeyCode::Char('t'));
+    assert_eq!(s.theme_request, Some(ThemeChoice::Dark));
+}

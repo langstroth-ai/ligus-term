@@ -13,5 +13,9 @@ pub mod help;
 pub mod keymap;
 pub mod paths;
 pub mod plain;
+pub mod termprobe;
 pub mod theme;
+#[rustfmt::skip]
+#[allow(dead_code)]
+pub mod theme_tokens;
 pub mod ui;

@@ -471,6 +471,9 @@ pub struct State {
     /// Where the config file is (for Settings).
     pub config_path: Option<String>,
     pub theme_name: String,
+    /// A theme picked in the app (Settings, the palette), for the runtime
+    /// to switch to; this session only.
+    pub theme_request: Option<crate::theme::ThemeChoice>,
     /// Ring the terminal bell once (a mention arrived).
     pub bell: bool,
     pub quit: bool,
@@ -542,6 +545,7 @@ impl State {
             sync_status: HashMap::new(),
             config_path: None,
             theme_name: "dark".into(),
+            theme_request: None,
             bell: false,
             quit: false,
             term: (0, 0),

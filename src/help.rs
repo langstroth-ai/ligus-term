@@ -35,6 +35,7 @@ pub const ENV: &[EnvVar] = &[
         default: "~/.ligus-term",
         meaning: "this device's data dir (--data-dir wins); never shared with the desktop app or the ligus CLI",
     },
+    EnvVar { name: "LT_ASCII", default: "off", meaning: "1/true/on/yes: ASCII only, like --ascii" },
     EnvVar {
         name: "VISUAL",
         default: "$EDITOR, else vi",
@@ -128,7 +129,11 @@ pub const ENV: &[EnvVar] = &[
                   colours, so your terminal's palette applies; anything else 256",
     },
     EnvVar { name: "LT_COLOR_DEPTH", default: "detected", meaning: "truecolor, 256 or 16: overrides the detection" },
-    EnvVar { name: "COLORFGBG", default: "-", meaning: "the auto theme reads the background from it (7 or 15 is light), else dark" },
+    EnvVar {
+        name: "COLORFGBG",
+        default: "-",
+        meaning: "the auto theme reads the background from it (7 or 15 is light); without it lt asks the terminal (OSC 11), else dark",
+    },
 ];
 
 /// One plain-mode command.
@@ -979,7 +984,11 @@ brew install says lt conflicts with localtunnel
   Homebrew's localtunnel also installs an lt binary; uninstall one of them.
 
 Colours look wrong
-  --theme dark|light|mono, or theme in the config; NO_COLOR gives mono.
+  --theme dark|light|mono, or theme in the config; NO_COLOR gives mono. With
+  theme = auto, lt asks the terminal for its background at start (OSC 11,
+  100 ms at most) when COLORFGBG doesn't say. Settings (or the palette's
+  Switch the theme) tries another theme for the session. --ascii (or
+  LT_ASCII=1) drops box drawing and symbols for limited fonts.
   Settings shows the colour depth lt picked: 24-bit with COLORTERM=truecolor,
   else 256, or 16 on a basic TERM. LT_COLOR_DEPTH=truecolor|256|16 overrides it
   (tmux without truecolor passthrough wants 256).

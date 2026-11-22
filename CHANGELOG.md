@@ -15,6 +15,12 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   and agents. Each action shows its key. `enter` runs it or goes to the
   thing and selects it; `esc` closes. Context actions only show where they
   apply, so nothing acts on a selection you can't see.
+- `--ascii` (or `LT_ASCII=1`): ASCII only, with `+-|` borders, the status
+  glyphs `*` `<>` `~` `ok` `x` `=`, and no block-art mark, for limited
+  fonts and braille displays.
+- Switch the theme in the app: Settings has a Theme row (`enter`: dark,
+  light, mono), and the palette has "Switch the theme". It lasts the
+  session; `theme = …` in the config file keeps one.
 - `space`, then a pause, shows a sheet of the single keys you can press
   here: the view's actions, the views, and what works anywhere. The next
   key acts as it always does; `esc` or `space` put the sheet away. Pressing
@@ -49,6 +55,14 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Changed
 
+- Colours come from the shared Ligus tokens, the same values the desktop
+  and the phone use, so the three can't drift apart: each colour at 24-bit,
+  its own 256-colour index and a 16-colour slot. In 16 colours the accent
+  and focus are bold rather than a hue, so yellow means a warning only.
+  Text, dim, warn, danger and the rest shift slightly to the shared values.
+- `theme = auto` asks the terminal for its background (OSC 11, at most
+  100 ms at start, only in the full-screen app) when `COLORFGBG` doesn't
+  say, instead of assuming dark.
 - The chat view fits the terminal: under 100 columns the chat list shows
   only while it has the keyboard (`esc` from the composer, or the new
   `ctrl-l`), and the transcript has the width the rest of the time, its

@@ -57,6 +57,9 @@ pub fn draw(f: &mut Frame, s: &State, t: &Theme) {
     if !matches!(s.phase, Phase::Main) {
         draw_toast_row(f, Rect { y: area.bottom().saturating_sub(1), height: 1.min(area.height), ..area }, s, t);
     }
+    if t.ascii {
+        asciify(f.buffer_mut());
+    }
 }
 
 fn draw_main(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
@@ -343,10 +346,13 @@ fn right_zones(s: &State, t: &Theme) -> Vec<Vec<Span<'static>>> {
 
 /// The toast as status-bar spans, its text cut to `width` columns.
 fn toast_spans(toast: &crate::app::state::Toast, width: usize, t: &Theme) -> Vec<Span<'static>> {
-    let (mark, color) = match toast.kind {
-        ToastKind::Info => ("•", t.accent),
-        ToastKind::Ok => ("✓", t.good),
-        ToastKind::Error => ("✗", t.bad),
+    let (mark, color) = match (toast.kind, t.ascii) {
+        (ToastKind::Info, false) => ("•", t.accent),
+        (ToastKind::Ok, false) => ("✓", t.good),
+        (ToastKind::Error, false) => ("✗", t.bad),
+        (ToastKind::Info, true) => ("*", t.accent),
+        (ToastKind::Ok, true) => ("ok", t.good),
+        (ToastKind::Error, true) => ("x", t.bad),
     };
     let mark_style =
         if t.mono { Style::default().add_modifier(Modifier::BOLD) } else { Style::default().fg(color).add_modifier(Modifier::BOLD) };
@@ -530,15 +536,78 @@ fn draw_status(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
 /// spinner cell per running item, nothing else moves).
 pub(crate) fn state_glyph(s: &State, st: crate::backend::model::SessionState, t: &Theme) -> &'static str {
     const SPIN: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-    let _ = t;
+    const SPIN_ASCII: [&str; 4] = ["|", "/", "-", "\\"];
     if st == crate::backend::model::SessionState::Working {
-        return SPIN[((s.now / 250).rem_euclid(SPIN.len() as i64)) as usize];
+        let frame = (s.now / 250).rem_euclid(10) as usize;
+        return if t.ascii { SPIN_ASCII[frame % 4] } else { SPIN[frame] };
     }
-    st.glyph(false)
+    st.glyph(t.ascii)
+}
+
+/// `--ascii` borders: `+`, `-` and `|`.
+const ASCII_BORDER: ratatui::symbols::border::Set = ratatui::symbols::border::Set {
+    top_left: "+",
+    top_right: "+",
+    bottom_left: "+",
+    bottom_right: "+",
+    vertical_left: "|",
+    vertical_right: "|",
+    horizontal_top: "-",
+    horizontal_bottom: "-",
+};
+
+/// With `--ascii`, the symbols lt draws itself, as ASCII. Text people
+/// wrote passes through, apart from typographic quotes and dashes.
+fn ascii_for(c: char) -> Option<char> {
+    Some(match c {
+        '▍' | '▏' => '_',
+        '─' | '━' | '═' | '┄' | '╌' => '-',
+        '│' | '┃' | '║' | '┆' | '╎' => '|',
+        '\u{2500}'..='\u{257f}' => '+',
+        '\u{2580}'..='\u{259f}' => '#',
+        '\u{2800}'..='\u{28ff}' => '*',
+        '…' => '.',
+        '•' | '●' | '◆' | '⚒' | '★' => '*',
+        '✓' | '✔' => 'v',
+        '✗' | '✕' | '×' => 'x',
+        '⚠' => '!',
+        '⇅' | '⧗' => '~',
+        '‖' | '⊘' => '=',
+        '‹' | '←' => '<',
+        '›' | '→' | '▶' | '▸' => '>',
+        '▾' | '↓' => 'v',
+        '↑' => '^',
+        '⏎' => '/',
+        '·' => '.',
+        '“' | '”' => '"',
+        '‘' | '’' => '\'',
+        '–' | '—' => '-',
+        _ => return None,
+    })
+}
+
+/// Replace the symbols in a drawn frame with ASCII (`--ascii`).
+fn asciify(buf: &mut ratatui::buffer::Buffer) {
+    for cell in buf.content.iter_mut() {
+        let mut chars = cell.symbol().chars();
+        if let (Some(c), None) = (chars.next(), chars.next())
+            && !c.is_ascii()
+            && let Some(a) = ascii_for(c)
+        {
+            cell.set_char(a);
+        }
+    }
 }
 
 /// A bordered pane with a title; the border lights up when focused.
 pub(crate) fn pane<'a>(title: &'a str, focused: bool, t: &Theme) -> Block<'a> {
+    if t.ascii {
+        return Block::default()
+            .borders(Borders::ALL)
+            .border_set(ASCII_BORDER)
+            .border_style(t.border(focused))
+            .title(Span::styled(format!(" {title} "), if focused { t.accent() } else { t.text() }));
+    }
     Block::default()
         .borders(Borders::ALL)
         .border_type(if focused { BorderType::Thick } else { BorderType::Rounded })

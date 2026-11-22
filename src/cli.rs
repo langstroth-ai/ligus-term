@@ -57,6 +57,10 @@ pub struct Args {
     /// auto, dark, light or mono (overrides the config file).
     #[arg(long, value_name = "THEME")]
     pub theme: Option<ThemeChoice>,
+    /// ASCII only: no box drawing or symbols (status glyphs become * <> ~ ok
+    /// x =), for limited fonts and braille displays. Also LT_ASCII=1.
+    #[arg(long)]
+    pub ascii: bool,
     /// Print a config file with every default and exit.
     #[arg(long)]
     pub print_config: bool,

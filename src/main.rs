@@ -46,7 +46,6 @@ async fn run() -> anyhow::Result<()> {
         args.json = true;
     }
     // A command runs one-shot in plain mode, with or without --plain.
-    let plain_mode = args.plain || args.json || !args.command.is_empty();
     // Without --plain, an unknown command (a typo) is refused on stderr
     // before any data dir is opened; with it, as an error record.
     if let Some(name) = args.command.first()
@@ -69,7 +68,14 @@ async fn run() -> anyhow::Result<()> {
     let keymap = config.keymap().unwrap_or_else(|e| fail(format!("config: {e}")));
     let choice = args.theme.or(config.theme).unwrap_or(ThemeChoice::Auto);
     let depth = ColorDepth::detect(env);
-    let theme = Theme::resolve(choice, env).with_depth(depth);
+    // The full-screen app may ask the terminal for its background (OSC 11);
+    // plain mode never writes anything but records.
+    let plain_mode = args.plain || args.json || !args.command.is_empty();
+    let tui = !plain_mode && std::io::stdout().is_terminal() && std::io::stdin().is_terminal();
+    let probe = || if tui { ligus_term::termprobe::background_is_light(ligus_term::termprobe::PROBE_TIMEOUT) } else { None };
+    let ascii =
+        args.ascii || env("LT_ASCII").is_some_and(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "on" | "yes"));
+    let theme = Theme { ascii, ..Theme::resolve_with(choice, env, probe).with_depth(depth) };
 
     let mut real = None;
     let backend: Arc<dyn Backend> = if args.demo {
@@ -119,6 +125,6 @@ async fn run() -> anyhow::Result<()> {
 
     let mut state = State::new(backend.device(), keymap, app::runtime::now_ms());
     state.config_path = config_path.map(|p| p.display().to_string());
-    state.theme_name = if theme.mono { theme.name.to_string() } else { format!("{} ({})", theme.name, depth.label()) };
-    app::runtime::run_tui(backend, state, theme).await
+    state.theme_name = app::runtime::theme_label(&theme, depth);
+    app::runtime::run_tui(backend, state, theme, depth).await
 }

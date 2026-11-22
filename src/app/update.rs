@@ -59,6 +59,8 @@ pub enum Msg {
     Checkout(WorkspaceId, Result<Option<String>>),
     /// A stop was asked for: how many turns stopped here.
     Stopped(WorkspaceId, ChatId, Result<usize>),
+    /// The runtime switched the theme (`state.theme_name` says to what).
+    ThemeChanged,
     /// The draft came back from the external editor.
     Edited(Result<String>),
     /// A fire-and-report action finished; `ok` is the toast on success.
@@ -445,6 +447,11 @@ pub fn update(s: &mut State, msg: Msg) -> Vec<Effect> {
         }
         Msg::Stopped(_, _, Err(e)) => {
             s.toast(ToastKind::Error, format!("Couldn't stop the turn: {e}"));
+            vec![]
+        }
+        Msg::ThemeChanged => {
+            let name = s.theme_name.split(' ').next().unwrap_or("").to_string();
+            s.toast(ToastKind::Ok, format!("Theme: {name}, for this session (theme = \"{name}\" in the config file keeps it)"));
             vec![]
         }
         Msg::Edited(Ok(text)) => {
@@ -1602,6 +1609,16 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             s.which_key = Some(s.now);
             vec![]
         }
+        SwitchTheme => {
+            use crate::theme::ThemeChoice;
+            let next = match s.theme_name.split(' ').next().unwrap_or("") {
+                "dark" => ThemeChoice::Light,
+                "light" => ThemeChoice::Mono,
+                _ => ThemeChoice::Dark,
+            };
+            s.theme_request = Some(next);
+            vec![]
+        }
         Help => {
             s.overlay = Some(Overlay::Help { scroll: 0, query: TextBuf::single(), searching: false });
             vec![]
@@ -1867,6 +1884,7 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             match s.settings_sel.index {
                 0 => vec![Effect::SetSetting(SettingKey::NotifyMentions, !st.notify_mentions)],
                 1 => vec![Effect::SetSetting(SettingKey::AgentsMayEdit, !st.agents_may_edit)],
+                2 => main_action(s, SwitchTheme),
                 _ => vec![],
             }
         }
@@ -1994,7 +2012,7 @@ fn ask_quit(s: &mut State) {
 }
 
 /// Settings rows that can be toggled.
-pub const SETTINGS_TOGGLES: usize = 2;
+pub const SETTINGS_TOGGLES: usize = 3;
 
 fn nav_action(s: &mut State, a: Action) -> Vec<Effect> {
     match s.view {
@@ -2145,14 +2163,7 @@ fn select(s: &mut State) -> Vec<Effect> {
             }
             fx
         }
-        View::Settings => {
-            let Some(st) = &s.settings else { return vec![] };
-            match s.settings_sel.index {
-                0 => vec![Effect::SetSetting(SettingKey::NotifyMentions, !st.notify_mentions)],
-                1 => vec![Effect::SetSetting(SettingKey::AgentsMayEdit, !st.agents_may_edit)],
-                _ => vec![],
-            }
-        }
+        View::Settings => main_action(s, Action::Toggle),
         View::Workflows => {
             // Enter on a run opens its chat; on a definition, starts a run.
             match s.selected_workflow_item() {

@@ -519,9 +519,16 @@ pub fn settings(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         ),
         Line::raw(""),
         head("Appearance and keys"),
-        kv("Theme", s.theme_name.clone()),
+        {
+            let sel = s.settings_sel.index == 2;
+            let style = if sel { t.selected() } else { t.text() };
+            Line::from(vec![
+                Span::styled(format!(" Theme  {} ", s.theme_name), style),
+                Span::styled("  enter switches: dark, light, mono (this session)", t.dim()),
+            ])
+        },
         kv("Config file", s.config_path.clone().unwrap_or_else(|| "none".into())),
-        Line::styled("  Change the theme and rebind keys in the config file; lt --print-config shows every default.", t.dim()),
+        Line::styled("  Keep a theme and rebind keys in the config file; lt --print-config shows every default.", t.dim()),
     ];
     f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }).block(block), area);
 }
