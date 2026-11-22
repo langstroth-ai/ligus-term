@@ -6,7 +6,6 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 
 
 
-
                                  ┏ Welcome to Ligus ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
                                  ┃Ligus is short for ligustica, the Italian honeybee.                   ┃
                                  ┃This terminal is its own Ligus device, with its own keys.             ┃
@@ -15,18 +14,19 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
                                  ┃  Your name      Mara                                                 ┃
           ▄▀▀▄▄   ▄▄▀▀▄          ┃                                                                      ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  ( ) Create   ( ) Join with an invite   (•) Connect a deployment     ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  ( ) Look around first (the demo, nothing saved)                     ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
-        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  Relay URL      http://127.0.0.1:18443                               ┃
-     ▄▀▀▀▄▄▀▀▄▄▀▀▀▄▄▀▀▄▄▀▀▀▄     ┃› Room           k8s-trial-7f3a▏                                      ┃
+     ▄▀▀▀▄▄▀▀▄▄▀▀▀▄▄▀▀▄▄▀▀▀▄     ┃  Relay URL      http://127.0.0.1:18443                               ┃
+    ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃› Room           k8s-trial-7f3a▏                                      ┃
     ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃  Key            the workspace key / Secret key key                   ┃
-    ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃  Relay token    only for a gated relay (hrt1…)                       ┃
-     ▀▀▀▀▀▀▄▄▀▀▀▀▀▀▀▄▄▀▀▀▀▀▀     ┃  Workspace name defaults to the room                                 ┃
-        ▄▄▀▀▀▀▀▄ ▄▀▀▀▀▀▄▄        ┃  Founds the workspace a ligus-local or Kubernetes deployment serves; ┃
+     ▀▀▀▀▀▀▄▄▀▀▀▀▀▀▀▄▄▀▀▀▀▀▀     ┃  Relay token    only for a gated relay (hrt1…)                       ┃
+        ▄▄▀▀▀▀▀▄ ▄▀▀▀▀▀▄▄        ┃  Workspace name defaults to the room                                 ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  Founds the workspace a ligus-local or Kubernetes deployment serves; ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  then admit its boxes from People (B).                               ┃
-        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
           ▀▀▀▀▀   ▀▀▀▀▀          ┃                                                                      ┃
                                  ┃                                                                      ┃
-                                 ┃tab next · ←→ create/join/connect · enter continue · esc quit         ┃
+                                 ┃                                                                      ┃
+                                 ┃tab next · ←→ create/join/connect/demo · enter continue · esc quit    ┃
                                  ┃                                                                      ┃
                                  ┃                                                                      ┃
                                  ┃                                                                      ┃

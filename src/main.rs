@@ -154,5 +154,31 @@ async fn run() -> anyhow::Result<()> {
     state.theme_name = app::runtime::theme_label(&theme, depth);
     state.mouse = config.mouse.unwrap_or(true);
     let mouse = state.mouse;
-    app::runtime::run_tui(backend, state, theme, depth, mouse).await
+    let state = app::runtime::run_tui(backend, state, theme, depth, mouse).await?;
+    if let Some(real) = &real {
+        real.shutdown();
+    }
+    if state.exec_demo {
+        // Look around first: the same binary, in the demo.
+        let exe = std::env::current_exe()?;
+        let mut cmd = std::process::Command::new(exe);
+        cmd.arg("--demo");
+        if let Some(t) = args.theme {
+            cmd.arg("--theme").arg(format!("{t:?}").to_lowercase());
+        }
+        if args.ascii {
+            cmd.arg("--ascii");
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+            return Err(cmd.exec().into());
+        }
+        #[cfg(not(unix))]
+        {
+            let status = cmd.status()?;
+            std::process::exit(status.code().unwrap_or(1));
+        }
+    }
+    Ok(())
 }

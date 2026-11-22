@@ -7,7 +7,6 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 
 
 
-
                                  ┏ Welcome to Ligus ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
                                  ┃Ligus is short for ligustica, the Italian honeybee.                   ┃
                                  ┃This terminal is its own Ligus device, with its own keys.             ┃
@@ -16,15 +15,16 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
           ▄▀▀▄▄   ▄▄▀▀▄          ┃  Your name      Mara                                                 ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  ( ) Create   (•) Join with an invite   ( ) Connect a deployment     ┃
-        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
-     ▄▀▀▀▄▄▀▀▄▄▀▀▀▄▄▀▀▄▄▀▀▀▄     ┃› Invite code    fake-invite:Acme-Web▏                                ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  ( ) Look around first (the demo, nothing saved)                     ┃
+     ▄▀▀▀▄▄▀▀▄▄▀▀▀▄▄▀▀▄▄▀▀▀▄     ┃                                                                      ┃
+    ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃› Invite code    fake-invite:Acme-Web▏                                ┃
     ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃  Enter checks who it's from (its founder's signature); enter again   ┃
-    ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃joins.                                                                ┃
-     ▀▀▀▀▀▀▄▄▀▀▀▀▀▀▀▄▄▀▀▀▀▀▀     ┃                                                                      ┃
+     ▀▀▀▀▀▀▄▄▀▀▀▀▀▀▀▄▄▀▀▀▀▀▀     ┃joins.                                                                ┃
         ▄▄▀▀▀▀▀▄ ▄▀▀▀▀▀▄▄        ┃                                                                      ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
-        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃tab next · ←→ create/join/connect · enter continue · esc quit         ┃
-          ▀▀▀▀▀   ▀▀▀▀▀          ┃                                                                      ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
+          ▀▀▀▀▀   ▀▀▀▀▀          ┃tab next · ←→ create/join/connect/demo · enter continue · esc quit    ┃
+                                 ┃                                                                      ┃
                                  ┃                                                                      ┃
                                  ┃                                                                      ┃
                                  ┃                                                                      ┃

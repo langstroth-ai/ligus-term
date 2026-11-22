@@ -5,11 +5,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ```text
 [AW] Acme Web · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications  Settings
 ╭ Chats ───────────────────────╮╭ Welcome ───────────────────────────────────────────────────────────────────╮
-│  Welcome                now  ││                                                                            │
-│                              ││                                                                            │
-│                              ││                                                                            │
-│                              ││                                                                            │
-│                              ││                               ▄▀▀▄▄   ▄▄▀▀▄                                │
+│  Welcome                now  ││                               ▄▀▀▄▄   ▄▄▀▀▄                                │
 │                              ││                             ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀                              │
 │                              ││                             ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀                              │
 │                              ││                             ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀                              │
@@ -23,11 +19,15 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 │                              ││                               ▀▀▀▀▀   ▀▀▀▀▀                                │
 │                              ││                                                                            │
 │                              ││                                                                            │
-│                              ││                            Start a conversation                            │
-│                              ││     Ask about your code, or @mention an agent to have it make changes.     │
+│                              ││        Acme Web: getting started                                           │
 │                              ││                                                                            │
+│                              ││        ✓ Workspace created                                                 │
+│                              ││        ✓ Add an agent                                                      │
+│                              ││        ○ Invite someone    m then I    needs a relay (LT_RELAY_URL)        │
+│                              ││        ○ Connect a box     m then B    ligus serve or ligus worker         │
+│                              ││        ○ Start a workflow  f then S                                        │
 │                              ││                                                                            │
-│                              ││                                                                            │
+│                              ││        Or just type: ask about your code, or @mention an agent.            │
 │                              ││                                                                            │
 │                              │╰────────────────────────────────────────────────────────────────────────────╯
 │                              │

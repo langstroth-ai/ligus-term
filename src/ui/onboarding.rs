@@ -69,8 +69,8 @@ fn with_splash(f: &mut Frame, area: Rect, w: u16, h: u16, first_run: bool, t: &T
 pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: &Theme, first_run: bool) {
     let connect = form.mode == FormMode::Connect;
     let h = match (first_run, connect) {
-        (true, true) => 24,
-        (true, false) => 22,
+        (true, true) => 25,
+        (true, false) => 23,
         (false, true) => 18,
         (false, false) => 16,
     };
@@ -108,6 +108,9 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
         Span::raw("   "),
         opt("Connect a deployment", form.mode == FormMode::Connect),
     ]));
+    if first_run {
+        lines.push(Line::from(vec![Span::raw("  "), opt("Look around first (the demo, nothing saved)", form.mode == FormMode::Demo)]));
+    }
     lines.push(Line::raw(""));
     let vf = form.field == FormField::Value;
     match form.mode {
@@ -151,11 +154,16 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
             lines.push(Line::styled("  Founds the workspace a ligus-local or Kubernetes deployment serves;", t.dim()));
             lines.push(Line::styled("  then admit its boxes from People (B).", t.dim()));
         }
+        FormMode::Demo => {
+            lines.push(Line::styled("  Opens lt --demo: sample workspaces, chats, agents and proposals in memory.", t.text()));
+            lines.push(Line::styled("  Nothing is saved and nothing leaves this terminal. Quit it and run lt", t.dim()));
+            lines.push(Line::styled("  again to set up for real.", t.dim()));
+        }
     }
     lines.push(Line::raw(""));
     if form.busy {
         let msg = match form.mode {
-            FormMode::Create | FormMode::Connect => "Creating… confirm the passkey prompt",
+            FormMode::Create | FormMode::Connect | FormMode::Demo => "Creating… confirm the passkey prompt",
             FormMode::Join if form.checked.is_none() => "Checking the invite…",
             FormMode::Join => "Joining…",
         };
@@ -167,7 +175,8 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
     }
     lines.push(Line::raw(""));
     let esc = if first_run { "quit" } else { "close" };
-    lines.push(Line::styled(format!("tab next · ←→ create/join/connect · enter continue · esc {esc}"), t.dim()));
+    let modes = if first_run { "create/join/connect/demo" } else { "create/join/connect" };
+    lines.push(Line::styled(format!("tab next · ←→ {modes} · enter continue · esc {esc}"), t.dim()));
     f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
 }
 

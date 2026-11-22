@@ -26,13 +26,14 @@ Rendered by `tests/screens.rs` (80×40, the in-memory demo backend).
     ┃› Your name      ▏                                                    ┃
     ┃                                                                      ┃
     ┃  (•) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃
+    ┃  ( ) Look around first (the demo, nothing saved)                     ┃
     ┃                                                                      ┃
     ┃  Workspace name e.g. Northwind API                                   ┃
     ┃  No server needed: it lives on this device until you invite someone. ┃
     ┃                                                                      ┃
     ┃                                                                      ┃
     ┃                                                                      ┃
-    ┃tab next · ←→ create/join/connect · enter continue · esc quit         ┃
+    ┃tab next · ←→ create/join/connect/demo · enter continue · esc quit    ┃
     ┃                                                                      ┃
     ┃                                                                      ┃
     ┃                                                                      ┃
@@ -40,7 +41,6 @@ Rendered by `tests/screens.rs` (80×40, the in-memory demo backend).
     ┃                                                                      ┃
     ┃                                                                      ┃
     ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-
 
 
 ```

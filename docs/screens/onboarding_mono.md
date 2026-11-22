@@ -7,7 +7,6 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 
 
 
-
                                  ┏ Welcome to Ligus ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
                                  ┃Ligus is short for ligustica, the Italian honeybee.                   ┃
                                  ┃This terminal is its own Ligus device, with its own keys.             ┃
@@ -16,15 +15,16 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
           ▄██▄▄   ▄▄██▄          ┃› Your name      ▏                                                    ┃
         ████████ ████████        ┃                                                                      ┃
         ████████ ████████        ┃  (•) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃
-        ▀▀█████▀ ▀█████▀▀        ┃                                                                      ┃
-     ▄███▄▄▀▀▄▄███▄▄▀▀▄▄███▄     ┃  Workspace name e.g. Northwind API                                   ┃
+        ▀▀█████▀ ▀█████▀▀        ┃  ( ) Look around first (the demo, nothing saved)                     ┃
+     ▄███▄▄▀▀▄▄███▄▄▀▀▄▄███▄     ┃                                                                      ┃
+    ████████ ███████ ████████    ┃  Workspace name e.g. Northwind API                                   ┃
     ████████ ███████ ████████    ┃  No server needed: it lives on this device until you invite someone. ┃
-    ████████ ███████ ████████    ┃                                                                      ┃
      ▀███▀▀▄▄▀▀███▀▀▄▄▀▀███▀     ┃                                                                      ┃
         ▄▄█████▄ ▄█████▄▄        ┃                                                                      ┃
-        ████████ ████████        ┃tab next · ←→ create/join/connect · enter continue · esc quit         ┃
         ████████ ████████        ┃                                                                      ┃
+        ████████ ████████        ┃tab next · ←→ create/join/connect/demo · enter continue · esc quit    ┃
           ▀██▀▀   ▀▀██▀          ┃                                                                      ┃
+                                 ┃                                                                      ┃
                                  ┃                                                                      ┃
                                  ┃                                                                      ┃
                                  ┃                                                                      ┃

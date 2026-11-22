@@ -263,7 +263,9 @@ fn draw_main(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         inner
     };
     f.render_widget(block, transcript);
-    if chat.is_some() && s.transcript.is_empty() {
+    if chat.is_some() && s.transcript.is_empty() && !checklist(s).iter().all(|i| i.done) {
+        draw_checklist(f, inner, s, t);
+    } else if chat.is_some() && s.transcript.is_empty() {
         // The welcome wraps in a narrow pane rather than losing its end.
         let mut lines = vec![Line::styled("Start a conversation", t.accent())];
         let ask = "Ask about your code, or @mention an agent to have it make changes.";
@@ -346,6 +348,84 @@ fn transcript_lines(s: &State, width: usize, t: &Theme) -> Vec<Line<'static>> {
         }
     }
     out
+}
+
+/// One step of a new workspace's getting-started list.
+pub struct Step {
+    pub done: bool,
+    pub what: &'static str,
+    pub keys: String,
+    pub note: String,
+}
+
+/// A new workspace's first steps, read from its real state: agents,
+/// people, boxes and workflow runs.
+pub fn checklist(s: &State) -> Vec<Step> {
+    use crate::backend::model::{HostKind, SyncMode};
+    let k = &s.keymap;
+    let two = |a: Action, b: (Context, Action)| format!("{} then {}", k.hint(Context::Global, a), k.hint(b.0, b.1));
+    let found: Vec<&str> = s.available_local().iter().map(|l| l.kind.label()).collect();
+    let found = if found.is_empty() { String::new() } else { format!("found here: {}", found.join(", ")) };
+    let relay = s.active_workspace().is_some_and(|w| matches!(w.sync, SyncMode::Relay(_)));
+    vec![
+        Step { done: true, what: "Workspace created", keys: String::new(), note: String::new() },
+        Step {
+            done: !s.agents.is_empty(),
+            what: "Add an agent",
+            keys: two(Action::GoAgents, (Context::Agents, Action::AddAgent)),
+            note: found,
+        },
+        Step {
+            done: s.members.iter().filter(|m| !m.service).count() > 1,
+            what: "Invite someone",
+            keys: two(Action::GoPeople, (Context::People, Action::Invite)),
+            note: if relay { String::new() } else { "needs a relay (LT_RELAY_URL)".into() },
+        },
+        Step {
+            done: s.hosts.iter().any(|h| h.kind == HostKind::Worker),
+            what: "Connect a box",
+            keys: two(Action::GoPeople, (Context::People, Action::AdmitBox)),
+            note: "ligus serve or ligus worker".into(),
+        },
+        Step {
+            done: !s.runs.is_empty(),
+            what: "Start a workflow",
+            keys: two(Action::GoWorkflows, (Context::Workflows, Action::StartRun)),
+            note: String::new(),
+        },
+    ]
+}
+
+/// The getting-started list in an empty chat of a new workspace, in place
+/// of the welcome, until every step is done.
+fn draw_checklist(f: &mut Frame, inner: Rect, s: &State, t: &Theme) {
+    let name = s.active_workspace().map(|w| w.name.clone()).unwrap_or_default();
+    let mut lines = vec![Line::styled(format!("{name}: getting started"), t.accent()), Line::raw("")];
+    for st in checklist(s) {
+        let (mark, style) = if st.done { ("✓ ", t.fg(t.good)) } else { ("○ ", t.dim()) };
+        let mut spans = vec![Span::styled(mark, style), Span::styled(format!("{:<18}", st.what), if st.done { t.dim() } else { t.text() })];
+        if !st.done {
+            spans.push(Span::styled(format!("{:<10}", st.keys), t.accent()));
+            if !st.note.is_empty() {
+                spans.push(Span::styled(format!("  {}", st.note), t.dim()));
+            }
+        }
+        lines.push(Line::from(spans));
+    }
+    lines.push(Line::raw(""));
+    lines.push(Line::styled("Or just type: ask about your code, or @mention an agent.", t.dim()));
+    let w = lines.iter().map(|l| l.width()).max().unwrap_or(0) as u16;
+    let h = lines.len() as u16;
+    // The mark above the list when the pane has room for both.
+    if inner.width >= super::splash::WIDTH.max(w) + 2 && inner.height >= super::splash::HEIGHT + 2 + h {
+        let r = super::center(inner, inner.width, super::splash::HEIGHT + 2 + h);
+        super::splash::draw(f, Rect { height: super::splash::HEIGHT, ..r }, t);
+        let list = super::center(Rect { y: r.y + super::splash::HEIGHT + 2, height: h, ..r }, w, h);
+        f.render_widget(Paragraph::new(lines), list);
+        return;
+    }
+    let r = super::center(inner, w.min(inner.width), h.min(inner.height));
+    f.render_widget(Paragraph::new(lines), r);
 }
 
 /// `  → proposal “Fix the clock” · open 1/2`: a proposal this chat produced.

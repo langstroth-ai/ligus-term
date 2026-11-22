@@ -1,0 +1,27 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+    ┏ Welcome to Ligus ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃Ligus is short for ligustica, the Italian honeybee.                   ┃
+    ┃This terminal is its own Ligus device, with its own keys.             ┃
+    ┃Safety code    4821 0937 5512  (compare it with people you invite)    ┃
+    ┃                                                                      ┃
+    ┃  Your name      how others see you                                   ┃
+    ┃                                                                      ┃
+    ┃› ( ) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃
+    ┃  (•) Look around first (the demo, nothing saved)                     ┃
+    ┃                                                                      ┃
+    ┃  Opens lt --demo: sample workspaces, chats, agents and proposals in  ┃
+    ┃memory.                                                               ┃
+    ┃  Nothing is saved and nothing leaves this terminal. Quit it and run  ┃
+    ┃lt                                                                    ┃
+    ┃  again to set up for real.                                           ┃
+    ┃                                                                      ┃
+    ┃                                                                      ┃
+    ┃                                                                      ┃
+    ┃tab next · ←→ create/join/connect/demo · enter continue · esc quit    ┃
+    ┃                                                                      ┃
+    ┃                                                                      ┃
+    ┃                                                                      ┃
+    ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛

@@ -15,6 +15,11 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   and agents. Each action shows its key. `enter` runs it or goes to the
   thing and selects it; `esc` closes. Context actions only show where they
   apply, so nothing acts on a selection you can't see.
+- The first run has a fourth choice, "Look around first (the demo,
+  nothing saved)", which restarts as `lt --demo`. A new workspace's empty
+  chat shows a getting-started list from its real state (agents, people,
+  boxes, runs) with the keys for each step and the runtimes found on this
+  device, in place of the welcome, until every step is done.
 - Tab completion and a man page: `lt completions bash|zsh|fish` prints a
   completion script (flags, commands, help topics, themes, and workspace
   names after `--workspace` and `use`), and `lt man` prints the man page.
