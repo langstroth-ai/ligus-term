@@ -9,14 +9,14 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃  #dev                        ┃│  The checkout test fails about one run in ten. Can we stop it reading the  │
 ┃  ◆ Migrate auth to pas… 50m  ┃│  wall clock?                                                               │
 ┃  #dev                        ┃│                                                                            │
-┃  Weekly release notes    1d  ┃│@coder  via claude-code  38m                                                │
+┃  Weekly release notes    1d  ┃│@coder  via claude-code · on sff  38m                                       │
 ┃                              ┃│  Yes. The payment tests already use a fake clock, so it's a small change.  │
 ┃                  ┏ Add a workspace ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                  │
-┃                  ┃› (•) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃                  │
+┃                  ┃› (•) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃2 · p to review   │
 ┃                  ┃                                                                      ┃                  │
-┃                  ┃  Workspace name e.g. Northwind API                                   ┃ provider uses.   │
-┃                  ┃  No server needed: it lives on this device until you invite someone. ┃                  │
-┃                  ┃                                                                      ┃                  │
+┃                  ┃  Workspace name e.g. Northwind API                                   ┃                  │
+┃                  ┃  No server needed: it lives on this device until you invite someone. ┃ provider uses.   │
+┃                  ┃                                                                      ┃p to review       │
 ┃                  ┃                                                                      ┃                  │
 ┃                  ┃                                                                      ┃                  │
 ┃                  ┃tab next · ←→ create/join/connect · enter continue · esc close        ┃                  │

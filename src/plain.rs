@@ -32,6 +32,7 @@ commands (N is a number from the last list, or an id):
   workspaces           list workspaces          use N        switch workspace
   chats                list chats               open N       open a chat and print it
   new TITLE            start a chat             say TEXT     post to the open chat
+  stop                 stop the agents' turns running here in the open chat
   lock / unlock        lock the open chat down / clear its lockdown
   proposals            list proposals           diff N       print a proposal's diff
   approve N / reject N vote                     apply N [H]  apply on host H (default: first online worker)
@@ -159,6 +160,7 @@ pub const COMMANDS: &[&str] = &[
     "say",
     "lock",
     "unlock",
+    "stop",
     "proposals",
     "diff",
     "approve",
@@ -983,6 +985,15 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                 Err(e) => fail(e.0).await,
             }
         }
+        "stop" => {
+            let chat = { s.lock().await.chat.clone() };
+            let Some(chat) = chat else { return fail("open a chat first: open N".into()).await };
+            match b.stop_turn(ws.as_ref().unwrap(), &chat).await {
+                Ok(0) => fail("nothing runs on this device in this chat: the turn's host stops it".into()).await,
+                Ok(n) => say(format!("stopped\t{}\t{n}", esc(&chat))).await,
+                Err(e) => fail(e.0).await,
+            }
+        }
         "lock" | "unlock" => {
             let chat = { s.lock().await.chat.clone() };
             let Some(chat) = chat else { return fail("open a chat first: open N".into()).await };
@@ -1343,6 +1354,14 @@ mod tests {
         let buf = Arc::new(std::sync::Mutex::new(Vec::new()));
         run(Arc::new(b), script.as_bytes(), Box::new(Sink(buf.clone()))).await.unwrap();
         String::from_utf8(buf.lock().unwrap().clone()).unwrap()
+    }
+
+    /// stop with nothing running here says so; it needs an open chat.
+    #[tokio::test]
+    async fn stop_needs_a_turn_running_here() {
+        let out = run_script(FakeBackend::demo(FakeConfig::instant()), "stop\nopen 1\nstop\n").await;
+        assert!(out.contains("open a chat first"), "{out}");
+        assert!(out.contains("the turn's host stops it"), "{out}");
     }
 
     #[tokio::test]

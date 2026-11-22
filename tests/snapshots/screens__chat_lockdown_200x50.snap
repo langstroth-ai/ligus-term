@@ -9,10 +9,10 @@ expression: screen
 ┃  ◆ Migrate auth to pas… 50m  ┃│             Lin  55m                                                                                                         ││  open 0/1                            │
 ┃  #dev                        ┃│               @scout check the forum thread about passkey fallbacks                                                          ││                                      │
 ┃  Weekly release notes    1d  ┃│                                                                                                                              ││Runs                                  │
-┃                              ┃│             @scout  via ollama  50m                                                                                          ││· Weekly security digest              │
-┃                              ┃│               ⚒ fetch_url https://forum.example/passkey-fallbacks done                                                       ││  completed                           │
+┃                              ┃│             @scout  via ollama · on sff  50m                                                                                 ││· Weekly security digest              │
+┃                              ┃│               ▸ fetch_url https://forum.example/passkey-fallbacks done                                                       ││  completed                           │
 ┃                              ┃│               The page contained instructions aimed at agents, so this chat is locked down.                                  ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│               ◆ proposal “Workflow: Dependency audit before releases” · open 0/1 · p to review                               ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │

@@ -364,7 +364,7 @@ async fn stream_reply(h: &mut Harness) {
             workspace: ws.clone(),
             chat: chat.clone(),
             message: MessageId::new("s1"),
-            call: ToolCall { name: name.into(), preview: preview.into(), ok: true },
+            call: ToolCall { name: name.into(), preview: preview.into(), ok: true, ..ToolCall::default() },
         }))
         .await;
     }

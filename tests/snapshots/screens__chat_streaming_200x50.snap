@@ -7,17 +7,17 @@ expression: screen
 ┃  ◆ Fix flaky checkout … 12m  ┃│             Ada  40m                                                                                                         ││Working                               │
 ┃  #dev                        ┃│               The checkout test fails about one run in ten. Can we stop it reading the wall clock?                           ││⠋ @reviewer                           │
 ┃  ◆ Migrate auth to pas… 50m  ┃│                                                                                                                              ││                                      │
-┃  #dev                        ┃│             @coder  via claude-code  38m                                                                                     ││Proposals                             │
+┃  #dev                        ┃│             @coder  via claude-code · on sff  38m                                                                            ││Proposals                             │
 ┃  Weekly release notes    1d  ┃│               Yes. The payment tests already use a fake clock, so it's a small change. I'll propose it.                      ││◆ Inject the clock into checkout tests│
-┃                              ┃│                                                                                                                              ││  open 1/2                            │
-┃                              ┃│             Ada  12m                                                                                                         ││◆ Sign-off: inject a fake clock       │
-┃                              ┃│               @Mara can you review the timeout? 30 seconds is what the provider uses.                                        ││  open 0/1                            │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│             @coder  via claude-code  now  generating                                                                         ││Runs                                  │
-┃                              ┃│               ⚒ read_file src/checkout.rs done                                                                               ││· Implement, review, ship             │
-┃                              ┃│               Thirty seconds matches the provider's ▍                                                                        ││  awaiting-gate                       │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│               ◆ proposal “Inject the clock into checkout tests” · open 1/2 · p to review                                     ││  open 1/2                            │
+┃                              ┃│                                                                                                                              ││◆ Sign-off: inject a fake clock       │
+┃                              ┃│             Ada  12m                                                                                                         ││  open 0/1                            │
+┃                              ┃│               @Mara can you review the timeout? 30 seconds is what the provider uses.                                        ││                                      │
+┃                              ┃│               ◆ proposal “Sign-off: inject a fake clock” · open 0/1 · p to review                                            ││Runs                                  │
+┃                              ┃│                                                                                                                              ││· Implement, review, ship             │
+┃                              ┃│             @coder  via claude-code · on sff  now  ⠋ 00:00                                                                   ││  awaiting-gate                       │
+┃                              ┃│               ▸ read_file src/checkout.rs done                                                                               ││                                      │
+┃                              ┃│               Thirty seconds matches the provider's ▍                                                                        ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │

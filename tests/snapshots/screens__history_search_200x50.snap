@@ -7,31 +7,31 @@ expression: screen
 │  ◆ Fix flaky checkout … 12m  ││             Ada  40m                                                                                                         ││Proposals                             │
 │  #dev                        ││               The checkout test fails about one run in ten. Can we stop it reading the wall clock?                           ││◆ Inject a clock into the session che…│
 │  ◆ Migrate auth to pas… 50m  ││                                                                                                                              ││  open 0/1                            │
-│  #dev                        ││             @coder  via claude-code  38m                                                                                     ││◆ Inject the clock into checkout tests│
+│  #dev                        ││             @coder  via claude-code · on sff  38m                                                                            ││◆ Inject the clock into checkout tests│
 │  Weekly release notes    1d  ││               Yes. The payment tests already use a fake clock, so it's a small change. I'll propose it.                      ││  open 1/2                            │
-│                              ││                                                                                                                              ││◆ Sign-off: inject a fake clock       │
-│                              ││             Ada  12m                                                                                                         ││  open 0/1                            │
-│                              ││               @Mara can you review the timeout? 30 seconds is what the provider uses.                                        ││                                      │
-│                              ││                                                                                                                              ││Runs                                  │
-│                              ││             Mara  now                                                                                                        ││· Implement, review, ship             │
-│                              ││               @coder can you rerun the flaky test?                                                                           ││  awaiting-gate                       │
+│                              ││               ◆ proposal “Inject the clock into checkout tests” · open 1/2 · p to review                                     ││◆ Sign-off: inject a fake clock       │
+│                              ││                                                                                                                              ││  open 0/1                            │
+│                              ││             Ada  12m                                                                                                         ││                                      │
+│                              ││               @Mara can you review the timeout? 30 seconds is what the provider uses.                                        ││Runs                                  │
+│                              ││               ◆ proposal “Sign-off: inject a fake clock” · open 0/1 · p to review                                            ││· Implement, review, ship             │
+│                              ││                                                                                                                              ││  awaiting-gate                       │
+│                              ││             Mara  now                                                                                                        ││                                      │
+│                              ││               @coder can you rerun the flaky test?                                                                           ││                                      │
 │                              ││                                                                                                                              ││                                      │
-│                              ││             @coder  via claude-code  now                                                                                     ││                                      │
-│                              ││               ⚒ read_file src/checkout.rs done                                                                               ││                                      │
+│                              ││             @coder  via claude-code · on sff  now                                                                            ││                                      │
+│                              ││               ▸ read_file src/checkout.rs done 0.2s                                                                          ││                                      │
 │                              ││               Here's what I found: the checkout test reads the wall clock, so it fails when CI is slow. Want me              ││                                      │
 │                              ││               to propose a change?                                                                                           ││                                      │
 │                              ││                                                                                                                              ││                                      │
 │                              ││             Mara  now                                                                                                        ││                                      │
 │                              ││               Thanks, that fixed it                                                                                          ││                                      │
 │                              ││                                                                                                                              ││                                      │
-│                              ││             @primary  via claude-code  now                                                                                   ││                                      │
-│                              ││               ⚒ read_file src/checkout.rs done                                                                               ││                                      │
+│                              ││             @primary  via claude-code · on this device  now                                                                  ││                                      │
+│                              ││               ▸ read_file src/checkout.rs done 0.2s                                                                          ││                                      │
 │                              ││               Looked at the checkout test. I injected a fake clock into the session check and added a test.                  ││                                      │
 │                              ││                                                                                                                              ││                                      │
 │                              ││               Filed it as a proposal for review, @Mara.                                                                      ││                                      │
-│                              ││                                                                                                                              ││                                      │
-│                              ││                                                                                                                              ││                                      │
-│                              ││                                                                                                                              ││                                      │
+│                              ││               ◆ proposal “Inject a clock into the session check” · open 0/1 · p to review                                    ││                                      │
 │                              ││                                                                                                                              ││                                      │
 │                              ││                                                                                                                              ││                                      │
 │                              ││                                                                                                                              ││                                      │

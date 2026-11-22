@@ -1289,3 +1289,29 @@ fn editor_command_from_the_environment() {
     assert_eq!(editor_command(env(&[("VISUAL", " "), ("EDITOR", "nano")])), ["nano"]);
     assert_eq!(editor_command(env(&[])), ["vi"]);
 }
+
+/// ctrl-x stops the open chat's turn when one is going; `o` shows what
+/// tool calls returned.
+#[test]
+fn stop_turn_and_tool_output() {
+    let mut s = main_state();
+    let (w, c1) = (WorkspaceId::new("a"), ChatId::new("c1"));
+    let fx = mods(&mut s, KeyCode::Char('x'), KeyModifiers::CONTROL);
+    assert!(fx.is_empty(), "nothing to stop");
+    assert!(s.toasts.last().unwrap().text.contains("No agent is working"));
+    update(&mut s, Msg::Event(Event::Thinking { workspace: w.clone(), chat: c1.clone(), agent: "@coder".into(), on: true }));
+    let fx = mods(&mut s, KeyCode::Char('x'), KeyModifiers::CONTROL);
+    assert_eq!(fx, vec![Effect::StopTurn(w.clone(), c1.clone())]);
+    update(&mut s, Msg::Stopped(w.clone(), c1.clone(), Ok(1)));
+    assert!(s.toasts.last().unwrap().text.contains("Stopped the turn (@coder)"), "{:?}", s.toasts);
+    update(&mut s, Msg::Stopped(w.clone(), c1.clone(), Ok(0)));
+    assert!(s.toasts.last().unwrap().text.contains("host stops it"));
+    // From the composer too.
+    key(&mut s, KeyCode::Char('i'));
+    let fx = mods(&mut s, KeyCode::Char('x'), KeyModifiers::CONTROL);
+    assert_eq!(fx, vec![Effect::StopTurn(w, c1)]);
+    key(&mut s, KeyCode::Esc);
+    assert!(!s.tools_expanded);
+    key(&mut s, KeyCode::Char('o'));
+    assert!(s.tools_expanded);
+}

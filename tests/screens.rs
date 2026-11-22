@@ -276,7 +276,7 @@ async fn chat_streaming_reply() {
         workspace: ws.clone(),
         chat: chat.clone(),
         message: MessageId::new("s1"),
-        call: ToolCall { name: "read_file".into(), preview: "src/checkout.rs".into(), ok: true },
+        call: ToolCall { name: "read_file".into(), preview: "src/checkout.rs".into(), ok: true, ..ToolCall::default() },
     }))
     .await;
     for d in ["Thirty ", "seconds ", "matches ", "the ", "provider's "] {
@@ -543,6 +543,56 @@ async fn composer_history_search() {
     snap(&h, "history_search", "ctrl-r in the composer: what you sent");
 }
 
+/// The transcript: Markdown (bold, inline code, lists, a fenced block with
+/// its language), tool calls with their time, collapsed and then expanded
+/// with `o`, a reply still streaming with its spinner and elapsed time.
+#[tokio::test]
+async fn transcript_markdown_and_tools() {
+    use ligus_term::backend::fake::DEMO_NOW;
+    let mut h = demo().await;
+    let chat = h.state.open_chat.clone().unwrap();
+    let agent = Author::Agent { id: AgentId::new("a-coder"), handle: "coder".into(), runtime: "claude-code".into() };
+    h.state.transcript.push(Message {
+        id: MessageId::new("md-1"),
+        chat: chat.clone(),
+        author: agent.clone(),
+        text: "## The fix\nThe test reads the **wall clock**, so `Checkout::is_expired` flips under load. Two changes:\n- inject a `Clock`\n- set the time in the test\n```rust\npub const CHECKOUT_TIMEOUT: Duration = Duration::from_secs(30);\n```\nThat's all.".into(),
+        at: DEMO_NOW - 60_000,
+        streaming: false,
+        tools: vec![
+            ToolCall {
+                name: "run_command".into(),
+                preview: "cargo test -p checkout".into(),
+                ok: true,
+                duration_ms: Some(9_400),
+                output: "test checkout::expires ... ok\ntest result: ok. 18 passed; 0 failed".into(),
+            },
+            ToolCall { name: "edit_file".into(), preview: "src/checkout.rs".into(), ok: false, duration_ms: Some(120), output: String::new() },
+        ],
+    });
+    h.state.transcript.push(Message {
+        id: MessageId::new("md-2"),
+        chat,
+        author: agent,
+        text: "Running the suite again".into(),
+        at: DEMO_NOW - 12_000,
+        streaming: true,
+        tools: vec![],
+    });
+    let screen = h.screen(W, 44);
+    assert!(screen.contains("▸ run_command") && screen.contains("done 9s") && screen.contains("error 0.1s"), "{screen}");
+    assert!(screen.contains("┌ rust") && screen.contains("• inject a Clock") && !screen.contains("**"), "{screen}");
+    assert!(screen.contains("00:12"), "elapsed time on the streaming reply: {screen}");
+    assert!(!screen.contains("18 passed"), "collapsed by default: {screen}");
+    h.key(KeyCode::Char('o')).await;
+    let open = h.screen(W, 44);
+    assert!(open.contains("▾ run_command") && open.contains("18 passed"), "{open}");
+    snap_at("transcript_markdown", "The transcript: Markdown, tool calls with times, expanded with o", W, 44, open);
+    for (w, ht) in [(80, 24), (200, 50)] {
+        insta::assert_snapshot!(format!("transcript_markdown_{w}x{ht}"), h.screen(w, ht));
+    }
+}
+
 /// The chat list's chips: one glyph per state, and nothing for an idle
 /// chat.
 #[tokio::test]
@@ -674,7 +724,13 @@ async fn remote_text_cannot_reorder_or_hide_what_is_shown() {
         text: bad.into(),
         at: ligus_term::backend::fake::DEMO_NOW,
         streaming: false,
-        tools: vec![ToolCall { name: format!("read\u{202e}{bad}"), preview: bad.into(), ok: true }],
+        tools: vec![ToolCall {
+            name: format!("read\u{202e}{bad}"),
+            preview: bad.into(),
+            ok: true,
+            output: bad.into(),
+            ..ToolCall::default()
+        }],
     };
     h.send(Msg::Event(Event::MessageAdded { workspace: ws.clone(), message })).await;
     let screen = h.screen(W, H);

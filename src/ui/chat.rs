@@ -244,34 +244,160 @@ fn draw_main(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
 fn transcript_lines(s: &State, width: usize, t: &Theme) -> Vec<Line<'static>> {
     let mut out = vec![];
     let body_w = width.saturating_sub(2).max(10);
+    // Proposals from this chat, oldest first: each gets a link line after
+    // the last message before it was filed.
+    let mut props: Vec<&crate::backend::model::Proposal> =
+        s.proposals.iter().filter(|p| p.chat.is_some() && p.chat.as_ref() == s.open_chat.as_ref()).collect();
+    props.sort_by_key(|p| p.created_at);
+    let mut next_prop = 0;
     for (i, m) in s.transcript.iter().enumerate() {
         if i > 0 {
             out.push(Line::raw(""));
         }
         out.push(header(s, m, t));
         for call in &m.tools {
-            let status = if call.ok { Span::styled(" done", t.fg(t.good)) } else { Span::styled(" error", t.fg(t.bad)) };
-            out.push(Line::from(vec![
-                Span::styled("  ⚒ ", t.dim()),
-                Span::styled(call.name.clone(), t.text()),
-                Span::styled(format!(" {}", trunc(&call.preview, body_w.saturating_sub(call.name.width() + 10))), t.dim()),
-                status,
-            ]));
+            out.extend(tool_lines(call, s.tools_expanded, body_w, t));
         }
         let mut text = m.text.clone();
         if m.streaming {
             text.push('▍');
         }
-        if text.is_empty() {
-            continue;
+        if !text.is_empty() {
+            out.extend(markdown_lines(&text, body_w, t));
         }
-        for l in wrap(&text, body_w) {
-            let mut spans = vec![Span::raw("  ")];
-            spans.extend(highlight_mentions(&l, t));
-            out.push(Line::from(spans));
+        let next_at = s.transcript.get(i + 1).map(|n| n.at);
+        while let Some(p) = props.get(next_prop) {
+            if next_at.is_some_and(|at| p.created_at >= at) {
+                break;
+            }
+            out.push(proposal_line(s, p, body_w, t));
+            next_prop += 1;
         }
     }
     out
+}
+
+/// `  → proposal “Fix the clock” · open 1/2`: a proposal this chat produced.
+fn proposal_line(s: &State, p: &crate::backend::model::Proposal, width: usize, t: &Theme) -> Line<'static> {
+    let state = format!(" · {} {}/{}", p.status.label(), p.approvals, p.quorum);
+    let needs = p.status == crate::backend::model::ProposalStatus::Open && p.can_vote.is_yes();
+    let key = s.keymap.hint(Context::Global, Action::GoProposals);
+    let tail = if needs { format!("{state} · {key} to review") } else { state };
+    let title = trunc(&p.title, width.saturating_sub(tail.width() + 16));
+    let mark = if needs {
+        Span::styled(format!("  {} ", SessionState::NeedsYou.glyph(false)), t.state(SessionState::NeedsYou))
+    } else {
+        Span::styled("  → ", t.dim())
+    };
+    Line::from(vec![mark, Span::styled(format!("proposal \u{201c}{title}\u{201d}"), t.text()), Span::styled(tail, t.dim())])
+}
+
+/// One tool call: `▸ read_file  src/checkout.rs  done 0.2s`, and with
+/// `o`, `▾` and the first lines it returned.
+fn tool_lines(call: &crate::backend::model::ToolCall, expanded: bool, width: usize, t: &Theme) -> Vec<Line<'static>> {
+    let took = call
+        .duration_ms
+        .map(|ms| if ms < 1000 { format!(" {:.1}s", ms as f64 / 1000.0) } else { format!(" {}s", ms / 1000) })
+        .unwrap_or_default();
+    let (word, style) = if call.ok { ("done", t.fg(t.good)) } else { ("error", t.fg(t.bad)) };
+    let status = format!(" {word}{took}");
+    let has_output = !call.output.trim().is_empty();
+    let arrow = if expanded && has_output { "▾ " } else { "▸ " };
+    let preview_w = width.saturating_sub(call.name.width() + status.width() + 6);
+    let mut out = vec![Line::from(vec![
+        Span::styled(format!("  {arrow}"), t.dim()),
+        Span::styled(call.name.clone(), t.text()),
+        Span::styled(format!(" {}", trunc(&call.preview, preview_w)), t.dim()),
+        Span::styled(status, style),
+    ])];
+    if expanded && has_output {
+        for l in call.output.lines().take(6) {
+            out.push(Line::styled(format!("      {}", trunc(l, width.saturating_sub(6))), t.dim()));
+        }
+    }
+    out
+}
+
+/// A message body with the little Markdown agents write: `**bold**`,
+/// `` `code` ``, `# headings`, `-`/`*` lists as bullets, and fenced code
+/// blocks in a box labelled with their language. Code isn't wrapped; long
+/// lines end in "…".
+fn markdown_lines(text: &str, width: usize, t: &Theme) -> Vec<Line<'static>> {
+    let mut out = vec![];
+    let mut fence: Option<usize> = None;
+    let code_w = width.saturating_sub(4).max(8);
+    for raw in text.split('\n') {
+        let trimmed = raw.trim_start();
+        if let Some(lang) = trimmed.strip_prefix("```") {
+            if fence.is_some() {
+                out.push(Line::styled(format!("  └{}", "─".repeat(code_w)), t.dim()));
+                fence = None;
+            } else {
+                let label = lang.trim();
+                let head = if label.is_empty() { String::new() } else { format!(" {label} ") };
+                out.push(Line::styled(format!("  ┌{head}{}", "─".repeat(code_w.saturating_sub(head.width()))), t.dim()));
+                fence = Some(out.len());
+            }
+            continue;
+        }
+        if fence.is_some() {
+            out.push(Line::from(vec![Span::styled("  │ ", t.dim()), Span::styled(trunc(raw, code_w.saturating_sub(1)), t.fg(t.hunk))]));
+            continue;
+        }
+        let (prefix, rest, bold) = if let Some(r) = trimmed.strip_prefix("- ").or_else(|| trimmed.strip_prefix("* ")) {
+            let indent = raw.len() - trimmed.len();
+            (format!("{}• ", " ".repeat(indent.min(6))), r, false)
+        } else if let Some(r) = trimmed.strip_prefix('#') {
+            (String::new(), r.trim_start_matches('#').trim_start(), true)
+        } else {
+            (String::new(), raw, false)
+        };
+        let lines = wrap(rest, width.saturating_sub(prefix.width()).max(4));
+        for (i, l) in lines.into_iter().enumerate() {
+            let lead = if i == 0 { prefix.clone() } else { " ".repeat(prefix.width()) };
+            let mut spans = vec![Span::raw(format!("  {lead}"))];
+            spans.extend(inline_spans(&l, bold, t));
+            out.push(Line::from(spans));
+        }
+    }
+    // An unclosed fence (a reply still streaming) gets no bottom edge.
+    out
+}
+
+/// `**bold**` and `` `code` `` inside one line, with @mentions picked out.
+fn inline_spans(line: &str, bold: bool, t: &Theme) -> Vec<Span<'static>> {
+    let mut spans = vec![];
+    let base = if bold { t.text().add_modifier(Modifier::BOLD) } else { t.text() };
+    let mut rest = line;
+    while !rest.is_empty() {
+        let code = rest.find('`');
+        let strong = rest.find("**");
+        let next = match (code, strong) {
+            (Some(c), Some(b)) => Some(c.min(b)),
+            (a, b) => a.or(b),
+        };
+        let Some(at) = next else {
+            spans.extend(mention_spans(rest, base, t));
+            break;
+        };
+        spans.extend(mention_spans(&rest[..at], base, t));
+        let is_code = code == Some(at);
+        let marker = if is_code { "`" } else { "**" };
+        let after = &rest[at + marker.len()..];
+        match after.find(marker) {
+            Some(end) if end > 0 => {
+                let inner = after[..end].to_string();
+                let style = if is_code { t.fg(t.hunk) } else { base.add_modifier(Modifier::BOLD) };
+                spans.push(Span::styled(inner, style));
+                rest = &after[end + marker.len()..];
+            }
+            _ => {
+                spans.push(Span::styled(marker.to_string(), base));
+                rest = after;
+            }
+        }
+    }
+    spans
 }
 
 fn header(s: &State, m: &Message, t: &Theme) -> Line<'static> {
@@ -280,26 +406,39 @@ fn header(s: &State, m: &Message, t: &Theme) -> Line<'static> {
         Author::Agent { handle, runtime, .. } => vec![
             Span::styled(format!("@{handle}"), t.fg(t.agent).add_modifier(Modifier::BOLD)),
             Span::styled(format!("  via {runtime}"), t.dim()),
+            Span::styled(runs_on(s, handle).map(|h| format!(" · on {h}")).unwrap_or_default(), t.dim()),
         ],
         Author::System => vec![Span::styled("ligus", t.dim())],
     };
     spans.push(Span::styled(format!("  {}", ago(s.now, m.at)), t.dim()));
     if m.streaming {
-        spans.push(Span::styled("  generating", t.fg(t.warn)));
+        // One spinner cell and the time it has been working.
+        let secs = ((s.now - m.at) / 1000).max(0);
+        let glyph = super::state_glyph(s, SessionState::Working, t);
+        spans.push(Span::styled(format!("  {glyph} {:02}:{:02}", secs / 60, secs % 60), t.state(SessionState::Working)));
     }
     Line::from(spans)
 }
 
-fn highlight_mentions(line: &str, t: &Theme) -> Vec<Span<'static>> {
+/// Where an agent's turns run: "this device" or its host's name.
+fn runs_on(s: &State, handle: &str) -> Option<String> {
+    let a = s.agents.iter().find(|a| a.handle == handle)?;
+    match &a.host {
+        None => Some("this device".into()),
+        Some(id) => s.hosts.iter().find(|h| &h.id == id).map(|h| if h.this_device { "this device".into() } else { h.label.clone() }),
+    }
+}
+
+fn mention_spans(text: &str, base: ratatui::style::Style, t: &Theme) -> Vec<Span<'static>> {
     let mut spans = vec![];
-    for (i, word) in line.split(' ').enumerate() {
+    for (i, word) in text.split(' ').enumerate() {
         if i > 0 {
-            spans.push(Span::raw(" "));
+            spans.push(Span::styled(" ", base));
         }
         if word.starts_with('@') && word.len() > 1 {
             spans.push(Span::styled(word.to_string(), t.fg(t.mention).add_modifier(Modifier::BOLD)));
-        } else {
-            spans.push(Span::styled(word.to_string(), t.text()));
+        } else if !word.is_empty() {
+            spans.push(Span::styled(word.to_string(), base));
         }
     }
     spans

@@ -182,6 +182,9 @@ pub trait Backend: Send + Sync {
     async fn mentionables(&self, workspace: &WorkspaceId) -> Result<Vec<Mentionable>>;
     async fn mark_read(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<()>;
     /// Any member may lock a chat down.
+    /// Stop the agents' turns running on this device in a chat; how many
+    /// were stopped (0: none runs here, so its host has to stop it).
+    async fn stop_turn(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<usize>;
     async fn lock_chat(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<()>;
     /// A human Contributor or above clears it, with a passkey.
     async fn clear_lockdown(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<()>;

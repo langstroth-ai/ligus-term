@@ -234,6 +234,13 @@ pub const COMMANDS: &[Cmd] = &[
         prints: "sent",
         example: "printf 'open 1\\nsay @coder fix the threshold\\nwait\\n' | lt --plain",
     },
+    Cmd {
+        name: "stop",
+        usage: "stop",
+        about: "Stop the agents' turns running on this device in the open chat (an error when none runs here: its host stops it).",
+        prints: "stopped",
+        example: "stop",
+    },
     Cmd { name: "lock", usage: "lock", about: "Lock the open chat down.", prints: "ok", example: "lock" },
     Cmd {
         name: "unlock",
@@ -494,6 +501,7 @@ pub const RECORDS: &[(&str, &[&[&str]])] = &[
     ("lockdown", &[&["reasons", "clear"]]),
     ("message", &[&["workspace", "chat", "author", "text"]]),
     ("sent", &[&["chat", "message"]]),
+    ("stopped", &[&["chat", "n"]]),
     ("proposal", &[&["n", "id", "status", "votes", "title", "apply", "kind"]]),
     ("file", &[&["path", "added", "removed"]]),
     ("hunk", &[&["header"]]),

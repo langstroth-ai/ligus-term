@@ -4,18 +4,19 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
-┏ Chats ━━━━━━━━━┏ Help · 1-40 of 89 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
+┏ Chats ━━━━━━━━━┏ Help · 1-40 of 91 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
 ┃  ◆ Fix flaky ch┃What has focus comes first. / searches. Rebind keys in the config file.   ┃                │
 ┃  #dev          ┃                                                                          ┃it reading the  │
 ┃  ◆ Migrate auth┃Chats  here                                                               ┃                │
 ┃  #dev          ┃  i                        Write a message                                ┃                │
 ┃  Weekly release┃  N                        New chat                                       ┃                │
-┃                ┃  L                        Lock this chat down                            ┃ small change.  │
-┃                ┃  U                        Clear the lockdown                             ┃                │
+┃                ┃  o                        Show or hide what tool calls returned          ┃ small change.  │
+┃                ┃  L                        Lock this chat down                            ┃                │
+┃                ┃  U                        Clear the lockdown                             ┃· p to review   │
 ┃                ┃                                                                          ┃                │
 ┃                ┃Lists  here                                                               ┃                │
 ┃                ┃  ↑, k                     Up                                             ┃rovider uses.   │
-┃                ┃  ↓, j                     Down                                           ┃                │
+┃                ┃  ↓, j                     Down                                           ┃to review       │
 ┃                ┃  pgup, ctrl-u             Page up                                        ┃                │
 ┃                ┃  pgdn, ctrl-d             Page down                                      ┃                │
 ┃                ┃  home, g                  First                                          ┃                │
@@ -40,11 +41,10 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 ┃                ┃  m, 7                     People                                         ┃                │
 ┃                ┃  n, 8                     Notifications                                  ┃                │
 ┃                ┃  s, 9                     Settings                                       ┃                │
-┃                ┃  tab                      Next pane                                      ┃                │
-┃                ┃  shift-tab                Previous pane                                  ┃────────────────╯
-┃                ┃  ctrl-l                   The chat list (over the chat in a narrow termin┃
-┃                ┃                                                                          ┃────────────────╮
-┃                ┃Composer                                                                  ┃                │
+┃                ┃  tab                      Next pane                                      ┃────────────────╯
+┃                ┃  shift-tab                Previous pane                                  ┃
+┃                ┃  ctrl-x                   Stop the agent's turn in this chat (when it run┃────────────────╮
+┃                ┃  ctrl-l                   The chat list (over the chat in a narrow termin┃                │
 ┗━━━━━━━━━━━━━━━━┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛────────────────╯
 / search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                    peer to peer · 1 running · demo
 ```

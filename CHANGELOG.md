@@ -26,6 +26,17 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   `$VISUAL` (else `$EDITOR`, else `vi`) and puts what you save back in the
   composer; the draft goes through a private temporary file (0600) that is
   deleted afterwards. `i` still enters the composer.
+- The transcript reads better: minimal Markdown (bold, inline code,
+  headings, lists, fenced code in a box with its language); one line per
+  tool call with how it ended and how long it took, collapsed, and `o`
+  shows the first lines each returned; "· on sff" after an agent's runtime
+  says where its turn runs; a "→ proposal" line for each proposal the chat
+  produced (`◆` and "p to review" when it waits on your vote); a streaming
+  reply shows one spinner cell and its elapsed time instead of a
+  warn-coloured "generating".
+- `ctrl-x` stops the agent's turn in the open chat when it runs on this
+  device (from the composer too); otherwise it says the turn's host stops
+  it. Plain mode has `stop`, which prints a `stopped` record.
 - Chats show where each one stands, with one glyph before the title: `⠹`
   working, `◆` needs you (an agent's open question or a proposal waiting
   on your vote), `⧗` queued, `✓` done since you last looked, `✕` failed and

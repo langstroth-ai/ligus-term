@@ -68,6 +68,7 @@ INSTA_UPDATE=always LT_WRITE_SCREENS=1 cargo test --test screens
 | `ctrl-r` in the composer: what you sent | [history_search.md](history_search.md) |
 | Chats at 200×50: list, transcript at reading width, this chat's work | [chat_wide_rail.md](chat_wide_rail.md) |
 | A terminal below 60×20 | [too_small.md](too_small.md) |
+| The transcript: Markdown, tool calls with times, expanded with `o` | [transcript_markdown.md](transcript_markdown.md) |
 | Command palette | [palette.md](palette.md), typing filters: [palette_query.md](palette_query.md) |
 | Chats: failed, paused and working chips | [chat_states.md](chat_states.md) |
 | Messages: this session's notices and errors | [messages.md](messages.md), empty: [messages_empty.md](messages_empty.md) |
