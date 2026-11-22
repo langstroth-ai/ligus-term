@@ -657,6 +657,20 @@ async fn find_in_proposals() {
     snap(&h, "find", "/ in a list: the selection jumps to the match");
 }
 
+/// Focus mode: no top bar, no key hints; one quiet badge on the top
+/// border while something needs you.
+#[tokio::test]
+async fn focus_mode() {
+    let mut h = demo().await;
+    h.ctrl('f').await;
+    let screen = h.screen(W, H);
+    let first = screen.lines().next().unwrap();
+    assert!(!first.contains("Chats Workflows") && !first.contains("│ Chats"), "no top bar: {first}");
+    assert!(first.contains("◆"), "one badge when something needs you: {first}");
+    assert!(!screen.lines().last().unwrap().contains("? help"), "no hint line");
+    snap(&h, "focus_mode", "Focus mode: just the work, and one quiet badge");
+}
+
 /// The chat list's chips: one glyph per state, and nothing for an idle
 /// chat.
 #[tokio::test]

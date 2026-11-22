@@ -431,7 +431,7 @@ The default keys (all can be rebound, see [Configure](#configure)):
 
 | Where | Keys |
 |---|---|
-| Anywhere | `q` / `ctrl-c` quit (while this device drives a run or an agent's turn it asks first; a second `ctrl-c` quits) · `:` / `ctrl-p` / `ctrl-k` command palette · `space` then pause: a sheet of the keys you can press here (any key then acts as usual) · `?` / `f1` help · `!` messages · `esc` back (to the view you came from) · `ctrl-o` / `alt-left` the previous view, `alt-right` forward again · `w` / `ctrl-w` workspaces · `+` add a workspace · `tab` / `shift-tab` next or previous pane · `ctrl-l` the chat list · `ctrl-x` stop the agent's turn in this chat (when it runs on this device) |
+| Anywhere | `q` / `ctrl-c` quit (while this device drives a run or an agent's turn it asks first; a second `ctrl-c` quits) · `:` / `ctrl-p` / `ctrl-k` command palette · `space` then pause: a sheet of the keys you can press here (any key then acts as usual) · `?` / `f1` help · `!` messages · `esc` back (to the view you came from) · `ctrl-o` / `alt-left` the previous view, `alt-right` forward again · `w` / `ctrl-w` workspaces · `+` add a workspace · `tab` / `shift-tab` next or previous pane · `ctrl-l` the chat list · `ctrl-f` focus mode (no top bar or key hints; one quiet `◆` badge while something needs you) · `ctrl-x` stop the agent's turn in this chat (when it runs on this device) |
 | Lists | `↑ ↓` or `j k` move · `pgup pgdn` (`ctrl-u ctrl-d`) · `g G` (`home end`) first and last · `enter` (`l`, `→`) open · `/` find as you type (`↑ ↓` the previous or next match, `enter` keep, `esc` back to where you were) |
 | Chats | `D` the whole transcript in `$PAGER` (or left in your terminal's scrollback) · `i` write (lt starts with the cursor in the open chat's composer; `esc` leaves it) · `N` new chat · `o` show what tool calls returned · `L` lock the chat down · `U` clear the lockdown |
 | Composer | `enter` send · `alt-enter` / `ctrl-j` new line (`shift-enter` too, in terminals with the kitty keyboard protocol) · `@` mention, then `tab` or `enter` to accept · `↑` on an empty draft recalls what you sent (`↓` comes back) · `ctrl-r` search what you sent · `ctrl-g` write the draft in `$VISUAL` / `$EDITOR` · `esc` leave (the draft is kept) |
@@ -488,6 +488,12 @@ fails. What already waited when you opened the workspace is quiet. Settings'
 "Notify me when I'm @mentioned or needed" turns all of it off.
 `--reduce-motion` (or `LT_REDUCE_MOTION=1`) stills the spinners: a running
 item shows a fixed glyph and its elapsed time.
+
+lt counts only what needs you: the Notifications badge is mentions of you
+you haven't seen (a mention in the chat you're looking at counts as seen),
+and focus mode's one badge adds proposals waiting on your vote and agents'
+questions. A burst of notifications is one notice ("3 new notifications");
+the messages log (`!`) keeps each.
 
 Quitting says what is still going, in one dim line, when anything is:
 `lt: 1 run still going (driven by sff); 2 proposals waiting on your vote.`

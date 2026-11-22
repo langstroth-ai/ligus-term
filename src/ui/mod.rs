@@ -13,10 +13,11 @@ pub use chat::{ChatHit, chat_hit};
 pub use overlays::help_max_scroll;
 pub use proposals::{ProposalHit, proposal_hit};
 
-/// The body's area (between the top bar and the status bar) in a terminal
-/// of `size`.
-pub fn body_area(size: (u16, u16)) -> Rect {
-    Rect { x: 0, y: 1, width: size.0, height: size.1.saturating_sub(2) }
+/// The body's area: between the top bar and the status bar, or all of it
+/// in focus mode.
+pub fn body_area(s: &State) -> Rect {
+    let (w, h) = s.term;
+    if s.focus_mode { Rect { x: 0, y: 0, width: w, height: h } } else { Rect { x: 0, y: 1, width: w, height: h.saturating_sub(2) } }
 }
 
 /// The help overlay's lines as plain text (for tests and plain mode).
@@ -71,8 +72,30 @@ pub fn draw(f: &mut Frame, s: &State, t: &Theme) {
 }
 
 fn draw_main(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
+    if s.focus_mode {
+        draw_body(f, area, s, t);
+        // One quiet badge when something needs you, on the top border.
+        let n = s.needs_you();
+        if n > 0 {
+            let badge = format!(" {} {n} ", crate::backend::model::SessionState::NeedsYou.glyph(t.ascii));
+            let w = badge.width() as u16;
+            let r = Rect { x: area.right().saturating_sub(w + 1), y: area.y, width: w.min(area.width), height: 1 };
+            f.render_widget(Paragraph::new(Line::styled(badge, t.state(crate::backend::model::SessionState::NeedsYou))), r);
+        }
+        draw_toast_row(f, Rect { y: area.bottom().saturating_sub(1), height: 1.min(area.height), ..area }, s, t);
+        return;
+    }
     let [top, body, status] = Layout::vertical([Constraint::Length(1), Constraint::Min(3), Constraint::Length(1)]).areas(area);
     draw_top_bar(f, top, s, t);
+    draw_body(f, body, s, t);
+    draw_status(f, status, s, t);
+    if s.overlay.is_none() && s.which_key.is_some_and(|at| s.now - at >= crate::app::state::WHICH_KEY_DELAY) {
+        draw_which_key(f, body, s, t);
+    }
+}
+
+/// The focused view.
+fn draw_body(f: &mut Frame, body: Rect, s: &State, t: &Theme) {
     match s.view {
         View::Chats => chat::draw(f, body, s, t),
         View::Proposals => proposals::draw(f, body, s, t),
@@ -83,10 +106,6 @@ fn draw_main(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         View::Settings => views::settings(f, body, s, t),
         View::Workflows => views::workflows(f, body, s, t),
         View::Memory => views::memory(f, body, s, t),
-    }
-    draw_status(f, status, s, t);
-    if s.overlay.is_none() && s.which_key.is_some_and(|at| s.now - at >= crate::app::state::WHICH_KEY_DELAY) {
-        draw_which_key(f, body, s, t);
     }
 }
 

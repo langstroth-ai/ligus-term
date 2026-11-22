@@ -3,7 +3,7 @@
 Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 
 ```text
-[NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 2 Settings
+[NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ╭ Chats ───────────────────────╮╭ Fix flaky checkout test · 1/3 ─────────────────────────────────────────────╮
 │  ◆ Fix flaky checkout … 12m  ││  ◆ proposal “Inject the clock into checkout t…” · open 1/2 · p to review   │
 │  #dev                        ││                                                                            │
@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 │                              │┏ Message the room ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 │                              │┃Type a message · @ mentions an agent or a person · esc for keys             ┃
 ╰──────────────────────────────╯┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-type to search  ↑↓ select  enter use  esc close  • @primary mentioned you      peer to peer · 1 running · demo
+type to search  ↑↓ select  enter use  esc close                                peer to peer · 1 running · demo
 ```

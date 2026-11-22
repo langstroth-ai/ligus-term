@@ -2,7 +2,7 @@
 source: tests/screens.rs
 expression: screen
 ---
-[NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 2  Settings
+[NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
 ╭ Chats ───────────────────────╮╭ Fix flaky checkout test ─────────────────────────────────────────────────────────────────────────────────────────────────────╮╭ This chat ───────────────────────────╮
 │  ◆ Fix flaky checkout … 12m  ││             Ada  40m                                                                                                         ││Proposals                             │
 │  #dev                        ││               The checkout test fails about one run in ten. Can we stop it reading the wall clock?                           ││◆ Inject a clock into the session che…│
@@ -51,4 +51,4 @@ expression: screen
 │                              │┏ Message the room ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓│                                      │
 │                              │┃Type a message · @ mentions an agent or a person · esc for keys                                                               ┃│                                      │
 ╰──────────────────────────────╯┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────╯
-type to search  ↑↓ select  enter use  esc close  • @primary mentioned you                                                                                                peer to peer · 1 running · demo
+type to search  ↑↓ select  enter use  esc close                                                                                                                          peer to peer · 1 running · demo

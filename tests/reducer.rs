@@ -1576,3 +1576,52 @@ fn transcript_dump_and_exit_summary() {
     s.proposals = vec![proposal("p1", ProposalStatus::Open), proposal("p2", ProposalStatus::Approved)];
     assert_eq!(s.exit_summary().as_deref(), Some("lt: 1 run still going (driven by sff); 1 proposal waiting on your vote."));
 }
+
+fn mention(id: &str, chat: &str) -> Notification {
+    Notification {
+        id: NotificationId::new(id),
+        workspace: WorkspaceId::new("a"),
+        chat: Some(ChatId::new(chat)),
+        text: format!("Ben mentioned you ({id})"),
+        at: NOW,
+        read: false,
+    }
+}
+
+/// Quiet notifications: a mention in the chat you're looking at is
+/// already on screen (no toast, no bell, no badge); a burst is one toast
+/// that counts them, while the log keeps each.
+#[test]
+fn quiet_notifications_and_bursts() {
+    let mut s = main_state();
+    assert_eq!(s.open_chat, Some(ChatId::new("c1")));
+    let fx = update(&mut s, Msg::Event(Event::Notification(mention("n1", "c1"))));
+    assert_eq!(fx, vec![Effect::MarkRead(WorkspaceId::new("a"), ChatId::new("c1"))]);
+    assert!(s.toasts.is_empty() && !s.bell, "it's on screen already");
+    assert_eq!(s.unread_notifications(), 0, "and doesn't inflate the badge");
+    for id in ["n2", "n3", "n4"] {
+        update(&mut s, Msg::Event(Event::Notification(mention(id, "c2"))));
+    }
+    assert_eq!(s.toasts.len(), 1);
+    assert_eq!(s.toasts[0].text, "3 new notifications (n reads them)");
+    assert_eq!(s.log.iter().filter(|e| e.text.starts_with("Ben mentioned you")).count(), 3, "the log keeps each");
+    assert_eq!(s.unread_notifications(), 3);
+    assert_eq!(s.needs_you(), 3);
+    // Once the toast is gone, the next one starts a new burst.
+    for _ in 0..20 {
+        update(&mut s, Msg::Tick(NOW));
+    }
+    update(&mut s, Msg::Event(Event::Notification(mention("n5", "c2"))));
+    assert_eq!(s.toasts[0].text, "Ben mentioned you (n5)");
+}
+
+/// Focus mode (ctrl-f) hides the bars and comes back the same way.
+#[test]
+fn focus_mode_toggles() {
+    let mut s = main_state();
+    mods(&mut s, KeyCode::Char('f'), KeyModifiers::CONTROL);
+    assert!(s.focus_mode);
+    key(&mut s, KeyCode::Char('i'));
+    mods(&mut s, KeyCode::Char('f'), KeyModifiers::CONTROL);
+    assert!(!s.focus_mode, "from the composer too");
+}

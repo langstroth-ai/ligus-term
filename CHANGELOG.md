@@ -42,6 +42,10 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 - Quitting prints one dim line when something is still going: runs still
   moving (and who drives them), proposals waiting on your vote, agents'
   open questions.
+- Focus mode: `ctrl-f` (or the palette) hides the top bar and the key
+  hints, leaving the work; one quiet `◆ N` badge on the top border shows
+  while something needs you (unread mentions, votes, agents' questions).
+  `ctrl-f` again brings them back.
 - Tab completion and a man page: `lt completions bash|zsh|fish` prints a
   completion script (flags, commands, help topics, themes, and workspace
   names after `--workspace` and `use`), and `lt man` prints the man page.
@@ -94,6 +98,10 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Changed
 
+- Quieter notifications: a mention in the chat you're looking at is
+  already on screen, so it doesn't ring, toast or count in the badge; a
+  burst of notifications is one toast ("3 new notifications (n reads
+  them)") and the messages log keeps each.
 - `esc` in a view goes back to the view you came from, instead of always
   to Chats.
 - Colours come from the shared Ligus tokens, the same values the desktop

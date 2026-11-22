@@ -3,7 +3,7 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
-┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ────┏ Help · 1-46 of 96 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────╮╭ This chat ───────────────────────────╮
+┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ────┏ Help · 1-46 of 97 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────╮╭ This chat ───────────────────────────╮
 ┃  ◆ Fix flaky checkout … 12m  ┃│             Ada  40m        ┃What has focus comes first. / searches. Rebind keys in the config file.   ┃                     ││Proposals                             │
 ┃  #dev                        ┃│               The checkout t┃                                                                          ┃                     ││◆ Inject the clock into checkout tests│
 ┃  ◆ Migrate auth to pas… 50m  ┃│                             ┃Chats  here                                                               ┃                     ││  open 1/2                            │
@@ -48,7 +48,7 @@ expression: screen
 ┃                              ┃│                             ┃  ctrl-x                   Stop the agent's turn in this chat (when it run┃                     ││                                      │
 ┃                              ┃╰─────────────────────────────┃  ctrl-o, alt-←            The view you were in before                    ┃─────────────────────╯│                                      │
 ┃                              ┃                              ┃  alt-→                    Forward again after going back                 ┃                      │                                      │
-┃                              ┃╭ Message the room ───────────┃  ctrl-l                   The chat list (over the chat in a narrow termin┃─────────────────────╮│                                      │
-┃                              ┃│i to write · @ mentions an ag┃                                                                          ┃                     ││                                      │
+┃                              ┃╭ Message the room ───────────┃  ctrl-f                   Focus mode: hide the top bar and the key hints ┃─────────────────────╮│                                      │
+┃                              ┃│i to write · @ mentions an ag┃  ctrl-l                   The chat list (over the chat in a narrow termin┃                     ││                                      │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰─────────────────────────────┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛─────────────────────╯╰──────────────────────────────────────╯
 / search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                                                                                                              peer to peer · 1 running · demo

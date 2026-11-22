@@ -1,0 +1,28 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+┏ Chats ━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test · 1/3 ────────────── ◆ 5 ╮
+┃  ◆ Fix flaky check… 12m  ┃│Ada  40m                                          │
+┃  #dev                    ┃│  The checkout test fails about one run in ten.   │
+┃  ◆ Migrate auth to… 50m  ┃│  Can we stop it reading the wall clock?          │
+┃  #dev                    ┃│                                                  │
+┃  Weekly release not… 1d  ┃│@coder  via claude-code · on sff  38m             │
+┃                          ┃│  Yes. The payment tests already use a fake clock,│
+┃                          ┃│  so it's a small change. I'll propose it.        │
+┃                          ┃│  ◆ proposal “Inject…” · open 1/2 · p to review   │
+┃                          ┃│                                                  │
+┃                          ┃│Ada  12m                                          │
+┃                          ┃│  @Mara can you review the timeout? 30 seconds is │
+┃                          ┃│  what the provider uses.                         │
+┃                          ┃│  ◆ proposal “Sign-o…” · open 0/1 · p to review   │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃╰──────────────────────────────────────────────────╯
+┃                          ┃
+┃                          ┃╭ Message the room ────────────────────────────────╮
+┃                          ┃│i to write · @ mentions an agent or a person      │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────╯
