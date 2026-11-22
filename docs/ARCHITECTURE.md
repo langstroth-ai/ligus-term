@@ -53,7 +53,11 @@ both and checks).
   `onboarding`, `overlays`). Snapshot-tested with ratatui's `TestBackend`
   (`tests/screens.rs`).
 - **`keymap`**: actions, contexts, defaults and overrides (one table,
-  `BINDINGS`, feeds resolution, the help overlay and `--print-config`).
+  `BINDINGS`, feeds resolution, the help overlay, the command palette and
+  `--print-config`).
+- **`app::palette`**: the command palette's entries (the focused view's
+  actions, everything global, the views and the loaded entities) and its
+  fuzzy match; pure, like the reducer.
 - **`config`**, **`theme`**, **`paths`**: the TOML config, dark/light/mono
   themes, and where the data dir and config file are.
 - **`plain`**: the line-oriented client over the same `Backend`.

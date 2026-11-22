@@ -276,6 +276,11 @@ pub enum Overlay {
     Messages {
         scroll: usize,
     },
+    /// The command palette: a query and the selected entry.
+    Palette {
+        query: TextBuf,
+        sel: usize,
+    },
     /// "Are you sure?" before something that can't be undone from here:
     /// `y` (or enter) goes ahead, any other key backs out.
     Confirm {
@@ -613,6 +618,7 @@ impl State {
             Some(Overlay::AddWorkspace(f)) => f.field != FormField::Mode,
             Some(Overlay::NewChat(_)) | Some(Overlay::StartRun { .. }) | Some(Overlay::BindCheckout(_)) => true,
             Some(Overlay::Help { searching, .. }) => *searching,
+            Some(Overlay::Palette { .. }) => true,
             Some(Overlay::AdmitBox { result: None, checked: None, .. }) => true,
             Some(_) => false,
             None => match &self.phase {

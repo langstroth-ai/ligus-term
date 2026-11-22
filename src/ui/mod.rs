@@ -4,6 +4,7 @@
 mod chat;
 mod onboarding;
 mod overlays;
+mod palette;
 mod proposals;
 mod splash;
 mod views;
@@ -290,6 +291,9 @@ fn status_hints(s: &State) -> (Vec<String>, String) {
     let h = |ctx, a, label: &str| format!("{} {label}", k.hint(ctx, a));
     use Action::*;
     use Context as C;
+    if let Some(crate::app::state::Overlay::Palette { .. }) = &s.overlay {
+        return (vec!["type to filter".into(), "↑↓ select".into(), "enter run".into()], "esc close".into());
+    }
     if let Some(crate::app::state::Overlay::Messages { .. }) = &s.overlay {
         return (vec!["↑↓ scroll".into(), "g/G newest/oldest".into()], "esc close".into());
     }

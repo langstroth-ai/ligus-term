@@ -1151,3 +1151,55 @@ fn chat_states_from_live_signals() {
     let fx = update(&mut s, Msg::Event(Event::MemoryChanged { workspace: w.clone() }));
     assert!(fx.contains(&Effect::LoadTasks(w)));
 }
+
+/// The palette (`:`, `ctrl-p`, `ctrl-k`) lists actions with their keys,
+/// views and the workspace's entities; typing filters, enter runs, and a
+/// context action names what it acts on and only shows where it applies.
+#[test]
+fn palette_runs_actions_and_opens_entities() {
+    use ligus_term::app::palette::{Target, filtered};
+    let mut s = main_state();
+    key(&mut s, KeyCode::Char(':'));
+    assert!(matches!(s.overlay, Some(Overlay::Palette { .. })));
+    assert!(s.typing_text(), "letters type into the palette");
+    typed(&mut s, "go prop");
+    let items = filtered(&s, "go prop");
+    assert_eq!(items[0].target, Target::Action(ligus_term::keymap::Action::GoProposals), "{items:?}");
+    assert!(items[0].key.contains('p') && items[0].key.contains('3'), "the key is shown: {:?}", items[0]);
+    key(&mut s, KeyCode::Enter);
+    assert!(s.overlay.is_none());
+    assert_eq!(s.view, View::Proposals);
+    // In Proposals, approve names the selected proposal.
+    let mut p = proposal("p1", ProposalStatus::Open);
+    p.title = "Fix the flaky test".into();
+    update(&mut s, Msg::Proposals(WorkspaceId::new("a"), Ok(vec![p])));
+    let all = filtered(&s, "approve");
+    assert!(all.iter().any(|i| i.label == "Approve \u{201c}Fix the flaky test\u{201d}" && i.scope == "Proposals"), "{all:?}");
+    // Not offered where it doesn't apply.
+    key(&mut s, KeyCode::Char('c'));
+    assert!(filtered(&s, "").iter().all(|i| !i.label.starts_with("Approve")));
+    // From the composer, ctrl-p opens it too; an entity opens and selects.
+    key(&mut s, KeyCode::Char('i'));
+    assert_eq!(s.focus, Focus::Composer);
+    mods(&mut s, KeyCode::Char('p'), KeyModifiers::CONTROL);
+    assert!(matches!(s.overlay, Some(Overlay::Palette { .. })));
+    typed(&mut s, "c2");
+    let fx = key(&mut s, KeyCode::Enter);
+    assert_eq!(s.open_chat, Some(ChatId::new("c2")));
+    assert!(fx.contains(&Effect::LoadTranscript(WorkspaceId::new("a"), ChatId::new("c2"))));
+    // ctrl-k is the same; ↓ past the end stays on the last entry; esc closes.
+    mods(&mut s, KeyCode::Char('k'), KeyModifiers::CONTROL);
+    typed(&mut s, "workspace");
+    for _ in 0..50 {
+        key(&mut s, KeyCode::Down);
+    }
+    let n = filtered(&s, "workspace").len();
+    assert!(matches!(s.overlay, Some(Overlay::Palette { sel, .. }) if sel == n - 1));
+    key(&mut s, KeyCode::Esc);
+    assert!(s.overlay.is_none());
+    // Switching workspace through it.
+    key(&mut s, KeyCode::Char(':'));
+    typed(&mut s, "switch ws b");
+    key(&mut s, KeyCode::Enter);
+    assert_eq!(s.active, Some(WorkspaceId::new("b")));
+}

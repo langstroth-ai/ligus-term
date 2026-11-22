@@ -392,6 +392,7 @@ Press a view's key from anywhere outside a text field:
 | `n` `8` | Notifications | @mentions of you; Enter jumps to the chat |
 | `s` `9` | Settings | You, notifications, this device (data dir, secret store), theme and config |
 | `w` | Workspaces | The switcher; `+` creates, joins or connects another |
+| `:` `ctrl-p` `ctrl-k` | Commands | The command palette: type a few letters of any action, view, workspace, chat, proposal, run or agent, and `enter`. The focused view's actions come first, each with its key, so the palette teaches the keys |
 | `!` | Messages | This session's notices and errors in full, newest first: a toast that went by can be read again |
 | `?` | Help | Every keybinding, as currently configured: what has focus first, scrollable, and `/` narrows it to the keys that match |
 
@@ -407,7 +408,7 @@ The default keys (all can be rebound, see [Configure](#configure)):
 
 | Where | Keys |
 |---|---|
-| Anywhere | `q` / `ctrl-c` quit (while this device drives a run or an agent's turn it asks first; a second `ctrl-c` quits) · `?` / `f1` help · `!` messages · `esc` back · `w` / `ctrl-w` workspaces · `+` add a workspace · `tab` / `shift-tab` next or previous pane |
+| Anywhere | `q` / `ctrl-c` quit (while this device drives a run or an agent's turn it asks first; a second `ctrl-c` quits) · `:` / `ctrl-p` / `ctrl-k` command palette · `?` / `f1` help · `!` messages · `esc` back · `w` / `ctrl-w` workspaces · `+` add a workspace · `tab` / `shift-tab` next or previous pane |
 | Lists | `↑ ↓` or `j k` move · `pgup pgdn` (`ctrl-u ctrl-d`) · `g G` (`home end`) first and last · `enter` (`l`, `→`) open |
 | Chats | `i` write (lt starts with the cursor in the open chat's composer; `esc` leaves it) · `N` new chat · `L` lock the chat down · `U` clear the lockdown |
 | Composer | `enter` send · `alt-enter` / `ctrl-j` new line (`shift-enter` too, in terminals with the kitty keyboard protocol) · `@` mention, then `tab` or `enter` to accept · `esc` leave (the draft is kept) |

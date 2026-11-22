@@ -18,6 +18,7 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         None => {}
         Some(Overlay::Help { scroll, .. }) => help(f, area, s, *scroll, t),
         Some(Overlay::Messages { scroll }) => messages(f, area, s, *scroll, t),
+        Some(Overlay::Palette { query, sel }) => super::palette::draw(f, area, s, query, *sel, t),
         Some(Overlay::Switcher { sel }) => switcher(f, area, s, *sel, t),
         Some(Overlay::AddWorkspace(form)) => onboarding::draw_form(f, area, s, form, t, false),
         Some(Overlay::StartRun { name, label, input, .. }) => {
