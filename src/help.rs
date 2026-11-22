@@ -36,6 +36,8 @@ pub const ENV: &[EnvVar] = &[
         meaning: "this device's data dir (--data-dir wins); never shared with the desktop app or the ligus CLI",
     },
     EnvVar { name: "LT_ASCII", default: "off", meaning: "1/true/on/yes: ASCII only, like --ascii" },
+    EnvVar { name: "LT_REDUCE_MOTION", default: "off", meaning: "1/true/on/yes: spinners stand still, like --reduce-motion" },
+    EnvVar { name: "TMUX", default: "-", meaning: "set inside tmux: a needs-you notification goes through tmux's passthrough" },
     EnvVar {
         name: "VISUAL",
         default: "$EDITOR, else vi",

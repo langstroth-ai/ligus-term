@@ -61,6 +61,11 @@ pub struct Args {
     /// x =), for limited fonts and braille displays. Also LT_ASCII=1.
     #[arg(long)]
     pub ascii: bool,
+    /// Spinners stand still: a running item shows a fixed glyph and its
+    /// elapsed time (for recordings, CI logs and anyone who prefers it).
+    /// Also LT_REDUCE_MOTION=1.
+    #[arg(long)]
+    pub reduce_motion: bool,
     /// Print a config file with every default and exit.
     #[arg(long)]
     pub print_config: bool,

@@ -16,6 +16,8 @@ use crate::keymap::Action;
 pub enum Msg {
     Key(KeyEvent),
     Paste(String),
+    /// The terminal gained (`true`) or lost focus.
+    Focus(bool),
     /// A mouse event (when mouse support is on).
     Mouse(crossterm::event::MouseEvent),
     /// Wall clock, for ages and toasts.
@@ -175,7 +177,51 @@ fn is_active(s: &State, ws: &WorkspaceId) -> bool {
 }
 
 pub fn update(s: &mut State, msg: Msg) -> Vec<Effect> {
+    // A workspace's first lists set what already needs you, quietly.
+    let quiet = match &msg {
+        Msg::Startup(_) => true,
+        Msg::Chats(ws, Ok(_)) if is_active(s, ws) => s.loaded.insert("chats"),
+        Msg::Proposals(ws, Ok(_)) if is_active(s, ws) => s.loaded.insert("proposals"),
+        Msg::Tasks(ws, Ok(_)) if is_active(s, ws) => s.loaded.insert("tasks"),
+        _ => false,
+    };
+    let fx = update_inner(s, msg);
+    watch_attention(s, quiet);
+    fx
+}
+
+/// A chat newly needing you rings the bell and, while the terminal is
+/// unfocused, sends one desktop notification (OSC 9) for everything that
+/// arrived together: "2 chats need you".
+fn watch_attention(s: &mut State, quiet: bool) {
+    if !matches!(s.phase, Phase::Main) {
+        return;
+    }
+    let now: std::collections::BTreeSet<ChatId> =
+        s.chats.iter().filter(|c| s.session_state(&c.id) == SessionState::NeedsYou).map(|c| c.id.clone()).collect();
+    let new: Vec<ChatId> = now.difference(&s.attention).cloned().collect();
+    s.attention = now;
+    // What was already waiting when the workspace opened isn't news.
+    if quiet || new.is_empty() || !s.settings.as_ref().is_none_or(|st| st.notify_mentions) {
+        return;
+    }
+    let text = match new.as_slice() {
+        [one] => {
+            let title = s.chats.iter().find(|c| &c.id == one).map(|c| c.title.clone()).unwrap_or_default();
+            format!("\u{201c}{title}\u{201d} needs you")
+        }
+        many => format!("{} chats need you", many.len()),
+    };
+    s.bell = true;
+    s.signal(text);
+}
+
+fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
     match msg {
+        Msg::Focus(on) => {
+            s.focused = on;
+            vec![]
+        }
         Msg::Key(k) => key(s, k),
         Msg::Paste(text) => paste(s, &text),
         Msg::Mouse(m) => mouse(s, m),
@@ -614,6 +660,14 @@ fn event(s: &mut State, e: Event) -> Vec<Effect> {
                 } else if s.open_chat.as_ref() != Some(&chat) {
                     s.turn_outcomes.insert(chat.clone(), SessionState::Done);
                 }
+                // A turn you asked for ended while you were away.
+                let mine = s.my_chats.contains(&chat);
+                if mine && !s.focused && s.settings.as_ref().is_none_or(|st| st.notify_mentions) {
+                    let title = s.chats.iter().find(|c| c.id == chat).map(|c| c.title.clone()).unwrap_or_default();
+                    let what = if error.is_some() { "failed" } else { "finished" };
+                    s.bell = true;
+                    s.signal(format!("A turn {what} in \u{201c}{title}\u{201d}"));
+                }
             }
             if let Some(e) = error {
                 s.toast(ToastKind::Error, e);
@@ -674,6 +728,9 @@ fn event(s: &mut State, e: Event) -> Vec<Effect> {
         }
         Event::Notification(n) => {
             s.bell = s.settings.as_ref().is_none_or(|st| st.notify_mentions);
+            if s.bell {
+                s.signal(n.text.clone());
+            }
             s.toast(ToastKind::Info, n.text.clone());
             s.notifications.insert(0, n);
             vec![]
@@ -1555,6 +1612,8 @@ pub fn switch_workspace(s: &mut State, id: WorkspaceId) -> Vec<Effect> {
     s.handoffs.clear();
     s.checkout = None;
     s.turn_outcomes.clear();
+    s.loaded.clear();
+    s.attention.clear();
     s.focus = Focus::List;
     load_workspace(&id)
 }
@@ -1843,6 +1902,7 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             }
             let text = s.composer.take();
             s.sent.push(text.clone());
+            s.my_chats.insert(c.clone());
             s.history_pos = None;
             s.turn_outcomes.remove(&c);
             s.mention_dismissed = None;

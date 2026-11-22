@@ -505,7 +505,12 @@ pub fn settings(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         kv("Safety code", d.safety_code.clone()),
         Line::raw(""),
         head("Notifications and agents"),
-        toggle(0, st.notify_mentions, "Notify me when I'm @mentioned", "a terminal bell and a toast"),
+        toggle(
+            0,
+            st.notify_mentions,
+            "Notify me when I'm @mentioned or needed",
+            "a bell; a desktop notification while lt is in the background",
+        ),
         toggle(1, st.agents_may_edit, "Let agents edit files and run commands", "on this device's hosts"),
         Line::raw(""),
         head("This device"),

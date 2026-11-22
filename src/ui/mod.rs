@@ -580,7 +580,7 @@ fn draw_status(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
 pub(crate) fn state_glyph(s: &State, st: crate::backend::model::SessionState, t: &Theme) -> &'static str {
     const SPIN: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
     const SPIN_ASCII: [&str; 4] = ["|", "/", "-", "\\"];
-    if st == crate::backend::model::SessionState::Working {
+    if st == crate::backend::model::SessionState::Working && !s.reduce_motion {
         let frame = (s.now / 250).rem_euclid(10) as usize;
         return if t.ascii { SPIN_ASCII[frame % 4] } else { SPIN[frame] };
     }

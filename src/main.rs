@@ -153,6 +153,8 @@ async fn run() -> anyhow::Result<()> {
     state.config_path = config_path.map(|p| p.display().to_string());
     state.theme_name = app::runtime::theme_label(&theme, depth);
     state.mouse = config.mouse.unwrap_or(true);
+    state.reduce_motion = args.reduce_motion
+        || env("LT_REDUCE_MOTION").is_some_and(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "on" | "yes"));
     let mouse = state.mouse;
     let state = app::runtime::run_tui(backend, state, theme, depth, mouse).await?;
     if let Some(real) = &real {

@@ -20,6 +20,16 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   chat shows a getting-started list from its real state (agents, people,
   boxes, runs) with the keys for each step and the runtimes found on this
   device, in place of the welcome, until every step is done.
+- Needs-you signals: a chat that newly needs you (an agent's question, a
+  proposal waiting on your vote) rings the bell, and while the terminal is
+  in the background lt also sends one desktop notification (OSC 9; through
+  tmux's passthrough in tmux), batched when several arrive together. A
+  turn you asked for that finishes or fails while you're away does the
+  same. What already waited when the workspace opened stays quiet. The
+  Settings toggle ("Notify me when I'm @mentioned or needed") covers all of
+  it.
+- `--reduce-motion` (or `LT_REDUCE_MOTION=1`): spinners stand still; a
+  running item shows a fixed glyph and its elapsed time.
 - Tab completion and a man page: `lt completions bash|zsh|fish` prints a
   completion script (flags, commands, help topics, themes, and workspace
   names after `--workspace` and `use`), and `lt man` prints the man page.
