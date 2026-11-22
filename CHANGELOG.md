@@ -46,6 +46,12 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   hints, leaving the work; one quiet `◆ N` badge on the top border shows
   while something needs you (unread mentions, votes, agents' questions).
   `ctrl-f` again brings them back.
+- `lt doctor` (`--json` for a `ligus.checks.v1` report, the shape every
+  Ligus doctor shares): the data dir, the config, the secret store's kind,
+  `LT_RELAY_URL`, the workspaces and their relays, the agent runtimes on
+  `PATH` and the terminal, without opening the device (no keychain prompt,
+  no network). `next` names `langstroth-relay check --url …` per relay and
+  `ligus doctor` when the CLI is here. Exit 1 when a check fails.
 - Tab completion and a man page: `lt completions bash|zsh|fish` prints a
   completion script (flags, commands, help topics, themes, and workspace
   names after `--workspace` and `use`), and `lt man` prints the man page.
@@ -98,6 +104,14 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Changed
 
+- Exit codes follow the table every Ligus tool shares: 0 done, 1 failed,
+  2 usage, 3 a precondition you can fix, 4 a person must act, 5 not found,
+  6 refused by workspace rules, 7 offline. A one-shot command now exits
+  with its first error's code (it was always 1; for example an unknown
+  chat is 5, a refusal 6), and a data dir or device lt can't use at
+  start-up is 3 (it was 2). Scripts that test for non-zero are unaffected.
+- A one-shot command also writes its error to stderr as `lt: <what>`; the
+  `error` record stays on stdout. Start-up errors add a `fix:` line.
 - Quieter notifications: a mention in the chat you're looking at is
   already on screen, so it doesn't ring, toast or count in the badge; a
   burst of notifications is one toast ("3 new notifications (n reads

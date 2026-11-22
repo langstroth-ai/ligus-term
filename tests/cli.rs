@@ -67,8 +67,9 @@ fn refuses_the_desktop_data_dir_and_bad_config() {
     let (mut c, _home) = lt();
     c.args(["--plain", "--data-dir", "/tmp/x/Library/Application Support/ai.ligus.desktop"]).env("HOME", "/tmp/x");
     let (code, _, err) = run(c, "");
-    assert_eq!(code, 2);
+    assert_eq!(code, 3, "a precondition you can fix");
     assert!(err.contains("desktop app's data"), "{err}");
+    assert!(err.contains("  fix: lt doctor checks the data dir"), "{err}");
 
     let dir = tempfile::tempdir().unwrap();
     let cfg = dir.path().join("c.toml");
@@ -205,4 +206,31 @@ fn completions_and_man_need_no_device() {
     c.args(["__complete", "commands"]);
     let (_, out, _) = run(c, "");
     assert!(out.lines().any(|l| l == "chats") && out.lines().any(|l| l == "completions"), "{out}");
+}
+
+/// lt doctor prints the shared report, opens no device and makes no
+/// directory; a one-shot error goes to stderr too, with the table's code.
+#[test]
+fn doctor_and_error_shape() {
+    let (mut c, home) = lt();
+    let data = home.path().join("dev");
+    c.env("LT_DATA_DIR", &data).args(["doctor", "--json"]);
+    let (code, out, err) = run(c, "");
+    assert_eq!(code, 0, "{out}{err}");
+    let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(v["schema"], "ligus.checks.v1");
+    assert_eq!(v["tool"], "lt");
+    assert_eq!(v["command"], "doctor");
+    assert_eq!(v["exitCode"], 0);
+    assert!(v["checks"].as_array().unwrap().iter().all(|c| ["ok", "warn", "fail", "skip"].contains(&c["status"].as_str().unwrap())));
+    assert!(!data.exists(), "doctor made the data dir");
+    let (mut c, _home) = lt();
+    c.arg("doctor");
+    let (_, out, _) = run(c, "");
+    assert!(out.starts_with("lt doctor (lt ") && out.contains("· next:"), "{out}");
+    let (mut c, _home) = lt();
+    c.args(["--demo", "watch", "nope"]);
+    let (code, out, err) = run(c, "");
+    assert_eq!(code, 5, "not found: {out}");
+    assert!(out.contains("error\t") && err.contains("lt: no run nope"), "{out} / {err}");
 }

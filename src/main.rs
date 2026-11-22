@@ -15,9 +15,19 @@ fn env(k: &str) -> Option<String> {
     std::env::var(k).ok()
 }
 
+/// A usage problem: `lt: what` on stderr, exit 2.
 fn fail(msg: impl std::fmt::Display) -> ! {
+    fail_with(2, msg, None)
+}
+
+/// An error in the shared shape: `lt: what`, then `  fix: …` when there is
+/// one, and the exit code from the shared table.
+fn fail_with(code: i32, msg: impl std::fmt::Display, fix: Option<&str>) -> ! {
     eprintln!("lt: {msg}");
-    std::process::exit(2);
+    if let Some(f) = fix {
+        eprintln!("  fix: {f}");
+    }
+    std::process::exit(code);
 }
 
 fn main() -> anyhow::Result<()> {
@@ -71,6 +81,23 @@ async fn run() -> anyhow::Result<()> {
     if ligus_term::cli::take_trailing_json(&mut args.command) {
         args.json = true;
     }
+    // `lt doctor [--json]`: checks without opening the device.
+    if args.command.first().is_some_and(|c| c == "doctor") {
+        let report = ligus_term::doctor::run(
+            ligus_term::doctor::Inputs {
+                data_dir_flag: args.data_dir.as_deref(),
+                config_flag: args.config.as_deref(),
+                find_runtimes: true,
+            },
+            env,
+        );
+        if args.json {
+            println!("{}", report.to_json());
+        } else {
+            print!("{}", report.to_text());
+        }
+        std::process::exit(report.exit_code());
+    }
     // A command runs one-shot in plain mode, with or without --plain.
     // Without --plain, an unknown command (a typo) is refused on stderr
     // before any data dir is opened; with it, as an error record.
@@ -85,7 +112,7 @@ async fn run() -> anyhow::Result<()> {
         print!("{}", default_config_text());
         return Ok(());
     }
-    let data = paths::data_dir(args.data_dir.as_deref(), env).unwrap_or_else(|e| fail(e));
+    let data = paths::data_dir(args.data_dir.as_deref(), env).unwrap_or_else(|e| fail_with(3, e, Some("lt doctor checks the data dir")));
     if let Some(w) = &data.warning {
         eprintln!("lt: warning: {w}");
     }
@@ -122,7 +149,7 @@ async fn run() -> anyhow::Result<()> {
             Some("1" | "true" | "on" | "yes") => true,
             Some(v) => fail(format!("LT_NO_BROWSER={v}: use 1 or 0")),
         };
-        let b = RealBackend::open(cfg).unwrap_or_else(|e| fail(e));
+        let b = RealBackend::open(cfg).unwrap_or_else(|e| fail_with(3, e, Some("lt doctor checks this device's setup")));
         real = Some(b.clone());
         Arc::new(b)
     };
@@ -132,6 +159,7 @@ async fn run() -> anyhow::Result<()> {
             one_shot: (!args.command.is_empty()).then(|| args.command.join(" ")),
             workspace: args.workspace.clone(),
             json: args.json,
+            errors_to_stderr: !args.command.is_empty(),
             name: args.name.clone(),
             presence: args
                 .recovery_words_file
@@ -140,6 +168,7 @@ async fn run() -> anyhow::Result<()> {
         };
         let stdin = tokio::io::BufReader::new(tokio::io::stdin());
         let code = plain::run_with(backend.clone(), stdin, Box::new(tokio::io::stdout()), opts).await?;
+
         if let Some(real) = &real {
             real.shutdown();
         }

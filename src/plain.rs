@@ -9,9 +9,10 @@
 //!
 //! One-shot: `lt COMMAND [ARGS…]` (`--plain` optional) runs one command and exits, for
 //! scripts and other agents. It prints only that command's records (and any
-//! passkey prompt it raises), and exits 0 on success, 1 when it printed an
-//! `error` record (or a run it followed didn't complete), 2 for a command
-//! it doesn't know. `run` and `watch` follow the run until it ends: this
+//! passkey prompt it raises), and exits 0 on success, or the first error
+//! record's code from the shared table ([`error_code`]: 1 failed, 2 usage,
+//! 3 a precondition, 4 a person must act, 5 not found, 6 refused, 7
+//! offline); a run it followed that didn't complete is 1. `run` and `watch` follow the run until it ends: this
 //! device drives the runs it starts, so `run` stays until its run is done.
 
 use std::sync::Arc;
@@ -84,8 +85,12 @@ struct Output {
     w: Mutex<Box<dyn AsyncWrite + Unpin + Send>>,
     /// An `error` record was printed (the one-shot exit code).
     failed: std::sync::atomic::AtomicBool,
+    /// The first error's exit code (see [`error_code`]).
+    code: std::sync::atomic::AtomicI32,
     /// Write each record as a JSON object (`--json`).
     json: bool,
+    /// Also write each error to stderr as `lt: <what>` (one-shot).
+    stderr: bool,
 }
 
 type Out = Arc<Output>;
@@ -117,7 +122,14 @@ pub fn clean(line: &str) -> String {
 async fn emit(out: &Out, line: String) {
     let line = clean(&line);
     if line.starts_with("error\t") {
-        out.failed.store(true, std::sync::atomic::Ordering::SeqCst);
+        let first = !out.failed.swap(true, std::sync::atomic::Ordering::SeqCst);
+        if first {
+            let msg = line.rsplit('\t').next().unwrap_or("");
+            out.code.store(error_code(msg).1, std::sync::atomic::Ordering::SeqCst);
+        }
+        if out.stderr {
+            eprintln!("lt: {}", line.rsplit('\t').next().unwrap_or(""));
+        }
     }
     let line = if out.json { crate::help::record_json(&line) } else { line };
     let mut o = out.w.lock().await;
@@ -131,6 +143,9 @@ async fn emit(out: &Out, line: String) {
 pub struct PlainOpts {
     /// Run this one command and exit (`lt --plain COMMAND ARGS…`).
     pub one_shot: Option<String>,
+    /// Also write each error to stderr (`lt: <what>`), as one-shot does,
+    /// while the `error` record stays on stdout.
+    pub errors_to_stderr: bool,
     /// The workspace to use (a name, an id, or a number), else the first.
     pub workspace: Option<String>,
     /// Answer every passkey prompt this way (one-shot: the browser, or a
@@ -144,6 +159,54 @@ pub struct PlainOpts {
 
 /// The exit code for a usage error (an unknown one-shot command).
 pub const EXIT_USAGE: i32 = 2;
+
+/// An error's stable code and exit code, from the shared table (`lt help
+/// exit-codes`): 1 failed, 2 usage, 3 a precondition you can fix, 4 a
+/// person must act, 5 not found, 6 refused by workspace rules, 7 offline.
+pub fn error_code(message: &str) -> (&'static str, i32) {
+    let m = message.trim().to_lowercase();
+    let any = |words: &[&str]| words.iter().any(|w| m.contains(w));
+    let starts = |words: &[&str]| words.iter().any(|w| m.starts_with(w));
+    if starts(&["usage:", "unknown command", "unknown role", "unknown access", "unknown option"]) || any(&["add --out"]) {
+        ("usage", 2)
+    } else if any(&[" yet:", "first:", "open a chat first", "needs a relay", "set your name"]) {
+        ("precondition", 3)
+    } else if any(&["passkey", "recovery words", "cancelled"]) {
+        ("needs_person", 4)
+    } else if starts(&[
+        "no such ",
+        "no chat ",
+        "no run ",
+        "no proposal ",
+        "no member ",
+        "no agent ",
+        "no workflow ",
+        "no workspace ",
+        "no runtime ",
+        "no host ",
+    ]) || any(&["not found"])
+    {
+        ("not_found", 5)
+    } else if any(&["offline", "unreachable", "timed out", "timeout", "connection refused", "error sending request", "couldn't reach"]) {
+        ("offline", 7)
+    } else if any(&[
+        "can't ",
+        "cannot ",
+        "only an admin",
+        "only the ",
+        "only its owner",
+        "only a ",
+        "refused",
+        "not allowed",
+        "a viewer",
+        "lockdown",
+        "you may not",
+    ]) {
+        ("refused", 6)
+    } else {
+        ("error", 1)
+    }
+}
 
 pub const COMMANDS: &[&str] = &[
     "help",
@@ -311,7 +374,13 @@ pub async fn run_with<R>(
 where
     R: AsyncBufRead + Unpin,
 {
-    let out: Out = Arc::new(Output { w: Mutex::new(out), failed: std::sync::atomic::AtomicBool::new(false), json: opts.json });
+    let out: Out = Arc::new(Output {
+        w: Mutex::new(out),
+        failed: std::sync::atomic::AtomicBool::new(false),
+        code: std::sync::atomic::AtomicI32::new(0),
+        json: opts.json,
+        stderr: opts.errors_to_stderr,
+    });
     let one_shot = opts.one_shot.is_some();
     if let Some(cmd) = &opts.one_shot {
         let name = cmd.split_whitespace().next().unwrap_or("");
@@ -421,7 +490,11 @@ where
     if let Some(cmd) = opts.one_shot {
         command(&backend, &out, &session, &cmd).await;
         ev_task.abort();
-        return Ok(i32::from(out.failed.load(std::sync::atomic::Ordering::SeqCst)));
+        return Ok(if out.failed.load(std::sync::atomic::Ordering::SeqCst) {
+            out.code.load(std::sync::atomic::Ordering::SeqCst).max(1)
+        } else {
+            0
+        });
     }
     let mut actions = tokio::task::JoinSet::new();
     let mut lines = input.lines();
@@ -1356,6 +1429,25 @@ mod tests {
         String::from_utf8(buf.lock().unwrap().clone()).unwrap()
     }
 
+    /// Errors map to the shared exit codes.
+    #[test]
+    fn errors_map_to_the_exit_code_table() {
+        for (msg, code) in [
+            ("usage: gate RUN approve|reject", 2),
+            ("no workspace yet: create NAME or join CODE", 3),
+            ("open a chat first: open N", 3),
+            ("cancelled", 4),
+            ("no chat 9", 5),
+            ("no such host", 5),
+            ("relay unreachable: connection refused", 7),
+            ("Can't remove Ada: nobody cuts the workspace's founder", 6),
+            ("a Viewer reads but doesn't post", 6),
+            ("run run-6 isn't waiting on a gate", 1),
+        ] {
+            assert_eq!(error_code(msg).1, code, "{msg}");
+        }
+    }
+
     /// stop with nothing running here says so; it needs an open chat.
     #[tokio::test]
     async fn stop_needs_a_turn_running_here() {
@@ -1457,9 +1549,9 @@ mod tests {
         let (code, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "access coder everyone").await;
         assert_eq!((code, out.as_str()), (0, "ok\taccess\t@coder\teveryone\n"));
         let (code, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "access scout owner").await;
-        assert_eq!(code, 1, "only its owner: {out}");
+        assert_eq!(code, 6, "only its owner, refused: {out}");
         let (code, _) = one_shot(FakeBackend::demo(FakeConfig::instant()), "access coder nobody").await;
-        assert_eq!(code, 1);
+        assert_eq!(code, 2, "a usage error");
     }
 
     /// `available` lists what this device could run agents on; `add-agent`
@@ -1484,7 +1576,7 @@ mod tests {
         assert_eq!(code, 0);
         assert!(out.starts_with("available\tnone\t"), "{out}");
         let (code, _) = one_shot(FakeBackend::demo(FakeConfig::instant()), "add-agent 9").await;
-        assert_eq!(code, 1);
+        assert_eq!(code, 5, "not found");
     }
 
     /// `run` starts a workflow and follows it to the end: exit 0 when it
@@ -1503,7 +1595,7 @@ mod tests {
         assert_eq!(code, 1);
         assert!(out.contains("error\trun run-6 isn't waiting on a gate"), "{out}");
         let (code, _) = one_shot(FakeBackend::demo(FakeConfig::instant()), "watch nope").await;
-        assert_eq!(code, 1);
+        assert_eq!(code, 5, "not found");
     }
 
     /// Interactive: a gate decided from plain mode lets the run complete.
@@ -1592,7 +1684,7 @@ mod tests {
         }
         let key = private(tmp.path(), "key", "the-workspace-key\n", 0o600);
         let (code, out) = one_shot(demo(), &format!("connect http://127.0.0.1:18443 k8s-room @{}", key.display())).await;
-        assert_eq!(code, 1, "{out}");
+        assert_eq!(code, 2, "a usage error: {out}");
         assert!(out.contains("--out"), "{out}");
         let words = tmp.path().join("words.txt");
         let (code, out) =

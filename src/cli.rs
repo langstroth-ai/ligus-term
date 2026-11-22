@@ -84,10 +84,11 @@ pub struct Args {
     /// on another device (lt help troubleshooting).
     #[arg(long, value_name = "PATH")]
     pub recovery_words_file: Option<PathBuf>,
-    /// Run this one command in plain mode and exit (0 ok, 1 an error or an
-    /// unfinished run, 2 an unknown command), e.g. lt run 1 "fix the
-    /// tests"; --plain is optional. lt help [TOPIC|COMMAND|FLAG] needs no
-    /// device.
+    /// Run this one command in plain mode and exit (0 ok, else the shared
+    /// exit codes: 1 failed, 2 usage, 3 precondition, 4 a person must act,
+    /// 5 not found, 6 refused, 7 offline), e.g. lt run 1 "fix the tests";
+    /// --plain is optional. lt help [TOPIC|COMMAND|FLAG], lt doctor, lt
+    /// completions and lt man need no device.
     #[arg(trailing_var_arg = true, value_name = "COMMAND")]
     pub command: Vec<String>,
 }
