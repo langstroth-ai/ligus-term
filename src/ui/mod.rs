@@ -9,6 +9,11 @@ mod splash;
 mod views;
 
 pub use overlays::help_max_scroll;
+
+/// The help overlay's lines as plain text (for tests and plain mode).
+pub fn help_lines_text(s: &State) -> Vec<String> {
+    overlays::help_lines(s, &Theme::MONO).iter().map(|l| l.to_string()).collect()
+}
 pub use proposals::apply_text;
 
 use ratatui::Frame;
@@ -226,9 +231,17 @@ fn status_hints(s: &State) -> (Vec<String>, String) {
     let h = |ctx, a, label: &str| format!("{} {label}", k.hint(ctx, a));
     use Action::*;
     use Context as C;
-    if let Some(crate::app::state::Overlay::Help { .. }) = &s.overlay {
+    if let Some(crate::app::state::Overlay::Help { searching, .. }) = &s.overlay {
+        if *searching {
+            return (vec!["type to search".into(), "↑↓ scroll".into(), "enter keep".into()], "esc clear".into());
+        }
         return (
-            vec!["↑↓ scroll".into(), format!("{}/{} page", k.hint(C::Nav, PageUp), k.hint(C::Nav, PageDown)), "g/G top/end".into()],
+            vec![
+                "/ search".into(),
+                "↑↓ scroll".into(),
+                format!("{}/{} page", k.hint(C::Nav, PageUp), k.hint(C::Nav, PageDown)),
+                "g/G top/end".into(),
+            ],
             "esc close".into(),
         );
     }

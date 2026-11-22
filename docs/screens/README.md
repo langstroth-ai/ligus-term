@@ -63,6 +63,7 @@ INSTA_UPDATE=always LT_WRITE_SCREENS=1 cargo test --test screens
 | Notifications | [notifications.md](notifications.md) |
 | Settings | [settings.md](settings.md) |
 | Help: keybindings | [help.md](help.md) |
+| Help: `/` narrows the keys to what matches | [help_search.md](help_search.md) |
 
 SVG images of a few screens, in color, are in
 [assets/screens](../../assets/screens), from `cargo run --example screenshots`.

@@ -172,7 +172,7 @@ pub fn update(s: &mut State, msg: Msg) -> Vec<Effect> {
         Msg::Resize(w, h) => {
             s.term = (w, h);
             let max = crate::ui::help_max_scroll(s, h);
-            if let Some(Overlay::Help { scroll }) = &mut s.overlay {
+            if let Some(Overlay::Help { scroll, .. }) = &mut s.overlay {
                 *scroll = (*scroll).min(max);
             }
             vec![]
@@ -676,6 +676,10 @@ fn paste(s: &mut State, text: &str) -> Vec<Effect> {
         return vec![];
     }
     match (&mut s.overlay, &mut s.phase) {
+        (Some(Overlay::Help { query, searching: true, scroll }), _) => {
+            query.insert_str(text.trim());
+            *scroll = 0;
+        }
         (Some(Overlay::AddWorkspace(f)), _) | (None, Phase::Onboarding(f)) => {
             match f.field {
                 FormField::Name => f.name.insert_str(text),
@@ -935,8 +939,43 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
     let help_max = if matches!(s.overlay, Some(Overlay::Help { .. })) { crate::ui::help_max_scroll(s, s.term.1) } else { 0 };
     let Some(overlay) = s.overlay.as_mut() else { return vec![] };
     match overlay {
-        Overlay::Help { scroll } => {
+        Overlay::Help { scroll, query, searching } => {
             let page = (s.term.1 as usize).saturating_sub(6).max(1);
+            // Typing the search: arrows still scroll, enter keeps the
+            // filter and gives the keys back, esc drops it.
+            if *searching {
+                match k.code {
+                    KeyCode::Esc => {
+                        query.take();
+                        *searching = false;
+                        *scroll = 0;
+                    }
+                    KeyCode::Enter => *searching = false,
+                    KeyCode::Down => *scroll = (*scroll + 1).min(help_max),
+                    KeyCode::Up => *scroll = scroll.saturating_sub(1),
+                    KeyCode::PageDown => *scroll = (*scroll + page).min(help_max),
+                    KeyCode::PageUp => *scroll = scroll.saturating_sub(page),
+                    _ => {
+                        if query.handle(&k) {
+                            *scroll = 0;
+                        }
+                    }
+                }
+                return vec![];
+            }
+            match k.code {
+                KeyCode::Char('/') => {
+                    *searching = true;
+                    return vec![];
+                }
+                // With a filter on, esc clears it first.
+                KeyCode::Esc if !query.text.is_empty() => {
+                    query.take();
+                    *scroll = 0;
+                    return vec![];
+                }
+                _ => {}
+            }
             match nav {
                 Some(Action::Down) => *scroll = (*scroll + 1).min(help_max),
                 Some(Action::Up) => *scroll = scroll.saturating_sub(1),
@@ -1375,7 +1414,7 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             vec![]
         }
         Help => {
-            s.overlay = Some(Overlay::Help { scroll: 0 });
+            s.overlay = Some(Overlay::Help { scroll: 0, query: TextBuf::single(), searching: false });
             vec![]
         }
         Back => {

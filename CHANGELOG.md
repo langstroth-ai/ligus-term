@@ -6,6 +6,13 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ## v0.1.3 (unreleased)
 
+### Added
+
+- The help overlay (`?`) searches: `/` narrows it to the keys whose key,
+  description or view match what you type; `enter` keeps the filter and
+  gives the arrows back, `esc` clears it, a second `esc` closes the help.
+  The sections for what has focus come first and are marked "here".
+
 ### Changed
 
 - Proposals shows the selected proposal's diff as soon as you select it,

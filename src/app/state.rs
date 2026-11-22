@@ -215,8 +215,14 @@ pub struct PresenceSheet {
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Overlay {
+    /// The key reference: what has focus first, scrollable, and narrowed
+    /// by `/` to the bindings whose keys or words match.
     Help {
         scroll: usize,
+        /// The `/` search ("" shows everything).
+        query: TextBuf,
+        /// The search line has the keyboard.
+        searching: bool,
     },
     Switcher {
         sel: usize,
@@ -556,6 +562,7 @@ impl State {
         match &self.overlay {
             Some(Overlay::AddWorkspace(f)) => f.field != FormField::Mode,
             Some(Overlay::NewChat(_)) | Some(Overlay::StartRun { .. }) | Some(Overlay::BindCheckout(_)) => true,
+            Some(Overlay::Help { searching, .. }) => *searching,
             Some(Overlay::AdmitBox { result: None, checked: None, .. }) => true,
             Some(_) => false,
             None => match &self.phase {

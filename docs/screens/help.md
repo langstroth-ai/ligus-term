@@ -4,16 +4,16 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
-┏ Chats ━━━━━━━━━┏ Help · 1-40 of 83 · ↑↓ pgup pgdn g G · esc closes ━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
-┃  Fix flaky chec┃lt keybindings, for what has focus first. Rebind any of them in the config┃                │
+┏ Chats ━━━━━━━━━┏ Help · 1-40 of 83 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
+┃  Fix flaky chec┃What has focus comes first. / searches. Rebind keys in the config file.   ┃                │
 ┃  #dev          ┃                                                                          ┃it reading the  │
-┃  ⊘ Migrate auth┃Chats                                                                     ┃                │
+┃  ⊘ Migrate auth┃Chats  here                                                               ┃                │
 ┃  #dev          ┃  i                        Write a message                                ┃                │
 ┃  Weekly release┃  N                        New chat                                       ┃                │
 ┃                ┃  L                        Lock this chat down                            ┃ small change.  │
 ┃                ┃  U                        Clear the lockdown                             ┃                │
 ┃                ┃                                                                          ┃                │
-┃                ┃Lists                                                                     ┃                │
+┃                ┃Lists  here                                                               ┃                │
 ┃                ┃  ↑, k                     Up                                             ┃rovider uses.   │
 ┃                ┃  ↓, j                     Down                                           ┃                │
 ┃                ┃  pgup, ctrl-u             Page up                                        ┃                │
@@ -46,5 +46,5 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 ┃                ┃  esc                      Leave the composer (keeps the draft)           ┃────────────────╮
 ┃                ┃  tab                      Accept the @mention                            ┃                │
 ┗━━━━━━━━━━━━━━━━┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛────────────────╯
-↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                    peer to peer · lt on this terminal · demo
+/ search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close          peer to peer · lt on this terminal · demo
 ```
