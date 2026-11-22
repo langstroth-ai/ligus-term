@@ -33,4 +33,4 @@ expression: screen
 This device applies approved proposals in /srv/northwind-api  (b change)
 A host runs agents and applies approved proposals on its checkout. A worker is headless.
 
-↑↓ hosts  b bind checkout  ? help                                    peer to peer · lt on this terminal · demo
+↑↓ hosts  b bind checkout  ? help                                              peer to peer · 1 running · demo

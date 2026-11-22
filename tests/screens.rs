@@ -478,6 +478,50 @@ async fn help_overlay_search() {
     snap(&h, "help_search", "Help: / narrows the keys to what matches");
 }
 
+/// The status bar's right zone reads the relay's state in words, and a
+/// toast sits in its centre: one at a time, never over a pane's border.
+#[tokio::test]
+async fn status_bar_sync_and_toasts() {
+    let mut h = demo().await;
+    let w = h.state.active.clone().unwrap();
+    h.state.workspaces[0].sync = SyncMode::Relay("https://relay.example.com".into());
+    let status = |h: &Harness| h.screen(W, H).lines().last().unwrap_or("").to_string();
+    assert!(status(&h).contains("⇅ relay"), "{}", status(&h));
+    h.send(Msg::Event(Event::Sync { workspace: w.clone(), status: "synced".into() })).await;
+    assert!(status(&h).contains("⇅ relay ok"), "{}", status(&h));
+    h.send(Msg::Event(Event::Sync { workspace: w.clone(), status: "sync off: no relay token".into() })).await;
+    assert!(status(&h).contains("⚠ sync off"), "{}", status(&h));
+    h.send(Msg::Event(Event::Sync { workspace: w.clone(), status: "sync failed: connection refused".into() })).await;
+    assert!(status(&h).contains("⚠ offline"), "{}", status(&h));
+    h.state.toast(ligus_term::app::state::ToastKind::Ok, "Runtime changed");
+    h.state.toast(ligus_term::app::state::ToastKind::Error, "turn failed: no runtime for @coder");
+    let screen = h.screen(W, H);
+    let last = screen.lines().last().unwrap();
+    assert!(last.contains("✗ turn failed") && !screen.contains("Runtime changed"), "{screen}");
+    assert!(screen.lines().take(H as usize - 1).all(|l| !l.contains("turn failed")), "the toast stays in the status bar: {screen}");
+    snap(&h, "status_offline_toast", "Status bar: offline, with an error toast in its centre");
+}
+
+/// `!` opens this session's notices and errors in full, newest first.
+#[tokio::test]
+async fn messages_log() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char('!')).await;
+    snap(&h, "messages_empty", "Messages: nothing yet");
+    h.key(KeyCode::Esc).await;
+    h.state.toast(ligus_term::app::state::ToastKind::Ok, "Runtime changed");
+    h.state.toast(
+        ligus_term::app::state::ToastKind::Error,
+        "apply: the checkout at ~/src/northwind has uncommitted changes in src/checkout.rs; commit or stash them and ask again",
+    );
+    h.state.toast(ligus_term::app::state::ToastKind::Info, "Cancelled");
+    h.key(KeyCode::Char('!')).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("commit or stash them and ask again"), "the error is there in full: {screen}");
+    assert!(screen.find("Cancelled").unwrap() < screen.find("Runtime changed").unwrap(), "newest first: {screen}");
+    snap(&h, "messages", "Messages: this session's notices and errors, in full");
+}
+
 #[tokio::test]
 async fn narrow_terminal_still_renders() {
     let h = demo().await;

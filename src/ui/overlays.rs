@@ -17,6 +17,7 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     match &s.overlay {
         None => {}
         Some(Overlay::Help { scroll, .. }) => help(f, area, s, *scroll, t),
+        Some(Overlay::Messages { scroll }) => messages(f, area, s, *scroll, t),
         Some(Overlay::Switcher { sel }) => switcher(f, area, s, *sel, t),
         Some(Overlay::AddWorkspace(form)) => onboarding::draw_form(f, area, s, form, t, false),
         Some(Overlay::StartRun { name, label, input, .. }) => {
@@ -445,6 +446,51 @@ fn help(f: &mut Frame, area: Rect, s: &State, scroll: usize, t: &Theme) {
     }
     let shown: Vec<Line> = lines.into_iter().skip(start).collect();
     f.render_widget(Paragraph::new(shown), body);
+}
+
+/// The messages log: every notice and error of this session, newest
+/// first, wrapped in full (a toast is cut to the status bar).
+fn messages(f: &mut Frame, area: Rect, s: &State, scroll: usize, t: &Theme) {
+    let r = center(area, 84, area.height.saturating_sub(2));
+    f.render_widget(Clear, r);
+    let n = s.log.len();
+    let title = if n == 0 { "Messages · esc closes".to_string() } else { format!("Messages · {n} this session · esc closes") };
+    let block = pane(&title, true, t);
+    let inner = block.inner(r);
+    f.render_widget(block, r);
+    if n == 0 {
+        let lines = vec![
+            Line::styled("Nothing yet.", t.text()),
+            Line::styled("Notices and errors from this session collect here, so one that went by can be read again.", t.dim()),
+        ];
+        f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
+        return;
+    }
+    let body_w = (inner.width as usize).saturating_sub(8).max(10);
+    let mut lines = vec![];
+    for e in s.log.iter().rev().skip(scroll) {
+        let (mark, style) = match e.kind {
+            crate::app::state::ToastKind::Info => ("•", t.dim()),
+            crate::app::state::ToastKind::Ok => ("✓", t.fg(t.good)),
+            crate::app::state::ToastKind::Error => ("✗", t.fg(t.bad).add_modifier(Modifier::BOLD)),
+        };
+        let age = crate::app::state::ago(s.now, e.at);
+        for (i, l) in super::wrap(&e.text, body_w).into_iter().enumerate() {
+            if i == 0 {
+                lines.push(Line::from(vec![
+                    Span::styled(format!("{mark} "), style),
+                    Span::styled(format!("{age:>4}  "), t.dim()),
+                    Span::styled(l, t.text()),
+                ]));
+            } else {
+                lines.push(Line::from(vec![Span::raw("        "), Span::styled(l, t.text())]));
+            }
+        }
+        if lines.len() >= inner.height as usize {
+            break;
+        }
+    }
+    f.render_widget(Paragraph::new(lines), inner);
 }
 
 fn presence(f: &mut Frame, area: Rect, p: &PresenceSheet, queued: usize, t: &Theme) {

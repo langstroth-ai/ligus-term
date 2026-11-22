@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                ┃                                                                          ┃00;             │
 ┃                ┃                                                                          ┃                │
 ┗━━━━━━━━━━━━━━━━┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛────────────────╯
-type to search  ↑↓ scroll  enter keep  esc clear                     peer to peer · lt on this terminal · demo
+type to search  ↑↓ scroll  enter keep  esc clear                               peer to peer · 1 running · demo
 ```

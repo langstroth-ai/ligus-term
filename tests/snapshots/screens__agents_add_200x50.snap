@@ -51,4 +51,4 @@ expression: screen
 │ollama        Ollama (local)           qwen3-coder:30b                                                                                                              local server  Configured          │
 │copilot       GitHub Copilot CLI       default                                                                                                                      local CLI     Not configured      │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-↑↓ agents  N add agent  r runtime  E who can use  ? help                                                                                                       peer to peer · lt on this terminal · demo
+↑↓ agents  N add agent  r runtime  E who can use  ? help                                                                                                                 peer to peer · 1 running · demo

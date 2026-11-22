@@ -33,6 +33,6 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 
 
 
-                                                                                ✓ Confirmed with your passkey
 
+                                                                                 ✓ Confirmed with your passkey
 ```

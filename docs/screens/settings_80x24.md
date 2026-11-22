@@ -26,5 +26,5 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 ┃  Change the theme and rebind keys in the config file; lt --print-config shows┃
 ┃every default.                                                                ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-↑↓ select  space toggle  ? help        peer to peer · lt on this terminal · demo
+↑↓ select  space toggle  ? help                  peer to peer · 1 running · demo
 ```

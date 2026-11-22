@@ -1043,3 +1043,48 @@ fn help_search_narrows_and_esc_backs_out() {
     key(&mut s, KeyCode::Esc);
     assert!(s.overlay.is_none(), "then esc closes it");
 }
+
+/// One toast at a time: a new one replaces the one on screen, errors stay
+/// twice as long, and every notice is kept in the messages log (`!`), which
+/// keeps the newest 200.
+#[test]
+fn one_toast_at_a_time_and_a_log_to_read_them_again() {
+    let mut s = main_state();
+    s.toast(ToastKind::Ok, "first");
+    s.toast(ToastKind::Error, "second went wrong");
+    assert_eq!(s.toasts.len(), 1);
+    assert_eq!(s.toasts[0].text, "second went wrong");
+    for _ in 0..16 {
+        update(&mut s, Msg::Tick(NOW));
+    }
+    assert_eq!(s.toasts.len(), 1, "an error outlasts an ordinary notice");
+    for _ in 0..16 {
+        update(&mut s, Msg::Tick(NOW));
+    }
+    assert!(s.toasts.is_empty());
+    assert_eq!(s.log.iter().map(|e| e.text.as_str()).collect::<Vec<_>>(), ["first", "second went wrong"]);
+    key(&mut s, KeyCode::Char('!'));
+    assert!(matches!(s.overlay, Some(Overlay::Messages { scroll: 0 })));
+    key(&mut s, KeyCode::Char('j'));
+    assert!(matches!(s.overlay, Some(Overlay::Messages { scroll: 1 })));
+    key(&mut s, KeyCode::Char('j'));
+    assert!(matches!(s.overlay, Some(Overlay::Messages { scroll: 1 })), "no scrolling past the oldest");
+    key(&mut s, KeyCode::Esc);
+    assert!(s.overlay.is_none());
+    for i in 0..250 {
+        s.toast(ToastKind::Info, format!("n{i}"));
+    }
+    assert_eq!(s.log.len(), LOG_CAP);
+    assert_eq!(s.log.last().unwrap().text, "n249");
+}
+
+/// The status bar's "running" counts agents replying and runs moving.
+#[test]
+fn running_counts_busy_agents_and_moving_runs() {
+    let mut s = main_state();
+    assert_eq!(s.running(), 0);
+    let mut busy = agent("a");
+    busy.status = AgentStatus::Busy;
+    s.agents = vec![busy, agent("b")];
+    assert_eq!(s.running(), 1);
+}

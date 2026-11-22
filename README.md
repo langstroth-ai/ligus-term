@@ -392,6 +392,7 @@ Press a view's key from anywhere outside a text field:
 | `n` `8` | Notifications | @mentions of you; Enter jumps to the chat |
 | `s` `9` | Settings | You, notifications, this device (data dir, secret store), theme and config |
 | `w` | Workspaces | The switcher; `+` creates, joins or connects another |
+| `!` | Messages | This session's notices and errors in full, newest first: a toast that went by can be read again |
 | `?` | Help | Every keybinding, as currently configured: what has focus first, scrollable, and `/` narrows it to the keys that match |
 
 ![A chat in lt: the chat list, a transcript where @coder streams its reply after two file tool calls, @reviewer thinking, and the composer](assets/screens/chat.svg)
@@ -406,7 +407,7 @@ The default keys (all can be rebound, see [Configure](#configure)):
 
 | Where | Keys |
 |---|---|
-| Anywhere | `q` / `ctrl-c` quit (while this device drives a run or an agent's turn it asks first; a second `ctrl-c` quits) · `?` / `f1` help · `esc` back · `w` / `ctrl-w` workspaces · `+` add a workspace · `tab` / `shift-tab` next or previous pane |
+| Anywhere | `q` / `ctrl-c` quit (while this device drives a run or an agent's turn it asks first; a second `ctrl-c` quits) · `?` / `f1` help · `!` messages · `esc` back · `w` / `ctrl-w` workspaces · `+` add a workspace · `tab` / `shift-tab` next or previous pane |
 | Lists | `↑ ↓` or `j k` move · `pgup pgdn` (`ctrl-u ctrl-d`) · `g G` (`home end`) first and last · `enter` (`l`, `→`) open |
 | Chats | `i` write (lt starts with the cursor in the open chat's composer; `esc` leaves it) · `N` new chat · `L` lock the chat down · `U` clear the lockdown |
 | Composer | `enter` send · `alt-enter` / `ctrl-j` new line (`shift-enter` too, in terminals with the kitty keyboard protocol) · `@` mention, then `tab` or `enter` to accept · `esc` leave (the draft is kept) |
@@ -422,6 +423,12 @@ The default keys (all can be rebound, see [Configure](#configure)):
 
 While the composer or another text field has focus, letters type. Only
 chords with `ctrl` or `alt` (and function keys) reach the global bindings.
+
+The status bar has three parts: the keys for what has focus on the left
+(cut from the right, `? help` always stays), a notice in the centre when
+there is one (one at a time; `!` lists them all), and on the right how the
+workspace syncs (`⇅ relay ok`, `⚠ offline`, `⚠ sync off`, `peer to peer`,
+`this device only`) with how many agents and runs are working.
 
 ## Passkeys in a terminal
 
