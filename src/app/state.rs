@@ -325,6 +325,9 @@ pub struct LogEntry {
     pub text: String,
 }
 
+/// How long `space` waits before its sheet of keys shows (ms).
+pub const WHICH_KEY_DELAY: Millis = 400;
+
 /// How many notices the messages log keeps (the oldest go first).
 pub const LOG_CAP: usize = 200;
 
@@ -463,6 +466,9 @@ pub struct State {
     /// The terminal's size (columns, rows), for scroll limits; 0×0 until
     /// the first resize message.
     pub term: (u16, u16),
+    /// When `space` was pressed: the next key acts as usual, and if none
+    /// comes within [`WHICH_KEY_DELAY`] a sheet shows what can be pressed.
+    pub which_key: Option<Millis>,
     /// The first chat opened after start-up gets the cursor in its
     /// composer, so typing works at once (esc leaves it).
     pub compose_on_open: bool,
@@ -526,6 +532,7 @@ impl State {
             quit: false,
             term: (0, 0),
             compose_on_open: true,
+            which_key: None,
         }
     }
 

@@ -63,6 +63,77 @@ fn draw_main(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         View::Memory => views::memory(f, body, s, t),
     }
     draw_status(f, status, s, t);
+    if s.overlay.is_none() && s.which_key.is_some_and(|at| s.now - at >= crate::app::state::WHICH_KEY_DELAY) {
+        draw_which_key(f, body, s, t);
+    }
+}
+
+/// The keys of one context that are a single key press (no ctrl or alt),
+/// as "key label" pairs.
+fn single_keys(s: &State, ctx: Context, skip: &[Action]) -> Vec<(String, String)> {
+    crate::keymap::BINDINGS
+        .iter()
+        .filter(|b| b.context == ctx && !skip.contains(&b.action))
+        .filter_map(|b| {
+            let key = s.keymap.keys(ctx, b.action).iter().find(|c| !c.is_command() && c.code != crossterm::event::KeyCode::Char(' '))?;
+            // The config name reads as a short label ("apply on host").
+            Some((key.to_string(), b.name.replace('_', " ")))
+        })
+        .collect()
+}
+
+/// The sheet `space` shows after a pause: what one key does here, the
+/// views, and what works anywhere. It sits over the bottom of the screen,
+/// above the status bar, and goes with the next key.
+fn draw_which_key(f: &mut Frame, body: Rect, s: &State, t: &Theme) {
+    use Action::*;
+    let views = [GoChats, GoWorkflows, GoProposals, GoAgents, GoHosts, GoMemory, GoPeople, GoNotifications, GoSettings];
+    let mut groups: Vec<(&str, Vec<(String, String)>)> = vec![];
+    let here: Vec<(String, String)> = s
+        .view_contexts()
+        .into_iter()
+        .filter(|c| !matches!(c, Context::Global | Context::Nav | Context::Composer))
+        .flat_map(|c| single_keys(s, c, &[]))
+        .collect();
+    if !here.is_empty() {
+        groups.push((s.view.title(), here));
+    }
+    let go: Vec<(String, String)> = views
+        .iter()
+        .filter_map(|a| {
+            let key = s.keymap.keys(Context::Global, *a).iter().find(|c| !c.is_command())?;
+            let v = View::ALL[views.iter().position(|x| x == a)?];
+            Some((key.to_string(), v.title().to_lowercase()))
+        })
+        .collect();
+    groups.push(("Go to", go));
+    let mut skip = views.to_vec();
+    skip.extend([WhichKey, FocusNext, FocusPrev, Back]);
+    groups.push(("Anywhere", single_keys(s, Context::Global, &skip)));
+
+    let w = body.width.saturating_sub(2).min(110);
+    let inner_w = w.saturating_sub(2) as usize;
+    let mut lines: Vec<Line> = vec![];
+    for (title, pairs) in &groups {
+        let mut row: Vec<Span> = vec![Span::styled(format!("{title:<10}"), t.dim())];
+        let mut used = 10;
+        for (k, label) in pairs {
+            let cell = k.width() + 1 + label.width() + 3;
+            if used + cell > inner_w && used > 10 {
+                lines.push(Line::from(std::mem::take(&mut row)));
+                row.push(Span::raw(" ".repeat(10)));
+                used = 10;
+            }
+            row.push(Span::styled(k.clone(), t.accent()));
+            row.push(Span::styled(format!(" {label}   "), t.text()));
+            used += cell;
+        }
+        lines.push(Line::from(row));
+    }
+    let h = (lines.len() as u16 + 2).min(body.height);
+    let r = Rect { x: body.x + (body.width - w) / 2, y: body.bottom().saturating_sub(h), width: w, height: h };
+    f.render_widget(Clear, r);
+    f.render_widget(Paragraph::new(lines).block(pane("space … press a key · esc", true, t)), r);
 }
 
 /// `[NA] Northwind API · owner │ Chats  Proposals …` with a mention dot on

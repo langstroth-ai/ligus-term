@@ -15,6 +15,10 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   and agents. Each action shows its key. `enter` runs it or goes to the
   thing and selects it; `esc` closes. Context actions only show where they
   apply, so nothing acts on a selection you can't see.
+- `space`, then a pause, shows a sheet of the single keys you can press
+  here: the view's actions, the views, and what works anywhere. The next
+  key acts as it always does; `esc` or `space` put the sheet away. Pressing
+  the key without pausing shows nothing.
 - Chats show where each one stands, with one glyph before the title: `⠹`
   working, `◆` needs you (an agent's open question or a proposal waiting
   on your vote), `⧗` queued, `✓` done since you last looked, `✕` failed and
@@ -27,6 +31,8 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Changed
 
+- Settings toggles with `enter` or `t`; `space` is the key sheet's
+  everywhere now (rebind `toggle` in `[keys.settings]` to have it back).
 - The status bar has three zones: the keys on the left, a notice in the
   centre, and the sync state on the right in words (`⇅ relay ok`,
   `⚠ offline`, `⚠ sync off`, `peer to peer`, `this device only`) with how

@@ -515,6 +515,21 @@ async fn command_palette() {
     snap(&h, "palette_query", "Command palette: typing filters");
 }
 
+/// `space`, then a pause: the sheet of single keys for the view, the
+/// views, and what works anywhere. Before the pause, nothing shows.
+#[tokio::test]
+async fn which_key_sheet() {
+    use ligus_term::backend::fake::DEMO_NOW;
+    let mut h = demo().await;
+    h.key(KeyCode::Char('3')).await;
+    h.key(KeyCode::Char(' ')).await;
+    assert!(!h.screen(W, H).contains("press a key"), "no sheet before the pause");
+    h.send(Msg::Tick(DEMO_NOW + 500)).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("press a key") && screen.contains("A approve") && screen.contains("p proposals"), "{screen}");
+    snap(&h, "which_key", "space, then a pause: the keys you can press here");
+}
+
 /// The chat list's chips: one glyph per state, and nothing for an idle
 /// chat.
 #[tokio::test]

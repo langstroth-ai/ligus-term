@@ -21,4 +21,4 @@ expression: screen
 ┃  Backend         demo                                    ┃
 ┃  Sync            no relay: peer to peer, or this device  ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-↑↓ select  space toggle  ? help     peer to peer · 1 running
+↑↓ select  enter toggle  ? help     peer to peer · 1 running

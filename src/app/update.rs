@@ -1424,6 +1424,11 @@ fn go(s: &mut State, v: View) -> Vec<Effect> {
 }
 
 fn main_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
+    // After space, the next key acts as usual; esc or space again just
+    // put the sheet away.
+    if s.which_key.take().is_some() && matches!(k.code, KeyCode::Esc | KeyCode::Char(' ')) {
+        return vec![];
+    }
     let typing = s.typing_text();
     // The mention popup takes ↑/↓/Tab/Enter/Esc while it is open.
     if s.focus == Focus::Composer && s.view == View::Chats {
@@ -1485,6 +1490,10 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
         }
         Palette => {
             s.overlay = Some(Overlay::Palette { query: TextBuf::single(), sel: 0 });
+            vec![]
+        }
+        WhichKey => {
+            s.which_key = Some(s.now);
             vec![]
         }
         Help => {
