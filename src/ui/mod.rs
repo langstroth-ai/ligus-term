@@ -9,7 +9,15 @@ mod proposals;
 mod splash;
 mod views;
 
+pub use chat::{ChatHit, chat_hit};
 pub use overlays::help_max_scroll;
+pub use proposals::{ProposalHit, proposal_hit};
+
+/// The body's area (between the top bar and the status bar) in a terminal
+/// of `size`.
+pub fn body_area(size: (u16, u16)) -> Rect {
+    Rect { x: 0, y: 1, width: size.0, height: size.1.saturating_sub(2) }
+}
 
 /// The help overlay's lines as plain text (for tests and plain mode).
 pub fn help_lines_text(s: &State) -> Vec<String> {
@@ -156,7 +164,13 @@ fn draw_which_key(f: &mut Frame, body: Rect, s: &State, t: &Theme) {
 /// current view) instead of cutting views off, and never hides the
 /// Notifications badge.
 fn draw_top_bar(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
-    let width = area.width as usize;
+    let (spans, _) = top_bar_spans(s, t, area.width as usize);
+    f.render_widget(Paragraph::new(Line::from(spans)), area);
+}
+
+/// The top bar's spans at `width`, and the view each tab span stands for
+/// (for a click on it).
+fn top_bar_spans(s: &State, t: &Theme, width: usize) -> (Vec<Span<'static>>, Vec<Option<View>>) {
     let combos = [
         (Ws::Full, Tabs::Titles(2)),
         (Ws::Full, Tabs::Titles(1)),
@@ -171,6 +185,8 @@ fn draw_top_bar(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         .map(|(ws, tabs)| (ws, workspace_spans(s, t, ws), tabs_spans(s, t, tabs)))
         .find(|(_, w, tabs)| spans_width(w) + spans_width(tabs) <= width)
         .unwrap_or_else(|| (Ws::Tile, workspace_spans(s, t, Ws::Tile), tabs_spans(s, t, Tabs::Current)));
+    let mut views: Vec<Option<View>> = vec![None; spans.len()];
+    views.extend(tabs.iter().map(|sp| tab_view(&sp.content)));
     spans.extend(tabs);
     // With one tile, the workspace's name goes on the right when it fits.
     let room = width.saturating_sub(spans_width(&spans) + 2);
@@ -181,8 +197,35 @@ fn draw_top_bar(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         let name = trunc(&w.name, room);
         spans.push(Span::raw(" ".repeat(width - spans_width(&spans) - name.width())));
         spans.push(Span::styled(name, t.accent()));
+        views.extend([None, None]);
     }
-    f.render_widget(Paragraph::new(Line::from(spans)), area);
+    (spans, views)
+}
+
+/// Which view a tab's label names ("Proposals", "Props", "3", "3 Props",
+/// "8(2)").
+fn tab_view(label: &str) -> Option<View> {
+    let l = label.trim();
+    View::ALL.into_iter().enumerate().find_map(|(i, v)| {
+        let digit = (i + 1).to_string();
+        let named = [v.title(), v.short(), v.tiny()].iter().any(|n| l.starts_with(n));
+        let numbered = l == digit || l.starts_with(&format!("{digit} ")) || l.starts_with(&format!("{digit}("));
+        (named || numbered).then_some(v)
+    })
+}
+
+/// The view tab at column `x` of the top bar.
+pub fn tab_at(s: &State, width: u16, x: u16) -> Option<View> {
+    let (spans, views) = top_bar_spans(s, &Theme::MONO, width as usize);
+    let mut at = 0usize;
+    for (sp, v) in spans.iter().zip(views) {
+        let w = sp.content.width();
+        if (x as usize) >= at && (x as usize) < at + w {
+            return v;
+        }
+        at += w;
+    }
+    None
 }
 
 /// How much of the workspace part of the top bar to show.

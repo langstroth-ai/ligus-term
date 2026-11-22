@@ -1348,3 +1348,67 @@ fn theme_switches_in_the_app() {
     key(&mut s, KeyCode::Char('t'));
     assert_eq!(s.theme_request, Some(ThemeChoice::Dark));
 }
+
+fn click(s: &mut State, kind: crossterm::event::MouseEventKind, column: u16, row: u16) -> Vec<Effect> {
+    update(s, Msg::Mouse(crossterm::event::MouseEvent { kind, column, row, modifiers: KeyModifiers::NONE }))
+}
+
+/// The mouse: a click on a tab opens it, on a chat opens the chat, on the
+/// transcript or the composer focuses it; the wheel scrolls what is under
+/// the pointer, and in an overlay moves like ↑/↓.
+#[test]
+fn mouse_clicks_and_wheel() {
+    use crossterm::event::{MouseButton, MouseEventKind as K};
+    let left = K::Down(MouseButton::Left);
+    let mut s = main_state();
+    update(&mut s, Msg::Resize(110, 32));
+    let x = (0..110).find(|x| ligus_term::ui::tab_at(&s, 110, *x) == Some(View::Proposals)).expect("a Proposals tab");
+    click(&mut s, left, x, 0);
+    assert_eq!(s.view, View::Proposals);
+    let x = (0..110).find(|x| ligus_term::ui::tab_at(&s, 110, *x) == Some(View::Chats)).unwrap();
+    click(&mut s, left, x, 0);
+    assert_eq!(s.view, View::Chats);
+    // The list: c1 on row 2, c2 on row 3.
+    let fx = click(&mut s, left, 5, 3);
+    assert_eq!(s.open_chat, Some(ChatId::new("c2")));
+    assert!(fx.contains(&Effect::LoadTranscript(WorkspaceId::new("a"), ChatId::new("c2"))));
+    // The transcript, then the composer at the bottom.
+    click(&mut s, left, 60, 10);
+    assert_eq!(s.focus, Focus::Detail);
+    click(&mut s, K::ScrollUp, 60, 10);
+    assert_eq!(s.transcript_scroll, 3, "the wheel scrolls three lines");
+    click(&mut s, K::ScrollDown, 60, 10);
+    assert_eq!(s.transcript_scroll, 0);
+    click(&mut s, left, 60, 29);
+    assert_eq!(s.focus, Focus::Composer);
+    // The wheel over the list moves the selection.
+    click(&mut s, K::ScrollUp, 5, 3);
+    assert_eq!(s.open_chat, Some(ChatId::new("c1")));
+    // In an overlay the wheel is ↑/↓.
+    key(&mut s, KeyCode::Esc);
+    key(&mut s, KeyCode::Char('?'));
+    click(&mut s, K::ScrollDown, 50, 10);
+    assert!(matches!(s.overlay, Some(Overlay::Help { scroll: 1, .. })));
+    // A right click or a drag does nothing.
+    let before = s.view;
+    click(&mut s, K::Down(MouseButton::Right), x, 0);
+    click(&mut s, K::Drag(MouseButton::Left), 5, 3);
+    assert_eq!(s.view, before);
+}
+
+/// A click on a proposal selects it and previews its diff; the wheel over
+/// the diff scrolls it.
+#[test]
+fn mouse_on_proposals() {
+    use crossterm::event::{MouseButton, MouseEventKind as K};
+    let mut s = main_state();
+    update(&mut s, Msg::Resize(110, 32));
+    key(&mut s, KeyCode::Char('p'));
+    let w = WorkspaceId::new("a");
+    update(&mut s, Msg::Proposals(w.clone(), Ok(vec![proposal("p1", ProposalStatus::Open), proposal("p2", ProposalStatus::Open)])));
+    let fx = click(&mut s, K::Down(MouseButton::Left), 5, 4);
+    assert_eq!(s.proposal_sel.index, 1);
+    assert_eq!(fx, vec![Effect::PreviewDiff(w, ProposalId::new("p2"))]);
+    click(&mut s, K::ScrollUp, 5, 4);
+    assert_eq!(s.proposal_sel.index, 0);
+}

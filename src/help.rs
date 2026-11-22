@@ -983,6 +983,10 @@ Apply on this device does nothing
 brew install says lt conflicts with localtunnel
   Homebrew's localtunnel also installs an lt binary; uninstall one of them.
 
+Can't select text with the mouse
+  lt takes clicks and the wheel: hold shift while dragging (option in some
+  terminals), or put mouse = false in the config file.
+
 Colours look wrong
   --theme dark|light|mono, or theme in the config; NO_COLOR gives mono. With
   theme = auto, lt asks the terminal for its background at start (OSC 11,

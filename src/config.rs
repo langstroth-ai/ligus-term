@@ -21,6 +21,11 @@ pub struct Config {
     pub theme: Option<ThemeChoice>,
     #[serde(default)]
     pub keys: Overrides,
+    /// Mouse support: clicks and the wheel (default on). Shift-drag still
+    /// selects text in most terminals; `mouse = false` gives the terminal
+    /// all of it back.
+    #[serde(default)]
+    pub mouse: Option<bool>,
 }
 
 impl Config {
@@ -49,7 +54,9 @@ pub fn default_config_text() -> String {
     let mut out = String::from(
         "# lt config. Every setting is optional; delete what you don't change.\n\
          # theme: auto (COLORFGBG, else the terminal's answer), dark, light, or mono (also set by NO_COLOR)\n\
-         theme = \"auto\"\n",
+         theme = \"auto\"\n\
+         # mouse: clicks and the wheel; shift-drag selects text (false gives the terminal the mouse)\n\
+         mouse = true\n",
     );
     for ctx in Context::ALL {
         out.push_str(&format!("\n[keys.{}]\n", ctx.name()));

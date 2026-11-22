@@ -257,7 +257,14 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
                     Line::raw(""),
                     Line::styled(c.clone(), t.accent()),
                     Line::raw(""),
-                    Line::styled("Select it with your terminal to copy. Any key closes.", t.dim()),
+                    Line::styled(
+                        if s.mouse {
+                            "Shift-drag selects it to copy (lt has the mouse). Any key closes."
+                        } else {
+                            "Select it with your terminal to copy. Any key closes."
+                        },
+                        t.dim(),
+                    ),
                 ],
             };
             message(f, area, "Invite", lines, t);

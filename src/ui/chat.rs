@@ -23,6 +23,77 @@ pub const RAIL_FROM: u16 = 160;
 /// 170-column lines.
 pub const READING_WIDTH: u16 = 100;
 
+/// What a click or the wheel at a point of the Chats view lands on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChatHit {
+    /// A row of the chat list (an index into `chats`), or the list's
+    /// empty space.
+    List(Option<usize>),
+    Transcript,
+    Composer,
+    Rail,
+}
+
+/// The chat list, transcript and composer areas for a body `area`, as
+/// `draw` lays them out.
+fn areas(area: Rect, s: &State) -> (Option<Rect>, Rect, Option<Rect>) {
+    if area.width < LIST_OVERLAY_BELOW {
+        if s.focus == Focus::List {
+            let [list, main] = Layout::horizontal([Constraint::Length(28.min(area.width / 2)), Constraint::Min(20)]).areas(area);
+            return (Some(list), main, None);
+        }
+        return (None, area, None);
+    }
+    if area.width >= RAIL_FROM {
+        let [list, main, rail] = Layout::horizontal([Constraint::Length(32), Constraint::Min(40), Constraint::Length(40)]).areas(area);
+        return (Some(list), main, Some(rail));
+    }
+    let [list, main] = Layout::horizontal([Constraint::Length(32), Constraint::Min(20)]).areas(area);
+    (Some(list), main, None)
+}
+
+/// The rows a list scrolled to keep `selected` in view starts at, as
+/// ratatui's `List` does from a fresh state.
+fn list_offset(heights: &[u16], selected: usize, inner_h: u16) -> usize {
+    let mut offset = 0;
+    while offset < selected && heights[offset..=selected.min(heights.len().saturating_sub(1))].iter().sum::<u16>() > inner_h {
+        offset += 1;
+    }
+    offset
+}
+
+/// What is under (`x`, `y`) in the Chats view drawn in the body `area`.
+pub fn chat_hit(s: &State, area: Rect, x: u16, y: u16) -> Option<ChatHit> {
+    let (list, main, rail) = areas(area, s);
+    let inside = |r: Rect| x >= r.x && x < r.right() && y >= r.y && y < r.bottom();
+    if let Some(l) = list.filter(|l| inside(*l)) {
+        let heights: Vec<u16> = s.chats.iter().map(|c| 1 + u16::from(c.channel.is_some())).collect();
+        let inner_h = l.height.saturating_sub(2);
+        if y <= l.y || y >= l.bottom().saturating_sub(1) || heights.is_empty() {
+            return Some(ChatHit::List(None));
+        }
+        let mut row = list_offset(&heights, s.chat_sel.index, inner_h);
+        let mut top = l.y + 1;
+        while row < heights.len() {
+            if y < top + heights[row] {
+                return Some(ChatHit::List(Some(row)));
+            }
+            top += heights[row];
+            row += 1;
+        }
+        return Some(ChatHit::List(None));
+    }
+    if rail.is_some_and(inside) {
+        return Some(ChatHit::Rail);
+    }
+    if inside(main) {
+        let comp_lines = s.composer.lines().len().clamp(1, 6) as u16;
+        let composer_top = main.bottom().saturating_sub(comp_lines + 2);
+        return Some(if y >= composer_top { ChatHit::Composer } else { ChatHit::Transcript });
+    }
+    None
+}
+
 pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     if area.width < LIST_OVERLAY_BELOW {
         // The list only while it has the keyboard; the transcript rewraps

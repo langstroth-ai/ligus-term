@@ -99,6 +99,7 @@ fn spawn_input(t: mpsc::UnboundedSender<Msg>) -> tokio::task::JoinHandle<()> {
             let msg = match ev {
                 TermEvent::Key(k) if k.kind != KeyEventKind::Release => Msg::Key(k),
                 TermEvent::Paste(p) => Msg::Paste(p),
+                TermEvent::Mouse(m) => Msg::Mouse(m),
                 TermEvent::Resize(w, h) => Msg::Resize(w, h),
                 _ => continue,
             };
@@ -135,6 +136,10 @@ fn suspend_for_editor(terminal: &mut ratatui::DefaultTerminal, text: &str) -> Re
     // the same way (the same Terminal, so nothing queries the cursor).
     use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode};
     let mut stdout = std::io::stdout();
+    let mouse = MOUSE.load(std::sync::atomic::Ordering::Relaxed);
+    if mouse {
+        let _ = crossterm::execute!(stdout, crossterm::event::DisableMouseCapture);
+    }
     let _ = crossterm::execute!(stdout, crossterm::event::DisableBracketedPaste, LeaveAlternateScreen, crossterm::cursor::Show);
     let _ = disable_raw_mode();
     let cmd = editor_command(|k| std::env::var(k).ok());
@@ -146,6 +151,9 @@ fn suspend_for_editor(terminal: &mut ratatui::DefaultTerminal, text: &str) -> Re
         crossterm::event::EnableBracketedPaste,
         crossterm::terminal::Clear(crossterm::terminal::ClearType::All)
     );
+    if mouse {
+        let _ = crossterm::execute!(stdout, crossterm::event::EnableMouseCapture);
+    }
     // Both buffers blank, so the next draw repaints everything (ratatui's
     // own clear() would ask the terminal for the cursor first).
     terminal.swap_buffers();
@@ -160,10 +168,20 @@ fn suspend_for_editor(terminal: &mut ratatui::DefaultTerminal, text: &str) -> Re
 }
 
 /// Run the full-screen app until the person quits.
-pub async fn run_tui(backend: Arc<dyn Backend>, mut state: State, theme: Theme, depth: crate::theme::ColorDepth) -> anyhow::Result<()> {
+pub async fn run_tui(
+    backend: Arc<dyn Backend>,
+    mut state: State,
+    theme: Theme,
+    depth: crate::theme::ColorDepth,
+    mouse: bool,
+) -> anyhow::Result<()> {
     let mut terminal = ratatui::init();
     let mut stdout = std::io::stdout();
     let _ = crossterm::execute!(stdout, crossterm::event::EnableBracketedPaste);
+    MOUSE.store(mouse, std::sync::atomic::Ordering::Relaxed);
+    if mouse {
+        let _ = crossterm::execute!(stdout, crossterm::event::EnableMouseCapture);
+    }
     // Shift-Enter is only distinguishable with the kitty keyboard protocol.
     let enhanced = matches!(crossterm::terminal::supports_keyboard_enhancement(), Ok(true));
     if enhanced {
@@ -178,10 +196,17 @@ pub async fn run_tui(backend: Arc<dyn Backend>, mut state: State, theme: Theme, 
     if enhanced {
         let _ = crossterm::execute!(stdout, crossterm::event::PopKeyboardEnhancementFlags);
     }
+    if mouse {
+        let _ = crossterm::execute!(stdout, crossterm::event::DisableMouseCapture);
+    }
     let _ = crossterm::execute!(stdout, crossterm::event::DisableBracketedPaste);
     ratatui::restore();
     result
 }
+
+/// Whether the app captured the mouse (so the editor hand-over gives it
+/// back and takes it again).
+static MOUSE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 async fn event_loop(
     terminal: &mut ratatui::DefaultTerminal,

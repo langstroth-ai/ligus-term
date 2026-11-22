@@ -33,6 +33,32 @@ pub fn apply_text(a: &ApplyState) -> Option<String> {
     }
 }
 
+/// What a click or the wheel lands on in the Proposals view.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProposalHit {
+    /// The list: a row, or its empty space.
+    List(Option<usize>),
+    /// The detail and the diff.
+    Detail,
+}
+
+/// What is under (`x`, `y`) in the Proposals view drawn in the body `area`.
+pub fn proposal_hit(s: &State, area: Rect, x: u16, y: u16) -> ProposalHit {
+    let left_w = (area.width * 2 / 5).clamp(30, 52);
+    if x >= area.x + left_w {
+        return ProposalHit::Detail;
+    }
+    let inner_h = area.height.saturating_sub(2);
+    if y <= area.y || y >= area.bottom().saturating_sub(1) || s.proposals.is_empty() {
+        return ProposalHit::List(None);
+    }
+    // Two lines a proposal; the list scrolls to keep the selection in view.
+    let visible = (inner_h / 2).max(1) as usize;
+    let offset = (s.proposal_sel.index + 1).saturating_sub(visible);
+    let row = offset + ((y - area.y - 1) / 2) as usize;
+    ProposalHit::List((row < s.proposals.len()).then_some(row))
+}
+
 pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     let left_w = (area.width * 2 / 5).clamp(30, 52);
     let [list, right] = Layout::horizontal([Constraint::Length(left_w), Constraint::Min(30)]).areas(area);

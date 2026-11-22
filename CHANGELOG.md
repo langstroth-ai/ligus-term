@@ -15,6 +15,11 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   and agents. Each action shows its key. `enter` runs it or goes to the
   thing and selects it; `esc` closes. Context actions only show where they
   apply, so nothing acts on a selection you can't see.
+- The mouse: click a tab, a chat or a proposal, or the transcript or
+  composer to focus it; the wheel scrolls lists, the transcript and the
+  diff, and moves through overlays. On by default; `mouse = false` in the
+  config turns it off. Selecting text takes shift-drag while lt has the
+  mouse, and the invite overlay says so.
 - `--ascii` (or `LT_ASCII=1`): ASCII only, with `+-|` borders, the status
   glyphs `*` `<>` `~` `ok` `x` `=`, and no block-art mark, for limited
   fonts and braille displays.
