@@ -30,6 +30,13 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   it.
 - `--reduce-motion` (or `LT_REDUCE_MOTION=1`): spinners stand still; a
   running item shows a fixed glyph and its elapsed time.
+- `/` finds in any list (chats, proposals, agents, hosts, people,
+  notifications, workflows and runs, memory): the selection jumps to the
+  first match as you type, `↑`/`↓` go to the previous or next one, `enter`
+  keeps it and `esc` goes back to where you were. The status bar shows
+  what's typed and how many rows match.
+- View history: `ctrl-o` (or `alt-left`) goes back to the view you were
+  in, `alt-right` forward again.
 - Tab completion and a man page: `lt completions bash|zsh|fish` prints a
   completion script (flags, commands, help topics, themes, and workspace
   names after `--workspace` and `use`), and `lt man` prints the man page.
@@ -82,6 +89,8 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Changed
 
+- `esc` in a view goes back to the view you came from, instead of always
+  to Chats.
 - Colours come from the shared Ligus tokens, the same values the desktop
   and the phone use, so the three can't drift apart: each colour at 24-bit,
   its own 256-colour index and a 16-colour slot. In 16 colours the accent

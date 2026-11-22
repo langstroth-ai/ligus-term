@@ -337,6 +337,14 @@ pub struct LogEntry {
     pub text: String,
 }
 
+/// `/` in a list: what is typed, and where the selection was, to go back
+/// to on esc.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Find {
+    pub query: TextBuf,
+    pub origin: usize,
+}
+
 /// How long `space` waits before its sheet of keys shows (ms).
 pub const WHICH_KEY_DELAY: Millis = 400;
 
@@ -504,6 +512,11 @@ pub struct State {
     /// The terminal's size (columns, rows), for scroll limits; 0×0 until
     /// the first resize message.
     pub term: (u16, u16),
+    /// `/` finding in the focused list.
+    pub find: Option<Find>,
+    /// Views you came from (`ctrl-o` goes back) and went back from.
+    pub back: Vec<View>,
+    pub forward: Vec<View>,
     /// lt captures the mouse (clicks and the wheel), so selecting text
     /// takes shift-drag.
     pub mouse: bool,
@@ -586,6 +599,9 @@ impl State {
             compose_on_open: true,
             which_key: None,
             mouse: false,
+            find: None,
+            back: vec![],
+            forward: vec![],
         }
     }
 
@@ -688,6 +704,9 @@ impl State {
     pub fn typing_text(&self) -> bool {
         if let Some(p) = self.presence.front() {
             return matches!(p.stage, PresenceStage::EnteringPath(_));
+        }
+        if self.find.is_some() && self.overlay.is_none() {
+            return true;
         }
         match &self.overlay {
             Some(Overlay::AddWorkspace(f)) => f.field != FormField::Mode,
@@ -795,6 +814,46 @@ impl State {
         }
         let ttl = if kind == ToastKind::Error { 32 } else { 16 };
         self.toasts = vec![Toast { text, kind, ttl }];
+    }
+
+    /// The focused list's rows as text (what `/` searches) and its
+    /// selection; `None` where there's no list to search.
+    pub fn list_rows(&self) -> Option<(Vec<String>, usize)> {
+        if self.focus != Focus::List {
+            return None;
+        }
+        Some(match self.view {
+            View::Chats => {
+                (self.chats.iter().map(|c| format!("{} {}", c.title, c.channel.as_deref().unwrap_or(""))).collect(), self.chat_sel.index)
+            }
+            View::Proposals => {
+                (self.proposals.iter().map(|p| format!("{} {} {}", p.title, p.author, p.status.label())).collect(), self.proposal_sel.index)
+            }
+            View::Agents => (
+                self.agents
+                    .iter()
+                    .map(|a| format!("@{} {}", a.handle, a.runtime))
+                    .chain(self.available_local().iter().map(|l| l.kind.label().to_string()))
+                    .collect(),
+                self.agent_sel.index,
+            ),
+            View::Hosts => (self.hosts.iter().map(|h| h.label.clone()).collect(), self.host_sel.index),
+            View::People => (self.members.iter().map(|m| format!("{} {}", m.name, m.role.label())).collect(), self.member_sel.index),
+            View::Notifications => (self.notifications.iter().map(|n| n.text.clone()).collect(), self.notification_sel.index),
+            View::Workflows => (
+                self.workflows.iter().map(|w| w.name.clone()).chain(self.runs.iter().map(|r| format!("{} {}", r.name, r.input))).collect(),
+                self.workflow_sel.index,
+            ),
+            View::Memory => (
+                self.tasks
+                    .iter()
+                    .map(|t| format!("{} {}", t.agent, t.summary))
+                    .chain(self.memory.entries.iter().map(|e| format!("{} {}", e.title, e.tags.join(" "))))
+                    .collect(),
+                self.memory_sel.index,
+            ),
+            View::Settings => return None,
+        })
     }
 
     /// Agents working on a reply and runs moving, in this workspace (the

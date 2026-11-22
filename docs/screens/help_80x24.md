@@ -4,7 +4,7 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 
 ```text
 [NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
-┏ ┏ Help · 1-20 of 92 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─╮
+┏ ┏ Help · 1-20 of 95 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─╮
 ┃ ┃What has focus comes first. / searches. Rebind keys in the config file.   ┃ │
 ┃ ┃                                                                          ┃ │
 ┃ ┃Chats  here                                                               ┃ │
@@ -22,9 +22,9 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 ┃ ┃  home, g                  First                                          ┃ │
 ┃ ┃  end, G                   Last                                           ┃ │
 ┃ ┃  enter, l, →              Open                                           ┃─╯
-┃ ┃                                                                          ┃
-┃ ┃Anywhere                                                                  ┃─╮
-┃ ┃  ctrl-c, q                Quit (asks first while work runs here)         ┃ │
+┃ ┃  /                        Find in this list (as you type; ↑↓ next match) ┃
+┃ ┃                                                                          ┃─╮
+┃ ┃Anywhere                                                                  ┃ │
 ┗━┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛─╯
 / search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close         peer to peer
 ```
