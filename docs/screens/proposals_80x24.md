@@ -12,19 +12,19 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 ┃applied  Bump the order sc…   ┃│approval first)                               │
 ┃         2/2 approvals · @r…  ┃│That host applies it once, on its checkout,   │
 ┃open     Sign-off: inject …   ┃╰──────────────────────────────────────────────╯
-┃         0/1 approvals · wo…  ┃╭ Diff ────────────────────────────────────────╮
-┃open     Workflow: Depende…   ┃│enter to view the diff                        │
-┃         0/1 approvals · @s…  ┃│                                              │
-┃                              ┃│                                              │
-┃                              ┃│                                              │
-┃                              ┃│                                              │
-┃                              ┃│                                              │
-┃                              ┃│                                              │
-┃                              ┃│                                              │
-┃                              ┃│                                              │
-┃                              ┃│                                              │
-┃                              ┃│                                              │
-┃                              ┃│                                              │
+┃         0/1 approvals · wo…  ┃╭ Diff · 2 files · hunk 1/3 ───────────────────╮
+┃open     Workflow: Depende…   ┃│▌src/checkout.rs +9 −3                        │
+┃         0/1 approvals · @s…  ┃│@@ -12,7 +12,9 @@ pub struct Checkout {       │
+┃                              ┃│     pub cart: CartId,                        │
+┃                              ┃│     pub items: Vec<LineItem>,                │
+┃                              ┃│-    pub started: Instant,                    │
+┃                              ┃│+    /// Injected, so tests set the time inst…│
+┃                              ┃│+    pub clock: Arc<dyn Clock>,               │
+┃                              ┃│+    pub started_at: Millis,                  │
+┃                              ┃│     pub paid: bool,                          │
+┃                              ┃│ }                                            │
+┃                              ┃│@@ -40,9 +42,13 @@ impl Checkout {            │
+┃                              ┃│     pub fn is_expired(&self) -> bool {       │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────╯
 ↑↓ proposals  enter diff  A approve  R reject  O apply  ? help      peer to peer
 ```

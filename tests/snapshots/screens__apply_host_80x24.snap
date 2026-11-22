@@ -1,0 +1,28 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
+┏ Proposals ━━━━━━━━━━━━━━━━━━━┓╭ Export orders to CSV ────────────────────────╮
+┃open     Inject the clock …   ┃│approved  by @coder · 1 file changed · 2/2    │
+┃         1/2 approvals · @c…  ┃│approvals                                     │
+┃approved Export orders to …   ┃│✓ Mara approved · owner                       │
+┃         2/2 approvals · @c…  ┃│✓ Ada approved · admin                        │
+┃applied  Bump the order sc…   ┃│A Approve  R Reject (already approved)   O    │
+┃       ┏ Apply on… ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓       │
+┃open   ┃  Apply here (online)  this device                            ┃out,   │
+┃       ┃› Apply on sff (online)                                       ┃───────╯
+┃open   ┃  Apply on ada-studio (offline)                               ┃───────╮
+┃       ┃                                                              ┃       │
+┃       ┃That host applies it once, on its checkout, and reports the   ┃       │
+┃       ┃result. Nobody else applies it meanwhile.                     ┃       │
+┃       ┃enter choose · esc cancel                                     ┃g {    │
+┃       ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛llect:…│
+┃                              ┃│+}                                            │
+┃                              ┃│+                                             │
+┃                              ┃│                                              │
+┃                              ┃│                                              │
+┃                              ┃│                                              │
+┃                              ┃│                                              │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────╯
+↑↓ proposals  enter diff  A approve  R reject  O apply  ? help      peer to peer

@@ -154,8 +154,7 @@ fn draw_detail(f: &mut Frame, area: Rect, s: &State, p: &Proposal, t: &Theme) {
 fn draw_diff(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     let focused = s.focus == Focus::Detail;
     let Some(d) = &s.diff else {
-        let hint = format!("{} to view the diff", s.keymap.hint(Context::Nav, Action::Select));
-        f.render_widget(Paragraph::new(Line::styled(hint, t.dim())).block(pane("Diff", focused, t)), area);
+        f.render_widget(Paragraph::new(Line::styled("Loading the diff…", t.dim())).block(pane("Diff", focused, t)), area);
         return;
     };
     let rows = d.rows();

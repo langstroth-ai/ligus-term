@@ -1,0 +1,28 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
+┏ Workflows 2 · Runs 3 ━━━━━━━━━━━━┓╭ Detail ──────────────────────────────────╮
+┃▸ Implement, review, ship         ┃│Implement, review, ship  awaiting-gate    │
+┃▸ Weekly security digest  Migra…  ┃│started by Mara just now · driven by This │
+┃  Impleme… ●●◆ awaiting-gate now  ┃│device                                    │
+┃  Implement, … ●●● completed now  ┃│input export the order history            │
+┃  Weekly securit… ● completed 1d  ┃│                                          │
+┃                                  ┃│  ● Implement @coder  succeeded           │
+┃                                  ┃│      @coder finished: export the order…  │
+┃                                  ┃│  ● Review @reviewer  succeeded           │
+┃                                  ┃│      @reviewer finished: export the or…  │
+┃                                  ┃│  ◆ Sign-off gate (1 approval)            │
+┃                                  ┃│awaiting-approval                         │
+┃                                  ┃│                                          │
+┃                                  ┃│A approve the gate  R reject it           │
+┃                                  ┃│X cancel the run                          │
+┃                                  ┃│enter open its chat                       │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────╯
+↑↓ select  S start  A approve gate  R reject  X cancel  ? help      peer to peer

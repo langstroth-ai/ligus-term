@@ -10,7 +10,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use futures::StreamExt;
 use futures::stream::BoxStream;
 use ligus_term::app::runtime::run_effect;
-use ligus_term::app::{Msg, State, update};
+use ligus_term::app::{Effect, Msg, State, update};
 use ligus_term::backend::fake::{DEMO_NOW, FakeBackend, FakeConfig};
 use ligus_term::backend::{Backend, Event};
 use ligus_term::keymap::Keymap;
@@ -69,6 +69,12 @@ impl Harness {
 
     fn apply(&mut self, msg: Msg) {
         for fx in update(&mut self.state, msg) {
+            // The diff preview's wait is the runtime's; here the selection
+            // has rested as soon as the reducer asks.
+            if let Effect::PreviewDiff(w, p) = fx {
+                let _ = self.tx.send(Msg::PreviewDue(w, p));
+                continue;
+            }
             let (b, tx) = (self.backend.clone(), self.tx.clone());
             tokio::spawn(async move {
                 let _ = tx.send(run_effect(b, fx).await);

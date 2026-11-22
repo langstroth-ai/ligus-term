@@ -1,0 +1,54 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
+┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+┃  Fix flaky checkout te… 12m  ┃│Ada  40m                                                                                                                                                              │
+┃  #dev                        ┃│  The checkout test fails about one run in ten. Can we stop it reading the wall clock?                                                                                │
+┃  ⊘ Migrate auth to pas… 50m  ┃│                                                                                                                                                                      │
+┃  #dev                        ┃│@coder  via claude-code  38m                                                                                                                                          │
+┃  Weekly release notes    1d  ┃│  Yes. The payment tests already use a fake clock, so it's a small change. I'll propose it.                                                                           │
+┃                              ┃│                                                                                                                                                                      │
+┃                              ┃│Ada  12m                                                                                                                                                              │
+┃                              ┃│  @Mara can you review the timeout? 30 seconds is what the provider uses.                                                                                             │
+┃                              ┃│                                                                                                                                                                      │
+┃                              ┃│                                                                                                                                                                      │
+┃                              ┃│                                                                                                                                                                      │
+┃                              ┃│                                                                                                                                                                      │
+┃                              ┃│                                                                                                                                                                      │
+┃                              ┃│                                                                                                                                                                      │
+┃                              ┃│                                                                                                                                                                      │
+┃                              ┃│                               ┏ Add a workspace ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                                                               │
+┃                              ┃│                               ┃› (•) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃                                                               │
+┃                              ┃│                               ┃                                                                      ┃                                                               │
+┃                              ┃│                               ┃  Workspace name e.g. Northwind API                                   ┃                                                               │
+┃                              ┃│                               ┃  No server needed: it lives on this device until you invite someone. ┃                                                               │
+┃                              ┃│                               ┃                                                                      ┃                                                               │
+┃                              ┃│                               ┃                                                                      ┃                                                               │
+┃                              ┃│                               ┃                                                                      ┃                                                               │
+┃                              ┃│                               ┃tab next · ←→ create/join/connect · enter continue · esc close        ┃                                                               │
+┃                              ┃│                               ┃                                                                      ┃                                                               │
+┃                              ┃│                               ┃                                                                      ┃                                                               │
+┃                              ┃│                               ┃                                                                      ┃                                                               │
+┃                              ┃│                               ┃                                                                      ┃                                                               │
+┃                              ┃│                               ┃                                                                      ┃                                                               │
+┃                              ┃│                               ┃                                                                      ┃                                                               │
+┃                              ┃│                               ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                                                               │
+┃                              ┃│                                                                                                                                                                      │
+┃                              ┃│                                                                                                                                                                      │
+┃                              ┃│                                                                                                                                                                      │
+┃                              ┃│                                                                                                                                                                      │
+┃                              ┃│                                                                                                                                                                      │
+┃                              ┃│                                                                                                                                                                      │
+┃                              ┃│                                                                                                                                                                      │
+┃                              ┃│                                                                                                                                                                      │
+┃                              ┃│                                                                                                                                                                      │
+┃                              ┃│                                                                                                                                                                      │
+┃                              ┃│                                                                                                                                                                      │
+┃                              ┃╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+┃                              ┃
+┃                              ┃╭ Message the room ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+┃                              ┃│i to write · @ mentions an agent or a person                                                                                                                          │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+↑↓ chats  i write  N new chat  tab pane  w workspaces  ? help                                                                                                  peer to peer · lt on this terminal · demo

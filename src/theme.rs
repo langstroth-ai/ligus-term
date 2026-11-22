@@ -51,7 +51,9 @@ impl Theme {
     /// Amber on the terminal's dark background. The inks are the Ligus
     /// brand tokens (`ligus-brand-tokens.json`): paper for text, soft for
     /// dim, honeyLight for the accent, activeLight for mentions, tileTopDark
-    /// for the selection.
+    /// for the selection. Warn is the desktop's amber-orange (oklch 0.80
+    /// 0.12 50), off the honey hue, so an open proposal or a warning never
+    /// reads as the accent or the focused pane.
     pub const DARK: Theme = Theme {
         name: "dark",
         text: Color::Rgb(0xf4, 0xf1, 0xea),
@@ -61,7 +63,7 @@ impl Theme {
         focus: Color::Rgb(0xf0, 0xc2, 0x5a),
         selected_bg: Color::Rgb(0x3a, 0x28, 0x12),
         good: Color::Rgb(0x8c, 0xc8, 0x6b),
-        warn: Color::Rgb(0xf0, 0xc2, 0x5a),
+        warn: Color::Rgb(0xfc, 0xa6, 0x76),
         bad: Color::Rgb(0xef, 0x6b, 0x5b),
         added: Color::Rgb(0x8c, 0xc8, 0x6b),
         removed: Color::Rgb(0xef, 0x6b, 0x5b),
@@ -74,6 +76,7 @@ impl Theme {
     /// Darker inks for light backgrounds: the brand's ink for text,
     /// honeyDeep for the accent and cellMid for the selection. Dim is a
     /// shade darker than the brand's soft, which is too faint on white.
+    /// Warn is the desktop's light amber-orange (oklch 0.52 0.13 45).
     pub const LIGHT: Theme = Theme {
         name: "light",
         text: Color::Rgb(0x22, 0x1f, 0x1a),
@@ -83,7 +86,7 @@ impl Theme {
         focus: Color::Rgb(0x8a, 0x5a, 0x14),
         selected_bg: Color::Rgb(0xf0, 0xe0, 0xb8),
         good: Color::Rgb(0x2f, 0x6f, 0x1f),
-        warn: Color::Rgb(0x8a, 0x55, 0x00),
+        warn: Color::Rgb(0xa4, 0x4c, 0x1d),
         bad: Color::Rgb(0xb0, 0x26, 0x1a),
         added: Color::Rgb(0x2f, 0x6f, 0x1f),
         removed: Color::Rgb(0xb0, 0x26, 0x1a),
@@ -289,9 +292,11 @@ impl Theme {
             ..self
         };
         // With 16 colours the selection's dark tint rounds to the
-        // background's own colour: use the palette's gray.
+        // background's own colour: use the palette's gray. Warn takes the
+        // terminal's yellow (its orange would round to red, danger's slot).
         if depth == ColorDepth::Ansi16 && !self.mono {
             t.selected_bg = if self.name == "light" { Color::Gray } else { Color::DarkGray };
+            t.warn = Color::Yellow;
         }
         t
     }
@@ -312,6 +317,66 @@ mod tests {
         assert_eq!(Theme::resolve(ThemeChoice::Auto, env(&[("COLORFGBG", "15;0")])).name, "dark");
         assert_eq!(Theme::resolve(ThemeChoice::Auto, env(&[("NO_COLOR", "1")])).name, "mono");
         assert_eq!(Theme::resolve(ThemeChoice::Light, env(&[("NO_COLOR", "1")])).name, "light");
+    }
+}
+
+#[cfg(test)]
+mod hue_tests {
+    use super::*;
+
+    /// OKLCH lightness and hue (degrees) of an sRGB colour.
+    fn oklch(c: Color) -> (f64, f64) {
+        let Color::Rgb(r, g, b) = c else { panic!("{c:?} isn't 24-bit") };
+        let lin = |v: u8| {
+            let v = f64::from(v) / 255.0;
+            if v <= 0.04045 { v / 12.92 } else { ((v + 0.055) / 1.055).powf(2.4) }
+        };
+        let (r, g, b) = (lin(r), lin(g), lin(b));
+        let l = (0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b).cbrt();
+        let m = (0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b).cbrt();
+        let s = (0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b).cbrt();
+        let ll = 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s;
+        let a = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s;
+        let bb = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s;
+        (ll, bb.atan2(a).to_degrees().rem_euclid(360.0))
+    }
+
+    fn gap(a: f64, b: f64) -> f64 {
+        let d = (a - b).abs();
+        d.min(360.0 - d)
+    }
+
+    /// Warn, the accent and the focused border are three different colours,
+    /// and warn's hue sits well away from the honey accent and from danger's
+    /// red, in both themes and in 256 colours.
+    #[test]
+    fn warn_is_neither_the_accent_nor_focus() {
+        for t in [Theme::DARK, Theme::LIGHT] {
+            assert_ne!(t.warn, t.accent, "{}", t.name);
+            assert_ne!(t.warn, t.focus, "{}", t.name);
+            let (_, warn) = oklch(t.warn);
+            let (_, accent) = oklch(t.accent);
+            let (_, focus) = oklch(t.focus);
+            let (_, bad) = oklch(t.bad);
+            assert!(gap(warn, accent) >= 25.0, "{}: warn {warn:.0}° vs accent {accent:.0}°", t.name);
+            assert!(gap(warn, focus) >= 25.0, "{}: warn {warn:.0}° vs focus {focus:.0}°", t.name);
+            assert!(gap(warn, bad) >= 15.0, "{}: warn {warn:.0}° vs danger {bad:.0}°", t.name);
+            let t256 = t.with_depth(ColorDepth::Ansi256);
+            assert_ne!(t256.warn, t256.accent, "{} in 256 colours", t.name);
+            assert_ne!(t256.warn, t256.bad, "{} in 256 colours", t.name);
+        }
+        // In 16 colours warn is the terminal's yellow, never danger's red.
+        let dark16 = Theme::DARK.with_depth(ColorDepth::Ansi16);
+        assert_eq!(dark16.warn, Color::Yellow);
+        assert_ne!(dark16.warn, dark16.accent);
+        assert_ne!(dark16.warn, dark16.bad);
+    }
+
+    /// The dark warn matches the desktop's: oklch(0.80 0.12 50).
+    #[test]
+    fn dark_warn_is_the_desktop_amber_orange() {
+        let (l, h) = oklch(Theme::DARK.warn);
+        assert!((l - 0.80).abs() < 0.02 && (h - 50.0).abs() < 4.0, "l {l:.3} h {h:.1}");
     }
 }
 

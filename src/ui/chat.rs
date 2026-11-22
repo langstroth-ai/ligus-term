@@ -81,12 +81,19 @@ fn draw_main(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             Allowed::Yes => format!("{} clear lockdown", s.keymap.hint(Context::Chat, Action::ClearLockdown)),
             Allowed::No(r) => r.clone(),
         };
+        // In a narrow pane the reasons end in "…" and the way out comes
+        // first, so it is never the part cut off.
+        let w = lock.width as usize;
+        let label = " Locked down ";
         let lines = vec![
             Line::from(vec![
-                Span::styled(" Locked down ", t.banner(t.bad).add_modifier(Modifier::REVERSED)),
-                Span::styled(format!(" {reasons}"), t.fg(t.bad)),
+                Span::styled(label, t.banner(t.bad).add_modifier(Modifier::REVERSED)),
+                Span::styled(format!(" {}", trunc(&reasons, w.saturating_sub(label.width() + 1))), t.fg(t.bad)),
             ]),
-            Line::styled(format!(" no network for agents · every proposal needs a human · {action}"), t.fg(t.bad)),
+            Line::styled(
+                format!(" {}", super::fit_parts(&[&action, "no network for agents", "every proposal needs a human"], w.saturating_sub(1))),
+                t.fg(t.bad),
+            ),
         ];
         f.render_widget(Paragraph::new(lines), lock);
     }
@@ -96,19 +103,21 @@ fn draw_main(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     let inner = block.inner(transcript);
     f.render_widget(block, transcript);
     if chat.is_some() && s.transcript.is_empty() {
-        let lines = vec![
-            Line::styled("Start a conversation", t.accent()),
-            Line::styled("Ask about your code, or @mention an agent to have it make changes.", t.dim()),
-        ];
+        // The welcome wraps in a narrow pane rather than losing its end.
+        let mut lines = vec![Line::styled("Start a conversation", t.accent())];
+        let ask = "Ask about your code, or @mention an agent to have it make changes.";
+        lines.extend(wrap(ask, inner.width as usize).into_iter().map(|l| Line::styled(l, t.dim())));
+        let text_h = lines.len() as u16;
+        let welcome = Paragraph::new(lines).centered();
         // The mark above the welcome when the pane has room for both.
-        let with_mark = inner.width >= super::splash::WIDTH + 2 && inner.height >= super::splash::HEIGHT + 6;
+        let with_mark = inner.width >= super::splash::WIDTH + 2 && inner.height >= super::splash::HEIGHT + 4 + text_h;
         if with_mark {
-            let r = super::center(inner, inner.width, super::splash::HEIGHT + 4);
+            let r = super::center(inner, inner.width, super::splash::HEIGHT + 2 + text_h);
             super::splash::draw(f, Rect { height: super::splash::HEIGHT, ..r }, t);
-            let text = Rect { y: r.y + super::splash::HEIGHT + 2, height: 2, ..r };
-            f.render_widget(Paragraph::new(lines).centered(), text);
+            let text = Rect { y: r.y + super::splash::HEIGHT + 2, height: text_h, ..r };
+            f.render_widget(welcome, text);
         } else {
-            f.render_widget(Paragraph::new(lines).centered(), super::center(inner, inner.width, 2));
+            f.render_widget(welcome, super::center(inner, inner.width, text_h));
         }
     } else {
         let lines = transcript_lines(s, inner.width as usize, t);
@@ -215,13 +224,15 @@ fn draw_composer(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         return;
     }
     if s.composer.text.is_empty() && !focused {
-        let hint = format!("{} to write · @ mentions an agent or a person", s.keymap.hint(Context::Chat, Action::Compose));
+        let write = format!("{} to write", s.keymap.hint(Context::Chat, Action::Compose));
+        let hint = super::fit_parts(&[&write, "@ mentions an agent or a person"], inner.width as usize);
         f.render_widget(Paragraph::new(Line::styled(hint, t.dim())), inner);
         return;
     }
     if s.composer.text.is_empty() {
         let esc = s.keymap.hint(Context::Composer, Action::CancelCompose);
-        let hint = format!("Type a message · @ mentions an agent or a person · {esc} for keys");
+        let keys = format!("{esc} for keys");
+        let hint = super::fit_parts(&["Type a message", "@ mentions an agent or a person", &keys], inner.width as usize);
         f.render_widget(Paragraph::new(Line::styled(hint, t.dim())), inner);
         f.set_cursor_position(Position::new(inner.x, inner.y));
         return;

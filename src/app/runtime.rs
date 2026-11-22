@@ -31,6 +31,10 @@ pub async fn run_effect(b: Arc<dyn Backend>, fx: Effect) -> Msg {
         LoadMentionables(w) => Msg::Mentionables(w.clone(), b.mentionables(&w).await),
         LoadProposals(w) => Msg::Proposals(w.clone(), b.proposals(&w).await),
         LoadDiff(w, p) => Msg::Diff(w.clone(), p.clone(), b.proposal_diff(&w, &p).await),
+        PreviewDiff(w, p) => {
+            tokio::time::sleep(crate::app::update::DIFF_PREVIEW_DELAY).await;
+            Msg::PreviewDue(w, p)
+        }
         LoadAgents(w) => Msg::Agents(w.clone(), b.agents(&w).await),
         LoadRuntimes(w) => Msg::Runtimes(w.clone(), b.runtimes(&w).await),
         LoadLocalRuntimes(w) => Msg::LocalRuntimes(w.clone(), b.local_runtimes(&w).await),

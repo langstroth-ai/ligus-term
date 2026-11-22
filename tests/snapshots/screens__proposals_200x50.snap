@@ -11,39 +11,39 @@ expression: screen
 ┃applied  Bump the order schema version            ┃│                                                                                                                                                  │
 ┃         2/2 approvals · @reviewer · 2d           ┃│                                                                                                                                                  │
 ┃open     Sign-off: inject a fake clock            ┃╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-┃         0/1 approvals · workflow · 4m            ┃╭ Diff ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-┃open     Workflow: Dependency audit before rel…   ┃│enter to view the diff                                                                                                                            │
-┃         0/1 approvals · @scout · 20m             ┃│                                                                                                                                                  │
+┃         0/1 approvals · workflow · 4m            ┃╭ Diff · 2 files · hunk 1/3 ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+┃open     Workflow: Dependency audit before rel…   ┃│▌src/checkout.rs +9 −3                                                                                                                            │
+┃         0/1 approvals · @scout · 20m             ┃│@@ -12,7 +12,9 @@ pub struct Checkout {                                                                                                           │
+┃                                                  ┃│     pub cart: CartId,                                                                                                                            │
+┃                                                  ┃│     pub items: Vec<LineItem>,                                                                                                                    │
+┃                                                  ┃│-    pub started: Instant,                                                                                                                        │
+┃                                                  ┃│+    /// Injected, so tests set the time instead of reading the wall clock.                                                                       │
+┃                                                  ┃│+    pub clock: Arc<dyn Clock>,                                                                                                                   │
+┃                                                  ┃│+    pub started_at: Millis,                                                                                                                      │
+┃                                                  ┃│     pub paid: bool,                                                                                                                              │
+┃                                                  ┃│ }                                                                                                                                                │
+┃                                                  ┃│@@ -40,9 +42,13 @@ impl Checkout {                                                                                                                │
+┃                                                  ┃│     pub fn is_expired(&self) -> bool {                                                                                                           │
+┃                                                  ┃│-        self.started.elapsed().as_secs() > 30                                                                                                    │
+┃                                                  ┃│-    }                                                                                                                                            │
+┃                                                  ┃│+        // 30 seconds matches the payment provider's session timeout.                                                                            │
+┃                                                  ┃│+        self.clock.now() - self.started_at >= Self::SESSION_TIMEOUT_MS                                                                           │
+┃                                                  ┃│+    }                                                                                                                                            │
+┃                                                  ┃│+                                                                                                                                                 │
+┃                                                  ┃│+    pub const SESSION_TIMEOUT_MS: Millis = 30_000;                                                                                               │
 ┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│     pub fn summary(&self) -> String {                                                                                                            │
 ┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
-┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│▌tests/checkout.rs +8 −0                                                                                                                          │
+┃                                                  ┃│@@ -0,0 +1,8 @@                                                                                                                                   │
+┃                                                  ┃│+use northwind::Checkout;                                                                                                                         │
+┃                                                  ┃│+                                                                                                                                                 │
+┃                                                  ┃│+#[test]                                                                                                                                          │
+┃                                                  ┃│+fn expires_after_thirty_seconds() {                                                                                                              │
+┃                                                  ┃│+    let c = Checkout::at_fake_time(30_000);                                                                                                      │
+┃                                                  ┃│+    assert!(c.is_expired());                                                                                                                     │
+┃                                                  ┃│+}                                                                                                                                                │
+┃                                                  ┃│+                                                                                                                                                 │
 ┃                                                  ┃│                                                                                                                                                  │
 ┃                                                  ┃│                                                                                                                                                  │
 ┃                                                  ┃│                                                                                                                                                  │

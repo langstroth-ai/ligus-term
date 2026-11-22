@@ -1,0 +1,54 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
+┏ Workflows 2 · Runs 2 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Detail ────────────────────────────────────────────────────────────────────────────────────────────────────╮
+┃▸ Implement, review, ship  Fix flaky checkout test                                      ┃│Implement, review, ship  completed                                                                          │
+┃▸ Weekly security digest  Migrate auth to passkeys                                      ┃│started by Mara 30m ago · driven by This device                                                             │
+┃  Implement, review, ship ●●● completed now                                             ┃│input inject a fake clock                                                                                   │
+┃  Weekly security digest ● completed 1d                                                 ┃│                                                                                                            │
+┃                                                                                        ┃│  ● Implement @coder  succeeded                                                                             │
+┃                                                                                        ┃│      Changed the checkout struct and the timeout check.                                                    │
+┃                                                                                        ┃│  ● Review @reviewer  succeeded                                                                             │
+┃                                                                                        ┃│      Looks right; the timeout has a test.                                                                  │
+┃                                                                                        ┃│  ● Sign-off gate (1 approval)  succeeded                                                                   │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│enter open its chat                                                                                         │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+↑↓ select  S start  A approve gate  R reject  X cancel  ? help                                                                                                 peer to peer · lt on this terminal · demo

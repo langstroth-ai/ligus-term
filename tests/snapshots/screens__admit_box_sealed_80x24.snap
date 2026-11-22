@@ -1,0 +1,28 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
+┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Member ──────────────────────────────────╮
+┃  Mara · you  owner  founder      ┃│Mara  owner                               │
+┃  Ada  admin                      ┃│                                          │
+┃  Lin  contributor                ┃│Founder: nobody can remove or demote them.│
+┃  Sam  viewer                     ┃│Role (r)                                  │
+┏ Admit a box ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃Sealed to the box (sff): check its fingerprint matches                        ┃
+┃K3QF-7XMA-2DPL-90RW-ZT4E                                                      ┃
+┃On the box: ligus admit redeem <code>, then start it again.                   ┃
+┃                                                                              ┃
+┃ligusadmit1:sealed-for-39                                                     ┃
+┃                                                                              ┃
+┃any key closes                                                                ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+┃                                  ┃│your passkey.                             │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────── ✓ Confirmed with your passkey
+↑↓ people  r role  X remove  I invite  B admit box  ? help          peer to peer

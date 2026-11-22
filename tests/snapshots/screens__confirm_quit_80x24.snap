@@ -1,0 +1,28 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
+┏ Chats ━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ─────────────────────────────╮
+┃  Fix flaky che… 12m  ┃│Ada  40m                                              │
+┃  #dev                ┃│  The checkout test fails about one run in ten. Can we│
+┃  ⊘ Migrate aut… 50m  ┃│  stop it reading the wall clock?                     │
+┃  #dev                ┃│                                                      │
+┃  Weekly release… 1d  ┃│@coder  via claude-code  38m                          │
+┃                      ┃│  Yes. The payment tests already use a fake clock, so │
+┃                      ┃│  it's a small change. I'll propose it.               │
+┃       ┏ Quit? ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓       │
+┃       ┃This device drives the run “Implement, review, ship”. Quitting┃       │
+┃       ┃stops driving it until lt runs here again.                    ┃is what│
+┃       ┃                                                              ┃       │
+┃       ┃y quit · any other key backs out                              ┃       │
+┃       ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛       │
+┃                      ┃│                                                      │
+┃                      ┃│                                                      │
+┃                      ┃│                                                      │
+┃                      ┃╰──────────────────────────────────────────────────────╯
+┃                      ┃
+┃                      ┃╭ Message the room ────────────────────────────────────╮
+┃                      ┃│i to write · @ mentions an agent or a person          │
+┗━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────╯
+↑↓ chats  i write  N new chat  tab pane  w workspaces  ? help       peer to peer

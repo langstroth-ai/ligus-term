@@ -1,0 +1,28 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
+┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Member ──────────────────────────────────╮
+┃  Mara · you  owner  founder      ┃│Mara  owner                               │
+┃  Ada  admin                      ┃│                                          │
+┃  Lin  contributor                ┃│Founder: nobody can remove or demote them.│
+┃  Sam  viewer                     ┃│Role (r)                                  │
+┏ Admit a box ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃Check the box (sff) shows this fingerprint: K3QF-7XMA-2DPL-90RW-ZT4E          ┃
+┃Its terminal printed it with the join request. A different one means the      ┃
+┃request was swapped: don't admit it.                                          ┃
+┃                                                                              ┃
+┃y it matches, admit (needs your passkey) · esc back                           ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+┃                                  ┃│your passkey.                             │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────╯
+↑↓ people  r role  X remove  I invite  B admit box  ? help          peer to peer

@@ -1,0 +1,28 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[DS]+1 │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup   docs-site
+┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Member ──────────────────────────────────╮
+┃  Jo  owner  founder              ┃│Jo  owner                                 │
+┃  Mara · you  viewer              ┃│                                          │
+┃                                  ┃│Founder: nobody can remove or demote them.│
+┃                                  ┃│Role (r)                                  │
+┃                                  ┃│  (•) owner                               │
+┃                                  ┃│  ( ) admin  no one grants a role above   │
+┃                                  ┃│their own                                 │
+┃                                  ┃│  ( ) contributor  no one grants a role   │
+┃                                  ┃│above their own                           │
+┃                                  ┃│  ( ) viewer  no one changes the role of a│
+┃                                  ┃│member above them                         │
+┃                                  ┃│                                          │
+┃                                  ┃│X Remove from the workspace  nobody cuts  │
+┃                                  ┃│the workspace's founder                   │
+┃                                  ┃│I Create an invite  only an Admin or Owner│
+┃                                  ┃│issues invites                            │
+┃                                  ┃│B Admit a box  only an Admin or Owner     │
+┃                                  ┃│admits a box                              │
+┃                                  ┃│                                          │
+┃                                  ┃│Changes to who's in the workspace need    │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────╯
+↑↓ people  r role  X remove  I invite  B admit box  ? help               ⇅ relay

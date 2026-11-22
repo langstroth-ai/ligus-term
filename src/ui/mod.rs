@@ -428,6 +428,20 @@ pub(crate) fn wrap(text: &str, width: usize) -> Vec<String> {
 }
 
 /// Truncate to `width` columns with an ellipsis.
+/// Hint parts joined with " · ", as many from the front as fit in `width`;
+/// the first is shortened with "…" when even it doesn't fit.
+pub(crate) fn fit_parts(parts: &[&str], width: usize) -> String {
+    let mut out = String::new();
+    for p in parts {
+        let next = if out.is_empty() { p.to_string() } else { format!("{out} · {p}") };
+        if next.width() > width {
+            break;
+        }
+        out = next;
+    }
+    if out.is_empty() { parts.first().map(|p| trunc(p, width)).unwrap_or_default() } else { out }
+}
+
 pub(crate) fn trunc(s: &str, width: usize) -> String {
     if s.width() <= width {
         return s.to_string();

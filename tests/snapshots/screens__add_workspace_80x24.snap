@@ -1,0 +1,28 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
+┏ Chats ━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ─────────────────────────────╮
+┃  Fix flaky che… 12m  ┃│Ada  40m                                              │
+┃  #dev                ┃│  The checkout test fails about one run in ten. Can we│
+┃  ⊘┏ Add a workspace ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓   │
+┃  #┃› (•) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃   │
+┃  W┃                                                                      ┃   │
+┃   ┃  Workspace name e.g. Northwind API                                   ┃so │
+┃   ┃  No server needed: it lives on this device until you invite someone. ┃   │
+┃   ┃                                                                      ┃   │
+┃   ┃                                                                      ┃   │
+┃   ┃                                                                      ┃hat│
+┃   ┃tab next · ←→ create/join/connect · enter continue · esc close        ┃   │
+┃   ┃                                                                      ┃   │
+┃   ┃                                                                      ┃   │
+┃   ┃                                                                      ┃   │
+┃   ┃                                                                      ┃   │
+┃   ┃                                                                      ┃   │
+┃   ┃                                                                      ┃───╯
+┃   ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+┃                      ┃╭ Message the room ────────────────────────────────────╮
+┃                      ┃│i to write · @ mentions an agent or a person          │
+┗━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────╯
+↑↓ chats  i write  N new chat  tab pane  w workspaces  ? help       peer to peer
