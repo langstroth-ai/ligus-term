@@ -401,6 +401,10 @@ pub struct State {
     pub transcript_scroll: usize,
     /// Which agents are working on a reply, per chat.
     pub thinking: HashMap<ChatId, BTreeSet<String>>,
+    /// How the last turn ended in a chat you haven't looked at since:
+    /// [`SessionState::Done`] or [`SessionState::Failed`]. Opening the chat
+    /// clears it.
+    pub turn_outcomes: HashMap<ChatId, SessionState>,
     pub composer: TextBuf,
     /// Drafts kept per chat when switching.
     pub drafts: HashMap<ChatId, String>,
@@ -479,6 +483,7 @@ impl State {
             transcript: vec![],
             transcript_scroll: 0,
             thinking: HashMap::new(),
+            turn_outcomes: HashMap::new(),
             composer: TextBuf::multi(),
             drafts: HashMap::new(),
             mentionables: vec![],
@@ -527,6 +532,31 @@ impl State {
     pub fn open_chat_summary(&self) -> Option<&ChatSummary> {
         let id = self.open_chat.as_ref()?;
         self.chats.iter().find(|c| &c.id == id)
+    }
+
+    /// What bears on a chat's state, from what this device has loaded.
+    pub fn session_signals(&self, chat: &ChatId) -> SessionSignals {
+        let summary = self.chats.iter().find(|c| &c.id == chat);
+        let streaming_here = self.open_chat.as_ref() == Some(chat) && self.transcript.iter().any(|m| m.streaming);
+        let outcome = self.turn_outcomes.get(chat).copied();
+        SessionSignals {
+            live: self.thinking.get(chat).is_some_and(|t| !t.is_empty()) || streaming_here,
+            failed: outcome == Some(SessionState::Failed),
+            finished_unseen: outcome == Some(SessionState::Done),
+            open_asks: self.tasks.iter().filter(|t| &t.chat == chat && t.active && !t.open_questions.is_empty()).count(),
+            proposals_needing_me: self
+                .proposals
+                .iter()
+                .filter(|p| p.chat.as_ref() == Some(chat) && p.status == ProposalStatus::Open && p.can_vote.is_yes())
+                .count(),
+            queued: 0,
+            paused: summary.is_some_and(|c| c.lockdown.is_some()),
+        }
+    }
+
+    /// Where a chat stands (the chat list's chip).
+    pub fn session_state(&self, chat: &ChatId) -> SessionState {
+        self.session_signals(chat).state()
     }
 
     pub fn selected_proposal(&self) -> Option<&Proposal> {

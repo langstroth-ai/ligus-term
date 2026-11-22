@@ -502,6 +502,24 @@ async fn status_bar_sync_and_toasts() {
     snap(&h, "status_offline_toast", "Status bar: offline, with an error toast in its centre");
 }
 
+/// The chat list's chips: one glyph per state, and nothing for an idle
+/// chat.
+#[tokio::test]
+async fn chat_list_states() {
+    let mut h = demo().await;
+    let w = h.state.active.clone().unwrap();
+    let ids: Vec<ChatId> = h.state.chats.iter().map(|c| c.id.clone()).collect();
+    h.send(Msg::Event(Event::Thinking { workspace: w.clone(), chat: ids[2].clone(), agent: "@coder".into(), on: true })).await;
+    h.state.proposals.clear();
+    h.state.tasks.clear();
+    h.state.turn_outcomes.insert(ids[0].clone(), SessionState::Failed);
+    let screen = h.screen(W, H);
+    assert!(screen.contains("✕ Fix flaky"), "{screen}");
+    assert!(screen.contains("‖ Migrate auth"), "the locked-down chat is paused: {screen}");
+    assert!(screen.contains("Weekly release"), "{screen}");
+    snap(&h, "chat_states", "Chats: failed, paused and working chips");
+}
+
 /// `!` opens this session's notices and errors in full, newest first.
 #[tokio::test]
 async fn messages_log() {

@@ -152,6 +152,8 @@ fn load_workspace(ws: &WorkspaceId) -> Vec<Effect> {
         Effect::LoadWorkflows(ws.clone()),
         Effect::LoadRuns(ws.clone()),
         Effect::LoadCheckout(ws.clone()),
+        // Agents' open questions make a chat "needs you".
+        Effect::LoadTasks(ws.clone()),
     ]
 }
 
@@ -557,6 +559,13 @@ fn event(s: &mut State, e: Event) -> Vec<Effect> {
             {
                 m.streaming = false;
             }
+            if is_active(s, &workspace) {
+                if error.is_some() {
+                    s.turn_outcomes.insert(chat.clone(), SessionState::Failed);
+                } else if s.open_chat.as_ref() != Some(&chat) {
+                    s.turn_outcomes.insert(chat.clone(), SessionState::Done);
+                }
+            }
             if let Some(e) = error {
                 s.toast(ToastKind::Error, e);
             }
@@ -610,7 +619,8 @@ fn event(s: &mut State, e: Event) -> Vec<Effect> {
             if matches!(s.view, View::Memory | View::Agents) {
                 vec![Effect::LoadMemory(workspace.clone()), Effect::LoadTasks(workspace.clone()), Effect::LoadHandoffs(workspace)]
             } else {
-                vec![]
+                // Task state feeds the chat list's "needs you".
+                vec![Effect::LoadTasks(workspace)]
             }
         }
         Event::Notification(n) => {
@@ -1306,6 +1316,7 @@ pub fn switch_workspace(s: &mut State, id: WorkspaceId) -> Vec<Effect> {
     s.memory_sel = Sel::default();
     s.handoffs.clear();
     s.checkout = None;
+    s.turn_outcomes.clear();
     s.focus = Focus::List;
     load_workspace(&id)
 }
@@ -1332,6 +1343,7 @@ fn open_chat(s: &mut State, id: ChatId) -> Vec<Effect> {
         }
     }
     s.open_chat = Some(id.clone());
+    s.turn_outcomes.remove(&id);
     if let Some(c) = s.chats.iter_mut().find(|c| c.id == id) {
         c.unread = false;
         c.mentioned = false;
@@ -1514,6 +1526,7 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
                 return vec![];
             }
             let text = s.composer.take();
+            s.turn_outcomes.remove(&c);
             s.mention_dismissed = None;
             s.transcript_scroll = 0;
             vec![Effect::Send { workspace: w, chat: c, text }]

@@ -5,9 +5,9 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ╭ Chats ───────────────────────╮╭ Fix flaky checkout test ───────────────────────────────────────────────────╮
-│  Fix flaky checkout te… 12m  ││Ada  40m                                                                    │
+│  ◆ Fix flaky checkout … 12m  ││Ada  40m                                                                    │
 │  #dev                        ││  The checkout test fails about one run in ten. Can we stop it reading the  │
-│  ⊘ Migrate auth to pas… 50m  ││  wall clock?                                                               │
+│  ◆ Migrate auth to pas… 50m  ││  wall clock?                                                               │
 │  #dev                        ││                                                                            │
 │  Weekly release notes    1d  ││@coder  via claude-code  38m                                                │
 │                              ││  Yes. The payment tests already use a fake clock, so it's a small change.  │

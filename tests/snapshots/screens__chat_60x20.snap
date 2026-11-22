@@ -4,9 +4,9 @@ expression: screen
 ---
 [NA]+1• │ 1 Chats 2 3 4 5 6 7 8(1) 9           Northwind API
 ┏ Chats ━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ─────────╮
-┃  Fix flaky che… 12m  ┃│  one run in ten. Can we stop it  │
+┃  ◆ Fix flaky c… 12m  ┃│  one run in ten. Can we stop it  │
 ┃  #dev                ┃│  reading the wall clock?         │
-┃  ⊘ Migrate aut… 50m  ┃│                                  │
+┃  ◆ Migrate aut… 50m  ┃│                                  │
 ┃  #dev                ┃│@coder  via claude-code  38m      │
 ┃  Weekly release… 1d  ┃│  Yes. The payment tests already  │
 ┃                      ┃│  use a fake clock, so it's a     │

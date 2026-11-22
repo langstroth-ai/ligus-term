@@ -4,9 +4,9 @@ expression: screen
 ---
 [NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
 ┏ Chats ━━━━━━━━━━━━━━━┓ Locked down  prompt-injection marker in a tool result …
-┃  Fix flaky che… 12m  ┃ U clear lockdown · no network for agents
+┃  ◆ Fix flaky c… 12m  ┃ U clear lockdown · no network for agents
 ┃  #dev                ┃╭ Migrate auth to passkeys ────────────────────────────╮
-┃  ⊘ Migrate aut… 50m  ┃│Lin  55m                                              │
+┃  ◆ Migrate aut… 50m  ┃│Lin  55m                                              │
 ┃  #dev                ┃│  @scout check the forum thread about passkey         │
 ┃  Weekly release… 1d  ┃│  fallbacks                                           │
 ┃                      ┃│                                                      │

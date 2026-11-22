@@ -204,7 +204,14 @@ pub const COMMANDS: &[Cmd] = &[
         prints: "using",
         example: "use 2",
     },
-    Cmd { name: "chats", usage: "chats", about: "List the workspace's chats.", prints: "chat", example: "lt --plain chats" },
+    Cmd {
+        name: "chats",
+        usage: "chats",
+        about: "List the workspace's chats. Flags, space-separated: unread, mentioned, needs-you (a proposal waits on your vote) \
+                and locked (a lockdown pauses its agents).",
+        prints: "chat",
+        example: "lt --plain chats",
+    },
     Cmd {
         name: "open",
         usage: "open N",

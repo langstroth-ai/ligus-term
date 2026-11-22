@@ -4,9 +4,9 @@ expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
 ┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ┏ Messages · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────────────────────────────────────────╮
-┃  Fix flaky checkout te… 12m  ┃│Ada  40m                 ┃Nothing yet.                                                                      ┃                                                         │
+┃  ◆ Fix flaky checkout … 12m  ┃│Ada  40m                 ┃Nothing yet.                                                                      ┃                                                         │
 ┃  #dev                        ┃│  The checkout test fails┃Notices and errors from this session collect here, so one that went by can be read┃                                                         │
-┃  ⊘ Migrate auth to pas… 50m  ┃│                         ┃again.                                                                            ┃                                                         │
+┃  ◆ Migrate auth to pas… 50m  ┃│                         ┃again.                                                                            ┃                                                         │
 ┃  #dev                        ┃│@coder  via claude-code  ┃                                                                                  ┃                                                         │
 ┃  Weekly release notes    1d  ┃│  Yes. The payment tests ┃                                                                                  ┃                                                         │
 ┃                              ┃│                         ┃                                                                                  ┃                                                         │

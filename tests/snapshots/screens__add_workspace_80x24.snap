@@ -4,9 +4,9 @@ expression: screen
 ---
 [NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
 ┏ Chats ━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ─────────────────────────────╮
-┃  Fix flaky che… 12m  ┃│Ada  40m                                              │
+┃  ◆ Fix flaky c… 12m  ┃│Ada  40m                                              │
 ┃  #dev                ┃│  The checkout test fails about one run in ten. Can we│
-┃  ⊘┏ Add a workspace ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓   │
+┃  ◆┏ Add a workspace ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓   │
 ┃  #┃› (•) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃   │
 ┃  W┃                                                                      ┃   │
 ┃   ┃  Workspace name e.g. Northwind API                                   ┃so │
