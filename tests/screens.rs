@@ -733,8 +733,11 @@ async fn remote_text_cannot_reorder_or_hide_what_is_shown() {
         }],
     };
     h.send(Msg::Event(Event::MessageAdded { workspace: ws.clone(), message })).await;
+    // The tool's output too, shown with o.
+    h.state.tools_expanded = true;
     let screen = h.screen(W, H);
     assert!(screen.contains("gnp.exe"), "{screen}");
+    assert!(screen.matches("gnp.exe").count() >= 3, "the text, the preview and the output: {screen}");
     for c in screen.chars() {
         let format_or_control = c.is_control() && c != '\n'
             || matches!(c, '\u{061c}' | '\u{200b}'..='\u{200f}' | '\u{202a}'..='\u{202e}' | '\u{2060}'..='\u{206f}' | '\u{feff}');
