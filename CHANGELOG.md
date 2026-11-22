@@ -38,6 +38,14 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Changed
 
+- The chat view fits the terminal: under 100 columns the chat list shows
+  only while it has the keyboard (`esc` from the composer, or the new
+  `ctrl-l`), and the transcript has the width the rest of the time, its
+  title saying where the chat sits ("· 1/3"). From 160 columns a third
+  column shows the open chat's work: who is working, its proposals and its
+  runs. Transcript lines stop at 100 columns, centred. Below 60×20 one line
+  asks for a bigger terminal instead of a broken layout (a passkey prompt
+  still shows).
 - Settings toggles with `enter` or `t`; `space` is the key sheet's
   everywhere now (rebind `toggle` in `[keys.settings]` to have it back).
 - The status bar has three zones: the keys on the left, a notice in the

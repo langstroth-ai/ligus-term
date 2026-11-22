@@ -583,11 +583,47 @@ async fn messages_log() {
 
 #[tokio::test]
 async fn narrow_terminal_still_renders() {
-    let h = demo().await;
-    let s = h.screen(60, 16);
-    assert!(s.contains("Chats"));
+    let mut h = demo().await;
+    let s = h.screen(60, 20);
+    assert!(s.contains("Chats"), "{s}");
+    // Below 60×20 one line says so, instead of a broken layout.
+    let small = h.screen(52, 18);
+    assert!(small.contains("Terminal too small") && small.contains("52×18"), "{small}");
+    snap_at("too_small", "A terminal below 60×20", 52, 18, small);
     // No panic at tiny sizes either.
     let _ = h.screen(10, 4);
+    // A passkey prompt waits on you, so it shows at any size.
+    h.key(KeyCode::Char('m')).await;
+    h.key(KeyCode::Char('r')).await;
+    h.key(KeyCode::Down).await;
+    h.key(KeyCode::Enter).await;
+    if !h.state.presence.is_empty() {
+        assert!(h.screen(52, 18).contains("passkey"), "{}", h.screen(52, 18));
+    }
+}
+
+/// Under 100 columns the chat list is an overlay: hidden while you write,
+/// shown with esc or ctrl-l; from 160 a third column shows what the chat
+/// has going on; the transcript never runs wider than 100 columns.
+#[tokio::test]
+async fn chat_layout_by_width() {
+    let mut h = Harness::new(true).await;
+    let narrow = h.screen(80, 24);
+    assert!(!narrow.contains("┏ Chats") && !narrow.contains("╭ Chats"), "the list is out of the way while writing: {narrow}");
+    assert!(narrow.contains("1/3"), "the title says where the chat sits: {narrow}");
+    h.key(KeyCode::Esc).await;
+    assert!(h.screen(80, 24).contains("Chats"), "esc shows the list");
+    h.key(KeyCode::Enter).await;
+    assert_eq!(h.state.focus, ligus_term::app::state::Focus::Composer);
+    h.ctrl('l').await;
+    assert_eq!(h.state.focus, ligus_term::app::state::Focus::List, "ctrl-l shows it from the composer");
+    h.ctrl('l').await;
+    assert_eq!(h.state.focus, ligus_term::app::state::Focus::Composer, "and puts it away");
+    let wide = h.screen(200, 50);
+    assert!(wide.contains("This chat"), "{wide}");
+    let longest = wide.lines().filter(|l| l.contains("The checkout test")).map(|l| l.trim().len()).max().unwrap_or(0);
+    assert!(longest > 0, "{wide}");
+    snap_at("chat_wide_rail", "Chats at 200×50: list, transcript at reading width, and this chat's work", 200, 50, wide);
 }
 
 /// An empty chat shows the mark above its welcome when the pane has room.
@@ -602,9 +638,9 @@ async fn empty_chat_splash() {
     h.key(KeyCode::Enter).await;
     h.key(KeyCode::Enter).await;
     assert!(h.screen(W, H).contains('▀'), "{}", h.screen(W, H));
-    let short = h.screen(W, 18);
+    let short = h.screen(W, 20);
     assert!(!short.contains('▀') && short.contains("Start a conversation"), "{short}");
-    snap_at("new_workspace_short", "A new workspace in a short terminal: the welcome without the mark", W, 18, short);
+    snap_at("new_workspace_short", "A new workspace in a short terminal: the welcome without the mark", W, 20, short);
 }
 
 #[tokio::test]

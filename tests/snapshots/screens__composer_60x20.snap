@@ -3,22 +3,22 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA]+1• │ 1 Chats 2 3 4 5 6 7 8(1) 9           Northwind API
-╭ Chats ───────────────╮╭ Fix flaky checkout test ─────────╮
-│  ◆ Fix flaky c… 12m  ││  one run in ten. Can we stop it  │
-│  #dev                ││  reading the wall clock?         │
-│  ◆ Migrate aut… 50m  ││                                  │
-│  #dev                ││@coder  via claude-code  38m      │
-│  Weekly release… 1d  ││  Yes. The payment tests already  │
-│                      ││  use a fake clock, so it's a     │
-│                      ││  small change. I'll propose it.  │
-│                      ││                                  │
-│                      ││Ada  12m                          │
-│                      ││  @Mara can you review the        │
-│                      ││  timeout? 30 seconds is what the │
-│                      ││ ┏ Mention ━━━━━━━━━━━━━━━━━━━━━━━┓
-│                      │╰─┃@coder           Agent          ┃
-│                      │  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-│                      │┏ Message the room ━━━━━━━━━━━━━━━━┓
-│                      │┃@co                               ┃
-╰──────────────────────╯┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+╭ Fix flaky checkout test · 1/3 ───────────────────────────╮
+│Ada  40m                                                  │
+│  The checkout test fails about one run in ten. Can we    │
+│  stop it reading the wall clock?                         │
+│                                                          │
+│@coder  via claude-code  38m                              │
+│  Yes. The payment tests already use a fake clock, so it's│
+│  a small change. I'll propose it.                        │
+│                                                          │
+│Ada  12m                                                  │
+│  @Mara can you review the timeout? 30 seconds is what the│
+│  provider uses.                                          │
+│ ┏ Mention ━━━━━━━━━━━━━━━━━━━━━━━━━┓                     │
+╰─┃@coder           Agent            ┃─────────────────────╯
+  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+┏ Message the room ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃@co                                                       ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 enter send  alt-enter newline  @ mention  esc leave  f1 help

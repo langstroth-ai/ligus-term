@@ -3,26 +3,26 @@ source: tests/screens.rs
 expression: screen
 ---
 [AW] │ Chats Flows Props Agents Hosts Memory People Notifs Setup        Acme Web
-╭ Chats ───────────────╮╭ Welcome ─────────────────────────────────────────────╮
-│  Welcome        now  ││                                                      │
-│                      ││                                                      │
-│                      ││                                                      │
-│                      ││                                                      │
-│                      ││                                                      │
-│                      ││                                                      │
-│                      ││                 Start a conversation                 │
-│                      ││ Ask about your code, or @mention an agent to have it │
-│                      ││                     make changes.                    │
-│                      ││                                                      │
-│                      ││                                                      │
-│                      ││                                                      │
-│                      ││                                                      │
-│                      ││                                                      │
-│                      ││                                                      │
-│                      ││                                                      │
-│                      │╰──────────────────────────────────────────────────────╯
-│                      │
-│                      │┏ Message the room ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-│                      │┃Type a message · @ mentions an agent or a person      ┃
-╰──────────────────────╯┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+╭ Welcome ─────────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                             Start a conversation                             │
+│      Ask about your code, or @mention an agent to have it make changes.      │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+┏ Message the room ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃Type a message · @ mentions an agent or a person · esc for keys               ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 enter send  …  f1 help  ✓ Confirmed with your passkey    this device only · demo

@@ -3,26 +3,26 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
-┏ Chats ━━━━━━━━━━━━━━━┓ Locked down  prompt-injection marker in a tool result …
-┃  ◆ Fix flaky c… 12m  ┃ U clear lockdown · no network for agents
-┃  #dev                ┃╭ Migrate auth to passkeys ────────────────────────────╮
-┃  ◆ Migrate aut… 50m  ┃│Lin  55m                                              │
-┃  #dev                ┃│  @scout check the forum thread about passkey         │
-┃  Weekly release… 1d  ┃│  fallbacks                                           │
-┃                      ┃│                                                      │
-┃                      ┃│@scout  via ollama  50m                               │
-┃                      ┃│  ⚒ fetch_url https://forum.example/passkey-fa… done  │
-┃                      ┃│  The page contained instructions aimed at agents, so │
-┃                      ┃│  this chat is locked down.                           │
-┃                      ┃│                                                      │
-┃                      ┃│                                                      │
-┃                      ┃│                                                      │
-┃                      ┃│                                                      │
-┃                      ┃│                                                      │
-┃                      ┃│                                                      │
-┃                      ┃╰──────────────────────────────────────────────────────╯
-┃                      ┃
-┃                      ┃╭ Message the room ────────────────────────────────────╮
-┃                      ┃│i to write · @ mentions an agent or a person          │
-┗━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────╯
+┏ Chats ━━━━━━━━━━━━━━━━━━━┓ Locked down  prompt-injection marker in a tool res…
+┃  ◆ Fix flaky check… 12m  ┃ U clear lockdown · no network for agents
+┃  #dev                    ┃╭ Migrate auth to passkeys · 2/3 ──────────────────╮
+┃  ◆ Migrate auth to… 50m  ┃│Lin  55m                                          │
+┃  #dev                    ┃│  @scout check the forum thread about passkey     │
+┃  Weekly release not… 1d  ┃│  fallbacks                                       │
+┃                          ┃│                                                  │
+┃                          ┃│@scout  via ollama  50m                           │
+┃                          ┃│  ⚒ fetch_url https://forum.example/passke… done  │
+┃                          ┃│  The page contained instructions aimed at agents,│
+┃                          ┃│  so this chat is locked down.                    │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃╰──────────────────────────────────────────────────╯
+┃                          ┃
+┃                          ┃╭ Message the room ────────────────────────────────╮
+┃                          ┃│i to write · @ mentions an agent or a person      │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────╯
 ↑↓ chats  i write  N new chat  tab pane  w workspaces  ? help       peer to peer
