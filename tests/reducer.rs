@@ -1544,3 +1544,35 @@ fn view_history_back_and_forward() {
     mods(&mut s, KeyCode::Char('o'), KeyModifiers::CONTROL);
     assert_eq!(s.view, View::Chats, "nothing further back");
 }
+
+/// D shows the whole transcript as plain text (no control or bidi
+/// characters), and quitting says what is still going.
+#[test]
+fn transcript_dump_and_exit_summary() {
+    let mut s = main_state();
+    assert_eq!(s.exit_summary(), None, "nothing going: nothing said");
+    let m = Message {
+        id: MessageId::new("m1"),
+        chat: ChatId::new("c1"),
+        author: Author::Agent { id: AgentId::new("a"), handle: "coder".into(), runtime: "claude-code".into() },
+        text: "fixed \u{1b}[2Jit\u{202e}\nline two".into(),
+        at: NOW - 60_000,
+        streaming: false,
+        tools: vec![ToolCall { name: "read_file".into(), preview: "src/a.rs".into(), ok: true, ..ToolCall::default() }],
+    };
+    update(&mut s, Msg::Transcript(WorkspaceId::new("a"), ChatId::new("c1"), Ok(vec![m])));
+    let fx = key(&mut s, KeyCode::Char('D'));
+    let [Effect::ShowText(text)] = fx.as_slice() else { panic!("{fx:?}") };
+    assert!(text.starts_with("c1\n") && text.contains("@coder  1m ago") && text.contains("[read_file] src/a.rs done"), "{text}");
+    assert!(text.contains("  fixed [2Jit\n  line two"), "control and bidi characters are gone: {text:?}");
+    update(&mut s, Msg::Shown(Ok(false)));
+    assert!(s.toasts.last().unwrap().text.contains("scrollback"));
+    let mut r = run_waiting("r1");
+    r.status = RunStatus::Running;
+    r.driver = Some("sff".into());
+    let mut done = run_waiting("r2");
+    done.status = RunStatus::Completed;
+    s.runs = vec![r, done];
+    s.proposals = vec![proposal("p1", ProposalStatus::Open), proposal("p2", ProposalStatus::Approved)];
+    assert_eq!(s.exit_summary().as_deref(), Some("lt: 1 run still going (driven by sff); 1 proposal waiting on your vote."));
+}

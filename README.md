@@ -433,7 +433,7 @@ The default keys (all can be rebound, see [Configure](#configure)):
 |---|---|
 | Anywhere | `q` / `ctrl-c` quit (while this device drives a run or an agent's turn it asks first; a second `ctrl-c` quits) · `:` / `ctrl-p` / `ctrl-k` command palette · `space` then pause: a sheet of the keys you can press here (any key then acts as usual) · `?` / `f1` help · `!` messages · `esc` back (to the view you came from) · `ctrl-o` / `alt-left` the previous view, `alt-right` forward again · `w` / `ctrl-w` workspaces · `+` add a workspace · `tab` / `shift-tab` next or previous pane · `ctrl-l` the chat list · `ctrl-x` stop the agent's turn in this chat (when it runs on this device) |
 | Lists | `↑ ↓` or `j k` move · `pgup pgdn` (`ctrl-u ctrl-d`) · `g G` (`home end`) first and last · `enter` (`l`, `→`) open · `/` find as you type (`↑ ↓` the previous or next match, `enter` keep, `esc` back to where you were) |
-| Chats | `i` write (lt starts with the cursor in the open chat's composer; `esc` leaves it) · `N` new chat · `o` show what tool calls returned · `L` lock the chat down · `U` clear the lockdown |
+| Chats | `D` the whole transcript in `$PAGER` (or left in your terminal's scrollback) · `i` write (lt starts with the cursor in the open chat's composer; `esc` leaves it) · `N` new chat · `o` show what tool calls returned · `L` lock the chat down · `U` clear the lockdown |
 | Composer | `enter` send · `alt-enter` / `ctrl-j` new line (`shift-enter` too, in terminals with the kitty keyboard protocol) · `@` mention, then `tab` or `enter` to accept · `↑` on an empty draft recalls what you sent (`↓` comes back) · `ctrl-r` search what you sent · `ctrl-g` write the draft in `$VISUAL` / `$EDITOR` · `esc` leave (the draft is kept) |
 | Workflows | `S` start a run (asks for its input) · `A` / `R` approve or reject the run's waiting gate (reject asks first) · `X` cancel the run (asks first) · `enter` on a run opens its chat |
 | Proposals | `A` approve · `R` reject (asks first) · `O` apply on a host · `W` withdraw the apply request |
@@ -488,6 +488,9 @@ fails. What already waited when you opened the workspace is quiet. Settings'
 "Notify me when I'm @mentioned or needed" turns all of it off.
 `--reduce-motion` (or `LT_REDUCE_MOTION=1`) stills the spinners: a running
 item shows a fixed glyph and its elapsed time.
+
+Quitting says what is still going, in one dim line, when anything is:
+`lt: 1 run still going (driven by sff); 2 proposals waiting on your vote.`
 
 The status bar has three parts: the keys for what has focus on the left
 (cut from the right, `? help` always stays), a notice in the centre when
@@ -583,6 +586,7 @@ app's or the CLI's.
 | `LT_PRESENCE_PORT` | the loopback port passkey prompts listen on (default any free port) |
 | `NO_COLOR` | the mono theme, unless a theme is set |
 | `LT_ASCII` | `1`: ASCII only, like `--ascii` |
+| `PAGER` | where `D` shows a chat's whole transcript (unset: your terminal's scrollback) |
 | `LT_REDUCE_MOTION` | `1`: spinners stand still, like `--reduce-motion` |
 | `LT_COLOR_DEPTH` | `truecolor`, `256` or `16`; by default 24-bit colour needs `COLORTERM=truecolor`, else lt uses the nearest of 256 colours (16 on a basic `TERM` such as `linux`) |
 

@@ -63,6 +63,8 @@ pub enum Msg {
     Checkout(WorkspaceId, Result<Option<String>>),
     /// A stop was asked for: how many turns stopped here.
     Stopped(WorkspaceId, ChatId, Result<usize>),
+    /// The text went to the pager (`true`) or the scrollback.
+    Shown(Result<bool>),
     /// The runtime switched the theme (`state.theme_name` says to what).
     ThemeChanged,
     /// The draft came back from the external editor.
@@ -146,6 +148,9 @@ pub enum Effect {
     SetCheckout(WorkspaceId, Option<String>),
     /// Stop the turns running on this device in a chat.
     StopTurn(WorkspaceId, ChatId),
+    /// Show this text in `$PAGER`, or leave it in the terminal's
+    /// scrollback.
+    ShowText(String),
     /// Suspend the screen and edit this draft in `$VISUAL`/`$EDITOR`; the
     /// runtime answers [`Msg::Edited`].
     EditDraft(String),
@@ -498,6 +503,15 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
         }
         Msg::Stopped(_, _, Err(e)) => {
             s.toast(ToastKind::Error, format!("Couldn't stop the turn: {e}"));
+            vec![]
+        }
+        Msg::Shown(Ok(false)) => {
+            s.toast(ToastKind::Ok, "The transcript is in your terminal's scrollback (set $PAGER to read it in a pager)");
+            vec![]
+        }
+        Msg::Shown(Ok(true)) => vec![],
+        Msg::Shown(Err(e)) => {
+            s.toast(ToastKind::Error, format!("Couldn't show the transcript: {e}"));
             vec![]
         }
         Msg::ThemeChanged => {
@@ -1996,6 +2010,12 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
                 return vec![];
             }
             vec![Effect::StopTurn(w, c)]
+        }
+        DumpTranscript => {
+            if s.open_chat.is_none() || s.transcript.is_empty() {
+                return vec![];
+            }
+            vec![Effect::ShowText(s.transcript_text())]
         }
         ToggleTools => {
             s.tools_expanded = !s.tools_expanded;

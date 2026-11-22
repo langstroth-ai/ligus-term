@@ -856,6 +856,56 @@ impl State {
         })
     }
 
+    /// The open chat's transcript as plain text, for `$PAGER` or the
+    /// scrollback: control and bidi characters removed, since it is
+    /// written to the terminal as it is.
+    pub fn transcript_text(&self) -> String {
+        let clean = |t: &str| -> String {
+            t.chars()
+                .filter(|c| {
+                    (*c == '\n' || *c == '\t' || !c.is_control())
+                        && !matches!(c, '\u{200b}'..='\u{200f}' | '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}' | '\u{feff}')
+                })
+                .collect()
+        };
+        let title = self.open_chat_summary().map(|c| c.title.clone()).unwrap_or_default();
+        let mut out = format!("{}\n\n", clean(&title));
+        for m in &self.transcript {
+            out.push_str(&format!("{}  {}\n", clean(&m.author.display()), ago_phrase(self.now, m.at)));
+            for t in &m.tools {
+                out.push_str(&format!("  [{}] {} {}\n", clean(&t.name), clean(&t.preview), if t.ok { "done" } else { "error" }));
+            }
+            for l in clean(&m.text).lines() {
+                out.push_str(&format!("  {l}\n"));
+            }
+            out.push('\n');
+        }
+        out
+    }
+
+    /// What is still going when you quit, in one line, or nothing: runs
+    /// still moving and what waits on you.
+    pub fn exit_summary(&self) -> Option<String> {
+        let mut parts = vec![];
+        let runs: Vec<&Run> = self.runs.iter().filter(|r| !r.status.is_terminal()).collect();
+        if !runs.is_empty() {
+            let hosts: std::collections::BTreeSet<&str> =
+                runs.iter().filter_map(|r| r.driver.as_deref()).map(|d| if d == "This device" { "this device" } else { d }).collect();
+            let on =
+                if hosts.is_empty() { String::new() } else { format!(" (driven by {})", hosts.into_iter().collect::<Vec<_>>().join(", ")) };
+            parts.push(format!("{} run{} still going{on}", runs.len(), if runs.len() == 1 { "" } else { "s" }));
+        }
+        let votes = self.proposals.iter().filter(|p| p.status == ProposalStatus::Open && p.can_vote.is_yes()).count();
+        if votes > 0 {
+            parts.push(format!("{votes} proposal{} waiting on your vote", if votes == 1 { "" } else { "s" }));
+        }
+        let asks = self.tasks.iter().filter(|t| t.active && !t.open_questions.is_empty()).count();
+        if asks > 0 {
+            parts.push(format!("{asks} question{} from agents", if asks == 1 { "" } else { "s" }));
+        }
+        (!parts.is_empty()).then(|| format!("lt: {}.", parts.join("; ")))
+    }
+
     /// Agents working on a reply and runs moving, in this workspace (the
     /// status bar's "2 running").
     pub fn running(&self) -> usize {

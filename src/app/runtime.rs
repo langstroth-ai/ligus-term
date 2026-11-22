@@ -79,6 +79,7 @@ pub async fn run_effect(b: Arc<dyn Backend>, fx: Effect) -> Msg {
         LoadHandoffs(w) => Msg::Handoffs(w.clone(), b.handoffs(&w).await),
         LoadCheckout(w) => Msg::Checkout(w.clone(), b.checkout(&w).await),
         SetCheckout(w, p) => Msg::Checkout(w.clone(), b.set_checkout(&w, p.as_deref()).await),
+        ShowText(_) => Msg::Shown(Err(crate::backend::BackendError("the pager runs only in the full-screen app".into()))),
         StopTurn(w, c) => Msg::Stopped(w.clone(), c.clone(), b.stop_turn(&w, &c).await),
         // The full-screen loop runs the editor itself (it owns the
         // terminal); anywhere else there is no terminal to lend it.
@@ -126,6 +127,54 @@ fn spawn_input(t: mpsc::UnboundedSender<Msg>) -> tokio::task::JoinHandle<()> {
 pub fn editor_command(env: impl Fn(&str) -> Option<String>) -> Vec<String> {
     let cmd = env("VISUAL").filter(|v| !v.trim().is_empty()).or_else(|| env("EDITOR").filter(|v| !v.trim().is_empty()));
     cmd.unwrap_or_else(|| "vi".into()).split_whitespace().map(String::from).collect()
+}
+
+/// Leave the screen, show `text` in `$PAGER` (or print it, so it stays in
+/// the terminal's scrollback), and take the screen back. `Ok(true)` when a
+/// pager showed it.
+fn show_text(terminal: &mut ratatui::DefaultTerminal, text: &str) -> Result<bool, String> {
+    use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode};
+    use std::io::Write;
+    let mouse = MOUSE.load(std::sync::atomic::Ordering::Relaxed);
+    let mut stdout = std::io::stdout();
+    if mouse {
+        let _ = crossterm::execute!(stdout, crossterm::event::DisableMouseCapture);
+    }
+    let _ = crossterm::execute!(stdout, crossterm::event::DisableBracketedPaste, LeaveAlternateScreen, crossterm::cursor::Show);
+    let _ = disable_raw_mode();
+    let pager: Vec<String> = std::env::var("PAGER")
+        .ok()
+        .filter(|p| !p.trim().is_empty())
+        .map(|p| p.split_whitespace().map(String::from).collect())
+        .unwrap_or_default();
+    let result = if pager.is_empty() {
+        let _ = stdout.write_all(text.as_bytes());
+        let _ = stdout.flush();
+        Ok(false)
+    } else {
+        match std::process::Command::new(&pager[0]).args(&pager[1..]).stdin(std::process::Stdio::piped()).spawn() {
+            Ok(mut child) => {
+                if let Some(mut stdin) = child.stdin.take() {
+                    let _ = stdin.write_all(text.as_bytes());
+                }
+                child.wait().map(|_| true).map_err(|e| e.to_string())
+            }
+            Err(e) => Err(format!("{}: {e} (check $PAGER)", pager[0])),
+        }
+    };
+    let _ = enable_raw_mode();
+    let _ = crossterm::execute!(
+        stdout,
+        EnterAlternateScreen,
+        crossterm::event::EnableBracketedPaste,
+        crossterm::terminal::Clear(crossterm::terminal::ClearType::All)
+    );
+    if mouse {
+        let _ = crossterm::execute!(stdout, crossterm::event::EnableMouseCapture);
+    }
+    terminal.swap_buffers();
+    terminal.swap_buffers();
+    result
 }
 
 /// Write the draft to a private temporary file (0600, a fresh name), run
@@ -266,17 +315,19 @@ async fn event_loop(
     terminal.draw(|f| crate::ui::draw(f, state, &theme))?;
     while let Some(msg) = rx.recv().await {
         let mut edit = None;
-        let run = |tasks: &mut tokio::task::JoinSet<()>, fx: Effect, edit: &mut Option<String>| match fx {
+        let mut page = None;
+        let run = |tasks: &mut tokio::task::JoinSet<()>, fx: Effect, edit: &mut Option<String>, page: &mut Option<String>| match fx {
             Effect::EditDraft(text) => *edit = Some(text),
+            Effect::ShowText(text) => *page = Some(text),
             fx => spawn(tasks, fx),
         };
         for fx in update(state, msg) {
-            run(&mut tasks, fx, &mut edit);
+            run(&mut tasks, fx, &mut edit, &mut page);
         }
         // Drain whatever else is queued before drawing once.
         while let Ok(msg) = rx.try_recv() {
             for fx in update(state, msg) {
-                run(&mut tasks, fx, &mut edit);
+                run(&mut tasks, fx, &mut edit, &mut page);
             }
         }
         if state.quit {
@@ -284,6 +335,13 @@ async fn event_loop(
         }
         // The editor gets the terminal: stop reading keys, leave the
         // alternate screen, wait for it, and take the screen back.
+        if let Some(text) = page {
+            input.abort();
+            let _ = input.await;
+            let result = show_text(terminal, &text);
+            input = spawn_input(tx.clone());
+            let _ = tx.send(Msg::Shown(result.map_err(crate::backend::BackendError)));
+        }
         if let Some(text) = edit {
             input.abort();
             let _ = input.await;
