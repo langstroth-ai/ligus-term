@@ -15,6 +15,13 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   and agents. Each action shows its key. `enter` runs it or goes to the
   thing and selects it; `esc` closes. Context actions only show where they
   apply, so nothing acts on a selection you can't see.
+- Tab completion and a man page: `lt completions bash|zsh|fish` prints a
+  completion script (flags, commands, help topics, themes, and workspace
+  names after `--workspace` and `use`), and `lt man` prints the man page.
+  Neither opens a device; workspace names come from the data dir's
+  workspace list alone, so completion never touches the secret store.
+  `lt help completions` says where to put them. The Homebrew formula
+  installs both.
 - The mouse: click a tab, a chat or a proposal, or the transcript or
   composer to focus it; the wheel scrolls lists, the transcript and the
   diff, and moves through overlays. On by default; `mouse = false` in the

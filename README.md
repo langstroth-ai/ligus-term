@@ -68,6 +68,22 @@ mkdir -p ~/.local/bin && install -m 0755 "lt-$target" ~/.local/bin/lt
 lt --version
 ```
 
+### Tab completion and the man page
+
+Homebrew installs both. Otherwise `lt` prints them itself (without opening
+a device):
+
+```sh
+lt completions bash > ~/.local/share/bash-completion/completions/lt
+lt completions zsh  > "${fpath[1]}/_lt"
+lt completions fish > ~/.config/fish/completions/lt.fish
+lt man > ~/.local/share/man/man1/lt.1
+```
+
+They complete flags, commands, help topics, themes and workspace names
+(after `--workspace` and `use`, read from the workspace list only, never
+the secret store). `lt help completions` has the same.
+
 ### From source
 
 Rust 1.91 or newer:

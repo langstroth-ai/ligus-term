@@ -332,6 +332,9 @@ jobs:
 
             def install
               bin.install Dir["lt-*"].first => "lt"
+              # lt prints its completions and man page without a device.
+              generate_completions_from_executable(bin/"lt", "completions", shells: [:bash, :zsh, :fish])
+              (man1/"lt.1").write Utils.safe_popen_read(bin/"lt", "man")
             end
 
             def caveats

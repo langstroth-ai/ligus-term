@@ -611,6 +611,7 @@ pub const TOPICS: &[(&str, &str)] = &[
     ("kubernetes", "connecting to a Kubernetes (or home server) deployment and admitting its boxes"),
     ("troubleshooting", "refusals, keychain prompts, passkeys without a browser, and other fixes"),
     ("env", "every environment variable lt reads"),
+    ("completions", "tab completion for bash, zsh and fish, and the man page"),
 ];
 
 /// What `lt --help` prints after the flags.
@@ -633,7 +634,8 @@ pub fn after_long_help() -> String {
          lt                                 first run: your name, then create, join or connect\n  \
          lt --plain --json agents           one command, JSON Lines out\n  \
          lt --plain run 1 \"fix the tests\"   start workflow 1 and follow it to the end\n  \
-         lt help quickstart                 the first steps\n\
+         lt help quickstart                 the first steps\n  \
+         lt completions zsh                 tab completion (bash, zsh, fish); lt man prints the man page\n\
          \nLigus is short for ligustica, the Italian honeybee.",
     );
     s
@@ -774,6 +776,23 @@ names what was done, then that command's arguments (args in JSON).
     s.push('\n');
     s
 }
+
+const COMPLETIONS: &str = "\
+Tab completion and the man page
+
+lt prints both itself, without opening a device:
+
+  lt completions bash > ~/.local/share/bash-completion/completions/lt
+  lt completions zsh  > \"${fpath[1]}/_lt\"     (a directory on your $fpath)
+  lt completions fish > ~/.config/fish/completions/lt.fish
+  lt man > ~/.local/share/man/man1/lt.1           (then: man lt)
+
+Homebrew installs all of them with lt. The scripts complete flags, commands,
+help topics, themes, and workspace names after --workspace and use. Workspace
+names come from the data dir's workspace list, read as a plain file: tab
+completion never opens the database or the secret store, so it can't cause a
+keychain prompt. Chats, proposals and agents aren't completed for that reason.
+";
 
 const QUICKSTART: &str = "\
 Quick start
@@ -1023,6 +1042,7 @@ pub fn topic(name: &str, flags: &[(String, Option<String>, String)]) -> Option<S
         "kubernetes" | "k8s" | "deploy" => KUBERNETES.to_string(),
         "troubleshooting" | "trouble" => TROUBLESHOOTING.to_string(),
         "env" | "environment" => format!("Environment variables lt reads\n\n{}", env_text()),
+        "completions" | "man" => COMPLETIONS.to_string(),
         "exit" | "exit-codes" => format!("Exit codes\n{EXIT_CODES}\n"),
         _ => String::new(),
     };
