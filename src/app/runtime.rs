@@ -79,7 +79,78 @@ pub async fn run_effect(b: Arc<dyn Backend>, fx: Effect) -> Msg {
         LoadHandoffs(w) => Msg::Handoffs(w.clone(), b.handoffs(&w).await),
         LoadCheckout(w) => Msg::Checkout(w.clone(), b.checkout(&w).await),
         SetCheckout(w, p) => Msg::Checkout(w.clone(), b.set_checkout(&w, p.as_deref()).await),
+        // The full-screen loop runs the editor itself (it owns the
+        // terminal); anywhere else there is no terminal to lend it.
+        EditDraft(_) => Msg::Edited(Err(crate::backend::BackendError("the editor runs only in the full-screen app".into()))),
     }
+}
+
+/// Read terminal input into messages until aborted.
+fn spawn_input(t: mpsc::UnboundedSender<Msg>) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        let mut input = EventStream::new();
+        while let Some(Ok(ev)) = input.next().await {
+            let msg = match ev {
+                TermEvent::Key(k) if k.kind != KeyEventKind::Release => Msg::Key(k),
+                TermEvent::Paste(p) => Msg::Paste(p),
+                TermEvent::Resize(w, h) => Msg::Resize(w, h),
+                _ => continue,
+            };
+            if t.send(msg).is_err() {
+                break;
+            }
+        }
+    })
+}
+
+/// The editor to run: `$VISUAL`, else `$EDITOR`, else `vi`, split on
+/// spaces so `code --wait` works.
+pub fn editor_command(env: impl Fn(&str) -> Option<String>) -> Vec<String> {
+    let cmd = env("VISUAL").filter(|v| !v.trim().is_empty()).or_else(|| env("EDITOR").filter(|v| !v.trim().is_empty()));
+    cmd.unwrap_or_else(|| "vi".into()).split_whitespace().map(String::from).collect()
+}
+
+/// Write the draft to a private temporary file (0600, a fresh name), run
+/// the editor on it with the terminal restored, read it back and delete it.
+fn suspend_for_editor(terminal: &mut ratatui::DefaultTerminal, text: &str) -> Result<String, String> {
+    use std::io::Write;
+    let path = std::env::temp_dir().join(format!("lt-draft-{}.md", uuid::Uuid::new_v4()));
+    let mut open = std::fs::OpenOptions::new();
+    open.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        open.mode(0o600);
+    }
+    let mut file = open.open(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+    file.write_all(text.as_bytes()).map_err(|e| e.to_string())?;
+    drop(file);
+    // Hand the terminal over as it was before lt started, and take it back
+    // the same way (the same Terminal, so nothing queries the cursor).
+    use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode};
+    let mut stdout = std::io::stdout();
+    let _ = crossterm::execute!(stdout, crossterm::event::DisableBracketedPaste, LeaveAlternateScreen, crossterm::cursor::Show);
+    let _ = disable_raw_mode();
+    let cmd = editor_command(|k| std::env::var(k).ok());
+    let status = std::process::Command::new(&cmd[0]).args(&cmd[1..]).arg(&path).status();
+    let _ = enable_raw_mode();
+    let _ = crossterm::execute!(
+        stdout,
+        EnterAlternateScreen,
+        crossterm::event::EnableBracketedPaste,
+        crossterm::terminal::Clear(crossterm::terminal::ClearType::All)
+    );
+    // Both buffers blank, so the next draw repaints everything (ratatui's
+    // own clear() would ask the terminal for the cursor first).
+    terminal.swap_buffers();
+    terminal.swap_buffers();
+    let out = match status {
+        Ok(st) if st.success() => std::fs::read_to_string(&path).map_err(|e| e.to_string()),
+        Ok(st) => Err(format!("{} exited with {st}; the draft is unchanged", cmd[0])),
+        Err(e) => Err(format!("{}: {e} (set $VISUAL or $EDITOR)", cmd[0])),
+    };
+    let _ = std::fs::remove_file(&path);
+    out
 }
 
 /// Run the full-screen app until the person quits.
@@ -115,21 +186,7 @@ async fn event_loop(
     let (tx, mut rx) = mpsc::unbounded_channel::<Msg>();
     let mut tasks = tokio::task::JoinSet::new();
 
-    let t = tx.clone();
-    tasks.spawn(async move {
-        let mut input = EventStream::new();
-        while let Some(Ok(ev)) = input.next().await {
-            let msg = match ev {
-                TermEvent::Key(k) if k.kind != KeyEventKind::Release => Msg::Key(k),
-                TermEvent::Paste(p) => Msg::Paste(p),
-                TermEvent::Resize(w, h) => Msg::Resize(w, h),
-                _ => continue,
-            };
-            if t.send(msg).is_err() {
-                break;
-            }
-        }
-    });
+    let mut input = spawn_input(tx.clone());
     let t = tx.clone();
     let mut events = backend.events();
     tasks.spawn(async move {
@@ -163,17 +220,31 @@ async fn event_loop(
 
     terminal.draw(|f| crate::ui::draw(f, state, &theme))?;
     while let Some(msg) = rx.recv().await {
+        let mut edit = None;
+        let run = |tasks: &mut tokio::task::JoinSet<()>, fx: Effect, edit: &mut Option<String>| match fx {
+            Effect::EditDraft(text) => *edit = Some(text),
+            fx => spawn(tasks, fx),
+        };
         for fx in update(state, msg) {
-            spawn(&mut tasks, fx);
+            run(&mut tasks, fx, &mut edit);
         }
         // Drain whatever else is queued before drawing once.
         while let Ok(msg) = rx.try_recv() {
             for fx in update(state, msg) {
-                spawn(&mut tasks, fx);
+                run(&mut tasks, fx, &mut edit);
             }
         }
         if state.quit {
             break;
+        }
+        // The editor gets the terminal: stop reading keys, leave the
+        // alternate screen, wait for it, and take the screen back.
+        if let Some(text) = edit {
+            input.abort();
+            let _ = input.await;
+            let result = suspend_for_editor(terminal, &text);
+            input = spawn_input(tx.clone());
+            let _ = tx.send(Msg::Edited(result.map_err(crate::backend::BackendError)));
         }
         if std::mem::take(&mut state.bell) {
             use std::io::Write;

@@ -4,7 +4,7 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
-┏ Chats ━━━━━━━━━┏ Help · 1-40 of 86 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
+┏ Chats ━━━━━━━━━┏ Help · 1-40 of 88 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
 ┃  ◆ Fix flaky ch┃What has focus comes first. / searches. Rebind keys in the config file.   ┃                │
 ┃  #dev          ┃                                                                          ┃it reading the  │
 ┃  ◆ Migrate auth┃Chats  here                                                               ┃                │

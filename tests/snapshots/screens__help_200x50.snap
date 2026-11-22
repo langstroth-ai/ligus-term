@@ -3,7 +3,7 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
-┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ────┏ Help · 1-46 of 86 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────────────────────────────────────────────╮
+┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ────┏ Help · 1-46 of 88 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────────────────────────────────────────────╮
 ┃  ◆ Fix flaky checkout … 12m  ┃│Ada  40m                     ┃What has focus comes first. / searches. Rebind keys in the config file.   ┃                                                             │
 ┃  #dev                        ┃│  The checkout test fails abo┃                                                                          ┃                                                             │
 ┃  ◆ Migrate auth to pas… 50m  ┃│                             ┃Chats  here                                                               ┃                                                             │
@@ -47,8 +47,8 @@ expression: screen
 ┃                              ┃│                             ┃  alt-enter, ctrl-j, shift-enter New line                                 ┃                                                             │
 ┃                              ┃│                             ┃  esc                      Leave the composer (keeps the draft)           ┃                                                             │
 ┃                              ┃╰─────────────────────────────┃  tab                      Accept the @mention                            ┃─────────────────────────────────────────────────────────────╯
-┃                              ┃                              ┃                                                                          ┃
-┃                              ┃╭ Message the room ───────────┃Proposals                                                                 ┃─────────────────────────────────────────────────────────────╮
-┃                              ┃│i to write · @ mentions an ag┃  A                        Approve                                        ┃                                                             │
+┃                              ┃                              ┃  ctrl-g                   Write the draft in $VISUAL or $EDITOR          ┃
+┃                              ┃╭ Message the room ───────────┃  ctrl-r                   Search what you sent (↑ on an empty draft recal┃─────────────────────────────────────────────────────────────╮
+┃                              ┃│i to write · @ mentions an ag┃                                                                          ┃                                                             │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰─────────────────────────────┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛─────────────────────────────────────────────────────────────╯
 / search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                                                                                                              peer to peer · 1 running · demo

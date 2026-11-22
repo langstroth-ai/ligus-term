@@ -19,6 +19,13 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   here: the view's actions, the views, and what works anywhere. The next
   key acts as it always does; `esc` or `space` put the sheet away. Pressing
   the key without pausing shows nothing.
+- The composer remembers what you sent: `↑` on an empty draft recalls
+  your messages in this chat (then what you sent elsewhere this session),
+  newest first, and `↓` comes back; editing a recalled message keeps it as
+  the draft. `ctrl-r` searches them. `ctrl-g` opens the draft in
+  `$VISUAL` (else `$EDITOR`, else `vi`) and puts what you save back in the
+  composer; the draft goes through a private temporary file (0600) that is
+  deleted afterwards. `i` still enters the composer.
 - Chats show where each one stands, with one glyph before the title: `⠹`
   working, `◆` needs you (an agent's open question or a proposal waiting
   on your vote), `⧗` queued, `✓` done since you last looked, `✕` failed and

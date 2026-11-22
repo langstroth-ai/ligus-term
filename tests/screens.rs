@@ -530,6 +530,19 @@ async fn which_key_sheet() {
     snap(&h, "which_key", "space, then a pause: the keys you can press here");
 }
 
+/// `ctrl-r` in the composer: what you sent, narrowed as you type.
+#[tokio::test]
+async fn composer_history_search() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char('i')).await;
+    for m in ["@coder can you rerun the flaky test?", "Thanks, that fixed it"] {
+        h.chars(m).await;
+        h.key(KeyCode::Enter).await;
+    }
+    h.ctrl('r').await;
+    snap(&h, "history_search", "ctrl-r in the composer: what you sent");
+}
+
 /// The chat list's chips: one glyph per state, and nothing for an idle
 /// chat.
 #[tokio::test]

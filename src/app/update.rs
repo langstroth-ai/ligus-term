@@ -57,6 +57,8 @@ pub enum Msg {
     Tasks(WorkspaceId, Result<Vec<TaskState>>),
     Handoffs(WorkspaceId, Result<Vec<Handoff>>),
     Checkout(WorkspaceId, Result<Option<String>>),
+    /// The draft came back from the external editor.
+    Edited(Result<String>),
     /// A fire-and-report action finished; `ok` is the toast on success.
     Done {
         ok: String,
@@ -134,6 +136,9 @@ pub enum Effect {
     LoadHandoffs(WorkspaceId),
     LoadCheckout(WorkspaceId),
     SetCheckout(WorkspaceId, Option<String>),
+    /// Suspend the screen and edit this draft in `$VISUAL`/`$EDITOR`; the
+    /// runtime answers [`Msg::Edited`].
+    EditDraft(String),
 }
 
 /// How long the proposal selection rests before its diff loads.
@@ -424,6 +429,20 @@ pub fn update(s: &mut State, msg: Msg) -> Vec<Effect> {
             s.checkout = c;
             vec![]
         }
+        Msg::Edited(Ok(text)) => {
+            if s.open_chat.is_some() {
+                s.composer.set(text.trim_end_matches(['\n', '\r']));
+                s.history_pos = None;
+                if s.view == View::Chats {
+                    s.focus = Focus::Composer;
+                }
+            }
+            vec![]
+        }
+        Msg::Edited(Err(e)) => {
+            s.toast(ToastKind::Error, format!("Couldn't open the editor: {e}"));
+            vec![]
+        }
         Msg::Done { ok, result: Ok(()) } => {
             if !ok.is_empty() {
                 s.toast(ToastKind::Ok, ok);
@@ -707,7 +726,7 @@ fn paste(s: &mut State, text: &str) -> Vec<Effect> {
                 }
             }
         }
-        (Some(Overlay::Palette { query: b, sel }), _) => {
+        (Some(Overlay::Palette { query: b, sel }), _) | (Some(Overlay::History { query: b, sel }), _) => {
             b.insert_str(text.trim());
             *sel = 0;
         }
@@ -1034,6 +1053,42 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
             };
             let n = crate::app::palette::filtered(s, &q).len();
             if let Some(Overlay::Palette { sel, .. }) = &mut s.overlay {
+                *sel = (*sel).min(n.saturating_sub(1));
+            }
+            vec![]
+        }
+        Overlay::History { query, sel } => {
+            let matches = |s: &State, q: &str| -> Vec<String> {
+                let q = q.to_lowercase();
+                s.my_history().into_iter().filter(|t| t.to_lowercase().contains(q.trim())).collect()
+            };
+            match k.code {
+                KeyCode::Esc => s.overlay = None,
+                KeyCode::Up => *sel = sel.saturating_sub(1),
+                KeyCode::Down => *sel += 1,
+                KeyCode::Char('r') if k.modifiers.contains(KeyModifiers::CONTROL) => *sel += 1,
+                KeyCode::Enter => {
+                    let (q, i) = (query.text.clone(), *sel);
+                    s.overlay = None;
+                    if let Some(t) = matches(s, &q).get(i) {
+                        s.composer.set(t);
+                        s.history_pos = None;
+                        s.focus = Focus::Composer;
+                    }
+                    return vec![];
+                }
+                _ => {
+                    if query.handle(&k) {
+                        *sel = 0;
+                    }
+                }
+            }
+            let q = match &s.overlay {
+                Some(Overlay::History { query, .. }) => query.text.clone(),
+                _ => return vec![],
+            };
+            let n = matches(s, &q).len();
+            if let Some(Overlay::History { sel, .. }) = &mut s.overlay {
                 *sel = (*sel).min(n.saturating_sub(1));
             }
             vec![]
@@ -1465,11 +1520,44 @@ fn main_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
             }
         }
     }
+    // ↑ on an empty draft (or while browsing) recalls what you sent, ↓
+    // comes back; any other edit keeps the recalled text as the draft.
+    if s.focus == Focus::Composer && s.view == View::Chats && k.modifiers.is_empty() {
+        let first_line = !s.composer.text[..s.composer.cursor].contains('\n');
+        let last_line = !s.composer.text[s.composer.cursor..].contains('\n');
+        match k.code {
+            KeyCode::Up if first_line && (s.composer.text.is_empty() || s.history_pos.is_some()) => {
+                let h = s.my_history();
+                let next = s.history_pos.map_or(0, |p| p + 1);
+                if let Some(t) = h.get(next) {
+                    s.composer.set(t);
+                    s.history_pos = Some(next);
+                }
+                return vec![];
+            }
+            KeyCode::Down if last_line && s.history_pos.is_some() => {
+                let h = s.my_history();
+                match s.history_pos {
+                    Some(0) | None => {
+                        s.composer.take();
+                        s.history_pos = None;
+                    }
+                    Some(p) => {
+                        s.composer.set(h.get(p - 1).map(String::as_str).unwrap_or(""));
+                        s.history_pos = Some(p - 1);
+                    }
+                }
+                return vec![];
+            }
+            _ => {}
+        }
+    }
     let contexts = s.contexts();
     let action = s.keymap.resolve(&contexts, &k, typing);
     let Some(action) = action else {
         if s.focus == Focus::Composer && s.view == View::Chats && s.composer.handle(&k) {
             s.mention_sel = 0;
+            s.history_pos = None;
         }
         return vec![];
     };
@@ -1580,6 +1668,8 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
                 return vec![];
             }
             let text = s.composer.take();
+            s.sent.push(text.clone());
+            s.history_pos = None;
             s.turn_outcomes.remove(&c);
             s.mention_dismissed = None;
             s.transcript_scroll = 0;
@@ -1594,6 +1684,18 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             vec![]
         }
         Complete => vec![],
+        EditInEditor => {
+            if s.open_chat.is_none() {
+                return vec![];
+            }
+            vec![Effect::EditDraft(s.composer.text.clone())]
+        }
+        SearchHistory => {
+            if s.open_chat.is_some() {
+                s.overlay = Some(Overlay::History { query: TextBuf::single(), sel: 0 });
+            }
+            vec![]
+        }
         Approve | Reject => {
             let Some(p) = s.selected_proposal() else { return vec![] };
             if let Allowed::No(r) = &p.can_vote {

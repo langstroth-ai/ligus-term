@@ -1227,3 +1227,65 @@ fn which_key_then_any_key_acts() {
     key(&mut s, KeyCode::Char(' '));
     assert!(s.which_key.is_none());
 }
+
+/// The composer: ↑ on an empty draft recalls what you sent (newest first),
+/// ↓ comes back to an empty draft, an edit keeps the recalled text; ctrl-r
+/// searches it; ctrl-g hands the draft to the editor and takes the result
+/// back; `i` still enters the composer.
+#[test]
+fn composer_history_search_and_editor() {
+    let mut s = main_state();
+    key(&mut s, KeyCode::Char('i'));
+    assert_eq!(s.focus, Focus::Composer);
+    for m in ["first try", "second thought", "@coder fix the clock"] {
+        typed(&mut s, m);
+        let fx = key(&mut s, KeyCode::Enter);
+        assert!(fx.iter().any(|f| matches!(f, Effect::Send { .. })));
+    }
+    key(&mut s, KeyCode::Up);
+    assert_eq!(s.composer.text, "@coder fix the clock");
+    key(&mut s, KeyCode::Up);
+    assert_eq!(s.composer.text, "second thought");
+    key(&mut s, KeyCode::Down);
+    assert_eq!(s.composer.text, "@coder fix the clock");
+    key(&mut s, KeyCode::Down);
+    assert_eq!(s.composer.text, "", "↓ past the newest is an empty draft again");
+    key(&mut s, KeyCode::Up);
+    typed(&mut s, "!");
+    assert_eq!(s.composer.text, "@coder fix the clock!");
+    key(&mut s, KeyCode::Up);
+    assert_eq!(s.composer.text, "@coder fix the clock!", "a draft you edited isn't replaced by ↑");
+    s.composer.take();
+    // ctrl-r: search what you sent.
+    mods(&mut s, KeyCode::Char('r'), KeyModifiers::CONTROL);
+    assert!(matches!(s.overlay, Some(Overlay::History { .. })));
+    typed(&mut s, "thought");
+    key(&mut s, KeyCode::Enter);
+    assert!(s.overlay.is_none());
+    assert_eq!(s.composer.text, "second thought");
+    // ctrl-g: the editor gets the draft and its result replaces it.
+    let fx = mods(&mut s, KeyCode::Char('g'), KeyModifiers::CONTROL);
+    assert_eq!(fx, vec![Effect::EditDraft("second thought".into())]);
+    update(&mut s, Msg::Edited(Ok("a longer\nmessage\n".into())));
+    assert_eq!(s.composer.text, "a longer\nmessage");
+    assert_eq!(s.focus, Focus::Composer);
+    update(&mut s, Msg::Edited(Err(BackendError("vi: not found".into()))));
+    assert_eq!(s.composer.text, "a longer\nmessage", "a failed editor leaves the draft alone");
+    assert!(s.toasts.last().unwrap().text.contains("vi: not found"));
+    // `i` still works after leaving.
+    key(&mut s, KeyCode::Esc);
+    key(&mut s, KeyCode::Char('i'));
+    assert_eq!(s.focus, Focus::Composer);
+}
+
+/// $VISUAL wins over $EDITOR, both split on spaces, and vi is the last
+/// resort.
+#[test]
+fn editor_command_from_the_environment() {
+    use ligus_term::app::runtime::editor_command;
+    let env =
+        |pairs: &'static [(&'static str, &'static str)]| move |k: &str| pairs.iter().find(|(n, _)| *n == k).map(|(_, v)| v.to_string());
+    assert_eq!(editor_command(env(&[("VISUAL", "code --wait"), ("EDITOR", "nano")])), ["code", "--wait"]);
+    assert_eq!(editor_command(env(&[("VISUAL", " "), ("EDITOR", "nano")])), ["nano"]);
+    assert_eq!(editor_command(env(&[])), ["vi"]);
+}

@@ -281,6 +281,11 @@ pub enum Overlay {
         query: TextBuf,
         sel: usize,
     },
+    /// `ctrl-r` in the composer: what you sent, filtered by a query.
+    History {
+        query: TextBuf,
+        sel: usize,
+    },
     /// "Are you sure?" before something that can't be undone from here:
     /// `y` (or enter) goes ahead, any other key backs out.
     Confirm {
@@ -416,6 +421,10 @@ pub struct State {
     pub composer: TextBuf,
     /// Drafts kept per chat when switching.
     pub drafts: HashMap<ChatId, String>,
+    /// What you sent this session, oldest first (composer history).
+    pub sent: Vec<String>,
+    /// Browsing the history with `↑`/`↓`: how far back (0 is the newest).
+    pub history_pos: Option<usize>,
     pub mentionables: Vec<Mentionable>,
     pub mention_sel: usize,
     /// The composer text at which the popup was dismissed with Esc.
@@ -497,6 +506,8 @@ impl State {
             turn_outcomes: HashMap::new(),
             composer: TextBuf::multi(),
             drafts: HashMap::new(),
+            sent: vec![],
+            history_pos: None,
             mentionables: vec![],
             mention_sel: 0,
             mention_dismissed: None,
@@ -606,6 +617,21 @@ impl State {
         self.hosts.iter().find(|h| h.online && h.kind == HostKind::Worker).or_else(|| self.hosts.iter().find(|h| h.this_device))
     }
 
+    /// What you sent, newest first and without repeats: your messages in
+    /// the open chat, then what you sent elsewhere this session. `↑` on an
+    /// empty draft and `ctrl-r` read it.
+    pub fn my_history(&self) -> Vec<String> {
+        let me = self.members.iter().find(|m| m.you).map(|m| m.id.clone());
+        let mut out: Vec<String> = vec![];
+        let mine = self.transcript.iter().rev().filter(|m| matches!(&m.author, Author::Member { id, .. } if Some(id) == me.as_ref()));
+        for text in mine.map(|m| m.text.clone()).chain(self.sent.iter().rev().cloned()) {
+            if !text.trim().is_empty() && !out.contains(&text) {
+                out.push(text);
+            }
+        }
+        out
+    }
+
     /// The @mention candidates for what is being typed, at most 8.
     pub fn mention_candidates(&self) -> Vec<&Mentionable> {
         if self.focus != Focus::Composer || self.mention_dismissed.as_deref() == Some(self.composer.text.as_str()) {
@@ -625,7 +651,7 @@ impl State {
             Some(Overlay::AddWorkspace(f)) => f.field != FormField::Mode,
             Some(Overlay::NewChat(_)) | Some(Overlay::StartRun { .. }) | Some(Overlay::BindCheckout(_)) => true,
             Some(Overlay::Help { searching, .. }) => *searching,
-            Some(Overlay::Palette { .. }) => true,
+            Some(Overlay::Palette { .. }) | Some(Overlay::History { .. }) => true,
             Some(Overlay::AdmitBox { result: None, checked: None, .. }) => true,
             Some(_) => false,
             None => match &self.phase {

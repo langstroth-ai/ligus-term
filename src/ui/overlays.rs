@@ -19,6 +19,7 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         Some(Overlay::Help { scroll, .. }) => help(f, area, s, *scroll, t),
         Some(Overlay::Messages { scroll }) => messages(f, area, s, *scroll, t),
         Some(Overlay::Palette { query, sel }) => super::palette::draw(f, area, s, query, *sel, t),
+        Some(Overlay::History { query, sel }) => history(f, area, s, query, *sel, t),
         Some(Overlay::Switcher { sel }) => switcher(f, area, s, *sel, t),
         Some(Overlay::AddWorkspace(form)) => onboarding::draw_form(f, area, s, form, t, false),
         Some(Overlay::StartRun { name, label, input, .. }) => {
@@ -447,6 +448,50 @@ fn help(f: &mut Frame, area: Rect, s: &State, scroll: usize, t: &Theme) {
     }
     let shown: Vec<Line> = lines.into_iter().skip(start).collect();
     f.render_widget(Paragraph::new(shown), body);
+}
+
+/// `ctrl-r`: what you sent, newest first, narrowed by the query; enter
+/// puts it in the composer to edit or send again.
+fn history(f: &mut Frame, area: Rect, s: &State, query: &crate::app::input::TextBuf, sel: usize, t: &Theme) {
+    let q = query.text.trim().to_lowercase();
+    let items: Vec<String> = s.my_history().into_iter().filter(|m| m.to_lowercase().contains(&q)).collect();
+    let w = 76.min(area.width.saturating_sub(2));
+    let rows = (items.len().max(1) as u16).min(area.height.saturating_sub(8).max(1)).min(12);
+    let r =
+        Rect { x: area.x + area.width.saturating_sub(w) / 2, y: area.bottom().saturating_sub(rows + 4 + 4), width: w, height: rows + 4 };
+    f.render_widget(Clear, r);
+    let block = pane("What you sent · enter use · esc", true, t);
+    let inner = block.inner(r);
+    f.render_widget(block, r);
+    f.render_widget(
+        Paragraph::new(Line::from(vec![Span::styled("search › ", t.accent()), Span::styled(query.text.clone(), t.text())])),
+        Rect { height: 1, ..inner },
+    );
+    f.set_cursor_position(Position::new(inner.x + 9 + query.cursor_pos().1 as u16, inner.y));
+    let list = Rect { y: inner.y + 2, height: inner.height.saturating_sub(2), ..inner };
+    if items.is_empty() {
+        let none = if s.my_history().is_empty() { "Nothing sent in this chat yet." } else { "Nothing matches." };
+        f.render_widget(Paragraph::new(Line::styled(none, t.dim())), list);
+        return;
+    }
+    let n = list.height as usize;
+    let first = sel.saturating_sub(n.saturating_sub(1));
+    let lines: Vec<Line> = items
+        .iter()
+        .enumerate()
+        .skip(first)
+        .take(n)
+        .map(|(i, m)| {
+            let one = m.replace('\n', " ⏎ ");
+            let text = super::trunc(&one, (inner.width as usize).saturating_sub(2));
+            if i == sel {
+                Line::from(vec![Span::styled("▶ ", t.accent()), Span::styled(text, t.selected())])
+            } else {
+                Line::from(vec![Span::raw("  "), Span::styled(text, t.text())])
+            }
+        })
+        .collect();
+    f.render_widget(Paragraph::new(lines), list);
 }
 
 /// The messages log: every notice and error of this session, newest
