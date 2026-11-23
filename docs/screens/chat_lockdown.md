@@ -5,9 +5,9 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓ Locked down  prompt-injection marker in a tool result (fetch_url)
-┃  Fix flaky checkout te… 12m  ┃ U clear lockdown · no network for agents · every proposal needs a human
+┃  ◆ Fix flaky checkout … 12m  ┃ U clear lockdown · no network for agents · every proposal needs a human
 ┃  #dev                        ┃╭ Migrate auth to passkeys ──────────────────────────────────────────────────╮
-┃  ⊘ Migrate auth to pas… 50m  ┃│Lin  55m                                                                    │
+┃  ◆ Migrate auth to pas… 50m  ┃│Lin  55m                                                                    │
 ┃  #dev                        ┃│  @scout check the forum thread about passkey fallbacks                     │
 ┃  Weekly release notes    1d  ┃│                                                                            │
 ┃                              ┃│@scout  via ollama  50m                                                     │

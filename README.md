@@ -424,6 +424,14 @@ The default keys (all can be rebound, see [Configure](#configure)):
 While the composer or another text field has focus, letters type. Only
 chords with `ctrl` or `alt` (and function keys) reach the global bindings.
 
+Each chat in the list shows where it stands with one glyph before its
+title, the same states as the desktop's chat rows: `⠹` working (an agent
+is replying), `◆` needs you (an agent asked a question, or a proposal waits
+on your vote), `⧗` queued, `✓` done (finished since you last looked; opening
+the chat clears it), `✕` failed (the last turn failed) and `‖` paused (a
+lockdown holds its agents). An idle chat shows nothing. In plain mode,
+`chats` prints `needs-you` and `locked` among a chat's flags.
+
 The status bar has three parts: the keys for what has focus on the left
 (cut from the right, `? help` always stays), a notice in the centre when
 there is one (one at a time; `!` lists them all), and on the right how the

@@ -437,6 +437,17 @@ fn draw_status(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     f.render_widget(Paragraph::new(Line::styled(trunc(&left_text(0), width), t.dim())), area);
 }
 
+/// A session state's glyph; working spins one frame per tick (one
+/// spinner cell per running item, nothing else moves).
+pub(crate) fn state_glyph(s: &State, st: crate::backend::model::SessionState, t: &Theme) -> &'static str {
+    const SPIN: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+    let _ = t;
+    if st == crate::backend::model::SessionState::Working {
+        return SPIN[((s.now / 250).rem_euclid(SPIN.len() as i64)) as usize];
+    }
+    st.glyph(false)
+}
+
 /// A bordered pane with a title; the border lights up when focused.
 pub(crate) fn pane<'a>(title: &'a str, focused: bool, t: &Theme) -> Block<'a> {
     Block::default()

@@ -1088,3 +1088,66 @@ fn running_counts_busy_agents_and_moving_runs() {
     s.agents = vec![busy, agent("b")];
     assert_eq!(s.running(), 1);
 }
+
+/// A chat's state comes from what lt already receives: an agent thinking
+/// (working), a turn that finished or failed while you were elsewhere
+/// (done, failed: cleared when you open the chat), a proposal waiting on
+/// your vote or an agent's open question (needs you), and a lockdown
+/// (paused). Needs you outranks everything.
+#[test]
+fn chat_states_from_live_signals() {
+    let mut s = main_state();
+    let (w, c1, c2) = (WorkspaceId::new("a"), ChatId::new("c1"), ChatId::new("c2"));
+    assert_eq!(s.session_state(&c2), SessionState::Idle);
+    update(&mut s, Msg::Event(Event::Thinking { workspace: w.clone(), chat: c2.clone(), agent: "@coder".into(), on: true }));
+    assert_eq!(s.session_state(&c2), SessionState::Working);
+    update(&mut s, Msg::Event(Event::MessageDone { workspace: w.clone(), chat: c2.clone(), message: MessageId::new("m"), error: None }));
+    update(&mut s, Msg::Event(Event::Thinking { workspace: w.clone(), chat: c2.clone(), agent: "@coder".into(), on: false }));
+    assert_eq!(s.session_state(&c2), SessionState::Done, "finished while c1 was open");
+    // The open chat finishing isn't news.
+    update(&mut s, Msg::Event(Event::MessageDone { workspace: w.clone(), chat: c1.clone(), message: MessageId::new("m1"), error: None }));
+    assert_eq!(s.session_state(&c1), SessionState::Idle);
+    update(
+        &mut s,
+        Msg::Event(Event::MessageDone {
+            workspace: w.clone(),
+            chat: c1.clone(),
+            message: MessageId::new("m2"),
+            error: Some("no runtime".into()),
+        }),
+    );
+    assert_eq!(s.session_state(&c1), SessionState::Failed);
+    // Opening c2 clears its "done".
+    key(&mut s, KeyCode::Down);
+    assert_eq!(s.open_chat.as_ref(), Some(&c2));
+    assert_eq!(s.session_state(&c2), SessionState::Idle);
+    // A proposal from c1 waiting on your vote: needs you, over failed.
+    let mut p = proposal("p1", ProposalStatus::Open);
+    p.chat = Some(c1.clone());
+    update(&mut s, Msg::Proposals(w.clone(), Ok(vec![p.clone()])));
+    assert_eq!(s.session_state(&c1), SessionState::NeedsYou);
+    p.can_vote = Allowed::No("you already voted".into());
+    update(&mut s, Msg::Proposals(w.clone(), Ok(vec![p])));
+    assert_eq!(s.session_state(&c1), SessionState::Failed, "a proposal you can't vote on doesn't need you");
+    // An agent's open question in c2.
+    let ask = TaskState {
+        chat: c2.clone(),
+        agent: "coder".into(),
+        status: "blocked".into(),
+        summary: "which timeout?".into(),
+        progress: None,
+        open_questions: vec!["30s or 60s?".into()],
+        at: NOW,
+        active: true,
+    };
+    update(&mut s, Msg::Tasks(w.clone(), Ok(vec![ask])));
+    assert_eq!(s.session_state(&c2), SessionState::NeedsYou);
+    // A lockdown pauses a chat that has nothing else going on.
+    let mut locked = chat("c3");
+    locked.lockdown = Some(Lockdown { reasons: vec!["secret in a diff".into()], clear: Allowed::Yes });
+    update(&mut s, Msg::Chats(w.clone(), Ok(vec![chat("c1"), chat("c2"), locked])));
+    assert_eq!(s.session_state(&ChatId::new("c3")), SessionState::Paused);
+    // Workspace load asks for task state, which feeds "needs you".
+    let fx = update(&mut s, Msg::Event(Event::MemoryChanged { workspace: w.clone() }));
+    assert!(fx.contains(&Effect::LoadTasks(w)));
+}

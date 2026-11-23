@@ -41,6 +41,8 @@ pub struct Theme {
     pub added: Color,
     pub removed: Color,
     pub hunk: Color,
+    /// Running and working (a blue-teal, the desktop's info).
+    pub info: Color,
     pub mention: Color,
     pub agent: Color,
     /// Monochrome: lean on bold/reverse instead of color.
@@ -68,6 +70,7 @@ impl Theme {
         added: Color::Rgb(0x8c, 0xc8, 0x6b),
         removed: Color::Rgb(0xef, 0x6b, 0x5b),
         hunk: Color::Rgb(0x7f, 0xb4, 0xe0),
+        info: Color::Rgb(0x7f, 0xb4, 0xe0),
         mention: Color::Rgb(0xf0, 0xb8, 0x78),
         agent: Color::Rgb(0xb7, 0x9c, 0xe8),
         mono: false,
@@ -91,6 +94,7 @@ impl Theme {
         added: Color::Rgb(0x2f, 0x6f, 0x1f),
         removed: Color::Rgb(0xb0, 0x26, 0x1a),
         hunk: Color::Rgb(0x1f, 0x5a, 0x8f),
+        info: Color::Rgb(0x1f, 0x5a, 0x8f),
         mention: Color::Rgb(0x8a, 0x55, 0x00),
         agent: Color::Rgb(0x5b, 0x3d, 0x9e),
         mono: false,
@@ -110,6 +114,7 @@ impl Theme {
         added: Color::Reset,
         removed: Color::Reset,
         hunk: Color::Reset,
+        info: Color::Reset,
         mention: Color::Reset,
         agent: Color::Reset,
         mono: true,
@@ -160,6 +165,27 @@ impl Theme {
     /// A refused (disabled) control.
     pub fn disabled(&self) -> Style {
         self.dim().add_modifier(Modifier::CROSSED_OUT)
+    }
+    /// A session state's glyph colour: info for working, the warm accent
+    /// (a person is involved) for needs you, warn for queued, then ok,
+    /// danger and neutral. Always next to the state's glyph.
+    pub fn state(&self, st: crate::backend::model::SessionState) -> Style {
+        use crate::backend::model::SessionState::*;
+        if self.mono {
+            return match st {
+                NeedsYou | Failed => Style::default().add_modifier(Modifier::BOLD),
+                _ => Style::default(),
+            };
+        }
+        match st {
+            Idle => self.dim(),
+            Working => self.fg(self.info),
+            NeedsYou => self.fg(self.mention).add_modifier(Modifier::BOLD),
+            Queued => self.fg(self.warn),
+            Done => self.fg(self.good),
+            Failed => self.fg(self.bad).add_modifier(Modifier::BOLD),
+            Paused => self.dim(),
+        }
     }
     pub fn banner(&self, c: Color) -> Style {
         if self.mono {
@@ -287,6 +313,7 @@ impl Theme {
             added: map(self.added),
             removed: map(self.removed),
             hunk: map(self.hunk),
+            info: map(self.info),
             mention: map(self.mention),
             agent: map(self.agent),
             ..self

@@ -10,7 +10,7 @@ use unicode_width::UnicodeWidthStr;
 
 use super::{pane, trunc, wrap};
 use crate::app::state::{Focus, State, ago};
-use crate::backend::model::{Allowed, Author, Message};
+use crate::backend::model::{Allowed, Author, Message, SessionState};
 use crate::keymap::{Action, Context};
 use crate::theme::Theme;
 
@@ -45,13 +45,15 @@ fn draw_list(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
                 Span::raw("  ")
             };
             let age = ago(s.now, c.updated_at);
-            let lock = if c.lockdown.is_some() { "⊘ " } else { "" };
-            let title_w = inner_w.saturating_sub(age.width() + 3 + lock.width());
+            // Where the chat stands, as a glyph (the colour only repeats it).
+            let st = s.session_state(&c.id);
+            let chip = if st == SessionState::Idle { String::new() } else { format!("{} ", super::state_glyph(s, st, t)) };
+            let title_w = inner_w.saturating_sub(age.width() + 3 + chip.width());
             let title = trunc(&c.title, title_w);
             let pad = title_w.saturating_sub(title.width());
             let mut spans = vec![dot];
-            if !lock.is_empty() {
-                spans.push(Span::styled(lock, t.fg(t.bad)));
+            if !chip.is_empty() {
+                spans.push(Span::styled(chip, t.state(st)));
             }
             let style = if c.unread { t.text().add_modifier(Modifier::BOLD) } else { t.text() };
             spans.extend([Span::styled(title, style), Span::raw(" ".repeat(pad + 1)), Span::styled(age, t.dim())]);

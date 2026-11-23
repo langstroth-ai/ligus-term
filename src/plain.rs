@@ -924,11 +924,16 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
         }
         "chats" => match b.chats(ws.as_ref().unwrap()).await {
             Ok(c) => {
+                // A chat with a proposal waiting on your vote needs you.
+                let props = b.proposals(ws.as_ref().unwrap()).await.unwrap_or_default();
                 for (i, x) in c.iter().enumerate() {
+                    let needs_you =
+                        props.iter().any(|p| p.chat.as_ref() == Some(&x.id) && p.status == ProposalStatus::Open && p.can_vote.is_yes());
                     let flags = format!(
-                        "{}{}{}",
+                        "{}{}{}{}",
                         if x.unread { "unread " } else { "" },
                         if x.mentioned { "mentioned " } else { "" },
+                        if needs_you { "needs-you " } else { "" },
                         if x.lockdown.is_some() { "locked" } else { "" }
                     );
                     say(format!("chat\t{}\t{}\t{}\t{}", i + 1, esc(&x.id), esc(&x.title), flags.trim())).await;

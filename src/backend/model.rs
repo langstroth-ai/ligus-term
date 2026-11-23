@@ -827,6 +827,195 @@ pub struct TaskState {
     pub active: bool,
 }
 
+// ── Session state ───────────────────────────────────────────────────────
+
+/// Where a chat stands, in one word: the same states, precedence and
+/// glyphs as the desktop's chat rows, so every surface agrees. Derived
+/// only from what lt already receives (live turns, agents' open
+/// questions, proposals waiting on you, a lockdown).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SessionState {
+    /// Nothing going on.
+    Idle,
+    /// An agent is replying.
+    Working,
+    /// An agent asked a question, or a proposal waits on your vote.
+    NeedsYou,
+    /// Waiting for the agent's host to pick it up.
+    Queued,
+    /// A turn finished since you last looked.
+    Done,
+    /// The last turn failed.
+    Failed,
+    /// A lockdown holds the chat's agents until a person clears it.
+    Paused,
+}
+
+impl SessionState {
+    /// The word shown next to the glyph.
+    pub fn word(self) -> &'static str {
+        match self {
+            SessionState::Idle => "",
+            SessionState::Working => "working",
+            SessionState::NeedsYou => "needs you",
+            SessionState::Queued => "queued",
+            SessionState::Done => "done",
+            SessionState::Failed => "failed",
+            SessionState::Paused => "paused",
+        }
+    }
+
+    /// A sentence for help and screen readers.
+    pub fn describe(self) -> &'static str {
+        match self {
+            SessionState::Idle => "Nothing going on",
+            SessionState::Working => "An agent is working in this chat",
+            SessionState::NeedsYou => "An agent asked a question or a change waits on your decision",
+            SessionState::Queued => "Waiting for the agent's host to pick it up",
+            SessionState::Done => "Finished since you last looked",
+            SessionState::Failed => "The last turn failed",
+            SessionState::Paused => "Agents are paused here until a person clears the lockdown",
+        }
+    }
+
+    /// The glyph, which carries the meaning on its own (colour never
+    /// does). `ascii` is for fonts without the symbols. Working is a
+    /// spinner the UI animates; this is its resting frame.
+    pub fn glyph(self, ascii: bool) -> &'static str {
+        match (self, ascii) {
+            (SessionState::Idle, _) => " ",
+            (SessionState::Working, false) => "⠹",
+            (SessionState::Working, true) => "*",
+            (SessionState::NeedsYou, false) => "◆",
+            (SessionState::NeedsYou, true) => "<>",
+            (SessionState::Queued, false) => "⧗",
+            (SessionState::Queued, true) => "~",
+            (SessionState::Done, false) => "✓",
+            (SessionState::Done, true) => "ok",
+            (SessionState::Failed, false) => "✕",
+            (SessionState::Failed, true) => "x",
+            (SessionState::Paused, false) => "‖",
+            (SessionState::Paused, true) => "=",
+        }
+    }
+
+    /// Whether it counts as something that needs this person (badges).
+    pub fn needs_you(self) -> bool {
+        self == SessionState::NeedsYou
+    }
+}
+
+/// Everything known about one chat that bears on its state.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SessionSignals {
+    /// A turn is streaming (or an agent is thinking) in this chat.
+    pub live: bool,
+    /// The last turn died and nobody has looked since.
+    pub failed: bool,
+    /// A turn finished while the chat wasn't open.
+    pub finished_unseen: bool,
+    /// Agent questions still waiting for an answer.
+    pub open_asks: usize,
+    /// Proposals (and gates) waiting on this person's vote.
+    pub proposals_needing_me: usize,
+    /// Work waiting on a host.
+    pub queued: usize,
+    /// A lockdown holds the chat's agents.
+    pub paused: bool,
+}
+
+impl SessionSignals {
+    /// Precedence, highest first: something waiting on you outranks
+    /// everything (an agent that asked mid-turn is stopped until you
+    /// answer); a failure is next (it won't fix itself), then a lockdown,
+    /// then live work. Queued work only shows while nothing runs, and done
+    /// is the quietest: it clears when you open the chat.
+    pub fn state(&self) -> SessionState {
+        if self.open_asks > 0 || self.proposals_needing_me > 0 {
+            SessionState::NeedsYou
+        } else if self.failed {
+            SessionState::Failed
+        } else if self.paused {
+            SessionState::Paused
+        } else if self.live {
+            SessionState::Working
+        } else if self.queued > 0 {
+            SessionState::Queued
+        } else if self.finished_unseen {
+            SessionState::Done
+        } else {
+            SessionState::Idle
+        }
+    }
+}
+
+#[cfg(test)]
+mod session_state_tests {
+    use super::*;
+
+    /// The desktop's precedence (web/src/lib/sessionState.ts), case by case.
+    #[test]
+    fn precedence_matches_the_desktop() {
+        let s = |f: fn(&mut SessionSignals)| {
+            let mut x = SessionSignals::default();
+            f(&mut x);
+            x.state()
+        };
+        assert_eq!(s(|_| {}), SessionState::Idle);
+        assert_eq!(s(|x| x.finished_unseen = true), SessionState::Done);
+        assert_eq!(
+            s(|x| {
+                x.queued = 2;
+                x.finished_unseen = true
+            }),
+            SessionState::Queued
+        );
+        assert_eq!(
+            s(|x| {
+                x.live = true;
+                x.queued = 1
+            }),
+            SessionState::Working
+        );
+        assert_eq!(
+            s(|x| {
+                x.paused = true;
+                x.live = true
+            }),
+            SessionState::Paused
+        );
+        assert_eq!(
+            s(|x| {
+                x.failed = true;
+                x.paused = true
+            }),
+            SessionState::Failed
+        );
+        assert_eq!(
+            s(|x| {
+                x.open_asks = 1;
+                x.failed = true
+            }),
+            SessionState::NeedsYou
+        );
+        assert_eq!(s(|x| x.proposals_needing_me = 1), SessionState::NeedsYou);
+    }
+
+    /// Every state but idle has a word and two glyphs, and no two states
+    /// share a glyph.
+    #[test]
+    fn glyphs_are_distinct() {
+        use SessionState::*;
+        let all = [Working, NeedsYou, Queued, Done, Failed, Paused];
+        for ascii in [false, true] {
+            let g: std::collections::HashSet<_> = all.iter().map(|x| x.glyph(ascii)).collect();
+            assert_eq!(g.len(), all.len());
+            assert!(g.iter().all(|g| g.is_ascii() == ascii || !ascii));
+        }
+        assert!(all.iter().all(|x| !x.word().is_empty() && !x.describe().is_empty()));
+    }
+}
+
 // Secrets never show in `{:?}` (a panic, a test failure, a debug log).
 const REDACTED: &str = "<redacted>";
 

@@ -8,6 +8,12 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Added
 
+- Chats show where each one stands, with one glyph before the title: `⠹`
+  working, `◆` needs you (an agent's open question or a proposal waiting
+  on your vote), `⧗` queued, `✓` done since you last looked, `✕` failed and
+  `‖` paused by a lockdown (it was `⊘`). The states and their precedence
+  are the desktop's, so both agree on a chat. Plain mode's `chats` adds a
+  `needs-you` flag.
 - A messages log: `!` lists this session's notices and errors in full,
   newest first, so a toast that went by (or was cut to fit) can be read
   again.
