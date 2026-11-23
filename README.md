@@ -392,7 +392,7 @@ Press a view's key from anywhere outside a text field:
 | `n` `8` | Notifications | @mentions of you; Enter jumps to the chat |
 | `s` `9` | Settings | You, notifications, this device (data dir, secret store), theme and config |
 | `w` | Workspaces | The switcher; `+` creates, joins or connects another |
-| `?` | Help | Every keybinding, as currently configured |
+| `?` | Help | Every keybinding, as currently configured: what has focus first, scrollable, and `/` narrows it to the keys that match |
 
 ![A chat in lt: the chat list, a transcript where @coder streams its reply after two file tool calls, @reviewer thinking, and the composer](assets/screens/chat.svg)
 

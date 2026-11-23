@@ -603,7 +603,7 @@ fn views_and_help_and_toasts_expire() {
     key(&mut s, KeyCode::Char('?'));
     assert!(matches!(s.overlay, Some(Overlay::Help { .. })));
     key(&mut s, KeyCode::Char('j'));
-    assert!(matches!(s.overlay, Some(Overlay::Help { scroll: 1 })));
+    assert!(matches!(s.overlay, Some(Overlay::Help { scroll: 1, .. })));
     key(&mut s, KeyCode::Char('x'));
     assert!(s.overlay.is_none());
     s.toast(ToastKind::Info, "hello");
@@ -995,13 +995,51 @@ fn help_scrolls_within_bounds() {
     update(&mut s, Msg::Resize(80, 24));
     key(&mut s, KeyCode::Char('?'));
     key(&mut s, KeyCode::Char('G'));
-    let Some(Overlay::Help { scroll: end }) = s.overlay.clone() else { panic!() };
+    let Some(Overlay::Help { scroll: end, .. }) = s.overlay.clone() else { panic!() };
     assert!(end > 0);
     assert_eq!(end, ligus_term::ui::help_max_scroll(&s, 24));
     key(&mut s, KeyCode::Char('j'));
-    assert_eq!(s.overlay, Some(Overlay::Help { scroll: end }), "no scrolling past the end");
+    assert!(matches!(s.overlay, Some(Overlay::Help { scroll, .. }) if scroll == end), "no scrolling past the end");
     key(&mut s, KeyCode::Char('k'));
-    assert_eq!(s.overlay, Some(Overlay::Help { scroll: end - 1 }));
+    assert!(matches!(s.overlay, Some(Overlay::Help { scroll, .. }) if scroll == end - 1));
     key(&mut s, KeyCode::Char('x'));
     assert!(s.overlay.is_none(), "another key closes it");
+}
+
+/// `/` in the help narrows it to the bindings that match; esc clears the
+/// search before it closes the overlay, and the search never acts as keys.
+#[test]
+fn help_search_narrows_and_esc_backs_out() {
+    let mut s = main_state();
+    update(&mut s, Msg::Resize(80, 24));
+    key(&mut s, KeyCode::Char('3'));
+    key(&mut s, KeyCode::Char('?'));
+    let all = ligus_term::ui::help_lines_text(&s);
+    assert!(all[2].starts_with("Proposals"), "the focused view's keys come first: {all:?}");
+    assert!(all[2].contains("here"), "{all:?}");
+    key(&mut s, KeyCode::Char('/'));
+    assert!(s.typing_text());
+    for c in "hunk".chars() {
+        key(&mut s, KeyCode::Char(c));
+    }
+    assert_eq!(s.view, View::Proposals, "typing in the search doesn't switch views");
+    let found = ligus_term::ui::help_lines_text(&s);
+    assert!(found.iter().any(|l| l.contains("Next hunk")), "{found:?}");
+    assert!(found.iter().all(|l| !l.contains("Approve")), "{found:?}");
+    key(&mut s, KeyCode::Enter);
+    assert!(!s.typing_text(), "enter keeps the filter and gives the keys back");
+    key(&mut s, KeyCode::Char('j'));
+    assert!(matches!(s.overlay, Some(Overlay::Help { .. })), "j scrolls the filtered list");
+    key(&mut s, KeyCode::Esc);
+    assert!(matches!(&s.overlay, Some(Overlay::Help { query, .. }) if query.text.is_empty()), "esc clears the search first");
+    key(&mut s, KeyCode::Char('/'));
+    for c in "zzzz".chars() {
+        key(&mut s, KeyCode::Char(c));
+    }
+    let none = ligus_term::ui::help_lines_text(&s);
+    assert_eq!(none.len(), 1, "{none:?}");
+    assert!(none[0].contains("No key matches"), "{none:?}");
+    key(&mut s, KeyCode::Esc);
+    key(&mut s, KeyCode::Esc);
+    assert!(s.overlay.is_none(), "then esc closes it");
 }

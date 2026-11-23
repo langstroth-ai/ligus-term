@@ -464,6 +464,20 @@ async fn help_overlay() {
     snap_at("help", "Help: keybindings", W, 44, h.screen(W, 44));
 }
 
+/// `/` in the help: only the bindings that match, under the search line.
+#[tokio::test]
+async fn help_overlay_search() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char('3')).await;
+    h.key(KeyCode::Char('?')).await;
+    h.key(KeyCode::Char('/')).await;
+    h.chars("reject").await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("/ reject") && screen.contains("Reject the run's waiting gate"), "{screen}");
+    assert!(!screen.contains("Next hunk"), "{screen}");
+    snap(&h, "help_search", "Help: / narrows the keys to what matches");
+}
+
 #[tokio::test]
 async fn narrow_terminal_still_renders() {
     let h = demo().await;
@@ -646,7 +660,7 @@ async fn help_scrolls_to_the_end() {
     let up = h.screen(80, 24);
     assert_ne!(end, up, "one up from the end moves at once");
     h.key(KeyCode::Char('g')).await;
-    assert!(h.screen(80, 24).contains("for what has focus first"));
+    assert!(h.screen(80, 24).contains("What has focus comes first"));
     // The view's own keys come first: Chats, then Lists.
     let top = h.screen(80, 24);
     let chats = top.find("Write a message").unwrap();

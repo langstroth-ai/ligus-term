@@ -1,0 +1,28 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
+┏ ┏ Help · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─╮
+┃o┃/ reject  enter keep · esc clear                                          ┃ │
+┃ ┃Proposals  here                                                           ┃ │
+┃a┃  R                        Reject (asks first)                            ┃ │
+┃ ┃                                                                          ┃ │
+┃a┃Workflows                                                                 ┃ │
+┃ ┃  R                        Reject the run's waiting gate (asks first)     ┃ │
+┃o┃                                                                          ┃─╯
+┃ ┃                                                                          ┃─╮
+┃o┃                                                                          ┃ │
+┃ ┃                                                                          ┃ │
+┃ ┃                                                                          ┃ │
+┃ ┃                                                                          ┃ │
+┃ ┃                                                                          ┃ │
+┃ ┃                                                                          ┃…│
+┃ ┃                                                                          ┃ │
+┃ ┃                                                                          ┃ │
+┃ ┃                                                                          ┃ │
+┃ ┃                                                                          ┃ │
+┃ ┃                                                                          ┃ │
+┃ ┃                                                                          ┃ │
+┗━┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛─╯
+type to search  ↑↓ scroll  enter keep  esc clear                    peer to peer

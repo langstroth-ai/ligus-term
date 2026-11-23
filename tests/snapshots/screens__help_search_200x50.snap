@@ -1,0 +1,54 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
+┏ Proposals ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Inject t┏ Help · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────────────────────────────────────────────╮
+┃open     Inject the clock into checkout tests     ┃│open  by ┃/ reject  enter keep · esc clear                                          ┃                                                             │
+┃         1/2 approvals · @coder · 37m             ┃│✓ Ada app┃Proposals  here                                                           ┃                                                             │
+┃approved Export orders to CSV                     ┃│A Approve┃  R                        Reject (asks first)                            ┃                                                             │
+┃         2/2 approvals · @coder · 1d              ┃│That host┃                                                                          ┃                                                             │
+┃applied  Bump the order schema version            ┃│         ┃Workflows                                                                 ┃                                                             │
+┃         2/2 approvals · @reviewer · 2d           ┃│         ┃  R                        Reject the run's waiting gate (asks first)     ┃                                                             │
+┃open     Sign-off: inject a fake clock            ┃╰─────────┃                                                                          ┃─────────────────────────────────────────────────────────────╯
+┃         0/1 approvals · workflow · 4m            ┃╭ Diff · 2┃                                                                          ┃─────────────────────────────────────────────────────────────╮
+┃open     Workflow: Dependency audit before rel…   ┃│▌src/chec┃                                                                          ┃                                                             │
+┃         0/1 approvals · @scout · 20m             ┃│@@ -12,7 ┃                                                                          ┃                                                             │
+┃                                                  ┃│     pub ┃                                                                          ┃                                                             │
+┃                                                  ┃│     pub ┃                                                                          ┃                                                             │
+┃                                                  ┃│-    pub ┃                                                                          ┃                                                             │
+┃                                                  ┃│+    /// ┃                                                                          ┃                                                             │
+┃                                                  ┃│+    pub ┃                                                                          ┃                                                             │
+┃                                                  ┃│+    pub ┃                                                                          ┃                                                             │
+┃                                                  ┃│     pub ┃                                                                          ┃                                                             │
+┃                                                  ┃│ }       ┃                                                                          ┃                                                             │
+┃                                                  ┃│@@ -40,9 ┃                                                                          ┃                                                             │
+┃                                                  ┃│     pub ┃                                                                          ┃                                                             │
+┃                                                  ┃│-        ┃                                                                          ┃                                                             │
+┃                                                  ┃│-    }   ┃                                                                          ┃                                                             │
+┃                                                  ┃│+        ┃                                                                          ┃                                                             │
+┃                                                  ┃│+        ┃                                                                          ┃                                                             │
+┃                                                  ┃│+    }   ┃                                                                          ┃                                                             │
+┃                                                  ┃│+        ┃                                                                          ┃                                                             │
+┃                                                  ┃│+    pub ┃                                                                          ┃                                                             │
+┃                                                  ┃│         ┃                                                                          ┃                                                             │
+┃                                                  ┃│     pub ┃                                                                          ┃                                                             │
+┃                                                  ┃│         ┃                                                                          ┃                                                             │
+┃                                                  ┃│▌tests/ch┃                                                                          ┃                                                             │
+┃                                                  ┃│@@ -0,0 +┃                                                                          ┃                                                             │
+┃                                                  ┃│+use nort┃                                                                          ┃                                                             │
+┃                                                  ┃│+        ┃                                                                          ┃                                                             │
+┃                                                  ┃│+#[test] ┃                                                                          ┃                                                             │
+┃                                                  ┃│+fn expir┃                                                                          ┃                                                             │
+┃                                                  ┃│+    let ┃                                                                          ┃                                                             │
+┃                                                  ┃│+    asse┃                                                                          ┃                                                             │
+┃                                                  ┃│+}       ┃                                                                          ┃                                                             │
+┃                                                  ┃│+        ┃                                                                          ┃                                                             │
+┃                                                  ┃│         ┃                                                                          ┃                                                             │
+┃                                                  ┃│         ┃                                                                          ┃                                                             │
+┃                                                  ┃│         ┃                                                                          ┃                                                             │
+┃                                                  ┃│         ┃                                                                          ┃                                                             │
+┃                                                  ┃│         ┃                                                                          ┃                                                             │
+┃                                                  ┃│         ┃                                                                          ┃                                                             │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰─────────┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛─────────────────────────────────────────────────────────────╯
+type to search  ↑↓ scroll  enter keep  esc clear                                                                                                               peer to peer · lt on this terminal · demo

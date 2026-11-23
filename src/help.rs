@@ -665,7 +665,8 @@ pub fn command_text(c: &Cmd) -> String {
 /// The key table, built from the keymap's own binding table.
 pub fn keys_text() -> String {
     let mut s = String::from(
-        "Keys in the full-screen app (the defaults; `?` shows yours as configured).\n\
+        "Keys in the full-screen app (the defaults; `?` shows yours as configured,\n\
+         what has focus first; / in it searches).\n\
          Press a view's key from anywhere outside a text field. While a text field\n\
          has focus, letters type: only ctrl and alt chords and function keys reach\n\
          the Anywhere keys.\n",

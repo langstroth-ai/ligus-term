@@ -4,16 +4,16 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 
 ```text
 [NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
-┏ ┏ Help · 1-20 of 83 · ↑↓ pgup pgdn g G · esc closes ━━━━━━━━━━━━━━━━━━━━━━━┓─╮
-┃ ┃lt keybindings, for what has focus first. Rebind any of them in the config┃ │
+┏ ┏ Help · 1-20 of 83 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─╮
+┃ ┃What has focus comes first. / searches. Rebind keys in the config file.   ┃ │
 ┃ ┃                                                                          ┃e│
-┃ ┃Chats                                                                     ┃ │
+┃ ┃Chats  here                                                               ┃ │
 ┃ ┃  i                        Write a message                                ┃ │
 ┃ ┃  N                        New chat                                       ┃ │
 ┃ ┃  L                        Lock this chat down                            ┃ │
 ┃ ┃  U                        Clear the lockdown                             ┃ │
 ┃ ┃                                                                          ┃ │
-┃ ┃Lists                                                                     ┃ │
+┃ ┃Lists  here                                                               ┃ │
 ┃ ┃  ↑, k                     Up                                             ┃t│
 ┃ ┃  ↓, j                     Down                                           ┃ │
 ┃ ┃  pgup, ctrl-u             Page up                                        ┃ │
@@ -26,5 +26,5 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 ┃ ┃  ctrl-c, q                Quit (asks first while work runs here)         ┃─╮
 ┃ ┃  ?, f1                    Show or hide this help                         ┃ │
 ┗━┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛─╯
-↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                   peer to peer
+/ search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close         peer to peer
 ```

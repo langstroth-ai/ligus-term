@@ -3,16 +3,16 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA]+1• │ 1 Chats 2 3 4 5 6 7 8(1) 9           Northwind API
-┏ Help · 1-16 of 83 · ↑↓ pgup pgdn g G · esc closes ━━━━━━━┓
-┃lt keybindings, for what has focus first. Rebind any of th┃
+┏ Help · 1-16 of 83 · / search · esc closes ━━━━━━━━━━━━━━━┓
+┃What has focus comes first. / searches. Rebind keys in the┃
 ┃                                                          ┃
-┃Chats                                                     ┃
+┃Chats  here                                               ┃
 ┃  i                        Write a message                ┃
 ┃  N                        New chat                       ┃
 ┃  L                        Lock this chat down            ┃
 ┃  U                        Clear the lockdown             ┃
 ┃                                                          ┃
-┃Lists                                                     ┃
+┃Lists  here                                               ┃
 ┃  ↑, k                     Up                             ┃
 ┃  ↓, j                     Down                           ┃
 ┃  pgup, ctrl-u             Page up                        ┃
@@ -21,4 +21,4 @@ expression: screen
 ┃  end, G                   Last                           ┃
 ┃  enter, l, →              Open                           ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-↑↓ scroll  pgup/pgdn page  g/G top/end  esc close
+/ search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close

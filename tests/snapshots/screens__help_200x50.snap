@@ -3,16 +3,16 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
-┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ────┏ Help · 1-46 of 83 · ↑↓ pgup pgdn g G · esc closes ━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────────────────────────────────────────────╮
-┃  Fix flaky checkout te… 12m  ┃│Ada  40m                     ┃lt keybindings, for what has focus first. Rebind any of them in the config┃                                                             │
+┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ────┏ Help · 1-46 of 83 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────────────────────────────────────────────╮
+┃  Fix flaky checkout te… 12m  ┃│Ada  40m                     ┃What has focus comes first. / searches. Rebind keys in the config file.   ┃                                                             │
 ┃  #dev                        ┃│  The checkout test fails abo┃                                                                          ┃                                                             │
-┃  ⊘ Migrate auth to pas… 50m  ┃│                             ┃Chats                                                                     ┃                                                             │
+┃  ⊘ Migrate auth to pas… 50m  ┃│                             ┃Chats  here                                                               ┃                                                             │
 ┃  #dev                        ┃│@coder  via claude-code  38m ┃  i                        Write a message                                ┃                                                             │
 ┃  Weekly release notes    1d  ┃│  Yes. The payment tests alre┃  N                        New chat                                       ┃                                                             │
 ┃                              ┃│                             ┃  L                        Lock this chat down                            ┃                                                             │
 ┃                              ┃│Ada  12m                     ┃  U                        Clear the lockdown                             ┃                                                             │
 ┃                              ┃│  @Mara can you review the ti┃                                                                          ┃                                                             │
-┃                              ┃│                             ┃Lists                                                                     ┃                                                             │
+┃                              ┃│                             ┃Lists  here                                                               ┃                                                             │
 ┃                              ┃│                             ┃  ↑, k                     Up                                             ┃                                                             │
 ┃                              ┃│                             ┃  ↓, j                     Down                                           ┃                                                             │
 ┃                              ┃│                             ┃  pgup, ctrl-u             Page up                                        ┃                                                             │
@@ -51,4 +51,4 @@ expression: screen
 ┃                              ┃╭ Message the room ───────────┃  O                        Apply on a host                                ┃─────────────────────────────────────────────────────────────╮
 ┃                              ┃│i to write · @ mentions an ag┃  W                        Withdraw the apply request                     ┃                                                             │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰─────────────────────────────┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛─────────────────────────────────────────────────────────────╯
-↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                                                                                                              peer to peer · lt on this terminal · demo
+/ search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                                                                                                    peer to peer · lt on this terminal · demo

@@ -1,0 +1,38 @@
+# Help: / narrows the keys to what matches
+
+Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
+
+```text
+[NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
+┏ Proposals ━━━━━┏ Help · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
+┃open     Inject ┃/ reject  enter keep · esc clear                                          ┃s               │
+┃         1/2 app┃Proposals  here                                                           ┃                │
+┃approved Export ┃  R                        Reject (asks first)                            ┃proval first)   │
+┃         2/2 app┃                                                                          ┃reports the     │
+┃applied  Bump th┃Workflows                                                                 ┃                │
+┃         2/2 app┃  R                        Reject the run's waiting gate (asks first)     ┃                │
+┃open     Sign-of┃                                                                          ┃────────────────╯
+┃         0/1 app┃                                                                          ┃────────────────╮
+┃open     Workflo┃                                                                          ┃                │
+┃         0/1 app┃                                                                          ┃                │
+┃                ┃                                                                          ┃                │
+┃                ┃                                                                          ┃                │
+┃                ┃                                                                          ┃                │
+┃                ┃                                                                          ┃ of reading the…│
+┃                ┃                                                                          ┃                │
+┃                ┃                                                                          ┃                │
+┃                ┃                                                                          ┃                │
+┃                ┃                                                                          ┃                │
+┃                ┃                                                                          ┃                │
+┃                ┃                                                                          ┃                │
+┃                ┃                                                                          ┃                │
+┃                ┃                                                                          ┃                │
+┃                ┃                                                                          ┃der's session t…│
+┃                ┃                                                                          ┃elf::SESSION_TI…│
+┃                ┃                                                                          ┃                │
+┃                ┃                                                                          ┃                │
+┃                ┃                                                                          ┃00;             │
+┃                ┃                                                                          ┃                │
+┗━━━━━━━━━━━━━━━━┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛────────────────╯
+type to search  ↑↓ scroll  enter keep  esc clear                     peer to peer · lt on this terminal · demo
+```

@@ -16,7 +16,7 @@ use crate::theme::Theme;
 pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     match &s.overlay {
         None => {}
-        Some(Overlay::Help { scroll }) => help(f, area, s, *scroll, t),
+        Some(Overlay::Help { scroll, .. }) => help(f, area, s, *scroll, t),
         Some(Overlay::Switcher { sel }) => switcher(f, area, s, *sel, t),
         Some(Overlay::AddWorkspace(form)) => onboarding::draw_form(f, area, s, form, t, false),
         Some(Overlay::StartRun { name, label, input, .. }) => {
@@ -325,30 +325,74 @@ fn switcher(f: &mut Frame, area: Rect, s: &State, sel: usize, t: &Theme) {
     f.render_widget(Paragraph::new(Line::styled("enter switch · 1-9 jump · + create or join · esc close", t.dim())), foot);
 }
 
+/// The help overlay's `/` search, if one is typed.
+fn help_query(s: &State) -> (&str, bool) {
+    match &s.overlay {
+        Some(Overlay::Help { query, searching, .. }) => (query.text.trim(), *searching),
+        _ => ("", false),
+    }
+}
+
 /// The help overlay's lines: the keys of what has focus first (as
-/// configured), then every other context, then the passkey prompt's.
+/// configured, marked "here"), then every other context, then the passkey
+/// prompt's. A `/` search keeps only the bindings whose keys, words or
+/// context match.
 pub fn help_lines(s: &State, t: &Theme) -> Vec<Line<'static>> {
     let first = s.view_contexts();
     let order: Vec<Context> = first.iter().copied().chain(Context::ALL.into_iter().filter(|c| !first.contains(c))).collect();
-    let mut lines = vec![
-        Line::styled("lt keybindings, for what has focus first. Rebind any of them in the config file ([keys.<context>]).", t.dim()),
-        Line::raw(""),
-    ];
-    for ctx in order {
-        lines.push(Line::styled(ctx.title(), t.accent()));
-        for b in BINDINGS.iter().filter(|b| b.context == ctx) {
-            let keys: Vec<String> = s.keymap.keys(ctx, b.action).iter().map(|c| c.to_string()).collect();
-            let keys = if keys.is_empty() { "unbound".to_string() } else { keys.join(", ") };
-            lines.push(Line::from(vec![
-                Span::styled(format!("  {keys:<24} "), t.text().add_modifier(Modifier::BOLD)),
-                Span::styled(b.help, t.text()),
-            ]));
-        }
+    let (query, _) = help_query(s);
+    let q = query.to_lowercase();
+    let matches = |ctx: Context, keys: &str, help: &str, name: &str| {
+        q.is_empty()
+            || keys.to_lowercase().contains(&q)
+            || help.to_lowercase().contains(&q)
+            || name.replace('_', " ").contains(&q)
+            || ctx.title().to_lowercase().contains(&q)
+    };
+    let mut lines = vec![];
+    if q.is_empty() {
+        lines.push(Line::styled("What has focus comes first. / searches. Rebind keys in the config file.", t.dim()));
         lines.push(Line::raw(""));
     }
-    lines.push(Line::styled("Passkey prompt", t.accent()));
-    for (k, h) in [("enter, o", "Open the browser to confirm"), ("f", "Use your recovery-words file instead"), ("esc, c", "Cancel")] {
-        lines.push(Line::from(vec![Span::styled(format!("  {k:<24} "), t.text().add_modifier(Modifier::BOLD)), Span::styled(h, t.text())]));
+    let row = |keys: &str, help: &str| {
+        Line::from(vec![
+            Span::styled(format!("  {keys:<24} "), t.text().add_modifier(Modifier::BOLD)),
+            Span::styled(help.to_string(), t.text()),
+        ])
+    };
+    for ctx in order {
+        let rows: Vec<Line> = BINDINGS
+            .iter()
+            .filter(|b| b.context == ctx)
+            .filter_map(|b| {
+                let keys: Vec<String> = s.keymap.keys(ctx, b.action).iter().map(|c| c.to_string()).collect();
+                let keys = if keys.is_empty() { "unbound".to_string() } else { keys.join(", ") };
+                matches(ctx, &keys, b.help, b.name).then(|| row(&keys, b.help))
+            })
+            .collect();
+        if rows.is_empty() {
+            continue;
+        }
+        let mut head = vec![Span::styled(ctx.title(), t.accent())];
+        if first.contains(&ctx) && ctx != Context::Global {
+            head.push(Span::styled("  here", t.dim()));
+        }
+        lines.push(Line::from(head));
+        lines.extend(rows);
+        lines.push(Line::raw(""));
+    }
+    let passkey = [("enter, o", "Open the browser to confirm"), ("f", "Use your recovery-words file instead"), ("esc, c", "Cancel")];
+    let passkey: Vec<Line> = passkey
+        .iter()
+        .filter(|(k, h)| q.is_empty() || k.contains(&q) || h.to_lowercase().contains(&q) || "passkey prompt".contains(&q))
+        .map(|(k, h)| row(k, h))
+        .collect();
+    if !passkey.is_empty() {
+        lines.push(Line::styled("Passkey prompt", t.accent()));
+        lines.extend(passkey);
+    }
+    if lines.is_empty() {
+        lines.push(Line::styled(format!("No key matches \u{201c}{query}\u{201d}. esc clears the search."), t.dim()));
     }
     lines
 }
@@ -357,29 +401,50 @@ pub fn help_lines(s: &State, t: &Theme) -> Vec<Line<'static>> {
 /// reducer clamps to it, so scrolling back up never hits a dead zone).
 pub fn help_max_scroll(s: &State, height: u16) -> usize {
     let len = help_lines(s, &Theme::MONO).len();
-    if height == 0 {
-        len.saturating_sub(1)
-    } else {
-        len.saturating_sub(help_rect(Rect::new(0, 0, 80, height)).height.saturating_sub(2) as usize)
-    }
+    if height == 0 { len.saturating_sub(1) } else { len.saturating_sub(help_body_height(help_rect(Rect::new(0, 0, 80, height)), s)) }
 }
 
 fn help_rect(area: Rect) -> Rect {
     center(area, 76, area.height.saturating_sub(2))
 }
 
+/// Rows for bindings inside the help box: the border, and the search line
+/// while there is one.
+fn help_body_height(r: Rect, s: &State) -> usize {
+    let (query, searching) = help_query(s);
+    let search = usize::from(searching || !query.is_empty());
+    (r.height as usize).saturating_sub(2 + search)
+}
+
 fn help(f: &mut Frame, area: Rect, s: &State, scroll: usize, t: &Theme) {
     let lines = help_lines(s, t);
     let r = help_rect(area);
     f.render_widget(Clear, r);
-    let inner_h = r.height.saturating_sub(2) as usize;
+    let inner_h = help_body_height(r, s);
     let max = lines.len().saturating_sub(inner_h);
     let start = scroll.min(max);
     let end = (start + inner_h).min(lines.len());
     let more = if max == 0 { String::new() } else { format!(" · {}-{end} of {}", start + 1, lines.len()) };
-    let title = format!("Help{more} · ↑↓ pgup pgdn g G · esc closes");
+    let title = format!("Help{more} · / search · esc closes");
+    let block = pane(&title, true, t);
+    let inner = block.inner(r);
+    f.render_widget(block, r);
+    let (query, searching) = match &s.overlay {
+        Some(Overlay::Help { query, searching, .. }) => (Some(query), *searching),
+        _ => (None, false),
+    };
+    let mut body = inner;
+    if let Some(q) = query.filter(|q| searching || !q.text.trim().is_empty()) {
+        let hint = if searching { "  enter keep · esc clear" } else { "  / edit · esc clear" };
+        let line = Line::from(vec![Span::styled("/ ", t.accent()), Span::styled(q.text.clone(), t.text()), Span::styled(hint, t.dim())]);
+        f.render_widget(Paragraph::new(line), Rect { height: 1, ..inner });
+        if searching {
+            f.set_cursor_position(Position::new(inner.x + 2 + q.cursor_pos().1 as u16, inner.y));
+        }
+        body = Rect { y: inner.y + 1, height: inner.height.saturating_sub(1), ..inner };
+    }
     let shown: Vec<Line> = lines.into_iter().skip(start).collect();
-    f.render_widget(Paragraph::new(shown).block(pane(&title, true, t)), r);
+    f.render_widget(Paragraph::new(shown), body);
 }
 
 fn presence(f: &mut Frame, area: Rect, p: &PresenceSheet, queued: usize, t: &Theme) {
