@@ -126,5 +126,7 @@ async fn run() -> anyhow::Result<()> {
     let mut state = State::new(backend.device(), keymap, app::runtime::now_ms());
     state.config_path = config_path.map(|p| p.display().to_string());
     state.theme_name = app::runtime::theme_label(&theme, depth);
-    app::runtime::run_tui(backend, state, theme, depth).await
+    state.mouse = config.mouse.unwrap_or(true);
+    let mouse = state.mouse;
+    app::runtime::run_tui(backend, state, theme, depth, mouse).await
 }

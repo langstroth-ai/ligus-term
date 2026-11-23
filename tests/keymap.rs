@@ -128,6 +128,9 @@ fn bad_config_is_reported_clearly() {
 fn printed_default_config_round_trips() {
     let text = default_config_text();
     let c = Config::parse(&text).unwrap();
+    assert_eq!(c.mouse, Some(true), "the printed config has the mouse on");
+    assert_eq!(Config::parse("mouse = false").unwrap().mouse, Some(false));
+    assert_eq!(Config::parse("").unwrap().mouse, None, "unset is on (main's default)");
     let k = c.keymap().unwrap();
     let d = Keymap::default();
     for b in BINDINGS {

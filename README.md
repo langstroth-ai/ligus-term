@@ -422,6 +422,13 @@ The default keys (all can be rebound, see [Configure](#configure)):
 | Settings | `enter` / `t` toggle |
 | Passkey prompt | `enter` open the browser · `f` use a recovery-words file · `esc` cancel |
 
+The mouse works too (on by default; `mouse = false` in the config turns it
+off): click a tab to open it, a chat or a proposal to select it, the
+transcript or the composer to focus it, and scroll lists, the transcript
+and the diff with the wheel (the wheel moves through overlays like `↑`/`↓`).
+Because lt has the mouse, selecting text to copy takes shift-drag in most
+terminals (option-drag in some).
+
 While the composer or another text field has focus, letters type. Only
 chords with `ctrl` or `alt` (and function keys) reach the global bindings.
 
@@ -496,6 +503,7 @@ the path with `--config` or `LT_CONFIG`. Every setting is optional:
 
 ```toml
 theme = "auto"   # auto (COLORFGBG, else the terminal's answer), dark, light, or mono
+mouse = true     # clicks and the wheel; false gives the terminal the mouse
 
 [keys.global]
 quit = ["ctrl-q"]          # replaces the defaults for this action

@@ -16,6 +16,8 @@ use crate::keymap::Action;
 pub enum Msg {
     Key(KeyEvent),
     Paste(String),
+    /// A mouse event (when mouse support is on).
+    Mouse(crossterm::event::MouseEvent),
     /// Wall clock, for ages and toasts.
     Tick(Millis),
     /// The terminal's new size (columns, rows).
@@ -176,6 +178,7 @@ pub fn update(s: &mut State, msg: Msg) -> Vec<Effect> {
     match msg {
         Msg::Key(k) => key(s, k),
         Msg::Paste(text) => paste(s, &text),
+        Msg::Mouse(m) => mouse(s, m),
         Msg::Tick(now) => {
             s.now = now;
             s.toasts.iter_mut().for_each(|t| t.ttl = t.ttl.saturating_sub(1));
@@ -719,6 +722,106 @@ fn event(s: &mut State, e: Event) -> Vec<Effect> {
         | Event::AgentsChanged { .. }
         | Event::WorkflowsChanged { .. }
         | Event::MemoryChanged { .. } => vec![],
+    }
+}
+
+/// A click or the wheel. Overlays take the wheel as ↑/↓; in the main
+/// screen a click on a tab opens its view, on a row selects it, on a pane
+/// focuses it, and the wheel scrolls what is under the pointer.
+fn mouse(s: &mut State, m: crossterm::event::MouseEvent) -> Vec<Effect> {
+    use crossterm::event::{MouseButton, MouseEventKind};
+    let arrow = |code| Msg::Key(KeyEvent::new(code, KeyModifiers::NONE));
+    let (up, down) = match m.kind {
+        MouseEventKind::ScrollUp => (true, false),
+        MouseEventKind::ScrollDown => (false, true),
+        MouseEventKind::Down(MouseButton::Left) => (false, false),
+        _ => return vec![],
+    };
+    if !s.presence.is_empty() || !matches!(s.phase, Phase::Main) {
+        return vec![];
+    }
+    if s.overlay.is_some() {
+        return match (up, down) {
+            (true, _) => update(s, arrow(KeyCode::Up)),
+            (_, true) => update(s, arrow(KeyCode::Down)),
+            _ => vec![],
+        };
+    }
+    if m.row == 0 {
+        if !(up || down)
+            && let Some(v) = crate::ui::tab_at(s, s.term.0, m.column)
+        {
+            return go(s, v);
+        }
+        return vec![];
+    }
+    let body = crate::ui::body_area(s.term);
+    if m.row >= body.bottom() {
+        return vec![];
+    }
+    let wheel = |s: &mut State, a: Action| {
+        let mut fx = vec![];
+        for _ in 0..3 {
+            fx.extend(nav_action(s, a));
+        }
+        fx
+    };
+    let step = if up { Action::Up } else { Action::Down };
+    match s.view {
+        View::Chats => match crate::ui::chat_hit(s, body, m.column, m.row) {
+            Some(crate::ui::ChatHit::List(_)) if up || down => {
+                let before = s.focus;
+                s.focus = Focus::List;
+                let fx = nav_action(s, step);
+                s.focus = if before == Focus::Composer { Focus::List } else { before };
+                fx
+            }
+            Some(crate::ui::ChatHit::List(row)) => {
+                s.focus = Focus::List;
+                match row.and_then(|i| s.chats.get(i).map(|c| (i, c.id.clone()))) {
+                    Some((i, id)) => {
+                        s.chat_sel.index = i;
+                        open_chat(s, id)
+                    }
+                    None => vec![],
+                }
+            }
+            Some(crate::ui::ChatHit::Transcript) if up || down => {
+                let before = s.focus;
+                s.focus = Focus::Detail;
+                let fx = wheel(s, step);
+                s.focus = before;
+                fx
+            }
+            Some(crate::ui::ChatHit::Transcript) => {
+                s.focus = Focus::Detail;
+                vec![]
+            }
+            Some(crate::ui::ChatHit::Composer) if !(up || down) && s.open_chat.is_some() => {
+                s.focus = Focus::Composer;
+                vec![]
+            }
+            _ => vec![],
+        },
+        View::Proposals => match crate::ui::proposal_hit(s, body, m.column, m.row) {
+            crate::ui::ProposalHit::List(_) if up || down => {
+                s.focus = Focus::List;
+                nav_action(s, step)
+            }
+            crate::ui::ProposalHit::List(Some(i)) => {
+                s.focus = Focus::List;
+                s.proposal_sel.index = i;
+                preview_selected_diff(s)
+            }
+            crate::ui::ProposalHit::List(None) => vec![],
+            crate::ui::ProposalHit::Detail if s.diff.is_some() => {
+                s.focus = Focus::Detail;
+                if up || down { wheel(s, step) } else { vec![] }
+            }
+            crate::ui::ProposalHit::Detail => vec![],
+        },
+        _ if up || down => nav_action(s, step),
+        _ => vec![],
     }
 }
 

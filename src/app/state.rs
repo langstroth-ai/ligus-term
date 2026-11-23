@@ -480,6 +480,9 @@ pub struct State {
     /// The terminal's size (columns, rows), for scroll limits; 0×0 until
     /// the first resize message.
     pub term: (u16, u16),
+    /// lt captures the mouse (clicks and the wheel), so selecting text
+    /// takes shift-drag.
+    pub mouse: bool,
     /// When `space` was pressed: the next key acts as usual, and if none
     /// comes within [`WHICH_KEY_DELAY`] a sheet shows what can be pressed.
     pub which_key: Option<Millis>,
@@ -551,6 +554,7 @@ impl State {
             term: (0, 0),
             compose_on_open: true,
             which_key: None,
+            mouse: false,
         }
     }
 
