@@ -642,6 +642,21 @@ async fn reduce_motion_stills_the_spinner() {
     assert!(still.contains("⠹ Weekly"), "{still}");
 }
 
+/// `/` in a list: the selection jumps to the match, and the status bar
+/// says what is typed and how many rows match.
+#[tokio::test]
+async fn find_in_proposals() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char('p')).await;
+    h.key(KeyCode::Char('/')).await;
+    h.chars("csv").await;
+    let screen = h.screen(W, H);
+    let status = screen.lines().last().unwrap();
+    assert!(status.contains("/csv") && status.contains("1 match"), "{status}");
+    assert_eq!(h.state.selected_proposal().map(|p| p.title.as_str()), Some("Export orders to CSV"));
+    snap(&h, "find", "/ in a list: the selection jumps to the match");
+}
+
 /// The chat list's chips: one glyph per state, and nothing for an idle
 /// chat.
 #[tokio::test]

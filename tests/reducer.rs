@@ -1486,3 +1486,61 @@ fn desktop_notification_sequence() {
     assert_eq!(osc9("a\x07b\x1b]c", false), b"\x1b]9;ab]c\x07");
     assert_eq!(osc9("hi", true), b"\x1bPtmux;\x1b\x1b]9;hi\x07\x1b\\");
 }
+
+/// `/` finds in the focused list as you type, ↓ goes to the next match,
+/// enter keeps it and esc goes back to where the find started.
+#[test]
+fn find_in_a_list() {
+    let mut s = main_state();
+    let w = WorkspaceId::new("a");
+    update(&mut s, Msg::Chats(w.clone(), Ok(vec![chat("checkout tests"), chat("auth"), chat("checkout docs")])));
+    key(&mut s, KeyCode::Char('/'));
+    assert!(s.find.is_some() && s.typing_text());
+    typed(&mut s, "check");
+    assert_eq!(s.chat_sel.index, 0);
+    key(&mut s, KeyCode::Down);
+    assert_eq!(s.chat_sel.index, 2, "the next match");
+    assert_eq!(s.open_chat, Some(ChatId::new("checkout docs")), "moving there opens it, as ↓ does");
+    key(&mut s, KeyCode::Down);
+    assert_eq!(s.chat_sel.index, 0, "round again");
+    key(&mut s, KeyCode::Esc);
+    assert!(s.find.is_none());
+    assert_eq!(s.chat_sel.index, 0, "back where it started");
+    key(&mut s, KeyCode::Char('/'));
+    typed(&mut s, "auth");
+    key(&mut s, KeyCode::Enter);
+    assert!(s.find.is_none());
+    assert_eq!(s.chat_sel.index, 1, "enter keeps it");
+    assert_eq!(s.view, View::Chats, "typing in the find never switched views");
+    // In People too.
+    key(&mut s, KeyCode::Char('m'));
+    update(
+        &mut s,
+        Msg::Members(
+            w,
+            Ok(vec![member("Ada", Role::Admin, Allowed::Yes, Allowed::Yes), member("Lin", Role::Contributor, Allowed::Yes, Allowed::Yes)]),
+        ),
+    );
+    key(&mut s, KeyCode::Char('/'));
+    typed(&mut s, "lin");
+    assert_eq!(s.member_sel.index, 1);
+}
+
+/// esc and ctrl-o go back to the view you came from (not always Chats);
+/// alt-right goes forward again.
+#[test]
+fn view_history_back_and_forward() {
+    let mut s = main_state();
+    key(&mut s, KeyCode::Char('p'));
+    key(&mut s, KeyCode::Char('m'));
+    assert_eq!(s.view, View::People);
+    key(&mut s, KeyCode::Esc);
+    assert_eq!(s.view, View::Proposals, "esc goes back, not to Chats");
+    mods(&mut s, KeyCode::Right, KeyModifiers::ALT);
+    assert_eq!(s.view, View::People);
+    mods(&mut s, KeyCode::Char('o'), KeyModifiers::CONTROL);
+    mods(&mut s, KeyCode::Char('o'), KeyModifiers::CONTROL);
+    assert_eq!(s.view, View::Chats);
+    mods(&mut s, KeyCode::Char('o'), KeyModifiers::CONTROL);
+    assert_eq!(s.view, View::Chats, "nothing further back");
+}

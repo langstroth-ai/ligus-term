@@ -891,6 +891,16 @@ fn paste(s: &mut State, text: &str) -> Vec<Effect> {
         }
         return vec![];
     }
+    if s.find.is_some() && s.overlay.is_none() {
+        if let Some(f) = s.find.as_mut() {
+            f.query.insert_str(text.trim());
+        }
+        let q = s.find.as_ref().map(|f| f.query.text.clone()).unwrap_or_default();
+        return match find_matches(s, &q).first().copied() {
+            Some(i) => select_row(s, i),
+            None => vec![],
+        };
+    }
     match (&mut s.overlay, &mut s.phase) {
         (Some(Overlay::Help { query, searching: true, scroll }), _) => {
             query.insert_str(text.trim());
@@ -1648,7 +1658,122 @@ fn open_chat(s: &mut State, id: ChatId) -> Vec<Effect> {
     vec![Effect::LoadTranscript(ws.clone(), id.clone()), Effect::MarkRead(ws, id)]
 }
 
+/// Go to a view, remembering where you were (`ctrl-o`, `esc` go back).
 fn go(s: &mut State, v: View) -> Vec<Effect> {
+    if v != s.view {
+        s.back.push(s.view);
+        if s.back.len() > 50 {
+            s.back.remove(0);
+        }
+        s.forward.clear();
+    }
+    show(s, v)
+}
+
+/// Back (or forward) through the views you went to.
+fn view_history(s: &mut State, back: bool) -> Vec<Effect> {
+    let (from, to) = if back { (&mut s.back, &mut s.forward) } else { (&mut s.forward, &mut s.back) };
+    let Some(v) = from.pop() else { return vec![] };
+    to.push(s.view);
+    show(s, v)
+}
+
+/// Select row `i` of the focused list, with what moving there does (a
+/// chat opens, a proposal's diff previews).
+fn select_row(s: &mut State, i: usize) -> Vec<Effect> {
+    match s.view {
+        View::Chats => {
+            s.chat_sel.index = i;
+            match s.chats.get(i).map(|c| c.id.clone()) {
+                Some(id) => open_chat(s, id),
+                None => vec![],
+            }
+        }
+        View::Proposals => {
+            s.proposal_sel.index = i;
+            preview_selected_diff(s)
+        }
+        View::Agents => {
+            s.agent_sel.index = i;
+            vec![]
+        }
+        View::Hosts => {
+            s.host_sel.index = i;
+            vec![]
+        }
+        View::People => {
+            s.member_sel.index = i;
+            vec![]
+        }
+        View::Notifications => {
+            s.notification_sel.index = i;
+            vec![]
+        }
+        View::Workflows => {
+            s.workflow_sel.index = i;
+            vec![]
+        }
+        View::Memory => {
+            s.memory_sel.index = i;
+            vec![]
+        }
+        View::Settings => vec![],
+    }
+}
+
+/// The rows matching a find query, in list order.
+fn find_matches(s: &State, q: &str) -> Vec<usize> {
+    let q = q.trim().to_lowercase();
+    let Some((rows, _)) = s.list_rows() else { return vec![] };
+    rows.iter().enumerate().filter(|(_, r)| !q.is_empty() && r.to_lowercase().contains(&q)).map(|(i, _)| i).collect()
+}
+
+/// A key while `/` is finding: typing jumps to the first match from where
+/// the find started, ↑/↓ go to the previous or next match, enter keeps the
+/// selection, esc goes back to where it was.
+fn find_key(s: &mut State, k: &KeyEvent) -> Vec<Effect> {
+    let Some(find) = s.find.as_mut() else { return vec![] };
+    let origin = find.origin;
+    match k.code {
+        KeyCode::Esc => {
+            s.find = None;
+            return select_row(s, origin);
+        }
+        KeyCode::Enter => {
+            s.find = None;
+            return vec![];
+        }
+        KeyCode::Up | KeyCode::Down => {
+            let q = find.query.text.clone();
+            let cur = s.list_rows().map(|(_, sel)| sel).unwrap_or(0);
+            let m = find_matches(s, &q);
+            let next = if k.code == KeyCode::Down {
+                m.iter().find(|i| **i > cur).or(m.first())
+            } else {
+                m.iter().rev().find(|i| **i < cur).or(m.last())
+            };
+            return match next.copied() {
+                Some(i) => select_row(s, i),
+                None => vec![],
+            };
+        }
+        _ => {
+            if !find.query.handle(k) {
+                return vec![];
+            }
+        }
+    }
+    let q = s.find.as_ref().map(|f| f.query.text.clone()).unwrap_or_default();
+    let m = find_matches(s, &q);
+    match m.iter().find(|i| **i >= origin).or(m.first()).copied() {
+        Some(i) => select_row(s, i),
+        None => vec![],
+    }
+}
+
+/// Show a view and load what it needs, without touching the history.
+fn show(s: &mut State, v: View) -> Vec<Effect> {
+    s.find = None;
     s.view = v;
     s.focus = Focus::List;
     match v {
@@ -1684,6 +1809,9 @@ fn main_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
     // put the sheet away.
     if s.which_key.take().is_some() && matches!(k.code, KeyCode::Esc | KeyCode::Char(' ')) {
         return vec![];
+    }
+    if s.find.is_some() && !k.modifiers.intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) {
+        return find_key(s, &k);
     }
     let typing = s.typing_text();
     // The mention popup takes ↑/↓/Tab/Enter/Esc while it is open.
@@ -1799,12 +1927,22 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             s.overlay = Some(Overlay::Help { scroll: 0, query: TextBuf::single(), searching: false });
             vec![]
         }
-        Back => {
-            match (s.view, s.focus) {
-                (View::Proposals, Focus::Detail) => s.focus = Focus::List,
-                (View::Chats, Focus::Detail) => s.focus = Focus::List,
-                (View::Chats, Focus::List) => {}
-                _ => s.view = View::Chats,
+        Back => match (s.view, s.focus) {
+            (View::Proposals, Focus::Detail) | (View::Chats, Focus::Detail) => {
+                s.focus = Focus::List;
+                vec![]
+            }
+            (View::Chats, Focus::List) => vec![],
+            // Back to the view you came from, not always to Chats.
+            _ if !s.back.is_empty() => view_history(s, true),
+            _ => show(s, View::Chats),
+        },
+        ViewBack => view_history(s, true),
+        ViewForward => view_history(s, false),
+        Find => {
+            match s.list_rows() {
+                Some((_, sel)) => s.find = Some(crate::app::state::Find { query: TextBuf::single(), origin: sel }),
+                None => s.toast(ToastKind::Info, "Nothing to find in here"),
             }
             vec![]
         }

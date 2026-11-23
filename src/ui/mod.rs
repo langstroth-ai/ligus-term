@@ -422,6 +422,18 @@ fn status_hints(s: &State) -> (Vec<String>, String) {
     let h = |ctx, a, label: &str| format!("{} {label}", k.hint(ctx, a));
     use Action::*;
     use Context as C;
+    if let (Some(f), None) = (&s.find, &s.overlay) {
+        let q = f.query.text.trim().to_lowercase();
+        let n = s.list_rows().map(|(rows, _)| rows.iter().filter(|r| !q.is_empty() && r.to_lowercase().contains(&q)).count()).unwrap_or(0);
+        let found = if q.is_empty() {
+            "type to find".to_string()
+        } else if n == 1 {
+            "1 match".into()
+        } else {
+            format!("{n} matches")
+        };
+        return (vec![format!("/{}", f.query.text), found, "↑↓ next".into(), "enter keep".into()], "esc back".into());
+    }
     if let Some(crate::app::state::Overlay::History { .. }) = &s.overlay {
         return (vec!["type to search".into(), "↑↓ select".into(), "enter use".into()], "esc close".into());
     }
