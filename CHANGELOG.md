@@ -4,7 +4,15 @@ All notable changes to `lt`, the Ligus terminal app (Ligus is short for
 ligustica). Versions follow [semver](https://semver.org); releases are on
 [GitHub](https://github.com/langstroth-ai/ligus-term/releases).
 
-## v0.2.0 (unreleased)
+## v0.2.0
+
+### Breaking
+
+- Exit codes changed, which can break scripts that test for a specific
+  code: a one-shot command exits with its first error's code instead of
+  always 1 (an unknown chat is 5, a refusal 6), and a data dir or device
+  lt can't use at start-up exits 3 instead of 2. Scripts that only test
+  for non-zero are unaffected. See Changed below for the full table.
 
 ### Added
 
