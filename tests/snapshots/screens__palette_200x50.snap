@@ -1,0 +1,54 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
+┏ Proposals ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Inject the clock into checkout tests ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+┃open     Inject the clock into checkout tests     ┃│open  by ┏ Commands · 34 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                                                             │
+┃         1/2 approvals · @coder · 37m             ┃│✓ Ada app┃›                                                                         ┃                                                             │
+┃approved Export orders to CSV                     ┃│A Approve┃──────────────────────────────────────────────────────────────────────────┃                                                             │
+┃         2/2 approvals · @coder · 1d              ┃│That host┃▶ Approve “Inject the clock into checkout tests”       A         Proposals┃                                                             │
+┃applied  Bump the order schema version            ┃│         ┃  Reject “Inject the clock into checkout tests”        R         Proposals┃                                                             │
+┃         2/2 approvals · @reviewer · 2d           ┃│         ┃  Apply on a host “Inject the clock into checkout te…  O         Proposals┃                                                             │
+┃open     Sign-off: inject a fake clock            ┃╰─────────┃  Withdraw the apply request “Inject the clock into …  W         Proposals┃─────────────────────────────────────────────────────────────╯
+┃         0/1 approvals · workflow · 4m            ┃╭ Diff · 2┃  Quit                                                 ctrl-c q   Anywhere┃─────────────────────────────────────────────────────────────╮
+┃open     Workflow: Dependency audit before rel…   ┃│▌src/chec┃  Show or hide this help                               ? f1       Anywhere┃                                                             │
+┃         0/1 approvals · @scout · 20m             ┃│@@ -12,7 ┃  This session's notices and errors, in full           !          Anywhere┃                                                             │
+┃                                                  ┃│     pub ┃  Switch workspace                                     w ctrl-w   Anywhere┃                                                             │
+┃                                                  ┃│     pub ┃  Create or join a workspace                           +          Anywhere┃                                                             │
+┃                                                  ┃│-    pub ┃  Go to Chats                                          c 1        Anywhere┃                                                             │
+┃                                                  ┃│+    /// ┃  Go to Workflows and runs                             f 2        Anywhere┃                                                             │
+┃                                                  ┃│+    pub ┃  Go to Proposals                                      p 3        Anywhere┃                                                             │
+┃                                                  ┃│+    pub ┃  Go to Agents, runtimes and hand-offs                 a 4        Anywhere┃                                                             │
+┃                                                  ┃│     pub ┃  Go to Hosts and workers                              h 5        Anywhere┃                                                             │
+┃                                                  ┃│ }       ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                                                             │
+┃                                                  ┃│@@ -40,9 +42,13 @@ impl Checkout {                                                                                                                │
+┃                                                  ┃│     pub fn is_expired(&self) -> bool {                                                                                                           │
+┃                                                  ┃│-        self.started.elapsed().as_secs() > 30                                                                                                    │
+┃                                                  ┃│-    }                                                                                                                                            │
+┃                                                  ┃│+        // 30 seconds matches the payment provider's session timeout.                                                                            │
+┃                                                  ┃│+        self.clock.now() - self.started_at >= Self::SESSION_TIMEOUT_MS                                                                           │
+┃                                                  ┃│+    }                                                                                                                                            │
+┃                                                  ┃│+                                                                                                                                                 │
+┃                                                  ┃│+    pub const SESSION_TIMEOUT_MS: Millis = 30_000;                                                                                               │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│     pub fn summary(&self) -> String {                                                                                                            │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│▌tests/checkout.rs +8 −0                                                                                                                          │
+┃                                                  ┃│@@ -0,0 +1,8 @@                                                                                                                                   │
+┃                                                  ┃│+use northwind::Checkout;                                                                                                                         │
+┃                                                  ┃│+                                                                                                                                                 │
+┃                                                  ┃│+#[test]                                                                                                                                          │
+┃                                                  ┃│+fn expires_after_thirty_seconds() {                                                                                                              │
+┃                                                  ┃│+    let c = Checkout::at_fake_time(30_000);                                                                                                      │
+┃                                                  ┃│+    assert!(c.is_expired());                                                                                                                     │
+┃                                                  ┃│+}                                                                                                                                                │
+┃                                                  ┃│+                                                                                                                                                 │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+type to filter  ↑↓ select  enter run  esc close                                                                                                                          peer to peer · 1 running · demo

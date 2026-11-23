@@ -502,6 +502,19 @@ async fn status_bar_sync_and_toasts() {
     snap(&h, "status_offline_toast", "Status bar: offline, with an error toast in its centre");
 }
 
+/// The command palette: everything for the view first, with its key.
+#[tokio::test]
+async fn command_palette() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char('3')).await;
+    h.key(KeyCode::Char(':')).await;
+    snap(&h, "palette", "Command palette: the view's actions first, each with its key");
+    h.chars("appr").await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("› appr") && screen.contains("Approve"), "{screen}");
+    snap(&h, "palette_query", "Command palette: typing filters");
+}
+
 /// The chat list's chips: one glyph per state, and nothing for an idle
 /// chat.
 #[tokio::test]

@@ -4,7 +4,7 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
-┏ Chats ━━━━━━━━━┏ Help · 1-40 of 84 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
+┏ Chats ━━━━━━━━━┏ Help · 1-40 of 85 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
 ┃  ◆ Fix flaky ch┃What has focus comes first. / searches. Rebind keys in the config file.   ┃                │
 ┃  #dev          ┃                                                                          ┃it reading the  │
 ┃  ◆ Migrate auth┃Chats  here                                                               ┃                │
@@ -25,6 +25,7 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 ┃                ┃Anywhere                                                                  ┃                │
 ┃                ┃  ctrl-c, q                Quit (asks first while work runs here)         ┃                │
 ┃                ┃  ?, f1                    Show or hide this help                         ┃                │
+┃                ┃  :, ctrl-p, ctrl-k        Command palette: every action, view, chat, prop┃                │
 ┃                ┃  !                        This session's notices and errors, in full     ┃                │
 ┃                ┃  esc                      Back / close                                   ┃                │
 ┃                ┃  w, ctrl-w                Switch workspace                               ┃                │
@@ -40,11 +41,10 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 ┃                ┃  s, 9                     Settings                                       ┃                │
 ┃                ┃  tab                      Next pane                                      ┃                │
 ┃                ┃  shift-tab                Previous pane                                  ┃                │
-┃                ┃                                                                          ┃                │
-┃                ┃Composer                                                                  ┃────────────────╯
-┃                ┃  enter                    Send                                           ┃
-┃                ┃  alt-enter, ctrl-j, shift-enter New line                                 ┃────────────────╮
-┃                ┃  esc                      Leave the composer (keeps the draft)           ┃                │
+┃                ┃                                                                          ┃────────────────╯
+┃                ┃Composer                                                                  ┃
+┃                ┃  enter                    Send                                           ┃────────────────╮
+┃                ┃  alt-enter, ctrl-j, shift-enter New line                                 ┃                │
 ┗━━━━━━━━━━━━━━━━┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛────────────────╯
 / search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                    peer to peer · 1 running · demo
 ```

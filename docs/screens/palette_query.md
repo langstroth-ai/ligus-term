@@ -1,0 +1,38 @@
+# Command palette: typing filters
+
+Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
+
+```text
+[NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
+┏ Proposals ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Inject the clock into checkout tests ──────────────────────────╮
+┃open     Inject ┏ Commands · 3 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓s               │
+┃         1/2 app┃› appr                                                                    ┃                │
+┃approved Export ┃──────────────────────────────────────────────────────────────────────────┃proval first)   │
+┃         2/2 app┃▶ Approve “Inject the clock into checkout tests”              A  Proposals┃reports the     │
+┃applied  Bump th┃  Export orders to CSV (approved)                                 Proposal┃                │
+┃         2/2 app┃  Withdraw the apply request “Inject the clock into checkou…  W  Proposals┃                │
+┃open     Sign-of┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛────────────────╯
+┃         0/1 approvals · workflow · 4m    ┃╭ Diff · 2 files · hunk 1/3 ─────────────────────────────────────╮
+┃open     Workflow: Dependency audit be…   ┃│▌src/checkout.rs +9 −3                                          │
+┃         0/1 approvals · @scout · 20m     ┃│@@ -12,7 +12,9 @@ pub struct Checkout {                         │
+┃                                          ┃│     pub cart: CartId,                                          │
+┃                                          ┃│     pub items: Vec<LineItem>,                                  │
+┃                                          ┃│-    pub started: Instant,                                      │
+┃                                          ┃│+    /// Injected, so tests set the time instead of reading the…│
+┃                                          ┃│+    pub clock: Arc<dyn Clock>,                                 │
+┃                                          ┃│+    pub started_at: Millis,                                    │
+┃                                          ┃│     pub paid: bool,                                            │
+┃                                          ┃│ }                                                              │
+┃                                          ┃│@@ -40,9 +42,13 @@ impl Checkout {                              │
+┃                                          ┃│     pub fn is_expired(&self) -> bool {                         │
+┃                                          ┃│-        self.started.elapsed().as_secs() > 30                  │
+┃                                          ┃│-    }                                                          │
+┃                                          ┃│+        // 30 seconds matches the payment provider's session t…│
+┃                                          ┃│+        self.clock.now() - self.started_at >= Self::SESSION_TI…│
+┃                                          ┃│+    }                                                          │
+┃                                          ┃│+                                                               │
+┃                                          ┃│+    pub const SESSION_TIMEOUT_MS: Millis = 30_000;             │
+┃                                          ┃│                                                                │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────╯
+type to filter  ↑↓ select  enter run  esc close                                peer to peer · 1 running · demo
+```

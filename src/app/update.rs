@@ -707,6 +707,10 @@ fn paste(s: &mut State, text: &str) -> Vec<Effect> {
                 }
             }
         }
+        (Some(Overlay::Palette { query: b, sel }), _) => {
+            b.insert_str(text.trim());
+            *sel = 0;
+        }
         (Some(Overlay::NewChat(b)), _) | (Some(Overlay::BindCheckout(b)), _) | (Some(Overlay::AddAgent { name: b, .. }), _) => {
             b.insert_str(text.trim())
         }
@@ -994,6 +998,43 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
                 Some(Action::Top) => *scroll = 0,
                 Some(Action::Bottom) => *scroll = help_max,
                 _ => s.overlay = None,
+            }
+            vec![]
+        }
+        Overlay::Palette { query, sel } => {
+            let ctrl = k.modifiers.contains(KeyModifiers::CONTROL);
+            match k.code {
+                KeyCode::Esc => s.overlay = None,
+                KeyCode::Up => *sel = sel.saturating_sub(1),
+                KeyCode::Char('p') if ctrl => *sel = sel.saturating_sub(1),
+                KeyCode::Down => *sel += 1,
+                KeyCode::Char('n') if ctrl => *sel += 1,
+                KeyCode::PageUp => *sel = sel.saturating_sub(10),
+                KeyCode::PageDown => *sel += 10,
+                KeyCode::Enter => {
+                    let q = query.text.clone();
+                    let i = *sel;
+                    s.overlay = None;
+                    let items = crate::app::palette::filtered(s, &q);
+                    return match items.get(i.min(items.len().saturating_sub(1))) {
+                        Some(it) => run_palette(s, it.target.clone()),
+                        None => vec![],
+                    };
+                }
+                _ => {
+                    if query.handle(&k) {
+                        *sel = 0;
+                    }
+                }
+            }
+            // Keep the selection on an entry.
+            let q = match &s.overlay {
+                Some(Overlay::Palette { query, .. }) => query.text.clone(),
+                _ => return vec![],
+            };
+            let n = crate::app::palette::filtered(s, &q).len();
+            if let Some(Overlay::Palette { sel, .. }) = &mut s.overlay {
+                *sel = (*sel).min(n.saturating_sub(1));
             }
             vec![]
         }
@@ -1442,6 +1483,10 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             s.overlay = Some(Overlay::Messages { scroll: 0 });
             vec![]
         }
+        Palette => {
+            s.overlay = Some(Overlay::Palette { query: TextBuf::single(), sel: 0 });
+            vec![]
+        }
         Help => {
             s.overlay = Some(Overlay::Help { scroll: 0, query: TextBuf::single(), searching: false });
             vec![]
@@ -1739,6 +1784,48 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             }
             s.overlay = Some(Overlay::AdmitBox { request: TextBuf::single(), busy: false, checked: None, result: None });
             vec![]
+        }
+    }
+}
+
+/// Do what a palette entry says: an action as its key would, or go to an
+/// entity and select it.
+fn run_palette(s: &mut State, target: crate::app::palette::Target) -> Vec<Effect> {
+    use crate::app::palette::Target;
+    match target {
+        Target::Action(a) => main_action(s, a),
+        Target::SwitchWorkspace(id) => switch_workspace(s, id),
+        Target::OpenChat(id) => {
+            let mut fx = go(s, View::Chats);
+            if let Some(i) = s.chats.iter().position(|c| c.id == id) {
+                s.chat_sel.index = i;
+            }
+            fx.extend(open_chat(s, id));
+            fx
+        }
+        Target::ShowProposal(id) => {
+            let mut fx = go(s, View::Proposals);
+            if let Some(i) = s.proposals.iter().position(|p| p.id == id) {
+                s.proposal_sel.index = i;
+            }
+            // go() asked for the old selection's diff; ask for this one.
+            fx.retain(|f| !matches!(f, Effect::LoadDiff(..)));
+            fx.extend(load_selected_diff(s));
+            fx
+        }
+        Target::ShowRun(id) => {
+            let fx = go(s, View::Workflows);
+            if let Some(i) = s.runs.iter().position(|r| r.id == id) {
+                s.workflow_sel.index = s.workflows.len() + i;
+            }
+            fx
+        }
+        Target::ShowAgent(id) => {
+            let fx = go(s, View::Agents);
+            if let Some(i) = s.agents.iter().position(|a| a.id == id) {
+                s.agent_sel.index = i;
+            }
+            fx
         }
     }
 }

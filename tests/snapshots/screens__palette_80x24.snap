@@ -1,0 +1,28 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
+┏ Proposals ━━━━━━━━━━━━━━━━━━━┓╭ Inject the clock into checkout tests ────────╮
+┃o┏ Commands · 34 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
+┃ ┃›                                                                         ┃ │
+┃a┃──────────────────────────────────────────────────────────────────────────┃ │
+┃ ┃▶ Approve “Inject the clock into checkout tests”       A         Proposals┃ │
+┃a┃  Reject “Inject the clock into checkout tests”        R         Proposals┃ │
+┃ ┃  Apply on a host “Inject the clock into checkout te…  O         Proposals┃ │
+┃o┃  Withdraw the apply request “Inject the clock into …  W         Proposals┃─╯
+┃ ┃  Quit                                                 ctrl-c q   Anywhere┃─╮
+┃o┃  Show or hide this help                               ? f1       Anywhere┃ │
+┃ ┃  This session's notices and errors, in full           !          Anywhere┃ │
+┃ ┃  Switch workspace                                     w ctrl-w   Anywhere┃ │
+┃ ┃  Create or join a workspace                           +          Anywhere┃ │
+┃ ┃  Go to Chats                                          c 1        Anywhere┃ │
+┃ ┃  Go to Workflows and runs                             f 2        Anywhere┃…│
+┃ ┃  Go to Proposals                                      p 3        Anywhere┃ │
+┃ ┃  Go to Agents, runtimes and hand-offs                 a 4        Anywhere┃ │
+┃ ┃  Go to Hosts and workers                              h 5        Anywhere┃ │
+┃ ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ │
+┃                              ┃│@@ -40,9 +42,13 @@ impl Checkout {            │
+┃                              ┃│     pub fn is_expired(&self) -> bool {       │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────╯
+type to filter  ↑↓ select  enter run  esc close  peer to peer · 1 running · demo

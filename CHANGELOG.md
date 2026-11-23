@@ -8,6 +8,13 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Added
 
+- A command palette: `:` (or `ctrl-p`, `ctrl-k`, also from the composer)
+  opens one fuzzy list of the focused view's actions (naming what they act
+  on: "Approve “Fix the flaky test”"), every action available anywhere,
+  every view, and the workspace's other workspaces, chats, proposals, runs
+  and agents. Each action shows its key. `enter` runs it or goes to the
+  thing and selects it; `esc` closes. Context actions only show where they
+  apply, so nothing acts on a selection you can't see.
 - Chats show where each one stands, with one glyph before the title: `⠹`
   working, `◆` needs you (an agent's open question or a proposal waiting
   on your vote), `⧗` queued, `✓` done since you last looked, `✕` failed and
