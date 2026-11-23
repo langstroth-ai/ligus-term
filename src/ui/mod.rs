@@ -29,8 +29,19 @@ use crate::backend::model::{SyncMode, initials};
 use crate::keymap::{Action, Context};
 use crate::theme::Theme;
 
+/// The smallest terminal lt lays out; below it one line says so (a
+/// passkey prompt still shows, since it waits on you).
+pub const MIN_SIZE: (u16, u16) = (60, 20);
+
 pub fn draw(f: &mut Frame, s: &State, t: &Theme) {
     let area = f.area();
+    if (area.width < MIN_SIZE.0 || area.height < MIN_SIZE.1) && s.presence.is_empty() {
+        let msg = format!("Terminal too small: lt needs {}×{}, this is {}×{}", MIN_SIZE.0, MIN_SIZE.1, area.width, area.height);
+        let lines: Vec<Line> = wrap(&msg, area.width.max(1) as usize).into_iter().map(|l| Line::styled(l, t.text())).collect();
+        let h = lines.len() as u16;
+        f.render_widget(Paragraph::new(lines).centered(), center(area, area.width, h));
+        return;
+    }
     match &s.phase {
         Phase::Loading => {
             let p = Paragraph::new(Line::styled("Starting Ligus…", t.dim())).centered();

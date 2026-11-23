@@ -1628,6 +1628,15 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             };
             vec![]
         }
+        ChatList => {
+            if s.view != View::Chats {
+                let fx = go(s, View::Chats);
+                s.focus = Focus::List;
+                return fx;
+            }
+            s.focus = if s.focus == Focus::List && s.open_chat.is_some() { Focus::Composer } else { Focus::List };
+            vec![]
+        }
         Up | Down | PageUp | PageDown | Top | Bottom => nav_action(s, action),
         Select => select(s),
         Compose => {

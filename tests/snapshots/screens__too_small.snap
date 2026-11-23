@@ -1,0 +1,13 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+
+
+
+
+
+
+
+
+  Terminal too small: lt needs 60×20, this is 52×18

@@ -14,11 +14,89 @@ use crate::backend::model::{Allowed, Author, Message, SessionState};
 use crate::keymap::{Action, Context};
 use crate::theme::Theme;
 
+/// Below this many columns the chat list shows only while it has the
+/// keyboard (`esc` or `ctrl-l`), and otherwise the transcript has the width.
+pub const LIST_OVERLAY_BELOW: u16 = 100;
+/// From this many columns a third column shows what the chat has going on.
+pub const RAIL_FROM: u16 = 160;
+/// The transcript's longest line, so a wide terminal doesn't make
+/// 170-column lines.
+pub const READING_WIDTH: u16 = 100;
+
 pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
-    let side = if area.width >= 90 { 32 } else { 24 };
-    let [list, main] = Layout::horizontal([Constraint::Length(side), Constraint::Min(20)]).areas(area);
+    if area.width < LIST_OVERLAY_BELOW {
+        // The list only while it has the keyboard; the transcript rewraps
+        // beside it rather than being covered.
+        if s.focus == Focus::List {
+            let [list, main] = Layout::horizontal([Constraint::Length(28.min(area.width / 2)), Constraint::Min(20)]).areas(area);
+            draw_list(f, list, s, t);
+            draw_main(f, main, s, t);
+        } else {
+            draw_main(f, area, s, t);
+        }
+        return;
+    }
+    if area.width >= RAIL_FROM {
+        let [list, main, rail] = Layout::horizontal([Constraint::Length(32), Constraint::Min(40), Constraint::Length(40)]).areas(area);
+        draw_list(f, list, s, t);
+        draw_main(f, main, s, t);
+        draw_rail(f, rail, s, t);
+        return;
+    }
+    let [list, main] = Layout::horizontal([Constraint::Length(32), Constraint::Min(20)]).areas(area);
     draw_list(f, list, s, t);
     draw_main(f, main, s, t);
+}
+
+/// The third column on a wide terminal: who is working in this chat, the
+/// proposals it produced and the runs it belongs to.
+fn draw_rail(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
+    let block = pane("This chat", false, t);
+    let inner = block.inner(area);
+    f.render_widget(block, area);
+    let Some(chat) = s.open_chat.as_ref() else { return };
+    let w = inner.width as usize;
+    let mut lines: Vec<Line> = vec![];
+    let working: Vec<&String> = s.thinking.get(chat).map(|x| x.iter().collect()).unwrap_or_default();
+    if !working.is_empty() {
+        lines.push(Line::styled("Working", t.dim()));
+        for a in working {
+            let glyph = super::state_glyph(s, SessionState::Working, t);
+            lines.push(Line::from(vec![
+                Span::styled(format!("{glyph} "), t.state(SessionState::Working)),
+                Span::styled(trunc(a, w - 2), t.text()),
+            ]));
+        }
+        lines.push(Line::raw(""));
+    }
+    let props: Vec<_> = s.proposals.iter().filter(|p| p.chat.as_ref() == Some(chat)).collect();
+    if !props.is_empty() {
+        lines.push(Line::styled("Proposals", t.dim()));
+        for p in props {
+            let needs = p.status == crate::backend::model::ProposalStatus::Open && p.can_vote.is_yes();
+            let (glyph, style) =
+                if needs { (SessionState::NeedsYou.glyph(false), t.state(SessionState::NeedsYou)) } else { ("·", t.dim()) };
+            let state = format!("{} {}/{}", p.status.label(), p.approvals, p.quorum);
+            lines.push(Line::from(vec![
+                Span::styled(format!("{glyph} "), style),
+                Span::styled(trunc(&p.title, w.saturating_sub(2)), t.text()),
+            ]));
+            lines.push(Line::styled(format!("  {state}"), t.dim()));
+        }
+        lines.push(Line::raw(""));
+    }
+    let runs: Vec<_> = s.runs.iter().filter(|r| &r.chat == chat).collect();
+    if !runs.is_empty() {
+        lines.push(Line::styled("Runs", t.dim()));
+        for r in runs {
+            lines.push(Line::from(vec![Span::styled("· ", t.dim()), Span::styled(trunc(&r.name, w - 2), t.text())]));
+            lines.push(Line::styled(format!("  {}", r.status.label()), t.dim()));
+        }
+    }
+    if lines.is_empty() {
+        lines.push(Line::styled("Nothing going on here.", t.dim()));
+    }
+    f.render_widget(Paragraph::new(lines), inner);
 }
 
 fn draw_list(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
@@ -100,9 +178,19 @@ fn draw_main(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         f.render_widget(Paragraph::new(lines), lock);
     }
 
-    let title = chat.map(|c| c.title.as_str()).unwrap_or("No chat open");
-    let block = pane(title, s.focus == Focus::Detail, t);
+    let mut title = chat.map(|c| c.title.clone()).unwrap_or_else(|| "No chat open".into());
+    // With the list out of sight, say where this chat sits in it.
+    if area.width < LIST_OVERLAY_BELOW && chat.is_some() && s.chats.len() > 1 {
+        title = format!("{title} · {}/{}", s.chat_sel.index + 1, s.chats.len());
+    }
+    let block = pane(&title, s.focus == Focus::Detail, t);
     let inner = block.inner(transcript);
+    // A comfortable line length, centred, however wide the pane.
+    let inner = if inner.width > READING_WIDTH {
+        Rect { x: inner.x + (inner.width - READING_WIDTH) / 2, width: READING_WIDTH, ..inner }
+    } else {
+        inner
+    };
     f.render_widget(block, transcript);
     if chat.is_some() && s.transcript.is_empty() {
         // The welcome wraps in a narrow pane rather than losing its end.

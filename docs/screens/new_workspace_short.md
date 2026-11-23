@@ -1,6 +1,6 @@
 # A new workspace in a short terminal: the welcome without the mark
 
-Rendered by `tests/screens.rs` (110×18, the in-memory demo backend).
+Rendered by `tests/screens.rs` (110×20, the in-memory demo backend).
 
 ```text
 [AW] Acme Web · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications  Settings
@@ -9,8 +9,10 @@ Rendered by `tests/screens.rs` (110×18, the in-memory demo backend).
 │                              ││                                                                            │
 │                              ││                                                                            │
 │                              ││                                                                            │
+│                              ││                                                                            │
 │                              ││                            Start a conversation                            │
 │                              ││     Ask about your code, or @mention an agent to have it make changes.     │
+│                              ││                                                                            │
 │                              ││                                                                            │
 │                              ││                                                                            │
 │                              ││                                                                            │

@@ -4,7 +4,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 2 Settings
-╭ Chats ───────────────────────╮╭ Fix flaky checkout test ───────────────────────────────────────────────────╮
+╭ Chats ───────────────────────╮╭ Fix flaky checkout test · 1/3 ─────────────────────────────────────────────╮
 │  ◆ Fix flaky checkout … 12m  ││@coder  via claude-code  38m                                                │
 │  #dev                        ││  Yes. The payment tests already use a fake clock, so it's a small change.  │
 │  ◆ Migrate auth to pas… 50m  ││  I'll propose it.                                                          │

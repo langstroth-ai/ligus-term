@@ -3,26 +3,26 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
-┏ Chats ━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ─────────────────────────────╮
-┃  ✕ Fix flaky c… 12m  ┃│Ada  40m                                              │
-┃  #dev                ┃│  The checkout test fails about one run in ten. Can we│
-┃  ‖ Migrate aut… 50m  ┃│  stop it reading the wall clock?                     │
-┃  #dev                ┃│                                                      │
-┃  ⠋ Weekly relea… 1d  ┃│@coder  via claude-code  38m                          │
-┃                      ┃│  Yes. The payment tests already use a fake clock, so │
-┃                      ┃│  it's a small change. I'll propose it.               │
-┃                      ┃│                                                      │
-┃                      ┃│Ada  12m                                              │
-┃                      ┃│  @Mara can you review the timeout? 30 seconds is what│
-┃                      ┃│  the provider uses.                                  │
-┃                      ┃│                                                      │
-┃                      ┃│                                                      │
-┃                      ┃│                                                      │
-┃                      ┃│                                                      │
-┃                      ┃│                                                      │
-┃                      ┃╰──────────────────────────────────────────────────────╯
-┃                      ┃
-┃                      ┃╭ Message the room ────────────────────────────────────╮
-┃                      ┃│i to write · @ mentions an agent or a person          │
-┗━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────╯
+┏ Chats ━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test · 1/3 ───────────────────╮
+┃  ✕ Fix flaky check… 12m  ┃│Ada  40m                                          │
+┃  #dev                    ┃│  The checkout test fails about one run in ten.   │
+┃  ‖ Migrate auth to… 50m  ┃│  Can we stop it reading the wall clock?          │
+┃  #dev                    ┃│                                                  │
+┃  ⠋ Weekly release n… 1d  ┃│@coder  via claude-code  38m                      │
+┃                          ┃│  Yes. The payment tests already use a fake clock,│
+┃                          ┃│  so it's a small change. I'll propose it.        │
+┃                          ┃│                                                  │
+┃                          ┃│Ada  12m                                          │
+┃                          ┃│  @Mara can you review the timeout? 30 seconds is │
+┃                          ┃│  what the provider uses.                         │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃╰──────────────────────────────────────────────────╯
+┃                          ┃
+┃                          ┃╭ Message the room ────────────────────────────────╮
+┃                          ┃│i to write · @ mentions an agent or a person      │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────╯
 ↑↓ chats  i write  N new chat  tab pane  w workspaces  ? help       peer to peer

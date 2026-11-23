@@ -4,7 +4,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
-╭ Chats ───────────────────────╮╭ Fix flaky checkout test ───────────────────────────────────────────────────╮
+╭ Chats ───────────────────────╮╭ Fix flaky checkout test · 1/3 ─────────────────────────────────────────────╮
 │  ◆ Fix flaky checkout … 12m  ││Ada  40m                                                                    │
 │  #dev                        ││  The checkout test fails about one run in ten. Can we stop it reading the  │
 │  ◆ Migrate auth to pas… 50m  ││  wall clock?                                                               │

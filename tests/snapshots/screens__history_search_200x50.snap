@@ -3,52 +3,52 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 2  Settings
-╭ Chats ───────────────────────╮╭ Fix flaky checkout test ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│  ◆ Fix flaky checkout … 12m  ││Ada  40m                                                                                                                                                              │
-│  #dev                        ││  The checkout test fails about one run in ten. Can we stop it reading the wall clock?                                                                                │
-│  ◆ Migrate auth to pas… 50m  ││                                                                                                                                                                      │
-│  #dev                        ││@coder  via claude-code  38m                                                                                                                                          │
-│  Weekly release notes    1d  ││  Yes. The payment tests already use a fake clock, so it's a small change. I'll propose it.                                                                           │
-│                              ││                                                                                                                                                                      │
-│                              ││Ada  12m                                                                                                                                                              │
-│                              ││  @Mara can you review the timeout? 30 seconds is what the provider uses.                                                                                             │
-│                              ││                                                                                                                                                                      │
-│                              ││Mara  now                                                                                                                                                             │
-│                              ││  @coder can you rerun the flaky test?                                                                                                                                │
-│                              ││                                                                                                                                                                      │
-│                              ││@coder  via claude-code  now                                                                                                                                          │
-│                              ││  ⚒ read_file src/checkout.rs done                                                                                                                                    │
-│                              ││  Here's what I found: the checkout test reads the wall clock, so it fails when CI is slow. Want me to propose a change?                                              │
-│                              ││                                                                                                                                                                      │
-│                              ││Mara  now                                                                                                                                                             │
-│                              ││  Thanks, that fixed it                                                                                                                                               │
-│                              ││                                                                                                                                                                      │
-│                              ││@primary  via claude-code  now                                                                                                                                        │
-│                              ││  ⚒ read_file src/checkout.rs done                                                                                                                                    │
-│                              ││  Looked at the checkout test. I injected a fake clock into the session check and added a test.                                                                       │
-│                              ││                                                                                                                                                                      │
-│                              ││  Filed it as a proposal for review, @Mara.                                                                                                                           │
-│                              ││                                                                                                                                                                      │
-│                              ││                                                                                                                                                                      │
-│                              ││                                                                                                                                                                      │
-│                              ││                                                                                                                                                                      │
-│                              ││                                                                                                                                                                      │
-│                              ││                                                                                                                                                                      │
-│                              ││                                                                                                                                                                      │
-│                              ││                                                                                                                                                                      │
-│                              ││                                                                                                                                                                      │
-│                              ││                                                                                                                                                                      │
-│                              ││                                                                                                                                                                      │
-│                              ││                                                                                                                                                                      │
-│                              ││                                                                                                                                                                      │
-│                              ││                                                                                                                                                                      │
-│                              ││                             ┏ What you sent · enter use · esc ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                                                             │
-│                              ││                             ┃search ›                                                                  ┃                                                             │
-│                              ││                             ┃                                                                          ┃                                                             │
-│                              ││                             ┃▶ Thanks, that fixed it                                                   ┃                                                             │
-│                              │╰─────────────────────────────┃  @coder can you rerun the flaky test?                                    ┃─────────────────────────────────────────────────────────────╯
-│                              │                              ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-│                              │┏ Message the room ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-│                              │┃Type a message · @ mentions an agent or a person · esc for keys                                                                                                       ┃
-╰──────────────────────────────╯┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+╭ Chats ───────────────────────╮╭ Fix flaky checkout test ─────────────────────────────────────────────────────────────────────────────────────────────────────╮╭ This chat ───────────────────────────╮
+│  ◆ Fix flaky checkout … 12m  ││             Ada  40m                                                                                                         ││Proposals                             │
+│  #dev                        ││               The checkout test fails about one run in ten. Can we stop it reading the wall clock?                           ││◆ Inject a clock into the session che…│
+│  ◆ Migrate auth to pas… 50m  ││                                                                                                                              ││  open 0/1                            │
+│  #dev                        ││             @coder  via claude-code  38m                                                                                     ││◆ Inject the clock into checkout tests│
+│  Weekly release notes    1d  ││               Yes. The payment tests already use a fake clock, so it's a small change. I'll propose it.                      ││  open 1/2                            │
+│                              ││                                                                                                                              ││◆ Sign-off: inject a fake clock       │
+│                              ││             Ada  12m                                                                                                         ││  open 0/1                            │
+│                              ││               @Mara can you review the timeout? 30 seconds is what the provider uses.                                        ││                                      │
+│                              ││                                                                                                                              ││Runs                                  │
+│                              ││             Mara  now                                                                                                        ││· Implement, review, ship             │
+│                              ││               @coder can you rerun the flaky test?                                                                           ││  awaiting-gate                       │
+│                              ││                                                                                                                              ││                                      │
+│                              ││             @coder  via claude-code  now                                                                                     ││                                      │
+│                              ││               ⚒ read_file src/checkout.rs done                                                                               ││                                      │
+│                              ││               Here's what I found: the checkout test reads the wall clock, so it fails when CI is slow. Want me              ││                                      │
+│                              ││               to propose a change?                                                                                           ││                                      │
+│                              ││                                                                                                                              ││                                      │
+│                              ││             Mara  now                                                                                                        ││                                      │
+│                              ││               Thanks, that fixed it                                                                                          ││                                      │
+│                              ││                                                                                                                              ││                                      │
+│                              ││             @primary  via claude-code  now                                                                                   ││                                      │
+│                              ││               ⚒ read_file src/checkout.rs done                                                                               ││                                      │
+│                              ││               Looked at the checkout test. I injected a fake clock into the session check and added a test.                  ││                                      │
+│                              ││                                                                                                                              ││                                      │
+│                              ││               Filed it as a proposal for review, @Mara.                                                                      ││                                      │
+│                              ││                                                                                                                              ││                                      │
+│                              ││                                                                                                                              ││                                      │
+│                              ││                                                                                                                              ││                                      │
+│                              ││                                                                                                                              ││                                      │
+│                              ││                                                                                                                              ││                                      │
+│                              ││                                                                                                                              ││                                      │
+│                              ││                                                                                                                              ││                                      │
+│                              ││                                                                                                                              ││                                      │
+│                              ││                                                                                                                              ││                                      │
+│                              ││                                                                                                                              ││                                      │
+│                              ││                                                                                                                              ││                                      │
+│                              ││                                                                                                                              ││                                      │
+│                              ││                                                                                                                              ││                                      │
+│                              ││                             ┏ What you sent · enter use · esc ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                     ││                                      │
+│                              ││                             ┃search ›                                                                  ┃                     ││                                      │
+│                              ││                             ┃                                                                          ┃                     ││                                      │
+│                              ││                             ┃▶ Thanks, that fixed it                                                   ┃                     ││                                      │
+│                              │╰─────────────────────────────┃  @coder can you rerun the flaky test?                                    ┃─────────────────────╯│                                      │
+│                              │                              ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                      │                                      │
+│                              │┏ Message the room ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓│                                      │
+│                              │┃Type a message · @ mentions an agent or a person · esc for keys                                                               ┃│                                      │
+╰──────────────────────────────╯┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────╯
 type to search  ↑↓ select  enter use  esc close  • @primary mentioned you                                                                                                peer to peer · 1 running · demo

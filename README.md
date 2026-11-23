@@ -408,7 +408,7 @@ The default keys (all can be rebound, see [Configure](#configure)):
 
 | Where | Keys |
 |---|---|
-| Anywhere | `q` / `ctrl-c` quit (while this device drives a run or an agent's turn it asks first; a second `ctrl-c` quits) · `:` / `ctrl-p` / `ctrl-k` command palette · `space` then pause: a sheet of the keys you can press here (any key then acts as usual) · `?` / `f1` help · `!` messages · `esc` back · `w` / `ctrl-w` workspaces · `+` add a workspace · `tab` / `shift-tab` next or previous pane |
+| Anywhere | `q` / `ctrl-c` quit (while this device drives a run or an agent's turn it asks first; a second `ctrl-c` quits) · `:` / `ctrl-p` / `ctrl-k` command palette · `space` then pause: a sheet of the keys you can press here (any key then acts as usual) · `?` / `f1` help · `!` messages · `esc` back · `w` / `ctrl-w` workspaces · `+` add a workspace · `tab` / `shift-tab` next or previous pane · `ctrl-l` the chat list |
 | Lists | `↑ ↓` or `j k` move · `pgup pgdn` (`ctrl-u ctrl-d`) · `g G` (`home end`) first and last · `enter` (`l`, `→`) open |
 | Chats | `i` write (lt starts with the cursor in the open chat's composer; `esc` leaves it) · `N` new chat · `L` lock the chat down · `U` clear the lockdown |
 | Composer | `enter` send · `alt-enter` / `ctrl-j` new line (`shift-enter` too, in terminals with the kitty keyboard protocol) · `@` mention, then `tab` or `enter` to accept · `↑` on an empty draft recalls what you sent (`↓` comes back) · `ctrl-r` search what you sent · `ctrl-g` write the draft in `$VISUAL` / `$EDITOR` · `esc` leave (the draft is kept) |
@@ -424,6 +424,15 @@ The default keys (all can be rebound, see [Configure](#configure)):
 
 While the composer or another text field has focus, letters type. Only
 chords with `ctrl` or `alt` (and function keys) reach the global bindings.
+
+The chat view fits the terminal. Under 100 columns the chat list shows
+only while it has the keyboard (`esc` from the composer, or `ctrl-l`
+anywhere), and the transcript takes the width otherwise, its title saying
+where the chat sits ("· 1/3"). From 160 columns a third column shows what
+the open chat has going on: who is working in it, its proposals and its
+runs. Transcript lines stop at 100 columns, centred, however wide the
+terminal. Below 60×20 lt shows one line asking for a bigger terminal (a
+passkey prompt still shows).
 
 Each chat in the list shows where it stands with one glyph before its
 title, the same states as the desktop's chat rows: `⠹` working (an agent

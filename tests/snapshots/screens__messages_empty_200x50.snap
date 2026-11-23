@@ -3,52 +3,52 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
-┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ┏ Messages · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────────────────────────────────────────╮
-┃  ◆ Fix flaky checkout … 12m  ┃│Ada  40m                 ┃Nothing yet.                                                                      ┃                                                         │
-┃  #dev                        ┃│  The checkout test fails┃Notices and errors from this session collect here, so one that went by can be read┃                                                         │
-┃  ◆ Migrate auth to pas… 50m  ┃│                         ┃again.                                                                            ┃                                                         │
-┃  #dev                        ┃│@coder  via claude-code  ┃                                                                                  ┃                                                         │
-┃  Weekly release notes    1d  ┃│  Yes. The payment tests ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│Ada  12m                 ┃                                                                                  ┃                                                         │
-┃                              ┃│  @Mara can you review th┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃│                         ┃                                                                                  ┃                                                         │
-┃                              ┃╰─────────────────────────┃                                                                                  ┃─────────────────────────────────────────────────────────╯
-┃                              ┃                          ┃                                                                                  ┃
-┃                              ┃╭ Message the room ───────┃                                                                                  ┃─────────────────────────────────────────────────────────╮
-┃                              ┃│i to write · @ mentions a┃                                                                                  ┃                                                         │
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰─────────────────────────┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛─────────────────────────────────────────────────────────╯
+┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ┏ Messages · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────╮╭ This chat ───────────────────────────╮
+┃  ◆ Fix flaky checkout … 12m  ┃│             Ada  40m    ┃Nothing yet.                                                                      ┃                 ││Proposals                             │
+┃  #dev                        ┃│               The checko┃Notices and errors from this session collect here, so one that went by can be read┃                 ││◆ Inject the clock into checkout tests│
+┃  ◆ Migrate auth to pas… 50m  ┃│                         ┃again.                                                                            ┃                 ││  open 1/2                            │
+┃  #dev                        ┃│             @coder  via ┃                                                                                  ┃                 ││◆ Sign-off: inject a fake clock       │
+┃  Weekly release notes    1d  ┃│               Yes. The p┃                                                                                  ┃                 ││  open 0/1                            │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│             Ada  12m    ┃                                                                                  ┃                 ││Runs                                  │
+┃                              ┃│               @Mara can ┃                                                                                  ┃                 ││· Implement, review, ship             │
+┃                              ┃│                         ┃                                                                                  ┃                 ││  awaiting-gate                       │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃╰─────────────────────────┃                                                                                  ┃─────────────────╯│                                      │
+┃                              ┃                          ┃                                                                                  ┃                  │                                      │
+┃                              ┃╭ Message the room ───────┃                                                                                  ┃─────────────────╮│                                      │
+┃                              ┃│i to write · @ mentions a┃                                                                                  ┃                 ││                                      │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰─────────────────────────┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛─────────────────╯╰──────────────────────────────────────╯
 ↑↓ scroll  g/G newest/oldest  esc close                                                                                                                                  peer to peer · 1 running · demo
