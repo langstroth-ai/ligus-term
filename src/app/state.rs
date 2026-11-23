@@ -504,6 +504,11 @@ pub struct State {
     /// Chats you sent to this session: their turns ending while you're
     /// away is worth a signal.
     pub my_chats: std::collections::HashSet<ChatId>,
+    /// Notifications in the current burst (one toast says how many).
+    pub notice_burst: usize,
+    /// Focus mode: no top bar and no hint line, just the work (and one
+    /// quiet badge when something needs you).
+    pub focus_mode: bool,
     /// Spinners stand still (`--reduce-motion`, `LT_REDUCE_MOTION`).
     pub reduce_motion: bool,
     pub quit: bool,
@@ -593,6 +598,8 @@ impl State {
             loaded: Default::default(),
             my_chats: Default::default(),
             reduce_motion: false,
+            notice_burst: 0,
+            focus_mode: false,
             quit: false,
             exec_demo: false,
             term: (0, 0),
@@ -808,12 +815,20 @@ impl State {
     /// the messages log to read again.
     pub fn toast(&mut self, kind: ToastKind, text: impl Into<String>) {
         let text = text.into();
-        self.log.push(LogEntry { at: self.now, kind, text: text.clone() });
+        self.toast_logging(kind, text.clone(), text);
+    }
+
+    /// A toast that shows `shown` and logs `logged` (a burst shows "3 new
+    /// notifications" and logs each one).
+    pub fn toast_logging(&mut self, kind: ToastKind, shown: String, logged: String) {
+        let text = shown;
+        self.log.push(LogEntry { at: self.now, kind, text: logged });
         if self.log.len() > LOG_CAP {
             self.log.remove(0);
         }
         let ttl = if kind == ToastKind::Error { 32 } else { 16 };
         self.toasts = vec![Toast { text, kind, ttl }];
+        self.notice_burst = 0;
     }
 
     /// The focused list's rows as text (what `/` searches) and its
@@ -904,6 +919,16 @@ impl State {
             parts.push(format!("{asks} question{} from agents", if asks == 1 { "" } else { "s" }));
         }
         (!parts.is_empty()).then(|| format!("lt: {}.", parts.join("; ")))
+    }
+
+    /// Everything that needs this person in the active workspace: unread
+    /// notifications (mentions of you), proposals and gates waiting on
+    /// your vote, and agents' open questions. The only thing lt counts in
+    /// a badge.
+    pub fn needs_you(&self) -> usize {
+        let votes = self.proposals.iter().filter(|p| p.status == ProposalStatus::Open && p.can_vote.is_yes()).count();
+        let asks = self.tasks.iter().filter(|t| t.active && !t.open_questions.is_empty()).count();
+        self.unread_notifications() + votes + asks
     }
 
     /// Agents working on a reply and runs moving, in this workspace (the

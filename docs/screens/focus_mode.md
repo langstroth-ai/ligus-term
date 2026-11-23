@@ -1,0 +1,38 @@
+# Focus mode: just the work, and one quiet badge
+
+Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
+
+```text
+┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test · 1/3 ──────────────────────────────────────── ◆ 5 ╮
+┃  ◆ Fix flaky checkout … 12m  ┃│Ada  40m                                                                    │
+┃  #dev                        ┃│  The checkout test fails about one run in ten. Can we stop it reading the  │
+┃  ◆ Migrate auth to pas… 50m  ┃│  wall clock?                                                               │
+┃  #dev                        ┃│                                                                            │
+┃  Weekly release notes    1d  ┃│@coder  via claude-code · on sff  38m                                       │
+┃                              ┃│  Yes. The payment tests already use a fake clock, so it's a small change.  │
+┃                              ┃│  I'll propose it.                                                          │
+┃                              ┃│  ◆ proposal “Inject the clock into checkout t…” · open 1/2 · p to review   │
+┃                              ┃│                                                                            │
+┃                              ┃│Ada  12m                                                                    │
+┃                              ┃│  @Mara can you review the timeout? 30 seconds is what the provider uses.   │
+┃                              ┃│  ◆ proposal “Sign-off: inject a fake clock” · open 0/1 · p to review       │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃╰────────────────────────────────────────────────────────────────────────────╯
+┃                              ┃
+┃                              ┃╭ Message the room ──────────────────────────────────────────────────────────╮
+┃                              ┃│i to write · @ mentions an agent or a person                                │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────────────────╯
+```

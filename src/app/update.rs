@@ -740,12 +740,35 @@ fn event(s: &mut State, e: Event) -> Vec<Effect> {
                 vec![Effect::LoadTasks(workspace)]
             }
         }
-        Event::Notification(n) => {
+        Event::Notification(mut n) => {
+            // A mention in the chat you're looking at is already on screen:
+            // no bell, no toast, and it counts as read.
+            let here = s.focused
+                && s.overlay.is_none()
+                && s.view == View::Chats
+                && is_active(s, &n.workspace)
+                && n.chat.is_some()
+                && n.chat == s.open_chat;
+            if here {
+                n.read = true;
+                let (w, c) = (n.workspace.clone(), n.chat.clone());
+                s.notifications.insert(0, n);
+                // The backend's history agrees it was seen.
+                return c.map(|c| vec![Effect::MarkRead(w, c)]).unwrap_or_default();
+            }
             s.bell = s.settings.as_ref().is_none_or(|st| st.notify_mentions);
             if s.bell {
                 s.signal(n.text.clone());
             }
-            s.toast(ToastKind::Info, n.text.clone());
+            // A burst is one notice: "3 new notifications", not three.
+            let burst = if !s.toasts.is_empty() && s.notice_burst > 0 { s.notice_burst + 1 } else { 1 };
+            if burst > 1 {
+                let key = s.keymap.hint(crate::keymap::Context::Global, Action::GoNotifications);
+                s.toast_logging(ToastKind::Info, format!("{burst} new notifications ({key} reads them)"), n.text.clone());
+            } else {
+                s.toast(ToastKind::Info, n.text.clone());
+            }
+            s.notice_burst = burst;
             s.notifications.insert(0, n);
             vec![]
         }
@@ -820,7 +843,7 @@ fn mouse(s: &mut State, m: crossterm::event::MouseEvent) -> Vec<Effect> {
             _ => vec![],
         };
     }
-    if m.row == 0 {
+    if m.row == 0 && !s.focus_mode {
         if !(up || down)
             && let Some(v) = crate::ui::tab_at(s, s.term.0, m.column)
         {
@@ -828,7 +851,7 @@ fn mouse(s: &mut State, m: crossterm::event::MouseEvent) -> Vec<Effect> {
         }
         return vec![];
     }
-    let body = crate::ui::body_area(s.term);
+    let body = crate::ui::body_area(s);
     if m.row >= body.bottom() {
         return vec![];
     }
@@ -1951,6 +1974,10 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             _ if !s.back.is_empty() => view_history(s, true),
             _ => show(s, View::Chats),
         },
+        FocusMode => {
+            s.focus_mode = !s.focus_mode;
+            vec![]
+        }
         ViewBack => view_history(s, true),
         ViewForward => view_history(s, false),
         Find => {
