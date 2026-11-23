@@ -26,5 +26,5 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 ┃                                  ┃│                                          │
 ┃                                  ┃│                                          │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────╯
-↑↓ task state and memory  ? help       peer to peer · lt on this terminal · demo
+↑↓ task state and memory  ? help                 peer to peer · 1 running · demo
 ```

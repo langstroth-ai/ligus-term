@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────╯
-↑↓ select  S start  A approve gate  R reject  X cancel  ? help       peer to peer · lt on this terminal · demo
+↑↓ select  S start  A approve gate  R reject  X cancel  ? help                 peer to peer · 1 running · demo
 ```

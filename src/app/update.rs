@@ -987,6 +987,19 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
             }
             vec![]
         }
+        Overlay::Messages { scroll } => {
+            let max = s.log.len().saturating_sub(1);
+            match nav {
+                Some(Action::Down) => *scroll = (*scroll + 1).min(max),
+                Some(Action::Up) => *scroll = scroll.saturating_sub(1),
+                Some(Action::PageDown) => *scroll = (*scroll + 10).min(max),
+                Some(Action::PageUp) => *scroll = scroll.saturating_sub(10),
+                Some(Action::Top) => *scroll = 0,
+                Some(Action::Bottom) => *scroll = max,
+                _ => s.overlay = None,
+            }
+            vec![]
+        }
         Overlay::Switcher { sel } => {
             let len = s.workspaces.len();
             let mut i = Sel { index: *sel };
@@ -1411,6 +1424,10 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
     match action {
         Quit => {
             ask_quit(s);
+            vec![]
+        }
+        Messages => {
+            s.overlay = Some(Overlay::Messages { scroll: 0 });
             vec![]
         }
         Help => {

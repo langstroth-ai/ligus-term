@@ -64,6 +64,8 @@ INSTA_UPDATE=always LT_WRITE_SCREENS=1 cargo test --test screens
 | Settings | [settings.md](settings.md) |
 | Help: keybindings | [help.md](help.md) |
 | Help: `/` narrows the keys to what matches | [help_search.md](help_search.md) |
+| Messages: this session's notices and errors | [messages.md](messages.md), empty: [messages_empty.md](messages_empty.md) |
+| Status bar: offline, with an error toast in its centre | [status_offline_toast.md](status_offline_toast.md) |
 
 SVG images of a few screens, in color, are in
 [assets/screens](../../assets/screens), from `cargo run --example screenshots`.

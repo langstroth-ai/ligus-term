@@ -94,6 +94,7 @@ impl Context {
 pub enum Action {
     Quit,
     Help,
+    Messages,
     Back,
     SwitchWorkspace,
     AddWorkspace,
@@ -166,6 +167,7 @@ macro_rules! b {
 pub const BINDINGS: &[Binding] = &[
     b!(Global, Quit, "quit", "Quit (asks first while work runs here)", ["ctrl-c", "q"]),
     b!(Global, Help, "help", "Show or hide this help", ["?", "f1"]),
+    b!(Global, Messages, "messages", "This session's notices and errors, in full", ["!"]),
     b!(Global, Back, "back", "Back / close", ["esc"]),
     b!(Global, SwitchWorkspace, "switch_workspace", "Switch workspace", ["w", "ctrl-w"]),
     b!(Global, AddWorkspace, "add_workspace", "Create or join a workspace", ["+"]),

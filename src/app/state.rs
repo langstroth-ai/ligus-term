@@ -272,6 +272,10 @@ pub enum Overlay {
     },
     /// The checkout this device applies the workspace's proposals in.
     BindCheckout(TextBuf),
+    /// This session's notices and errors, newest first, in full.
+    Messages {
+        scroll: usize,
+    },
     /// "Are you sure?" before something that can't be undone from here:
     /// `y` (or enter) goes ahead, any other key backs out.
     Confirm {
@@ -306,6 +310,18 @@ pub struct Toast {
     /// Ticks left.
     pub ttl: u32,
 }
+
+/// One notice or error from this session, kept after its toast is gone so
+/// it can be read again in full (the messages log).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LogEntry {
+    pub at: Millis,
+    pub kind: ToastKind,
+    pub text: String,
+}
+
+/// How many notices the messages log keeps (the oldest go first).
+pub const LOG_CAP: usize = 200;
 
 /// The selection in a list.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -424,7 +440,10 @@ pub struct State {
     /// This device's checkout for the active workspace (apply on host).
     pub checkout: Option<String>,
 
+    /// The toast on screen: at most one, in the status bar's centre.
     pub toasts: Vec<Toast>,
+    /// Every toast of this session, oldest first (at most [`LOG_CAP`]).
+    pub log: Vec<LogEntry>,
     pub sync_status: HashMap<WorkspaceId, String>,
     /// Where the config file is (for Settings).
     pub config_path: Option<String>,
@@ -489,6 +508,7 @@ impl State {
             handoffs: vec![],
             checkout: None,
             toasts: vec![],
+            log: vec![],
             sync_status: HashMap::new(),
             config_path: None,
             theme_name: "dark".into(),
@@ -646,11 +666,25 @@ impl State {
         self.agent_sel.index.checked_sub(self.agents.len()).and_then(|i| self.available_local().get(i).copied())
     }
 
+    /// Show a notice in the status bar. One shows at a time: a new one
+    /// replaces it. Errors stay twice as long, and every notice is kept in
+    /// the messages log to read again.
     pub fn toast(&mut self, kind: ToastKind, text: impl Into<String>) {
-        self.toasts.push(Toast { text: text.into(), kind, ttl: 16 });
-        if self.toasts.len() > 3 {
-            self.toasts.remove(0);
+        let text = text.into();
+        self.log.push(LogEntry { at: self.now, kind, text: text.clone() });
+        if self.log.len() > LOG_CAP {
+            self.log.remove(0);
         }
+        let ttl = if kind == ToastKind::Error { 32 } else { 16 };
+        self.toasts = vec![Toast { text, kind, ttl }];
+    }
+
+    /// Agents working on a reply and runs moving, in this workspace (the
+    /// status bar's "2 running").
+    pub fn running(&self) -> usize {
+        let agents = self.agents.iter().filter(|a| a.status == AgentStatus::Busy).count();
+        let runs = self.runs.iter().filter(|r| r.status == RunStatus::Running).count();
+        agents + runs
     }
 }
 

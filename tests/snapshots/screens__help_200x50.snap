@@ -3,7 +3,7 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
-┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ────┏ Help · 1-46 of 83 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────────────────────────────────────────────╮
+┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ────┏ Help · 1-46 of 84 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────────────────────────────────────────────╮
 ┃  Fix flaky checkout te… 12m  ┃│Ada  40m                     ┃What has focus comes first. / searches. Rebind keys in the config file.   ┃                                                             │
 ┃  #dev                        ┃│  The checkout test fails abo┃                                                                          ┃                                                             │
 ┃  ⊘ Migrate auth to pas… 50m  ┃│                             ┃Chats  here                                                               ┃                                                             │
@@ -24,6 +24,7 @@ expression: screen
 ┃                              ┃│                             ┃Anywhere                                                                  ┃                                                             │
 ┃                              ┃│                             ┃  ctrl-c, q                Quit (asks first while work runs here)         ┃                                                             │
 ┃                              ┃│                             ┃  ?, f1                    Show or hide this help                         ┃                                                             │
+┃                              ┃│                             ┃  !                        This session's notices and errors, in full     ┃                                                             │
 ┃                              ┃│                             ┃  esc                      Back / close                                   ┃                                                             │
 ┃                              ┃│                             ┃  w, ctrl-w                Switch workspace                               ┃                                                             │
 ┃                              ┃│                             ┃  +                        Create or join a workspace                     ┃                                                             │
@@ -45,10 +46,9 @@ expression: screen
 ┃                              ┃│                             ┃  esc                      Leave the composer (keeps the draft)           ┃                                                             │
 ┃                              ┃│                             ┃  tab                      Accept the @mention                            ┃                                                             │
 ┃                              ┃│                             ┃                                                                          ┃                                                             │
-┃                              ┃│                             ┃Proposals                                                                 ┃                                                             │
-┃                              ┃╰─────────────────────────────┃  A                        Approve                                        ┃─────────────────────────────────────────────────────────────╯
-┃                              ┃                              ┃  R                        Reject (asks first)                            ┃
-┃                              ┃╭ Message the room ───────────┃  O                        Apply on a host                                ┃─────────────────────────────────────────────────────────────╮
-┃                              ┃│i to write · @ mentions an ag┃  W                        Withdraw the apply request                     ┃                                                             │
+┃                              ┃╰─────────────────────────────┃Proposals                                                                 ┃─────────────────────────────────────────────────────────────╯
+┃                              ┃                              ┃  A                        Approve                                        ┃
+┃                              ┃╭ Message the room ───────────┃  R                        Reject (asks first)                            ┃─────────────────────────────────────────────────────────────╮
+┃                              ┃│i to write · @ mentions an ag┃  O                        Apply on a host                                ┃                                                             │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰─────────────────────────────┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛─────────────────────────────────────────────────────────────╯
-/ search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                                                                                                    peer to peer · lt on this terminal · demo
+/ search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                                                                                                              peer to peer · 1 running · demo

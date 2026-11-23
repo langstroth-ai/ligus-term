@@ -40,7 +40,11 @@ pub fn draw(f: &mut Frame, s: &State, t: &Theme) {
         Phase::Main => draw_main(f, area, s, t),
     }
     overlays::draw(f, area, s, t);
-    draw_toasts(f, area, s, t);
+    // In the main screen the toast sits in the status bar; before it (the
+    // first run, start-up) it takes the last row.
+    if !matches!(s.phase, Phase::Main) {
+        draw_toast_row(f, Rect { y: area.bottom().saturating_sub(1), height: 1.min(area.height), ..area }, s, t);
+    }
 }
 
 fn draw_main(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
@@ -210,19 +214,74 @@ fn tabs_spans(s: &State, t: &Theme, level: Tabs) -> Vec<Span<'static>> {
 }
 
 /// The right of the status bar: how the active workspace syncs, and whether
-/// the last sync worked.
+/// the last sync worked: "⇅ relay ok", "⚠ offline", "peer to peer".
 pub(crate) fn sync_label(s: &State, t: &Theme) -> Option<Span<'static>> {
     let w = s.active_workspace()?;
     Some(match &w.sync {
         SyncMode::Local => Span::styled("this device only", t.dim()),
         SyncMode::Peer => Span::styled("peer to peer", t.dim()),
         SyncMode::Relay(_) => match s.sync_status.get(&w.id).map(String::as_str) {
-            Some("synced") => Span::styled("⇅ synced", t.fg(t.good)),
-            Some(st) if st.starts_with("sync off") => Span::styled("⚠ sync off", t.fg(t.bad).add_modifier(Modifier::BOLD)),
-            Some(st) if st.starts_with("sync") => Span::styled("⚠ sync failed", t.fg(t.bad).add_modifier(Modifier::BOLD)),
+            Some("synced") => Span::styled("⇅ relay ok", t.dim()),
+            Some(st) if st.starts_with("sync off") => Span::styled("⚠ sync off", t.fg(t.warn).add_modifier(Modifier::BOLD)),
+            Some(st) if st.starts_with("sync") => Span::styled("⚠ offline", t.fg(t.warn).add_modifier(Modifier::BOLD)),
             _ => Span::styled("⇅ relay", t.dim()),
         },
     })
+}
+
+/// The status bar's right zone, fullest first: the sync state, how much
+/// is running, and "demo" in the demo; then less, down to nothing.
+fn right_zones(s: &State, t: &Theme) -> Vec<Vec<Span<'static>>> {
+    let sep = || Span::styled(" · ", t.dim());
+    let mut parts: Vec<Span<'static>> = vec![];
+    if let Some(sy) = sync_label(s, t) {
+        parts.push(sy);
+    }
+    let running = s.running();
+    if running > 0 {
+        parts.push(Span::styled(format!("{running} running"), t.dim()));
+    }
+    if s.device.backend_label == "demo" {
+        parts.push(Span::styled("demo", t.dim()));
+    }
+    let mut out = vec![];
+    for n in (0..=parts.len()).rev() {
+        let mut spans = vec![];
+        for (i, p) in parts.iter().take(n).enumerate() {
+            if i > 0 {
+                spans.push(sep());
+            }
+            spans.push(p.clone());
+        }
+        out.push(spans);
+    }
+    out
+}
+
+/// The toast as status-bar spans, its text cut to `width` columns.
+fn toast_spans(toast: &crate::app::state::Toast, width: usize, t: &Theme) -> Vec<Span<'static>> {
+    let (mark, color) = match toast.kind {
+        ToastKind::Info => ("•", t.accent),
+        ToastKind::Ok => ("✓", t.good),
+        ToastKind::Error => ("✗", t.bad),
+    };
+    let mark_style =
+        if t.mono { Style::default().add_modifier(Modifier::BOLD) } else { Style::default().fg(color).add_modifier(Modifier::BOLD) };
+    let text_style = if toast.kind == ToastKind::Error { t.text().add_modifier(Modifier::BOLD) } else { t.text() };
+    vec![Span::styled(format!("{mark} "), mark_style), Span::styled(trunc(&toast.text, width.saturating_sub(2)), text_style)]
+}
+
+/// The toast alone on a row (before the main screen exists).
+fn draw_toast_row(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
+    let Some(toast) = s.toasts.last() else { return };
+    if area.height == 0 {
+        return;
+    }
+    let spans = toast_spans(toast, area.width as usize, t);
+    let w = spans_width(&spans) as u16;
+    let r = Rect { x: area.right().saturating_sub(w), width: w.min(area.width), ..area };
+    f.render_widget(Clear, r);
+    f.render_widget(Paragraph::new(Line::from(spans)), r);
 }
 
 /// The key hints for what has focus, the help key last.
@@ -231,6 +290,9 @@ fn status_hints(s: &State) -> (Vec<String>, String) {
     let h = |ctx, a, label: &str| format!("{} {label}", k.hint(ctx, a));
     use Action::*;
     use Context as C;
+    if let Some(crate::app::state::Overlay::Messages { .. }) = &s.overlay {
+        return (vec!["↑↓ scroll".into(), "g/G newest/oldest".into()], "esc close".into());
+    }
     if let Some(crate::app::state::Overlay::Help { searching, .. }) = &s.overlay {
         if *searching {
             return (vec!["type to search".into(), "↑↓ scroll".into(), "enter keep".into()], "esc clear".into());
@@ -308,27 +370,15 @@ fn status_hints(s: &State) -> (Vec<String>, String) {
     (hints, help.unwrap_or_default())
 }
 
-/// Key hints on the left, cut from the right (the help key always stays),
-/// and the sync state and this device on the right, at least two columns
-/// apart.
+/// Three zones: key hints on the left, cut from the right (the help key
+/// always stays); the toast, if there is one, in the centre; the sync
+/// state on the right, at least two columns from either. A toast takes
+/// room from the hints before the right zone gives any up, and is cut
+/// itself only when nothing else is left to give.
 fn draw_status(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     let width = area.width as usize;
     let (hints, help) = status_hints(s);
-    let sync = sync_label(s, t);
-    let device = format!("{} · {}", s.device.device_name, s.device.backend_label);
-    let rights: Vec<Vec<Span>> = {
-        let mut r = vec![];
-        let sep = Span::styled(" · ", t.dim());
-        match &sync {
-            Some(sy) => {
-                r.push(vec![sy.clone(), sep, Span::styled(device.clone(), t.dim())]);
-                r.push(vec![sy.clone()]);
-            }
-            None => r.push(vec![Span::styled(device.clone(), t.dim())]),
-        }
-        r.push(vec![]);
-        r
-    };
+    let rights = right_zones(s, t);
     let left_text = |n: usize| {
         let mut parts: Vec<&str> = hints.iter().take(n).map(String::as_str).collect();
         if n < hints.len() {
@@ -339,46 +389,52 @@ fn draw_status(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         }
         parts.join("  ")
     };
+    let render = |f: &mut Frame, left: String, middle: Vec<Span<'static>>, right: &[Span<'static>]| {
+        let mut spans = vec![Span::styled(left.clone(), t.dim())];
+        let used = left.width() + spans_width(&middle) + spans_width(right);
+        let pad = width.saturating_sub(used);
+        if middle.is_empty() {
+            spans.push(Span::raw(" ".repeat(pad)));
+        } else {
+            let before = if left.is_empty() { 0 } else { 2.min(pad) };
+            spans.push(Span::raw(" ".repeat(before)));
+            spans.extend(middle);
+            spans.push(Span::raw(" ".repeat(pad - before)));
+        }
+        spans.extend(right.iter().cloned());
+        f.render_widget(Paragraph::new(Line::from(spans)), area);
+    };
+    let gap = |w: usize| if w == 0 { 0 } else { 2 };
+    if let Some(toast) = s.toasts.last() {
+        let full = toast_spans(toast, usize::MAX, t);
+        let tw = spans_width(&full);
+        for right in &rights {
+            let rw = spans_width(right);
+            for n in (0..=hints.len()).rev() {
+                let left = left_text(n);
+                if left.width() + 2 + tw + gap(rw) + rw <= width {
+                    render(f, left, full, right);
+                    return;
+                }
+            }
+        }
+        // Nothing left to give: the help key and the toast, cut to fit.
+        let left = left_text(0);
+        let room = width.saturating_sub(left.width() + 2);
+        render(f, left, toast_spans(toast, room, t), &[]);
+        return;
+    }
     for n in (0..=hints.len()).rev() {
         let left = left_text(n);
         for right in &rights {
             let rw = spans_width(right);
-            let gap = if rw == 0 { 0 } else { 2 };
-            if left.width() + gap + rw <= width {
-                let pad = width - left.width() - rw;
-                let mut spans = vec![Span::styled(left, t.dim()), Span::raw(" ".repeat(pad))];
-                spans.extend(right.iter().cloned());
-                f.render_widget(Paragraph::new(Line::from(spans)), area);
+            if left.width() + gap(rw) + rw <= width {
+                render(f, left, vec![], right);
                 return;
             }
         }
     }
     f.render_widget(Paragraph::new(Line::styled(trunc(&left_text(0), width), t.dim())), area);
-}
-
-fn draw_toasts(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
-    let n = s.toasts.len() as u16;
-    if n == 0 || area.height < n + 2 {
-        return;
-    }
-    for (i, toast) in s.toasts.iter().enumerate() {
-        let (mark, color) = match toast.kind {
-            ToastKind::Info => ("•", t.accent),
-            ToastKind::Ok => ("✓", t.good),
-            ToastKind::Error => ("✗", t.bad),
-        };
-        let text = format!(" {mark} {} ", toast.text);
-        let w = (text.width() as u16).min(area.width);
-        let y = area.bottom().saturating_sub(1 + n - i as u16);
-        let r = Rect { x: area.right().saturating_sub(w), y, width: w, height: 1 };
-        f.render_widget(Clear, r);
-        let style = if t.mono {
-            Style::default().add_modifier(Modifier::REVERSED)
-        } else {
-            Style::default().fg(color).add_modifier(Modifier::BOLD | Modifier::REVERSED)
-        };
-        f.render_widget(Paragraph::new(Line::styled(text, style)), r);
-    }
 }
 
 /// A bordered pane with a title; the border lights up when focused.

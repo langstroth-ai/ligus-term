@@ -4,6 +4,26 @@ All notable changes to `lt`, the Ligus terminal app (Ligus is short for
 ligustica). Versions follow [semver](https://semver.org); releases are on
 [GitHub](https://github.com/langstroth-ai/ligus-term/releases).
 
+## v0.2.0 (unreleased)
+
+### Added
+
+- A messages log: `!` lists this session's notices and errors in full,
+  newest first, so a toast that went by (or was cut to fit) can be read
+  again.
+
+### Changed
+
+- The status bar has three zones: the keys on the left, a notice in the
+  centre, and the sync state on the right in words (`⇅ relay ok`,
+  `⚠ offline`, `⚠ sync off`, `peer to peer`, `this device only`) with how
+  many agents and runs are working ("2 running"). Warnings use the warn
+  colour, not danger's red. The device's name moved out of the status bar
+  (Settings shows it); the demo still says "demo".
+- Toasts no longer stack in the bottom-right corner over pane borders and
+  the composer: one shows at a time, in the status bar, and a new one
+  replaces it. Errors stay twice as long.
+
 ## v0.1.3
 
 ### Added

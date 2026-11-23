@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 │                                          │┃+    pub const SESSION_TIMEOUT_MS: Millis = 30_000;             ┃
 │                                          │┃                                                                ┃
 ╰──────────────────────────────────────────╯┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-↑↓ scroll  ] next hunk  [ prev hunk  A approve  R reject  O apply  ? help                         peer to peer
+↑↓ scroll  ] next hunk  [ prev hunk  A approve  R reject  O apply  ? help      peer to peer · 1 running · demo
 ```

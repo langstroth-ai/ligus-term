@@ -106,7 +106,9 @@ The rules the UI relies on:
    reducer reload that list. Results for a workspace that is no longer
    active are dropped.
 4. **Errors are one line**, shown as toasts. `cancelled` is treated as
-   quiet.
+   quiet. One toast shows at a time, in the status bar's centre (never over
+   a pane); every toast is also kept in the session's messages log (`!`),
+   newest first and in full.
 
 ## Data dir and config
 

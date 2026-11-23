@@ -33,6 +33,6 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 │                              │
 │                              │┏ Message the room ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 │                              │┃Type a message · @ mentions an agent or a person · esc for keys             ┃
-╰──────────────────────────────╯┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ✓ Confirmed with your passkey
-enter send  alt-enter newline  @ mention  esc leave  f1 help     this device only · lt on this terminal · demo
+╰──────────────────────────────╯┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+enter send  alt-enter newline  @ mention  …  f1 help  ✓ Confirmed with your passkey    this device only · demo
 ```
