@@ -1,4 +1,4 @@
-# A new workspace in a short terminal: the welcome without the mark
+# A new workspace in a short terminal: the getting-started list without the mark
 
 Rendered by `tests/screens.rs` (110×20, the in-memory demo backend).
 
@@ -6,15 +6,15 @@ Rendered by `tests/screens.rs` (110×20, the in-memory demo backend).
 [AW] Acme Web · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications  Settings
 ╭ Chats ───────────────────────╮╭ Welcome ───────────────────────────────────────────────────────────────────╮
 │  Welcome                now  ││                                                                            │
+│                              ││        Acme Web: getting started                                           │
 │                              ││                                                                            │
+│                              ││        ✓ Workspace created                                                 │
+│                              ││        ✓ Add an agent                                                      │
+│                              ││        ○ Invite someone    m then I    needs a relay (LT_RELAY_URL)        │
+│                              ││        ○ Connect a box     m then B    ligus serve or ligus worker         │
+│                              ││        ○ Start a workflow  f then S                                        │
 │                              ││                                                                            │
-│                              ││                                                                            │
-│                              ││                                                                            │
-│                              ││                            Start a conversation                            │
-│                              ││     Ask about your code, or @mention an agent to have it make changes.     │
-│                              ││                                                                            │
-│                              ││                                                                            │
-│                              ││                                                                            │
+│                              ││        Or just type: ask about your code, or @mention an agent.            │
 │                              ││                                                                            │
 │                              ││                                                                            │
 │                              │╰────────────────────────────────────────────────────────────────────────────╯

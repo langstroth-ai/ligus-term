@@ -104,6 +104,7 @@ The binary is `lt`.
 
 ## Quick start
 
+
 ```sh
 lt --demo          # explore with sample workspaces (keeps nothing on disk)
 lt                 # first run: your name, then create, join or connect a workspace
@@ -111,6 +112,12 @@ lt --plain         # line mode for screen readers and scripts
 lt --print-config  # a config file with every default
 lt help            # everything below, from the binary
 ```
+
+On the first run, "Look around first" (the fourth choice) opens the demo
+without creating anything; quit it and run `lt` again to set up. In a new
+workspace, the empty chat shows a getting-started list read from the
+workspace itself (add an agent, invite someone, connect a box, start a
+workflow), with the keys for each, until they're done.
 
 ## Help in the terminal
 

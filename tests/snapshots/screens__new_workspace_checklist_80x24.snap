@@ -1,0 +1,28 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[AW] │ Chats Flows Props Agents Hosts Memory People Notifs Setup        Acme Web
+╭ Welcome ─────────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│         Acme Web: getting started                                            │
+│                                                                              │
+│         ✓ Workspace created                                                  │
+│         ✓ Add an agent                                                       │
+│         ○ Invite someone    m then I    needs a relay (LT_RELAY_URL)         │
+│         ○ Connect a box     m then B    ligus serve or ligus worker          │
+│         ○ Start a workflow  f then S                                         │
+│                                                                              │
+│         Or just type: ask about your code, or @mention an agent.             │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+┏ Message the room ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃Type a message · @ mentions an agent or a person · esc for keys               ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+enter send  …  f1 help  ✓ Confirmed with your passkey    this device only · demo

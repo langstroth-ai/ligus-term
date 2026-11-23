@@ -1412,3 +1412,27 @@ fn mouse_on_proposals() {
     click(&mut s, K::ScrollUp, 5, 4);
     assert_eq!(s.proposal_sel.index, 0);
 }
+
+/// The first run offers a look around first: choosing it quits into
+/// `lt --demo` without a name or a workspace. "+" later doesn't offer it.
+#[test]
+fn first_run_can_look_around_in_the_demo() {
+    let mut s = state();
+    update(&mut s, Msg::Startup(Ok(StartupState { your_name: None, workspaces: vec![] })));
+    key(&mut s, KeyCode::Tab);
+    key(&mut s, KeyCode::Left);
+    assert!(matches!(&s.phase, Phase::Onboarding(f) if f.mode == FormMode::Demo));
+    let fx = key(&mut s, KeyCode::Enter);
+    assert!(fx.is_empty(), "nothing is created");
+    assert!(s.quit && s.exec_demo);
+    // Later, "+" cycles past it.
+    let mut s = main_state();
+    key(&mut s, KeyCode::Char('+'));
+    key(&mut s, KeyCode::Left);
+    assert!(matches!(&s.overlay, Some(Overlay::AddWorkspace(f)) if f.mode == FormMode::Connect));
+    key(&mut s, KeyCode::Right);
+    assert!(matches!(&s.overlay, Some(Overlay::AddWorkspace(f)) if f.mode == FormMode::Create));
+    // A workspace with no agents looks for runtimes for its first steps.
+    let fx = update(&mut s, Msg::Agents(WorkspaceId::new("a"), Ok(vec![])));
+    assert_eq!(fx, vec![Effect::LoadLocalRuntimes(WorkspaceId::new("a"))]);
+}

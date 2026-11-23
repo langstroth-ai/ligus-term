@@ -264,7 +264,9 @@ pub fn update(s: &mut State, msg: Msg) -> Vec<Effect> {
         Msg::Agents(ws, Ok(a)) if is_active(s, &ws) => {
             s.agents = a;
             s.agent_sel.clamp(s.agent_rows());
-            vec![]
+            // A workspace with no agents yet: look for what this device
+            // could run, for the getting-started list.
+            if s.agents.is_empty() && s.local.is_none() { vec![Effect::LoadLocalRuntimes(ws)] } else { vec![] }
         }
         Msg::Runtimes(ws, Ok(r)) if is_active(s, &ws) => {
             s.runtimes = r;
@@ -935,7 +937,7 @@ fn form_key(f: &mut WorkspaceForm, k: &KeyEvent) -> FormOutcome {
         KeyCode::Tab | KeyCode::Down => f.field = fields[(i + 1) % fields.len()],
         KeyCode::BackTab | KeyCode::Up => f.field = fields[(i + fields.len() - 1) % fields.len()],
         KeyCode::Enter => {
-            if f.field == FormField::Value {
+            if f.field == FormField::Value || (f.mode == FormMode::Demo && f.field == FormField::Mode) {
                 return FormOutcome::Submit;
             }
             f.field = fields[(i + 1) % fields.len()];
@@ -949,6 +951,13 @@ fn form_key(f: &mut WorkspaceForm, k: &KeyEvent) -> FormOutcome {
                     KeyCode::Char('j') => Some(FormMode::Join),
                     KeyCode::Char('d') => Some(FormMode::Connect),
                     _ => None,
+                };
+                // The demo is offered on the first run only.
+                let mode = match mode {
+                    Some(FormMode::Demo) if !f.ask_name => {
+                        Some(if k.code == KeyCode::Left || k.code == KeyCode::Char('h') { FormMode::Connect } else { FormMode::Create })
+                    }
+                    m => m,
                 };
                 if let Some(m) = mode {
                     f.mode = m;
@@ -976,6 +985,11 @@ fn submit_form(s: &mut State, your_name: Option<String>) -> Vec<Effect> {
         (_, Phase::Onboarding(f)) => f,
         _ => return vec![],
     };
+    if form.mode == FormMode::Demo {
+        s.exec_demo = true;
+        s.quit = true;
+        return vec![];
+    }
     if form.ask_name && your_name.is_empty() {
         form.error = Some("Tell us your name first".into());
         form.field = FormField::Name;
@@ -1008,7 +1022,7 @@ fn submit_form(s: &mut State, your_name: Option<String>) -> Vec<Effect> {
     }
     if value.is_empty() {
         form.error = Some(match form.mode {
-            FormMode::Create | FormMode::Connect => "Give the workspace a name".into(),
+            FormMode::Create | FormMode::Connect | FormMode::Demo => "Give the workspace a name".into(),
             FormMode::Join => "Paste an invite code".into(),
         });
         return vec![];
@@ -1016,7 +1030,7 @@ fn submit_form(s: &mut State, your_name: Option<String>) -> Vec<Effect> {
     form.error = None;
     form.busy = true;
     match form.mode {
-        FormMode::Create | FormMode::Connect => vec![Effect::CreateWorkspace { your_name, name: value }],
+        FormMode::Create | FormMode::Connect | FormMode::Demo => vec![Effect::CreateWorkspace { your_name, name: value }],
         FormMode::Join => match &form.checked {
             // First check who the invite is from; join on the second Enter.
             Some((checked, c)) if *checked == value => {

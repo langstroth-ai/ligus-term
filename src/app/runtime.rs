@@ -174,7 +174,7 @@ pub async fn run_tui(
     theme: Theme,
     depth: crate::theme::ColorDepth,
     mouse: bool,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<State> {
     let mut terminal = ratatui::init();
     let mut stdout = std::io::stdout();
     let _ = crossterm::execute!(stdout, crossterm::event::EnableBracketedPaste);
@@ -201,7 +201,7 @@ pub async fn run_tui(
     }
     let _ = crossterm::execute!(stdout, crossterm::event::DisableBracketedPaste);
     ratatui::restore();
-    result
+    result.map(|()| state)
 }
 
 /// Whether the app captured the mouse (so the editor hand-over gives it

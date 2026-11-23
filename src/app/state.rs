@@ -88,6 +88,8 @@ pub enum FormMode {
     Join,
     /// Found the workspace a deployment (ligus-local, Kubernetes) serves.
     Connect,
+    /// Look around first: restart as `lt --demo` (first run only).
+    Demo,
 }
 
 impl FormMode {
@@ -95,14 +97,16 @@ impl FormMode {
         match self {
             FormMode::Create => FormMode::Join,
             FormMode::Join => FormMode::Connect,
-            FormMode::Connect => FormMode::Create,
+            FormMode::Connect => FormMode::Demo,
+            FormMode::Demo => FormMode::Create,
         }
     }
     pub fn prev(self) -> Self {
         match self {
-            FormMode::Create => FormMode::Connect,
+            FormMode::Create => FormMode::Demo,
             FormMode::Join => FormMode::Create,
             FormMode::Connect => FormMode::Join,
+            FormMode::Demo => FormMode::Connect,
         }
     }
 }
@@ -163,6 +167,9 @@ impl WorkspaceForm {
             f.push(FormField::Name);
         }
         f.push(FormField::Mode);
+        if self.mode == FormMode::Demo {
+            return f;
+        }
         if self.mode == FormMode::Connect {
             f.extend([FormField::Relay, FormField::Room, FormField::Key, FormField::Token]);
         }
@@ -183,13 +190,13 @@ impl WorkspaceForm {
     }
     pub fn value_mut(&mut self) -> &mut TextBuf {
         match self.mode {
-            FormMode::Create | FormMode::Connect => &mut self.ws_name,
+            FormMode::Create | FormMode::Connect | FormMode::Demo => &mut self.ws_name,
             FormMode::Join => &mut self.invite,
         }
     }
     pub fn value(&self) -> &TextBuf {
         match self.mode {
-            FormMode::Create | FormMode::Connect => &self.ws_name,
+            FormMode::Create | FormMode::Connect | FormMode::Demo => &self.ws_name,
             FormMode::Join => &self.invite,
         }
     }
@@ -477,6 +484,8 @@ pub struct State {
     /// Ring the terminal bell once (a mention arrived).
     pub bell: bool,
     pub quit: bool,
+    /// Quitting to look around in the demo: `lt --demo` runs next.
+    pub exec_demo: bool,
     /// The terminal's size (columns, rows), for scroll limits; 0×0 until
     /// the first resize message.
     pub term: (u16, u16),
@@ -551,6 +560,7 @@ impl State {
             theme_request: None,
             bell: false,
             quit: false,
+            exec_demo: false,
             term: (0, 0),
             compose_on_open: true,
             which_key: None,

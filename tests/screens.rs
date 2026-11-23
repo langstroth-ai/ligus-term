@@ -110,6 +110,17 @@ async fn onboarding_join_with_invite() {
     snap(&h, "onboarding_join_checked", "Join: who the invite is from, checked before joining");
 }
 
+/// The first run's fourth choice: look around in the demo first.
+#[tokio::test]
+async fn onboarding_demo_choice() {
+    let mut h = Harness::new(false).await;
+    h.key(KeyCode::Tab).await;
+    h.key(KeyCode::Left).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("(•) Look around first") && screen.contains("Nothing is saved"), "{screen}");
+    snap(&h, "onboarding_demo", "First run: look around in the demo first");
+}
+
 #[tokio::test]
 async fn onboarding_connect_a_deployment() {
     let mut h = Harness::new(false).await;
@@ -695,7 +706,9 @@ async fn chat_layout_by_width() {
     snap_at("chat_wide_rail", "Chats at 200×50: list, transcript at reading width, and this chat's work", 200, 50, wide);
 }
 
-/// An empty chat shows the mark above its welcome when the pane has room.
+/// A new workspace's empty chat shows its getting-started list (from real
+/// state: no agents, nobody invited, no boxes, no runs), with the mark
+/// above it when the pane has room.
 #[tokio::test]
 async fn empty_chat_splash() {
     let mut h = Harness::new(false).await;
@@ -706,10 +719,14 @@ async fn empty_chat_splash() {
     h.key(KeyCode::Enter).await;
     h.key(KeyCode::Enter).await;
     h.key(KeyCode::Enter).await;
-    assert!(h.screen(W, H).contains('▀'), "{}", h.screen(W, H));
+    let screen = h.screen(W, H);
+    assert!(screen.contains('▀'), "{screen}");
+    assert!(screen.contains("✓ Workspace created") && screen.contains("○ Invite someone") && screen.contains("m then I"), "{screen}");
+    assert!(screen.contains("needs a relay"), "a workspace on this device only can't invite yet: {screen}");
+    snap(&h, "new_workspace_checklist", "A new workspace: the getting-started list");
     let short = h.screen(W, 20);
-    assert!(!short.contains('▀') && short.contains("Start a conversation"), "{short}");
-    snap_at("new_workspace_short", "A new workspace in a short terminal: the welcome without the mark", W, 20, short);
+    assert!(!short.contains('▀') && short.contains("getting started"), "{short}");
+    snap_at("new_workspace_short", "A new workspace in a short terminal: the getting-started list without the mark", W, 20, short);
 }
 
 #[tokio::test]

@@ -70,6 +70,8 @@ INSTA_UPDATE=always LT_WRITE_SCREENS=1 cargo test --test screens
 | A terminal below 60×20 | [too_small.md](too_small.md) |
 | The transcript: Markdown, tool calls with times, expanded with `o` | [transcript_markdown.md](transcript_markdown.md) |
 | `--ascii`: ASCII only | (snapshots `ascii`, `ascii_80x24`, `ascii_200x50` in tests/snapshots) |
+| First run: look around in the demo first | [onboarding_demo.md](onboarding_demo.md) |
+| A new workspace: the getting-started list | [new_workspace_checklist.md](new_workspace_checklist.md) |
 | Command palette | [palette.md](palette.md), typing filters: [palette_query.md](palette_query.md) |
 | Chats: failed, paused and working chips | [chat_states.md](chat_states.md) |
 | Messages: this session's notices and errors | [messages.md](messages.md), empty: [messages_empty.md](messages_empty.md) |

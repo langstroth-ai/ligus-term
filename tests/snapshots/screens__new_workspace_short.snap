@@ -5,15 +5,15 @@ expression: screen
 [AW] Acme Web · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications  Settings
 ╭ Chats ───────────────────────╮╭ Welcome ───────────────────────────────────────────────────────────────────╮
 │  Welcome                now  ││                                                                            │
+│                              ││        Acme Web: getting started                                           │
 │                              ││                                                                            │
+│                              ││        ✓ Workspace created                                                 │
+│                              ││        ✓ Add an agent                                                      │
+│                              ││        ○ Invite someone    m then I    needs a relay (LT_RELAY_URL)        │
+│                              ││        ○ Connect a box     m then B    ligus serve or ligus worker         │
+│                              ││        ○ Start a workflow  f then S                                        │
 │                              ││                                                                            │
-│                              ││                                                                            │
-│                              ││                                                                            │
-│                              ││                            Start a conversation                            │
-│                              ││     Ask about your code, or @mention an agent to have it make changes.     │
-│                              ││                                                                            │
-│                              ││                                                                            │
-│                              ││                                                                            │
+│                              ││        Or just type: ask about your code, or @mention an agent.            │
 │                              ││                                                                            │
 │                              ││                                                                            │
 │                              │╰────────────────────────────────────────────────────────────────────────────╯
