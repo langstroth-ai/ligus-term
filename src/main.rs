@@ -160,6 +160,13 @@ async fn run() -> anyhow::Result<()> {
     if let Some(real) = &real {
         real.shutdown();
     }
+    // What is still going, in one dim line, so quitting never hides it.
+    if !state.exec_demo
+        && let Some(line) = state.exit_summary()
+    {
+        let dim = std::io::stdout().is_terminal() && env("NO_COLOR").is_none_or(|v| v.is_empty());
+        if dim { println!("\x1b[2m{line}\x1b[0m") } else { println!("{line}") }
+    }
     if state.exec_demo {
         // Look around first: the same binary, in the demo.
         let exe = std::env::current_exe()?;

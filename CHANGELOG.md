@@ -37,6 +37,11 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   what's typed and how many rows match.
 - View history: `ctrl-o` (or `alt-left`) goes back to the view you were
   in, `alt-right` forward again.
+- `D` in Chats shows the whole transcript as plain text in `$PAGER`, or,
+  with no pager set, leaves it in the terminal's scrollback.
+- Quitting prints one dim line when something is still going: runs still
+  moving (and who drives them), proposals waiting on your vote, agents'
+  open questions.
 - Tab completion and a man page: `lt completions bash|zsh|fish` prints a
   completion script (flags, commands, help topics, themes, and workspace
   names after `--workspace` and `use`), and `lt man` prints the man page.

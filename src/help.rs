@@ -37,6 +37,7 @@ pub const ENV: &[EnvVar] = &[
     },
     EnvVar { name: "LT_ASCII", default: "off", meaning: "1/true/on/yes: ASCII only, like --ascii" },
     EnvVar { name: "LT_REDUCE_MOTION", default: "off", meaning: "1/true/on/yes: spinners stand still, like --reduce-motion" },
+    EnvVar { name: "PAGER", default: "none: the scrollback", meaning: "where D in a chat shows its whole transcript" },
     EnvVar { name: "TMUX", default: "-", meaning: "set inside tmux: a needs-you notification goes through tmux's passthrough" },
     EnvVar {
         name: "VISUAL",
