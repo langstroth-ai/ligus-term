@@ -64,6 +64,7 @@ INSTA_UPDATE=always LT_WRITE_SCREENS=1 cargo test --test screens
 | Settings | [settings.md](settings.md) |
 | Help: keybindings | [help.md](help.md) |
 | Help: `/` narrows the keys to what matches | [help_search.md](help_search.md) |
+| `space`, then a pause: the keys you can press here | [which_key.md](which_key.md) |
 | Command palette | [palette.md](palette.md), typing filters: [palette_query.md](palette_query.md) |
 | Chats: failed, paused and working chips | [chat_states.md](chat_states.md) |
 | Messages: this session's notices and errors | [messages.md](messages.md), empty: [messages_empty.md](messages_empty.md) |

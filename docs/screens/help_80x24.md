@@ -4,7 +4,7 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 
 ```text
 [NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
-┏ ┏ Help · 1-20 of 85 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─╮
+┏ ┏ Help · 1-20 of 86 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─╮
 ┃ ┃What has focus comes first. / searches. Rebind keys in the config file.   ┃ │
 ┃ ┃                                                                          ┃e│
 ┃ ┃Chats  here                                                               ┃ │

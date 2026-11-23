@@ -25,4 +25,4 @@ expression: screen
 ┃  Change the theme and rebind keys in the config file; lt --print-config shows┃
 ┃every default.                                                                ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-↑↓ select  space toggle  ? help                  peer to peer · 1 running · demo
+↑↓ select  enter toggle  ? help                  peer to peer · 1 running · demo

@@ -408,7 +408,7 @@ The default keys (all can be rebound, see [Configure](#configure)):
 
 | Where | Keys |
 |---|---|
-| Anywhere | `q` / `ctrl-c` quit (while this device drives a run or an agent's turn it asks first; a second `ctrl-c` quits) · `:` / `ctrl-p` / `ctrl-k` command palette · `?` / `f1` help · `!` messages · `esc` back · `w` / `ctrl-w` workspaces · `+` add a workspace · `tab` / `shift-tab` next or previous pane |
+| Anywhere | `q` / `ctrl-c` quit (while this device drives a run or an agent's turn it asks first; a second `ctrl-c` quits) · `:` / `ctrl-p` / `ctrl-k` command palette · `space` then pause: a sheet of the keys you can press here (any key then acts as usual) · `?` / `f1` help · `!` messages · `esc` back · `w` / `ctrl-w` workspaces · `+` add a workspace · `tab` / `shift-tab` next or previous pane |
 | Lists | `↑ ↓` or `j k` move · `pgup pgdn` (`ctrl-u ctrl-d`) · `g G` (`home end`) first and last · `enter` (`l`, `→`) open |
 | Chats | `i` write (lt starts with the cursor in the open chat's composer; `esc` leaves it) · `N` new chat · `L` lock the chat down · `U` clear the lockdown |
 | Composer | `enter` send · `alt-enter` / `ctrl-j` new line (`shift-enter` too, in terminals with the kitty keyboard protocol) · `@` mention, then `tab` or `enter` to accept · `esc` leave (the draft is kept) |
@@ -419,7 +419,7 @@ The default keys (all can be rebound, see [Configure](#configure)):
 | Agents | `r` change runtime · `E` who can use it · `N` (or `enter` on a row under "Available on this device") add it as an agent |
 | Hosts | `b` set this device's checkout for apply on host |
 | Notifications | `M` mark all read |
-| Settings | `space` / `enter` toggle |
+| Settings | `enter` / `t` toggle |
 | Passkey prompt | `enter` open the browser · `f` use a recovery-words file · `esc` cancel |
 
 While the composer or another text field has focus, letters type. Only

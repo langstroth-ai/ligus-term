@@ -1203,3 +1203,27 @@ fn palette_runs_actions_and_opens_entities() {
     key(&mut s, KeyCode::Enter);
     assert_eq!(s.active, Some(WorkspaceId::new("b")));
 }
+
+/// `space` waits for one more key: that key acts as it always does, and
+/// esc or space again only put the sheet away.
+#[test]
+fn which_key_then_any_key_acts() {
+    let mut s = main_state();
+    key(&mut s, KeyCode::Char(' '));
+    assert_eq!(s.which_key, Some(NOW));
+    key(&mut s, KeyCode::Char('p'));
+    assert!(s.which_key.is_none());
+    assert_eq!(s.view, View::Proposals);
+    key(&mut s, KeyCode::Char(' '));
+    key(&mut s, KeyCode::Esc);
+    assert!(s.which_key.is_none());
+    assert_eq!(s.view, View::Proposals, "esc put the sheet away and didn't go back");
+    key(&mut s, KeyCode::Char(' '));
+    key(&mut s, KeyCode::Char(' '));
+    assert!(s.which_key.is_none(), "space again closes it");
+    // In the composer space types.
+    key(&mut s, KeyCode::Char('c'));
+    key(&mut s, KeyCode::Char('i'));
+    key(&mut s, KeyCode::Char(' '));
+    assert!(s.which_key.is_none());
+}
