@@ -171,3 +171,38 @@ fn one_shot_create_takes_a_name() {
     let (_, out, _) = run(c, "");
     assert!(out.contains("tell us your name first"), "{out}");
 }
+
+/// Completions and the man page come from the binary without a device:
+/// nothing is created in the data dir, and workspace names are read from
+/// the workspace list alone.
+#[test]
+fn completions_and_man_need_no_device() {
+    for sh in ["bash", "zsh", "fish"] {
+        let (mut c, home) = lt();
+        c.args(["completions", sh]);
+        let (code, out, err) = run(c, "");
+        assert_eq!(code, 0, "{sh}: {err}");
+        assert!(out.contains("lt __complete"), "{sh}: {out}");
+        assert!(!home.path().join(".ligus-term").exists(), "{sh} made a data dir");
+    }
+    let (mut c, _home) = lt();
+    c.args(["completions", "tcsh"]);
+    assert_eq!(run(c, "").0, 2);
+    let (mut c, _home) = lt();
+    c.arg("man");
+    let (code, out, _) = run(c, "");
+    assert_eq!(code, 0);
+    assert!(out.starts_with(".TH LT 1") && out.contains(".SH ENVIRONMENT"), "{out}");
+    let (mut c, home) = lt();
+    let data = home.path().join("dev");
+    std::fs::create_dir_all(&data).unwrap();
+    std::fs::write(data.join("workspaces.json"), r#"{"workspaces":[{"name":"Northwind API","room":"r"}]}"#).unwrap();
+    c.env("LT_DATA_DIR", &data).args(["__complete", "workspaces"]);
+    let (code, out, _) = run(c, "");
+    assert_eq!((code, out.as_str()), (0, "Northwind API\n"));
+    assert_eq!(std::fs::read_dir(&data).unwrap().count(), 1, "nothing else written");
+    let (mut c, _home) = lt();
+    c.args(["__complete", "commands"]);
+    let (_, out, _) = run(c, "");
+    assert!(out.lines().any(|l| l == "chats") && out.lines().any(|l| l == "completions"), "{out}");
+}

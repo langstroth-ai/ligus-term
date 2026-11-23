@@ -40,6 +40,32 @@ async fn run() -> anyhow::Result<()> {
             Err(e) => fail(e),
         }
     }
+    // Completions and the man page need no device either (a package
+    // manager runs them at install time).
+    if !args.plain && !args.json {
+        match args.command.first().map(String::as_str) {
+            Some("completions") => {
+                let shell = args.command.get(1).map(String::as_str).unwrap_or("");
+                match ligus_term::completions::script(shell) {
+                    Some(s) => print!("{s}"),
+                    None => fail(format!("completions: give a shell, one of {}", ligus_term::completions::SHELLS.join(", "))),
+                }
+                return Ok(());
+            }
+            Some("man") => {
+                print!("{}", ligus_term::completions::man_page());
+                return Ok(());
+            }
+            Some("__complete") => {
+                let data = paths::data_dir(args.data_dir.as_deref(), env).ok().map(|d| d.path);
+                for line in ligus_term::completions::complete(args.command.get(1).map(String::as_str).unwrap_or(""), data.as_deref()) {
+                    println!("{line}");
+                }
+                return Ok(());
+            }
+            _ => {}
+        }
+    }
     // `lt --plain agents --json`: a trailing --json on a one-shot command
     // that takes no free text.
     if ligus_term::cli::take_trailing_json(&mut args.command) {
