@@ -43,7 +43,7 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   the composer: one shows at a time, in the status bar, and a new one
   replaces it. Errors stay twice as long.
 
-## v0.1.3 (unreleased)
+## v0.1.3
 
 ### Added
 
