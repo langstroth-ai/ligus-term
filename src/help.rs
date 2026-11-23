@@ -35,6 +35,12 @@ pub const ENV: &[EnvVar] = &[
         default: "~/.ligus-term",
         meaning: "this device's data dir (--data-dir wins); never shared with the desktop app or the ligus CLI",
     },
+    EnvVar {
+        name: "VISUAL",
+        default: "$EDITOR, else vi",
+        meaning: "the editor ctrl-g in the composer opens the draft in (split on spaces: code --wait)",
+    },
+    EnvVar { name: "EDITOR", default: "vi", meaning: "the editor ctrl-g uses when VISUAL isn't set" },
     EnvVar { name: "LT_CONFIG", default: "<config dir>/ligus-term/config.toml", meaning: "the config file (--config wins)" },
     EnvVar {
         name: "LT_RELAY_URL",

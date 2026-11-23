@@ -362,6 +362,9 @@ fn status_hints(s: &State) -> (Vec<String>, String) {
     let h = |ctx, a, label: &str| format!("{} {label}", k.hint(ctx, a));
     use Action::*;
     use Context as C;
+    if let Some(crate::app::state::Overlay::History { .. }) = &s.overlay {
+        return (vec!["type to search".into(), "↑↓ select".into(), "enter use".into()], "esc close".into());
+    }
     if let Some(crate::app::state::Overlay::Palette { .. }) = &s.overlay {
         return (vec!["type to filter".into(), "↑↓ select".into(), "enter run".into()], "esc close".into());
     }

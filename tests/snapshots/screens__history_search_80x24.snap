@@ -1,0 +1,28 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 2 Setup  Northwin…
+╭ Chats ───────────────╮╭ Fix flaky checkout test ─────────────────────────────╮
+│  ◆ Fix flaky c… 12m  ││                                                      │
+│  #dev                ││@coder  via claude-code  now                          │
+│  ◆ Migrate aut… 50m  ││  ⚒ read_file src/checkout.rs done                    │
+│  #dev                ││  Here's what I found: the checkout test reads the    │
+│  Weekly release… 1d  ││  wall clock, so it fails when CI is slow. Want me to │
+│                      ││  propose a change?                                   │
+│                      ││                                                      │
+│                      ││Mara  now                                             │
+│                      ││  Thanks, that fixed it                               │
+│                      ││                                                      │
+│                      ││@primary  via claude-code  now                        │
+│                      ││  ⚒ read_file src/checkout.rs done                    │
+│ ┏ What you sent · enter use · esc ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓k│
+│ ┃search ›                                                                  ┃ │
+│ ┃                                                                          ┃ │
+│ ┃▶ Thanks, that fixed it                                                   ┃ │
+│ ┃  @coder can you rerun the flaky test?                                    ┃─╯
+│ ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+│                      │┏ Message the room ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+│                      │┃Type a message · @ mentions an agent or a person      ┃
+╰──────────────────────╯┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+…  esc close  • @primary mentioned you           peer to peer · 1 running · demo

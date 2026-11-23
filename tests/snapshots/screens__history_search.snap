@@ -1,0 +1,36 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 2 Settings
+╭ Chats ───────────────────────╮╭ Fix flaky checkout test ───────────────────────────────────────────────────╮
+│  ◆ Fix flaky checkout … 12m  ││@coder  via claude-code  38m                                                │
+│  #dev                        ││  Yes. The payment tests already use a fake clock, so it's a small change.  │
+│  ◆ Migrate auth to pas… 50m  ││  I'll propose it.                                                          │
+│  #dev                        ││                                                                            │
+│  Weekly release notes    1d  ││Ada  12m                                                                    │
+│                              ││  @Mara can you review the timeout? 30 seconds is what the provider uses.   │
+│                              ││                                                                            │
+│                              ││Mara  now                                                                   │
+│                              ││  @coder can you rerun the flaky test?                                      │
+│                              ││                                                                            │
+│                              ││@coder  via claude-code  now                                                │
+│                              ││  ⚒ read_file src/checkout.rs done                                          │
+│                              ││  Here's what I found: the checkout test reads the wall clock, so it fails  │
+│                              ││  when CI is slow. Want me to propose a change?                             │
+│                              ││                                                                            │
+│                              ││Mara  now                                                                   │
+│                              ││  Thanks, that fixed it                                                     │
+│                              ││                                                                            │
+│                              ││@primary  via claude-code  now                                              │
+│                              ││  ⚒ read_file src/checkout.rs done                                          │
+│                ┏ What you sent · enter use · esc ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓the session     │
+│                ┃search ›                                                                  ┃                │
+│                ┃                                                                          ┃                │
+│                ┃▶ Thanks, that fixed it                                                   ┃                │
+│                ┃  @coder can you rerun the flaky test?                                    ┃────────────────╯
+│                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+│                              │┏ Message the room ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+│                              │┃Type a message · @ mentions an agent or a person · esc for keys             ┃
+╰──────────────────────────────╯┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+type to search  ↑↓ select  enter use  esc close  • @primary mentioned you      peer to peer · 1 running · demo
