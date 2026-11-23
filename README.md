@@ -495,7 +495,7 @@ The config file is `~/.config/ligus-term/config.toml` on Linux and
 the path with `--config` or `LT_CONFIG`. Every setting is optional:
 
 ```toml
-theme = "auto"   # auto (from COLORFGBG), dark, light, or mono
+theme = "auto"   # auto (COLORFGBG, else the terminal's answer), dark, light, or mono
 
 [keys.global]
 quit = ["ctrl-q"]          # replaces the defaults for this action
@@ -507,7 +507,17 @@ newline = ["alt-enter", "ctrl-j"]
 
 `lt --print-config` prints every context, action and default key. `--theme`
 overrides the file. `NO_COLOR` selects the mono theme unless a theme is set
-explicitly.
+explicitly. With `auto`, lt reads the background from `COLORFGBG`, else asks
+the terminal once at start (OSC 11, waiting 100 ms at most), else picks
+dark. Settings' Theme row (or "Switch the theme" in the palette) tries dark,
+light and mono for the session.
+
+The colours are the shared Ligus tokens (the same values the desktop and
+the phone use), at the depth the terminal has: 24-bit, the nearest of 256,
+or the terminal's own 16, where the accent is bold instead of a hue so that
+yellow means a warning. `--ascii` (or `LT_ASCII=1`) draws only ASCII: `+-|`
+borders and the status glyphs `*` working, `<>` needs you, `~` queued, `ok`
+done, `x` failed, `=` paused.
 
 `lt` is its own device, separate from the desktop app and the `ligus` CLI:
 
@@ -532,6 +542,7 @@ app's or the CLI's.
 | `LT_NO_BROWSER` | `1`: passkey prompts show the page's address for a browser on another device |
 | `LT_PRESENCE_PORT` | the loopback port passkey prompts listen on (default any free port) |
 | `NO_COLOR` | the mono theme, unless a theme is set |
+| `LT_ASCII` | `1`: ASCII only, like `--ascii` |
 | `LT_COLOR_DEPTH` | `truecolor`, `256` or `16`; by default 24-bit colour needs `COLORTERM=truecolor`, else lt uses the nearest of 256 colours (16 on a basic `TERM` such as `linux`) |
 
 `lt help env` lists every variable `lt` reads, with its default, including

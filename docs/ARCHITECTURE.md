@@ -58,6 +58,10 @@ both and checks).
 - **`app::palette`**: the command palette's entries (the focused view's
   actions, everything global, the views and the loaded entities) and its
   fuzzy match; pure, like the reducer.
+- **`theme_tokens`**: the shared Ligus colour tokens, generated in the
+  ligus repo (`assets/branding/generated/lt/ligus_tokens.rs`) and copied
+  here unchanged; `theme` builds dark and light from it, and a test checks
+  they agree. **`termprobe`** asks the terminal for its background.
 - **`config`**, **`theme`**, **`paths`**: the TOML config, dark/light/mono
   themes, and where the data dir and config file are.
 - **`plain`**: the line-oriented client over the same `Backend`.

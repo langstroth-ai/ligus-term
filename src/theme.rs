@@ -4,6 +4,8 @@
 use ratatui::style::{Color, Modifier, Style};
 use serde::Deserialize;
 
+use crate::theme_tokens::{self as tokens, SchemeTokens, TokenColor};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ThemeChoice {
@@ -47,58 +49,64 @@ pub struct Theme {
     pub agent: Color,
     /// Monochrome: lean on bold/reverse instead of color.
     pub mono: bool,
+    /// ASCII only (`--ascii`): no box drawing or symbols, for limited fonts
+    /// and braille displays.
+    pub ascii: bool,
+}
+
+/// lt's own colour for agents' names: not a shared role (the tokens'
+/// presence colours are for people), a lavender on dark and a violet on
+/// light, kept from earlier releases.
+const AGENT_DARK: Color = Color::Rgb(0xb7, 0x9c, 0xe8);
+const AGENT_LIGHT: Color = Color::Rgb(0x5b, 0x3d, 0x9e);
+
+const fn rgb(c: TokenColor) -> Color {
+    Color::Rgb(c.rgb.0, c.rgb.1, c.rgb.2)
 }
 
 impl Theme {
-    /// Amber on the terminal's dark background. The inks are the Ligus
-    /// brand tokens (`ligus-brand-tokens.json`): paper for text, soft for
-    /// dim, honeyLight for the accent, activeLight for mentions, tileTopDark
-    /// for the selection. Warn is the desktop's amber-orange (oklch 0.80
-    /// 0.12 50), off the honey hue, so an open proposal or a warning never
-    /// reads as the accent or the focused pane.
-    pub const DARK: Theme = Theme {
-        name: "dark",
-        text: Color::Rgb(0xf4, 0xf1, 0xea),
-        dim: Color::Rgb(0x8a, 0x80, 0x73),
-        accent: Color::Rgb(0xf0, 0xc2, 0x5a),
-        border: Color::Rgb(0x4a, 0x45, 0x3c),
-        focus: Color::Rgb(0xf0, 0xc2, 0x5a),
-        selected_bg: Color::Rgb(0x3a, 0x28, 0x12),
-        good: Color::Rgb(0x8c, 0xc8, 0x6b),
-        warn: Color::Rgb(0xfc, 0xa6, 0x76),
-        bad: Color::Rgb(0xef, 0x6b, 0x5b),
-        added: Color::Rgb(0x8c, 0xc8, 0x6b),
-        removed: Color::Rgb(0xef, 0x6b, 0x5b),
-        hunk: Color::Rgb(0x7f, 0xb4, 0xe0),
-        info: Color::Rgb(0x7f, 0xb4, 0xe0),
-        mention: Color::Rgb(0xf0, 0xb8, 0x78),
-        agent: Color::Rgb(0xb7, 0x9c, 0xe8),
-        mono: false,
-    };
+    /// A theme from the shared Ligus tokens (`theme_tokens.rs`, generated
+    /// from `assets/branding/ligus-brand-tokens.json` in the ligus repo), in
+    /// 24-bit colour. Focus is the accent; hunk headers are info.
+    const fn from_tokens(name: &'static str, k: &SchemeTokens, agent: Color) -> Theme {
+        Theme {
+            name,
+            text: rgb(k.text),
+            dim: rgb(k.dim),
+            accent: rgb(k.accent),
+            border: rgb(k.border),
+            focus: rgb(k.accent),
+            selected_bg: rgb(k.selection),
+            good: rgb(k.ok),
+            warn: rgb(k.warn),
+            bad: rgb(k.danger),
+            added: rgb(k.diff_add),
+            removed: rgb(k.diff_del),
+            hunk: rgb(k.info),
+            info: rgb(k.info),
+            mention: rgb(k.mention),
+            agent,
+            mono: false,
+            ascii: false,
+        }
+    }
 
-    /// Darker inks for light backgrounds: the brand's ink for text,
-    /// honeyDeep for the accent and cellMid for the selection. Dim is a
-    /// shade darker than the brand's soft, which is too faint on white.
-    /// Warn is the desktop's light amber-orange (oklch 0.52 0.13 45).
-    pub const LIGHT: Theme = Theme {
-        name: "light",
-        text: Color::Rgb(0x22, 0x1f, 0x1a),
-        dim: Color::Rgb(0x6d, 0x66, 0x5a),
-        accent: Color::Rgb(0x8a, 0x5a, 0x14),
-        border: Color::Rgb(0xb9, 0xb0, 0x9f),
-        focus: Color::Rgb(0x8a, 0x5a, 0x14),
-        selected_bg: Color::Rgb(0xf0, 0xe0, 0xb8),
-        good: Color::Rgb(0x2f, 0x6f, 0x1f),
-        warn: Color::Rgb(0xa4, 0x4c, 0x1d),
-        bad: Color::Rgb(0xb0, 0x26, 0x1a),
-        added: Color::Rgb(0x2f, 0x6f, 0x1f),
-        removed: Color::Rgb(0xb0, 0x26, 0x1a),
-        hunk: Color::Rgb(0x1f, 0x5a, 0x8f),
-        info: Color::Rgb(0x1f, 0x5a, 0x8f),
-        mention: Color::Rgb(0x8a, 0x55, 0x00),
-        agent: Color::Rgb(0x5b, 0x3d, 0x9e),
-        mono: false,
-    };
+    /// The tokens a theme was built from (none for mono).
+    fn tokens(&self) -> Option<&'static SchemeTokens> {
+        match self.name {
+            "dark" => Some(&tokens::DARK),
+            "light" => Some(&tokens::LIGHT),
+            _ => None,
+        }
+    }
+
+    /// For a dark background: the shared tokens' dark scheme (the Pollen
+    /// palette's inks). Warn is an amber-orange off the honey accent, so
+    /// an open proposal or a warning never reads as the accent or focus.
+    pub const DARK: Theme = Theme::from_tokens("dark", &tokens::DARK, AGENT_DARK);
+
+    /// For a light background: the shared tokens' light scheme.
+    pub const LIGHT: Theme = Theme::from_tokens("light", &tokens::LIGHT, AGENT_LIGHT);
 
     pub const MONO: Theme = Theme {
         name: "mono",
@@ -118,11 +126,25 @@ impl Theme {
         mention: Color::Reset,
         agent: Color::Reset,
         mono: true,
+        ascii: false,
     };
 
     /// Pick a theme: an explicit choice wins, `NO_COLOR` means mono, and
     /// `auto` reads `COLORFGBG` ("fg;bg", bg 7 or 15 is light), else dark.
     pub fn resolve(choice: ThemeChoice, env: impl Fn(&str) -> Option<String>) -> Theme {
+        Theme::resolve_with(choice, env, || None)
+    }
+
+    /// [`Theme::resolve`], asking `probe` (the terminal's own answer, OSC
+    /// 11) when `auto` has no `COLORFGBG` to go on.
+    pub fn resolve_with(choice: ThemeChoice, env: impl Fn(&str) -> Option<String>, probe: impl FnOnce() -> Option<bool>) -> Theme {
+        if matches!(choice, ThemeChoice::Auto)
+            && env("NO_COLOR").is_none_or(|v| v.is_empty())
+            && env("COLORFGBG").is_none()
+            && let Some(light) = probe()
+        {
+            return if light { Theme::LIGHT } else { Theme::DARK };
+        }
         if env("NO_COLOR").is_some_and(|v| !v.is_empty()) && matches!(choice, ThemeChoice::Auto) {
             return Theme::MONO;
         }
@@ -292,40 +314,68 @@ pub fn nearest_16(r: u8, g: u8, b: u8) -> Color {
     }
 }
 
+/// A 16-colour slot (0..15) as the terminal's own named colour.
+fn ansi(slot: u8) -> Color {
+    match slot {
+        0 => Color::Black,
+        1 => Color::Red,
+        2 => Color::Green,
+        3 => Color::Yellow,
+        4 => Color::Blue,
+        5 => Color::Magenta,
+        6 => Color::Cyan,
+        7 => Color::Gray,
+        8 => Color::DarkGray,
+        9 => Color::LightRed,
+        10 => Color::LightGreen,
+        11 => Color::LightYellow,
+        12 => Color::LightBlue,
+        13 => Color::LightMagenta,
+        14 => Color::LightCyan,
+        _ => Color::White,
+    }
+}
+
 impl Theme {
-    /// This theme in the colours the terminal has.
+    /// This theme in the colours the terminal has: the tokens' own
+    /// 256-colour index and 16-colour slot. A token with no 16-colour hue
+    /// (the text, the accent and focus, mentions) takes the terminal's own
+    /// foreground, and the accent relies on bold and reverse, so yellow
+    /// stays warn's.
     pub fn with_depth(self, depth: ColorDepth) -> Theme {
-        let map = |c: Color| match (c, depth) {
+        if self.mono || depth == ColorDepth::TrueColor {
+            return self;
+        }
+        let Some(k) = self.tokens() else { return self };
+        let pick = |c: TokenColor, fallback: Color| match depth {
+            ColorDepth::Ansi256 => Color::Indexed(c.xterm256),
+            ColorDepth::Ansi16 => c.ansi16.map(ansi).unwrap_or(fallback),
+            ColorDepth::TrueColor => rgb(c),
+        };
+        let agent = match (self.agent, depth) {
             (Color::Rgb(r, g, b), ColorDepth::Ansi256) => Color::Indexed(nearest_256(r, g, b)),
             (Color::Rgb(r, g, b), ColorDepth::Ansi16) => nearest_16(r, g, b),
             (c, _) => c,
         };
-        let mut t = Theme {
-            text: map(self.text),
-            dim: map(self.dim),
-            accent: map(self.accent),
-            border: map(self.border),
-            focus: map(self.focus),
-            selected_bg: map(self.selected_bg),
-            good: map(self.good),
-            warn: map(self.warn),
-            bad: map(self.bad),
-            added: map(self.added),
-            removed: map(self.removed),
-            hunk: map(self.hunk),
-            info: map(self.info),
-            mention: map(self.mention),
-            agent: map(self.agent),
+        let selection = if self.name == "light" { Color::Gray } else { Color::DarkGray };
+        Theme {
+            text: pick(k.text, Color::Reset),
+            dim: pick(k.dim, Color::DarkGray),
+            accent: pick(k.accent, Color::Reset),
+            border: pick(k.border, Color::DarkGray),
+            focus: pick(k.accent, Color::Reset),
+            selected_bg: pick(k.selection, selection),
+            good: pick(k.ok, Color::Green),
+            warn: pick(k.warn, Color::Yellow),
+            bad: pick(k.danger, Color::Red),
+            added: pick(k.diff_add, Color::Green),
+            removed: pick(k.diff_del, Color::Red),
+            hunk: pick(k.info, Color::Cyan),
+            info: pick(k.info, Color::Cyan),
+            mention: pick(k.mention, Color::Reset),
+            agent,
             ..self
-        };
-        // With 16 colours the selection's dark tint rounds to the
-        // background's own colour: use the palette's gray. Warn takes the
-        // terminal's yellow (its orange would round to red, danger's slot).
-        if depth == ColorDepth::Ansi16 && !self.mono {
-            t.selected_bg = if self.name == "light" { Color::Gray } else { Color::DarkGray };
-            t.warn = Color::Yellow;
         }
-        t
     }
 }
 
@@ -344,6 +394,19 @@ mod tests {
         assert_eq!(Theme::resolve(ThemeChoice::Auto, env(&[("COLORFGBG", "15;0")])).name, "dark");
         assert_eq!(Theme::resolve(ThemeChoice::Auto, env(&[("NO_COLOR", "1")])).name, "mono");
         assert_eq!(Theme::resolve(ThemeChoice::Light, env(&[("NO_COLOR", "1")])).name, "light");
+    }
+
+    /// The terminal's own answer (OSC 11) decides `auto` when COLORFGBG
+    /// doesn't; it is never asked when the choice is made otherwise.
+    #[test]
+    fn auto_asks_the_terminal_last() {
+        assert_eq!(Theme::resolve_with(ThemeChoice::Auto, env(&[]), || Some(true)).name, "light");
+        assert_eq!(Theme::resolve_with(ThemeChoice::Auto, env(&[]), || Some(false)).name, "dark");
+        assert_eq!(Theme::resolve_with(ThemeChoice::Auto, env(&[]), || None).name, "dark");
+        let never = || -> Option<bool> { panic!("asked the terminal") };
+        assert_eq!(Theme::resolve_with(ThemeChoice::Auto, env(&[("COLORFGBG", "0;15")]), never).name, "light");
+        assert_eq!(Theme::resolve_with(ThemeChoice::Auto, env(&[("NO_COLOR", "1")]), never).name, "mono");
+        assert_eq!(Theme::resolve_with(ThemeChoice::Dark, env(&[]), never).name, "dark");
     }
 }
 
@@ -387,7 +450,10 @@ mod hue_tests {
             let (_, bad) = oklch(t.bad);
             assert!(gap(warn, accent) >= 25.0, "{}: warn {warn:.0}° vs accent {accent:.0}°", t.name);
             assert!(gap(warn, focus) >= 25.0, "{}: warn {warn:.0}° vs focus {focus:.0}°", t.name);
-            assert!(gap(warn, bad) >= 15.0, "{}: warn {warn:.0}° vs danger {bad:.0}°", t.name);
+            // Hue alone never separates warn from danger: their glyphs do,
+            // and the tokens' validator checks the pair under colour-blind
+            // simulation. They still differ.
+            assert!(gap(warn, bad) >= 10.0, "{}: warn {warn:.0}° vs danger {bad:.0}°", t.name);
             let t256 = t.with_depth(ColorDepth::Ansi256);
             assert_ne!(t256.warn, t256.accent, "{} in 256 colours", t.name);
             assert_ne!(t256.warn, t256.bad, "{} in 256 colours", t.name);
@@ -399,11 +465,37 @@ mod hue_tests {
         assert_ne!(dark16.warn, dark16.bad);
     }
 
-    /// The dark warn matches the desktop's: oklch(0.80 0.12 50).
+    /// The themes are the shared tokens, colour for colour: what the
+    /// desktop and the phone draw with (the parity test).
     #[test]
-    fn dark_warn_is_the_desktop_amber_orange() {
-        let (l, h) = oklch(Theme::DARK.warn);
-        assert!((l - 0.80).abs() < 0.02 && (h - 50.0).abs() < 4.0, "l {l:.3} h {h:.1}");
+    fn themes_are_the_shared_tokens() {
+        for (t, k) in [(Theme::DARK, &tokens::DARK), (Theme::LIGHT, &tokens::LIGHT)] {
+            let pairs = [
+                (t.text, k.text),
+                (t.dim, k.dim),
+                (t.accent, k.accent),
+                (t.focus, k.accent),
+                (t.border, k.border),
+                (t.selected_bg, k.selection),
+                (t.good, k.ok),
+                (t.warn, k.warn),
+                (t.bad, k.danger),
+                (t.info, k.info),
+                (t.mention, k.mention),
+                (t.added, k.diff_add),
+                (t.removed, k.diff_del),
+            ];
+            for (c, tok) in pairs {
+                assert_eq!(c, rgb(tok), "{}", t.name);
+            }
+            let t256 = t.with_depth(ColorDepth::Ansi256);
+            assert_eq!(t256.warn, Color::Indexed(k.warn.xterm256));
+        }
+        // An amber-orange: off the honey accent's hue on both backgrounds.
+        let (_, h) = oklch(Theme::DARK.warn);
+        assert!((40.0..60.0).contains(&h), "h {h:.1}");
+        // The accent has no 16-colour hue; it leans on bold.
+        assert_eq!(Theme::DARK.with_depth(ColorDepth::Ansi16).accent, Color::Reset);
     }
 }
 

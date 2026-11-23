@@ -86,6 +86,11 @@ pub async fn run_effect(b: Arc<dyn Backend>, fx: Effect) -> Msg {
     }
 }
 
+/// How Settings names the theme: "dark (24-bit colour)", "mono".
+pub fn theme_label(theme: &Theme, depth: crate::theme::ColorDepth) -> String {
+    if theme.mono { theme.name.to_string() } else { format!("{} ({})", theme.name, depth.label()) }
+}
+
 /// Read terminal input into messages until aborted.
 fn spawn_input(t: mpsc::UnboundedSender<Msg>) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
@@ -155,7 +160,7 @@ fn suspend_for_editor(terminal: &mut ratatui::DefaultTerminal, text: &str) -> Re
 }
 
 /// Run the full-screen app until the person quits.
-pub async fn run_tui(backend: Arc<dyn Backend>, mut state: State, theme: Theme) -> anyhow::Result<()> {
+pub async fn run_tui(backend: Arc<dyn Backend>, mut state: State, theme: Theme, depth: crate::theme::ColorDepth) -> anyhow::Result<()> {
     let mut terminal = ratatui::init();
     let mut stdout = std::io::stdout();
     let _ = crossterm::execute!(stdout, crossterm::event::EnableBracketedPaste);
@@ -168,7 +173,7 @@ pub async fn run_tui(backend: Arc<dyn Backend>, mut state: State, theme: Theme) 
         );
     }
 
-    let result = event_loop(&mut terminal, backend, &mut state, theme).await;
+    let result = event_loop(&mut terminal, backend, &mut state, theme, depth).await;
 
     if enhanced {
         let _ = crossterm::execute!(stdout, crossterm::event::PopKeyboardEnhancementFlags);
@@ -182,7 +187,8 @@ async fn event_loop(
     terminal: &mut ratatui::DefaultTerminal,
     backend: Arc<dyn Backend>,
     state: &mut State,
-    theme: Theme,
+    mut theme: Theme,
+    depth: crate::theme::ColorDepth,
 ) -> anyhow::Result<()> {
     let (tx, mut rx) = mpsc::unbounded_channel::<Msg>();
     let mut tasks = tokio::task::JoinSet::new();
@@ -246,6 +252,11 @@ async fn event_loop(
             let result = suspend_for_editor(terminal, &text);
             input = spawn_input(tx.clone());
             let _ = tx.send(Msg::Edited(result.map_err(crate::backend::BackendError)));
+        }
+        if let Some(choice) = state.theme_request.take() {
+            theme = Theme { ascii: theme.ascii, ..Theme::resolve(choice, |_| None).with_depth(depth) };
+            state.theme_name = theme_label(&theme, depth);
+            update(state, Msg::ThemeChanged);
         }
         if std::mem::take(&mut state.bell) {
             use std::io::Write;

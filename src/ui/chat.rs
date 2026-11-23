@@ -75,7 +75,7 @@ fn draw_rail(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         for p in props {
             let needs = p.status == crate::backend::model::ProposalStatus::Open && p.can_vote.is_yes();
             let (glyph, style) =
-                if needs { (SessionState::NeedsYou.glyph(false), t.state(SessionState::NeedsYou)) } else { ("·", t.dim()) };
+                if needs { (SessionState::NeedsYou.glyph(t.ascii), t.state(SessionState::NeedsYou)) } else { ("·", t.dim()) };
             let state = format!("{} {}/{}", p.status.label(), p.approvals, p.quorum);
             lines.push(Line::from(vec![
                 Span::styled(format!("{glyph} "), style),
@@ -285,7 +285,7 @@ fn proposal_line(s: &State, p: &crate::backend::model::Proposal, width: usize, t
     let tail = if needs { format!("{state} · {key} to review") } else { state };
     let title = trunc(&p.title, width.saturating_sub(tail.width() + 16));
     let mark = if needs {
-        Span::styled(format!("  {} ", SessionState::NeedsYou.glyph(false)), t.state(SessionState::NeedsYou))
+        Span::styled(format!("  {} ", SessionState::NeedsYou.glyph(t.ascii)), t.state(SessionState::NeedsYou))
     } else {
         Span::styled("  → ", t.dim())
     };

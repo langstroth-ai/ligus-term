@@ -1,0 +1,54 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA] [DS]* Northwind API . owner | Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
++ Chats -----------------------++ Fix flaky checkout test -----------------------------------------------------------------------------------------------------++ This chat ---------------------------+
+|  <> Fix flaky checkout. 12m  ||             Ada  40m                                                                                                         ||Proposals                             |
+|  #dev                        ||               The checkout test fails about one run in ten. Can we stop it reading the wall clock?                           ||<> Inject the clock into checkout test|
+|  <> Migrate auth to pa. 50m  ||                                                                                                                              ||  open 1/2                            |
+|  #dev                        ||             @coder  via claude-code . on sff  38m                                                                            ||<> Sign-off: inject a fake clock      |
+|  Weekly release notes    1d  ||               Yes. The payment tests already use a fake clock, so it's a small change. I'll propose it.                      ||  open 0/1                            |
+|                              ||               <> proposal "Inject the clock into checkout tests" . open 1/2 . p to review                                    ||                                      |
+|                              ||                                                                                                                              ||Runs                                  |
+|                              ||             Ada  12m                                                                                                         ||. Implement, review, ship             |
+|                              ||               @Mara can you review the timeout? 30 seconds is what the provider uses.                                        ||  awaiting-gate                       |
+|                              ||               <> proposal "Sign-off: inject a fake clock" . open 0/1 . p to review                                           ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              ||                                                                                                                              ||                                      |
+|                              |+------------------------------------------------------------------------------------------------------------------------------+|                                      |
+|                              |                                                                                                                                |                                      |
+|                              |+ Message the room ------------------------------------------------------------------------------------------------------------+|                                      |
+|                              ||i to write . @ mentions an agent or a person                                                                                  ||                                      |
++------------------------------++------------------------------------------------------------------------------------------------------------------------------++--------------------------------------+
+^v chats  i write  N new chat  tab pane  w workspaces  ? help  ok Runtime changed                                                                                        peer to peer . 1 running . demo

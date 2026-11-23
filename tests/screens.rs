@@ -593,6 +593,25 @@ async fn transcript_markdown_and_tools() {
     }
 }
 
+/// `--ascii`: borders, glyphs and state chips in plain ASCII, the mark
+/// left out, and the words unchanged.
+#[tokio::test]
+async fn ascii_mode() {
+    use ligus_term::theme::Theme;
+    let mut h = demo().await;
+    h.state.toast(ligus_term::app::state::ToastKind::Ok, "Runtime changed");
+    let ascii = Theme { ascii: true, ..Theme::DARK };
+    for (w, ht) in [(80, 24), (110, 32), (200, 50)] {
+        let screen = common::render(&h.state, w, ht, &ascii);
+        let symbols: Vec<char> = screen.chars().filter(|c| !c.is_ascii()).collect();
+        assert!(symbols.is_empty(), "non-ASCII at {w}x{ht}: {symbols:?}\n{screen}");
+        assert!(screen.contains("+-") && screen.contains("<> Fix flaky"), "{screen}");
+        assert!(screen.contains("ok Runtime changed"), "{screen}");
+        let name = if (w, ht) == (110, 32) { "ascii".to_string() } else { format!("ascii_{w}x{ht}") };
+        insta::assert_snapshot!(name, screen);
+    }
+}
+
 /// The chat list's chips: one glyph per state, and nothing for an idle
 /// chat.
 #[tokio::test]

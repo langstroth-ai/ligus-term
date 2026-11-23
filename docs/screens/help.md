@@ -4,7 +4,7 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
-┏ Chats ━━━━━━━━━┏ Help · 1-40 of 91 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
+┏ Chats ━━━━━━━━━┏ Help · 1-40 of 92 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
 ┃  ◆ Fix flaky ch┃What has focus comes first. / searches. Rebind keys in the config file.   ┃                │
 ┃  #dev          ┃                                                                          ┃it reading the  │
 ┃  ◆ Migrate auth┃Chats  here                                                               ┃                │
@@ -27,6 +27,7 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 ┃                ┃  ctrl-c, q                Quit (asks first while work runs here)         ┃                │
 ┃                ┃  ?, f1                    Show or hide this help                         ┃                │
 ┃                ┃  :, ctrl-p, ctrl-k        Command palette: every action, view, chat, prop┃                │
+┃                ┃  unbound                  Switch the theme: dark, light, mono (this sessi┃                │
 ┃                ┃  space                    Show the keys you can press here (any key then ┃                │
 ┃                ┃  !                        This session's notices and errors, in full     ┃                │
 ┃                ┃  esc                      Back / close                                   ┃                │
@@ -40,11 +41,10 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 ┃                ┃  y, 6                     Task state and memory                          ┃                │
 ┃                ┃  m, 7                     People                                         ┃                │
 ┃                ┃  n, 8                     Notifications                                  ┃                │
-┃                ┃  s, 9                     Settings                                       ┃                │
-┃                ┃  tab                      Next pane                                      ┃────────────────╯
-┃                ┃  shift-tab                Previous pane                                  ┃
-┃                ┃  ctrl-x                   Stop the agent's turn in this chat (when it run┃────────────────╮
-┃                ┃  ctrl-l                   The chat list (over the chat in a narrow termin┃                │
+┃                ┃  s, 9                     Settings                                       ┃────────────────╯
+┃                ┃  tab                      Next pane                                      ┃
+┃                ┃  shift-tab                Previous pane                                  ┃────────────────╮
+┃                ┃  ctrl-x                   Stop the agent's turn in this chat (when it run┃                │
 ┗━━━━━━━━━━━━━━━━┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛────────────────╯
 / search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                    peer to peer · 1 running · demo
 ```

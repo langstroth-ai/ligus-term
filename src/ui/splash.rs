@@ -120,7 +120,8 @@ pub fn render(buf: &mut Buffer, at: (u16, u16), t: &Theme) {
 
 /// Draw the mark centred in `area` if it fits; true if it was drawn.
 pub fn draw(f: &mut Frame, area: Rect, t: &Theme) -> bool {
-    if area.width < WIDTH || area.height < HEIGHT {
+    // Block art isn't ASCII: --ascii leaves the mark out.
+    if t.ascii || area.width < WIDTH || area.height < HEIGHT {
         return false;
     }
     let at = (area.x + (area.width - WIDTH) / 2, area.y + (area.height - HEIGHT) / 2);

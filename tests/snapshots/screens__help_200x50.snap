@@ -3,7 +3,7 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
-┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ────┏ Help · 1-46 of 91 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────╮╭ This chat ───────────────────────────╮
+┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ────┏ Help · 1-46 of 92 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────╮╭ This chat ───────────────────────────╮
 ┃  ◆ Fix flaky checkout … 12m  ┃│             Ada  40m        ┃What has focus comes first. / searches. Rebind keys in the config file.   ┃                     ││Proposals                             │
 ┃  #dev                        ┃│               The checkout t┃                                                                          ┃                     ││◆ Inject the clock into checkout tests│
 ┃  ◆ Migrate auth to pas… 50m  ┃│                             ┃Chats  here                                                               ┃                     ││  open 1/2                            │
@@ -26,6 +26,7 @@ expression: screen
 ┃                              ┃│                             ┃  ctrl-c, q                Quit (asks first while work runs here)         ┃                     ││                                      │
 ┃                              ┃│                             ┃  ?, f1                    Show or hide this help                         ┃                     ││                                      │
 ┃                              ┃│                             ┃  :, ctrl-p, ctrl-k        Command palette: every action, view, chat, prop┃                     ││                                      │
+┃                              ┃│                             ┃  unbound                  Switch the theme: dark, light, mono (this sessi┃                     ││                                      │
 ┃                              ┃│                             ┃  space                    Show the keys you can press here (any key then ┃                     ││                                      │
 ┃                              ┃│                             ┃  !                        This session's notices and errors, in full     ┃                     ││                                      │
 ┃                              ┃│                             ┃  esc                      Back / close                                   ┃                     ││                                      │
@@ -45,10 +46,9 @@ expression: screen
 ┃                              ┃│                             ┃  ctrl-x                   Stop the agent's turn in this chat (when it run┃                     ││                                      │
 ┃                              ┃│                             ┃  ctrl-l                   The chat list (over the chat in a narrow termin┃                     ││                                      │
 ┃                              ┃│                             ┃                                                                          ┃                     ││                                      │
-┃                              ┃│                             ┃Composer                                                                  ┃                     ││                                      │
-┃                              ┃╰─────────────────────────────┃  enter                    Send                                           ┃─────────────────────╯│                                      │
-┃                              ┃                              ┃  alt-enter, ctrl-j, shift-enter New line                                 ┃                      │                                      │
-┃                              ┃╭ Message the room ───────────┃  esc                      Leave the composer (keeps the draft)           ┃─────────────────────╮│                                      │
-┃                              ┃│i to write · @ mentions an ag┃  tab                      Accept the @mention                            ┃                     ││                                      │
+┃                              ┃╰─────────────────────────────┃Composer                                                                  ┃─────────────────────╯│                                      │
+┃                              ┃                              ┃  enter                    Send                                           ┃                      │                                      │
+┃                              ┃╭ Message the room ───────────┃  alt-enter, ctrl-j, shift-enter New line                                 ┃─────────────────────╮│                                      │
+┃                              ┃│i to write · @ mentions an ag┃  esc                      Leave the composer (keeps the draft)           ┃                     ││                                      │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰─────────────────────────────┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛─────────────────────╯╰──────────────────────────────────────╯
 / search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                                                                                                              peer to peer · 1 running · demo

@@ -48,7 +48,7 @@ pub fn default_config_text() -> String {
     use crate::keymap::{BINDINGS, Context};
     let mut out = String::from(
         "# lt config. Every setting is optional; delete what you don't change.\n\
-         # theme: auto (from COLORFGBG), dark, light, or mono (also set by NO_COLOR)\n\
+         # theme: auto (COLORFGBG, else the terminal's answer), dark, light, or mono (also set by NO_COLOR)\n\
          theme = \"auto\"\n",
     );
     for ctx in Context::ALL {

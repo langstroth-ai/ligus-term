@@ -1812,6 +1812,7 @@ dependencies = [
  "dirs",
  "futures",
  "insta",
+ "libc",
  "ligus-core",
  "ligus-runtime",
  "ratatui",
