@@ -1436,3 +1436,53 @@ fn first_run_can_look_around_in_the_demo() {
     let fx = update(&mut s, Msg::Agents(WorkspaceId::new("a"), Ok(vec![])));
     assert_eq!(fx, vec![Effect::LoadLocalRuntimes(WorkspaceId::new("a"))]);
 }
+
+/// A chat that newly needs you rings the bell; while the terminal is in
+/// the background it also queues one desktop notification. What already
+/// waited when the workspace opened is quiet, and so is a focused terminal.
+#[test]
+fn needs_you_signals_when_away() {
+    let mut s = main_state();
+    let w = WorkspaceId::new("a");
+    let mut p1 = proposal("p1", ProposalStatus::Open);
+    p1.chat = Some(ChatId::new("c1"));
+    update(&mut s, Msg::Proposals(w.clone(), Ok(vec![p1])));
+    assert!(!s.bell, "already waiting when the workspace opened");
+    let mut p2 = proposal("p2", ProposalStatus::Open);
+    p2.chat = Some(ChatId::new("c2"));
+    update(&mut s, Msg::Event(Event::ProposalChanged { workspace: w.clone(), proposal: p2.clone() }));
+    assert!(s.bell, "a new one rings");
+    assert!(s.signals.is_empty(), "no desktop notification while focused");
+    s.bell = false;
+    update(&mut s, Msg::Focus(false));
+    let mut p3 = proposal("p3", ProposalStatus::Open);
+    p3.chat = Some(ChatId::new("c3"));
+    update(&mut s, Msg::Chats(w.clone(), Ok(vec![chat("c1"), chat("c2"), chat("c3")])));
+    update(&mut s, Msg::Event(Event::ProposalChanged { workspace: w.clone(), proposal: p3 }));
+    assert!(s.bell);
+    assert_eq!(s.signals, vec!["\u{201c}c3\u{201d} needs you".to_string()]);
+    // A turn you asked for ends while you're away.
+    s.signals.clear();
+    key(&mut s, KeyCode::Char('i'));
+    typed(&mut s, "@coder go");
+    key(&mut s, KeyCode::Enter);
+    update(
+        &mut s,
+        Msg::Event(Event::MessageDone { workspace: w.clone(), chat: ChatId::new("c1"), message: MessageId::new("m"), error: None }),
+    );
+    assert_eq!(s.signals, vec!["A turn finished in \u{201c}c1\u{201d}".to_string()]);
+    // Not for a chat you didn't send to.
+    s.signals.clear();
+    update(&mut s, Msg::Event(Event::MessageDone { workspace: w, chat: ChatId::new("c3"), message: MessageId::new("m3"), error: None }));
+    assert!(s.signals.is_empty());
+}
+
+/// OSC 9 carries the text without control characters, and goes through
+/// tmux's passthrough inside tmux.
+#[test]
+fn desktop_notification_sequence() {
+    use ligus_term::app::runtime::osc9;
+    assert_eq!(osc9("“Fix” needs you", false), "\x1b]9;“Fix” needs you\x07".as_bytes());
+    assert_eq!(osc9("a\x07b\x1b]c", false), b"\x1b]9;ab]c\x07");
+    assert_eq!(osc9("hi", true), b"\x1bPtmux;\x1b\x1b]9;hi\x07\x1b\\");
+}

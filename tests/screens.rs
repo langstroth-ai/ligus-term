@@ -623,6 +623,25 @@ async fn ascii_mode() {
     }
 }
 
+/// `--reduce-motion`: the working chip stands still from tick to tick.
+#[tokio::test]
+async fn reduce_motion_stills_the_spinner() {
+    use ligus_term::backend::fake::DEMO_NOW;
+    let mut h = demo().await;
+    let w = h.state.active.clone().unwrap();
+    let chat = h.state.chats[2].id.clone();
+    h.send(Msg::Event(Event::Thinking { workspace: w, chat, agent: "@coder".into(), on: true })).await;
+    let at = |h: &mut Harness, now| {
+        h.state.now = now;
+        h.screen(W, H).lines().find(|l| l.contains("Weekly")).unwrap_or("").to_string()
+    };
+    assert_ne!(at(&mut h, DEMO_NOW), at(&mut h, DEMO_NOW + 250), "it spins by default");
+    h.state.reduce_motion = true;
+    let still = at(&mut h, DEMO_NOW);
+    assert_eq!(still, at(&mut h, DEMO_NOW + 250));
+    assert!(still.contains("⠹ Weekly"), "{still}");
+}
+
 /// The chat list's chips: one glyph per state, and nothing for an idle
 /// chat.
 #[tokio::test]

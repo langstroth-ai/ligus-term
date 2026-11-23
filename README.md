@@ -480,6 +480,15 @@ the chat clears it), `✕` failed (the last turn failed) and `‖` paused (a
 lockdown holds its agents). An idle chat shows nothing. In plain mode,
 `chats` prints `needs-you` and `locked` among a chat's flags.
 
+When a chat newly needs you (an agent asks, or a proposal waits on your
+vote), lt rings the terminal bell; while the terminal is in the background
+it also sends one desktop notification (OSC 9, through tmux's passthrough
+inside tmux), and it does the same when a turn you asked for finishes or
+fails. What already waited when you opened the workspace is quiet. Settings'
+"Notify me when I'm @mentioned or needed" turns all of it off.
+`--reduce-motion` (or `LT_REDUCE_MOTION=1`) stills the spinners: a running
+item shows a fixed glyph and its elapsed time.
+
 The status bar has three parts: the keys for what has focus on the left
 (cut from the right, `? help` always stays), a notice in the centre when
 there is one (one at a time; `!` lists them all), and on the right how the
@@ -574,6 +583,7 @@ app's or the CLI's.
 | `LT_PRESENCE_PORT` | the loopback port passkey prompts listen on (default any free port) |
 | `NO_COLOR` | the mono theme, unless a theme is set |
 | `LT_ASCII` | `1`: ASCII only, like `--ascii` |
+| `LT_REDUCE_MOTION` | `1`: spinners stand still, like `--reduce-motion` |
 | `LT_COLOR_DEPTH` | `truecolor`, `256` or `16`; by default 24-bit colour needs `COLORTERM=truecolor`, else lt uses the nearest of 256 colours (16 on a basic `TERM` such as `linux`) |
 
 `lt help env` lists every variable `lt` reads, with its default, including

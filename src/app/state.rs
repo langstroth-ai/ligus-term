@@ -481,8 +481,23 @@ pub struct State {
     /// A theme picked in the app (Settings, the palette), for the runtime
     /// to switch to; this session only.
     pub theme_request: Option<crate::theme::ThemeChoice>,
-    /// Ring the terminal bell once (a mention arrived).
+    /// Ring the terminal bell once (a mention arrived, a chat needs you).
     pub bell: bool,
+    /// Desktop notifications to send (OSC 9) if the terminal is unfocused;
+    /// the runtime takes them after each batch and sends one.
+    pub signals: Vec<String>,
+    /// Whether the terminal has focus (terminals that report it).
+    pub focused: bool,
+    /// The chats that needed you at the last look.
+    pub attention: std::collections::BTreeSet<ChatId>,
+    /// Which of the active workspace's lists have loaded once (their first
+    /// load sets what needs you without a signal).
+    pub loaded: std::collections::HashSet<&'static str>,
+    /// Chats you sent to this session: their turns ending while you're
+    /// away is worth a signal.
+    pub my_chats: std::collections::HashSet<ChatId>,
+    /// Spinners stand still (`--reduce-motion`, `LT_REDUCE_MOTION`).
+    pub reduce_motion: bool,
     pub quit: bool,
     /// Quitting to look around in the demo: `lt --demo` runs next.
     pub exec_demo: bool,
@@ -559,6 +574,12 @@ impl State {
             theme_name: "dark".into(),
             theme_request: None,
             bell: false,
+            signals: vec![],
+            focused: true,
+            attention: Default::default(),
+            loaded: Default::default(),
+            my_chats: Default::default(),
+            reduce_motion: false,
             quit: false,
             exec_demo: false,
             term: (0, 0),
@@ -754,6 +775,13 @@ impl State {
     /// is past the agents.
     pub fn selected_local(&self) -> Option<&LocalRuntime> {
         self.agent_sel.index.checked_sub(self.agents.len()).and_then(|i| self.available_local().get(i).copied())
+    }
+
+    /// Queue a desktop notification for when the terminal is unfocused.
+    pub fn signal(&mut self, text: impl Into<String>) {
+        if !self.focused {
+            self.signals.push(text.into());
+        }
     }
 
     /// Show a notice in the status bar. One shows at a time: a new one

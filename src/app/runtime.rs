@@ -91,6 +91,15 @@ pub fn theme_label(theme: &Theme, depth: crate::theme::ColorDepth) -> String {
     if theme.mono { theme.name.to_string() } else { format!("{} ({})", theme.name, depth.label()) }
 }
 
+/// A desktop notification as the terminal's OSC 9 (inside tmux, through
+/// its passthrough). The text is cut to 200 characters and loses any
+/// control character, so it can't end the sequence early.
+pub fn osc9(text: &str, tmux: bool) -> Vec<u8> {
+    let clean: String = text.chars().filter(|c| !c.is_control()).take(200).collect();
+    let seq = format!("\x1b]9;{clean}\x07");
+    if tmux { format!("\x1bPtmux;{}\x1b\\", seq.replace('\x1b', "\x1b\x1b")).into_bytes() } else { seq.into_bytes() }
+}
+
 /// Read terminal input into messages until aborted.
 fn spawn_input(t: mpsc::UnboundedSender<Msg>) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
@@ -100,6 +109,8 @@ fn spawn_input(t: mpsc::UnboundedSender<Msg>) -> tokio::task::JoinHandle<()> {
                 TermEvent::Key(k) if k.kind != KeyEventKind::Release => Msg::Key(k),
                 TermEvent::Paste(p) => Msg::Paste(p),
                 TermEvent::Mouse(m) => Msg::Mouse(m),
+                TermEvent::FocusGained => Msg::Focus(true),
+                TermEvent::FocusLost => Msg::Focus(false),
                 TermEvent::Resize(w, h) => Msg::Resize(w, h),
                 _ => continue,
             };
@@ -179,6 +190,8 @@ pub async fn run_tui(
     let mut stdout = std::io::stdout();
     let _ = crossterm::execute!(stdout, crossterm::event::EnableBracketedPaste);
     MOUSE.store(mouse, std::sync::atomic::Ordering::Relaxed);
+    // Focus reports let a needs-you signal reach you only while you're away.
+    let _ = crossterm::execute!(stdout, crossterm::event::EnableFocusChange);
     if mouse {
         let _ = crossterm::execute!(stdout, crossterm::event::EnableMouseCapture);
     }
@@ -199,7 +212,7 @@ pub async fn run_tui(
     if mouse {
         let _ = crossterm::execute!(stdout, crossterm::event::DisableMouseCapture);
     }
-    let _ = crossterm::execute!(stdout, crossterm::event::DisableBracketedPaste);
+    let _ = crossterm::execute!(stdout, crossterm::event::DisableFocusChange, crossterm::event::DisableBracketedPaste);
     ratatui::restore();
     result.map(|()| state)
 }
@@ -286,6 +299,14 @@ async fn event_loop(
         if std::mem::take(&mut state.bell) {
             use std::io::Write;
             let _ = std::io::stdout().write_all(b"\x07");
+        }
+        let signals = std::mem::take(&mut state.signals);
+        if !signals.is_empty() && !state.focused {
+            use std::io::Write;
+            let text = if signals.len() == 1 { signals[0].clone() } else { format!("{} things need you in lt", signals.len()) };
+            let mut out = std::io::stdout();
+            let _ = out.write_all(&osc9(&text, std::env::var_os("TMUX").is_some()));
+            let _ = out.flush();
         }
         terminal.draw(|f| crate::ui::draw(f, state, &theme))?;
     }
