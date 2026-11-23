@@ -79,6 +79,7 @@ pub async fn run_effect(b: Arc<dyn Backend>, fx: Effect) -> Msg {
         LoadHandoffs(w) => Msg::Handoffs(w.clone(), b.handoffs(&w).await),
         LoadCheckout(w) => Msg::Checkout(w.clone(), b.checkout(&w).await),
         SetCheckout(w, p) => Msg::Checkout(w.clone(), b.set_checkout(&w, p.as_deref()).await),
+        StopTurn(w, c) => Msg::Stopped(w.clone(), c.clone(), b.stop_turn(&w, &c).await),
         // The full-screen loop runs the editor itself (it owns the
         // terminal); anywhere else there is no terminal to lend it.
         EditDraft(_) => Msg::Edited(Err(crate::backend::BackendError("the editor runs only in the full-screen app".into()))),

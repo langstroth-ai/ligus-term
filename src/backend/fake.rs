@@ -91,6 +91,9 @@ struct World {
     presence: HashMap<PresenceId, mpsc::UnboundedSender<PresenceAnswer>>,
     /// What this "device" has installed (its `used_by` filled per workspace).
     local: Vec<LocalRuntime>,
+    /// Replies streaming now, per chat, and the chats asked to stop.
+    replying: HashMap<ChatId, usize>,
+    stopping: std::collections::HashSet<ChatId>,
 }
 
 impl World {
@@ -138,6 +141,8 @@ impl FakeBackend {
             clock: DEMO_NOW,
             presence: HashMap::new(),
             local: demo_local(),
+            replying: HashMap::new(),
+            stopping: Default::default(),
         };
         Self { world: Arc::new(Mutex::new(world)), tx, cfg }
     }
@@ -407,6 +412,7 @@ impl FakeBackend {
         tokio::spawn(async move {
             let who = format!("@{}", agent.handle);
             me.emit(Event::Thinking { workspace: ws.clone(), chat: chat.clone(), agent: who.clone(), on: true });
+            *me.lock().replying.entry(chat.clone()).or_default() += 1;
             tokio::time::sleep(me.cfg.stream_delay * 4).await;
             let (msg, files_proposal, your_name) = {
                 let mut w = me.lock();
@@ -430,7 +436,13 @@ impl FakeBackend {
             };
             me.emit(Event::Thinking { workspace: ws.clone(), chat: chat.clone(), agent: who, on: false });
             me.emit(Event::MessageAdded { workspace: ws.clone(), message: msg.clone() });
-            let call = ToolCall { name: "read_file".into(), preview: "src/checkout.rs".into(), ok: true };
+            let call = ToolCall {
+                name: "read_file".into(),
+                preview: "src/checkout.rs".into(),
+                ok: true,
+                duration_ms: Some(180),
+                output: "pub struct Checkout {\n    pub items: Vec<LineItem>,\n    pub started: Instant,".into(),
+            };
             me.emit(Event::ToolActivity { workspace: ws.clone(), chat: chat.clone(), message: msg.id.clone(), call: call.clone() });
             let reply = if files_proposal {
                 format!(
@@ -442,6 +454,9 @@ impl FakeBackend {
             };
             for word in reply.split_inclusive(' ') {
                 tokio::time::sleep(me.cfg.stream_delay).await;
+                if me.lock().stopping.remove(&chat) {
+                    break;
+                }
                 {
                     let mut w = me.lock();
                     if let Ok(wsd) = w.ws(&ws)
@@ -459,6 +474,9 @@ impl FakeBackend {
                 {
                     m.streaming = false;
                     m.tools.push(call);
+                }
+                if let Some(n) = w.replying.get_mut(&chat) {
+                    *n = n.saturating_sub(1);
                 }
             }
             me.emit(Event::MessageDone { workspace: ws.clone(), chat: chat.clone(), message: msg.id.clone(), error: None });
@@ -862,7 +880,12 @@ fn seed_northwind(w: &mut World) {
         vec![
             msg("m4", "c-auth", human("m-lin", "Lin"), "@scout check the forum thread about passkey fallbacks", DEMO_NOW - 55 * MIN),
             Message {
-                tools: vec![ToolCall { name: "fetch_url".into(), preview: "https://forum.example/passkey-fallbacks".into(), ok: true }],
+                tools: vec![ToolCall {
+                    name: "fetch_url".into(),
+                    preview: "https://forum.example/passkey-fallbacks".into(),
+                    ok: true,
+                    ..ToolCall::default()
+                }],
                 ..msg(
                     "m5",
                     "c-auth",
@@ -1458,6 +1481,16 @@ impl Backend for FakeBackend {
             s.mentioned = any;
         }
         Ok(())
+    }
+
+    async fn stop_turn(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<usize> {
+        let mut w = self.lock();
+        w.ws(workspace)?;
+        let n = w.replying.get(chat).copied().unwrap_or(0);
+        if n > 0 {
+            w.stopping.insert(chat.clone());
+        }
+        Ok(n)
     }
 
     async fn lock_chat(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<()> {

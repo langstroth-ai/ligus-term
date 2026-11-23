@@ -412,6 +412,8 @@ pub struct State {
     pub transcript: Vec<Message>,
     /// Rows scrolled up from the bottom of the transcript.
     pub transcript_scroll: usize,
+    /// Tool calls show what they returned (`o`), not just one line each.
+    pub tools_expanded: bool,
     /// Which agents are working on a reply, per chat.
     pub thinking: HashMap<ChatId, BTreeSet<String>>,
     /// How the last turn ended in a chat you haven't looked at since:
@@ -502,6 +504,7 @@ impl State {
             open_chat: None,
             transcript: vec![],
             transcript_scroll: 0,
+            tools_expanded: false,
             thinking: HashMap::new(),
             turn_outcomes: HashMap::new(),
             composer: TextBuf::multi(),

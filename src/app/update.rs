@@ -57,6 +57,8 @@ pub enum Msg {
     Tasks(WorkspaceId, Result<Vec<TaskState>>),
     Handoffs(WorkspaceId, Result<Vec<Handoff>>),
     Checkout(WorkspaceId, Result<Option<String>>),
+    /// A stop was asked for: how many turns stopped here.
+    Stopped(WorkspaceId, ChatId, Result<usize>),
     /// The draft came back from the external editor.
     Edited(Result<String>),
     /// A fire-and-report action finished; `ok` is the toast on success.
@@ -136,6 +138,8 @@ pub enum Effect {
     LoadHandoffs(WorkspaceId),
     LoadCheckout(WorkspaceId),
     SetCheckout(WorkspaceId, Option<String>),
+    /// Stop the turns running on this device in a chat.
+    StopTurn(WorkspaceId, ChatId),
     /// Suspend the screen and edit this draft in `$VISUAL`/`$EDITOR`; the
     /// runtime answers [`Msg::Edited`].
     EditDraft(String),
@@ -427,6 +431,20 @@ pub fn update(s: &mut State, msg: Msg) -> Vec<Effect> {
         }
         Msg::Checkout(ws, Ok(c)) if is_active(s, &ws) => {
             s.checkout = c;
+            vec![]
+        }
+        Msg::Stopped(_, _, Ok(0)) => {
+            s.toast(ToastKind::Info, "Nothing runs on this device in this chat: the turn's host stops it");
+            vec![]
+        }
+        Msg::Stopped(ws, chat, Ok(n)) => {
+            let who = s.thinking.get(&chat).map(|a| a.iter().cloned().collect::<Vec<_>>().join(", ")).unwrap_or_default();
+            let what = if n == 1 { "the turn".to_string() } else { format!("{n} turns") };
+            s.toast(ToastKind::Ok, if who.is_empty() { format!("Stopped {what}") } else { format!("Stopped {what} ({who})") });
+            if is_active(s, &ws) { vec![Effect::LoadTranscript(ws, chat)] } else { vec![] }
+        }
+        Msg::Stopped(_, _, Err(e)) => {
+            s.toast(ToastKind::Error, format!("Couldn't stop the turn: {e}"));
             vec![]
         }
         Msg::Edited(Ok(text)) => {
@@ -1639,6 +1657,19 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
         }
         Up | Down | PageUp | PageDown | Top | Bottom => nav_action(s, action),
         Select => select(s),
+        StopTurn => {
+            let (Some(w), Some(c)) = (ws, s.open_chat.clone()) else { return vec![] };
+            let live = s.thinking.get(&c).is_some_and(|t| !t.is_empty()) || s.transcript.iter().any(|m| m.streaming);
+            if !live {
+                s.toast(ToastKind::Info, "No agent is working in this chat");
+                return vec![];
+            }
+            vec![Effect::StopTurn(w, c)]
+        }
+        ToggleTools => {
+            s.tools_expanded = !s.tools_expanded;
+            vec![]
+        }
         Compose => {
             if s.open_chat.is_some() {
                 s.focus = Focus::Composer;

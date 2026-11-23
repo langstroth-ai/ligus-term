@@ -4,18 +4,18 @@ expression: screen
 ---
 [NA]+1• │ 1 Chats 2 3 4 5 6 7 8(1) 9           Northwind API
 ╭ Fix flaky checkout test · 1/3 ───────────────────────────╮
-│Ada  40m                                                  │
 │  The checkout test fails about one run in ten. Can we    │
 │  stop it reading the wall clock?                         │
 │                                                          │
-│@coder  via claude-code  38m                              │
+│@coder  via claude-code · on sff  38m                     │
 │  Yes. The payment tests already use a fake clock, so it's│
 │  a small change. I'll propose it.                        │
+│  ◆ proposal “Inject the clo…” · open 1/2 · p to review   │
 │                                                          │
 │Ada  12m                                                  │
 │  @Mara can you review the timeout? 30 seconds is what the│
 │  provider uses.                                          │
-│ ┏ Mention ━━━━━━━━━━━━━━━━━━━━━━━━━┓                     │
+│ ┏ Mention ━━━━━━━━━━━━━━━━━━━━━━━━━┓ 0/1 · p to review   │
 ╰─┃@coder           Agent            ┃─────────────────────╯
   ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ┏ Message the room ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓

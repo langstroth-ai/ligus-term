@@ -810,6 +810,11 @@ impl Backend for RealBackend {
         .await
     }
 
+    async fn stop_turn(&self, _workspace: &WorkspaceId, chat: &ChatId) -> Result<usize> {
+        let sid = uuid_of(chat.as_str(), "chat")?;
+        Ok(self.inner.turn_stops.stop(sid, None))
+    }
+
     async fn lock_chat(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<()> {
         let (ws, sid) = (ws_uuid(workspace)?, uuid_of(chat.as_str(), "chat")?);
         self.call(move |i| {
@@ -1704,5 +1709,24 @@ mod tests {
         b.shutdown();
         assert!(running.signal().is_stopped());
         assert!(b.inner.turn_stops.register(Uuid::new_v4()).signal().is_stopped());
+    }
+
+    /// Stop reaches only the turns running here in that chat, and says how
+    /// many it stopped.
+    #[tokio::test]
+    async fn stop_turn_stops_this_chats_turns_here() {
+        // SAFETY: tests in this binary only ever set it to the same value.
+        unsafe { std::env::set_var("LIGUS_SECRET_BACKEND", "file") };
+        let tmp = tempfile::tempdir().unwrap();
+        let b = RealBackend::open(RealConfig::new(tmp.path().join("dev"))).unwrap();
+        let (chat, other) = (Uuid::new_v4(), Uuid::new_v4());
+        let running = b.inner.turn_stops.register(chat);
+        let elsewhere = b.inner.turn_stops.register(other);
+        let ws = WorkspaceId::new(Uuid::new_v4().to_string());
+        assert_eq!(b.stop_turn(&ws, &ChatId::new(other.to_string())).await.unwrap(), 1);
+        assert!(!running.signal().is_stopped() && elsewhere.signal().is_stopped());
+        assert_eq!(b.stop_turn(&ws, &ChatId::new(Uuid::new_v4().to_string())).await.unwrap(), 0);
+        assert!(b.stop_turn(&ws, &ChatId::new("not-a-chat")).await.is_err());
+        b.shutdown();
     }
 }

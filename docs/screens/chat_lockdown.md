@@ -10,11 +10,11 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃  ◆ Migrate auth to pas… 50m  ┃│Lin  55m                                                                    │
 ┃  #dev                        ┃│  @scout check the forum thread about passkey fallbacks                     │
 ┃  Weekly release notes    1d  ┃│                                                                            │
-┃                              ┃│@scout  via ollama  50m                                                     │
-┃                              ┃│  ⚒ fetch_url https://forum.example/passkey-fallbacks done                  │
+┃                              ┃│@scout  via ollama · on sff  50m                                            │
+┃                              ┃│  ▸ fetch_url https://forum.example/passkey-fallbacks done                  │
 ┃                              ┃│  The page contained instructions aimed at agents, so this chat is locked   │
 ┃                              ┃│  down.                                                                     │
-┃                              ┃│                                                                            │
+┃                              ┃│  ◆ proposal “Workflow: Dependency audit befor…” · open 0/1 · p to review   │
 ┃                              ┃│                                                                            │
 ┃                              ┃│                                                                            │
 ┃                              ┃│                                                                            │

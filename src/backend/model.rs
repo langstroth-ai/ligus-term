@@ -167,11 +167,15 @@ pub struct Message {
     pub tools: Vec<ToolCall>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ToolCall {
     pub name: String,
     pub preview: String,
     pub ok: bool,
+    /// How long it took, when this device timed it (live turns here).
+    pub duration_ms: Option<u64>,
+    /// The start of what it returned (a few lines), when it ran here.
+    pub output: String,
 }
 
 /// Who can be @mentioned in a workspace.

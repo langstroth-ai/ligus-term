@@ -8,15 +8,15 @@ expression: screen
 ┃  #dev                    ┃│  The checkout test fails about one run in ten.   │
 ┃  ◆ Migrate auth to… 50m  ┃│  Can we stop it reading the wall clock?          │
 ┃  #dev                    ┃│                                                  │
-┃  Weekly release not… 1d  ┃│@coder  via claude-code  38m                      │
+┃  Weekly release not… 1d  ┃│@coder  via claude-code · on sff  38m             │
 ┃                          ┃│  Yes. The payment tests already use a fake clock,│
 ┃                          ┃│  so it's a small change. I'll propose it.        │
-┃       ┏ Quit? ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓       │
+┃       ┏ Quit? ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓view   │
 ┃       ┃This device drives the run “Implement, review, ship”. Quitting┃       │
-┃       ┃stops driving it until lt runs here again.                    ┃nds is │
-┃       ┃                                                              ┃       │
+┃       ┃stops driving it until lt runs here again.                    ┃       │
+┃       ┃                                                              ┃nds is │
 ┃       ┃y quit · any other key backs out                              ┃       │
-┃       ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛       │
+┃       ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛view   │
 ┃                          ┃│                                                  │
 ┃                          ┃│                                                  │
 ┃                          ┃│                                                  │

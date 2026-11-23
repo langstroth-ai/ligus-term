@@ -7,7 +7,7 @@ expression: screen
 ┃  ✕ Fix flaky checkout … 12m  ┃│             Ada  40m                                                                                                         ││Runs                                  │
 ┃  #dev                        ┃│               The checkout test fails about one run in ten. Can we stop it reading the wall clock?                           ││· Implement, review, ship             │
 ┃  ‖ Migrate auth to pas… 50m  ┃│                                                                                                                              ││  awaiting-gate                       │
-┃  #dev                        ┃│             @coder  via claude-code  38m                                                                                     ││                                      │
+┃  #dev                        ┃│             @coder  via claude-code · on sff  38m                                                                            ││                                      │
 ┃  ⠋ Weekly release notes  1d  ┃│               Yes. The payment tests already use a fake clock, so it's a small change. I'll propose it.                      ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│             Ada  12m                                                                                                         ││                                      │

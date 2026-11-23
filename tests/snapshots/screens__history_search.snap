@@ -4,30 +4,30 @@ expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 2 Settings
 ╭ Chats ───────────────────────╮╭ Fix flaky checkout test · 1/3 ─────────────────────────────────────────────╮
-│  ◆ Fix flaky checkout … 12m  ││@coder  via claude-code  38m                                                │
-│  #dev                        ││  Yes. The payment tests already use a fake clock, so it's a small change.  │
-│  ◆ Migrate auth to pas… 50m  ││  I'll propose it.                                                          │
+│  ◆ Fix flaky checkout … 12m  ││  ◆ proposal “Inject the clock into checkout t…” · open 1/2 · p to review   │
 │  #dev                        ││                                                                            │
-│  Weekly release notes    1d  ││Ada  12m                                                                    │
-│                              ││  @Mara can you review the timeout? 30 seconds is what the provider uses.   │
+│  ◆ Migrate auth to pas… 50m  ││Ada  12m                                                                    │
+│  #dev                        ││  @Mara can you review the timeout? 30 seconds is what the provider uses.   │
+│  Weekly release notes    1d  ││  ◆ proposal “Sign-off: inject a fake clock” · open 0/1 · p to review       │
 │                              ││                                                                            │
 │                              ││Mara  now                                                                   │
 │                              ││  @coder can you rerun the flaky test?                                      │
 │                              ││                                                                            │
-│                              ││@coder  via claude-code  now                                                │
-│                              ││  ⚒ read_file src/checkout.rs done                                          │
+│                              ││@coder  via claude-code · on sff  now                                       │
+│                              ││  ▸ read_file src/checkout.rs done 0.2s                                     │
 │                              ││  Here's what I found: the checkout test reads the wall clock, so it fails  │
 │                              ││  when CI is slow. Want me to propose a change?                             │
 │                              ││                                                                            │
 │                              ││Mara  now                                                                   │
 │                              ││  Thanks, that fixed it                                                     │
 │                              ││                                                                            │
-│                              ││@primary  via claude-code  now                                              │
-│                              ││  ⚒ read_file src/checkout.rs done                                          │
-│                ┏ What you sent · enter use · esc ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓the session     │
+│                              ││@primary  via claude-code · on this device  now                             │
+│                              ││  ▸ read_file src/checkout.rs done 0.2s                                     │
+│                              ││  Looked at the checkout test. I injected a fake clock into the session     │
+│                ┏ What you sent · enter use · esc ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                │
 │                ┃search ›                                                                  ┃                │
 │                ┃                                                                          ┃                │
-│                ┃▶ Thanks, that fixed it                                                   ┃                │
+│                ┃▶ Thanks, that fixed it                                                   ┃· p to review   │
 │                ┃  @coder can you rerun the flaky test?                                    ┃────────────────╯
 │                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 │                              │┏ Message the room ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓

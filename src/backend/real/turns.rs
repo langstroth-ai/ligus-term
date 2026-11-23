@@ -629,7 +629,8 @@ struct TermHost {
     chat: ChatId,
     who: String,
     /// Tool calls in flight: call id → (name, input preview).
-    calls: Mutex<std::collections::HashMap<String, (String, String)>>,
+    /// Tool calls in flight: name, input preview, when it started.
+    calls: Mutex<std::collections::HashMap<String, (String, String, std::time::Instant)>>,
 }
 
 impl TermHost {
@@ -639,6 +640,18 @@ impl TermHost {
 }
 
 /// A tool call's input, one line, short.
+/// The first few lines of a tool's output, each cut to 200 characters,
+/// for the transcript's expanded tool line.
+fn output_excerpt(content: &str) -> String {
+    content
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .take(6)
+        .map(|l| if l.chars().count() > 200 { format!("{}…", l.chars().take(199).collect::<String>()) } else { l.to_string() })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 fn preview(input_json: &str) -> String {
     let one: String = input_json.split_whitespace().collect::<Vec<_>>().join(" ");
     if one.chars().count() > 80 { format!("{}…", one.chars().take(79).collect::<String>()) } else { one }
@@ -679,12 +692,19 @@ impl TurnHost for TermHost {
     fn activity(&self, mid: Uuid, act: &StreamActivity) {
         let call = match act {
             StreamActivity::Tool { id, name, input_json } => {
-                super::lock(&self.calls).insert(id.clone(), (name.clone(), preview(input_json)));
+                super::lock(&self.calls).insert(id.clone(), (name.clone(), preview(input_json), std::time::Instant::now()));
                 return;
             }
-            StreamActivity::ToolResult { call_id, is_error, .. } => {
-                let (name, preview) = super::lock(&self.calls).remove(call_id).unwrap_or_else(|| ("tool".into(), String::new()));
-                ToolCall { name, preview, ok: !is_error }
+            StreamActivity::ToolResult { call_id, is_error, content } => {
+                let (name, preview, started) =
+                    super::lock(&self.calls).remove(call_id).unwrap_or_else(|| ("tool".into(), String::new(), std::time::Instant::now()));
+                ToolCall {
+                    name,
+                    preview,
+                    ok: !is_error,
+                    duration_ms: Some(started.elapsed().as_millis() as u64),
+                    output: output_excerpt(content),
+                }
             }
             _ => return,
         };

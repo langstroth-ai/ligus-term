@@ -66,7 +66,11 @@ pub fn message(s: &ChatSession, m: &ChatMessage) -> Message {
         text: m.body.clone(),
         at: ms(&m.created_at),
         streaming: m.is_streaming,
-        tools: m.tool_calls.iter().map(|c| ToolCall { name: c.name.clone(), preview: preview(&c.input_json), ok: true }).collect(),
+        tools: m
+            .tool_calls
+            .iter()
+            .map(|c| ToolCall { name: c.name.clone(), preview: preview(&c.input_json), ok: true, ..ToolCall::default() })
+            .collect(),
     }
 }
 

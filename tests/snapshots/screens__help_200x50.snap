@@ -3,16 +3,17 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
-┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ────┏ Help · 1-46 of 89 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────╮╭ This chat ───────────────────────────╮
+┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ────┏ Help · 1-46 of 91 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────╮╭ This chat ───────────────────────────╮
 ┃  ◆ Fix flaky checkout … 12m  ┃│             Ada  40m        ┃What has focus comes first. / searches. Rebind keys in the config file.   ┃                     ││Proposals                             │
 ┃  #dev                        ┃│               The checkout t┃                                                                          ┃                     ││◆ Inject the clock into checkout tests│
 ┃  ◆ Migrate auth to pas… 50m  ┃│                             ┃Chats  here                                                               ┃                     ││  open 1/2                            │
 ┃  #dev                        ┃│             @coder  via clau┃  i                        Write a message                                ┃                     ││◆ Sign-off: inject a fake clock       │
 ┃  Weekly release notes    1d  ┃│               Yes. The payme┃  N                        New chat                                       ┃                     ││  open 0/1                            │
-┃                              ┃│                             ┃  L                        Lock this chat down                            ┃                     ││                                      │
-┃                              ┃│             Ada  12m        ┃  U                        Clear the lockdown                             ┃                     ││Runs                                  │
-┃                              ┃│               @Mara can you ┃                                                                          ┃                     ││· Implement, review, ship             │
-┃                              ┃│                             ┃Lists  here                                                               ┃                     ││  awaiting-gate                       │
+┃                              ┃│               ◆ proposal “In┃  o                        Show or hide what tool calls returned          ┃                     ││                                      │
+┃                              ┃│                             ┃  L                        Lock this chat down                            ┃                     ││Runs                                  │
+┃                              ┃│             Ada  12m        ┃  U                        Clear the lockdown                             ┃                     ││· Implement, review, ship             │
+┃                              ┃│               @Mara can you ┃                                                                          ┃                     ││  awaiting-gate                       │
+┃                              ┃│               ◆ proposal “Si┃Lists  here                                                               ┃                     ││                                      │
 ┃                              ┃│                             ┃  ↑, k                     Up                                             ┃                     ││                                      │
 ┃                              ┃│                             ┃  ↓, j                     Down                                           ┃                     ││                                      │
 ┃                              ┃│                             ┃  pgup, ctrl-u             Page up                                        ┃                     ││                                      │
@@ -41,14 +42,13 @@ expression: screen
 ┃                              ┃│                             ┃  s, 9                     Settings                                       ┃                     ││                                      │
 ┃                              ┃│                             ┃  tab                      Next pane                                      ┃                     ││                                      │
 ┃                              ┃│                             ┃  shift-tab                Previous pane                                  ┃                     ││                                      │
+┃                              ┃│                             ┃  ctrl-x                   Stop the agent's turn in this chat (when it run┃                     ││                                      │
 ┃                              ┃│                             ┃  ctrl-l                   The chat list (over the chat in a narrow termin┃                     ││                                      │
 ┃                              ┃│                             ┃                                                                          ┃                     ││                                      │
 ┃                              ┃│                             ┃Composer                                                                  ┃                     ││                                      │
-┃                              ┃│                             ┃  enter                    Send                                           ┃                     ││                                      │
-┃                              ┃│                             ┃  alt-enter, ctrl-j, shift-enter New line                                 ┃                     ││                                      │
-┃                              ┃╰─────────────────────────────┃  esc                      Leave the composer (keeps the draft)           ┃─────────────────────╯│                                      │
-┃                              ┃                              ┃  tab                      Accept the @mention                            ┃                      │                                      │
-┃                              ┃╭ Message the room ───────────┃  ctrl-g                   Write the draft in $VISUAL or $EDITOR          ┃─────────────────────╮│                                      │
-┃                              ┃│i to write · @ mentions an ag┃  ctrl-r                   Search what you sent (↑ on an empty draft recal┃                     ││                                      │
+┃                              ┃╰─────────────────────────────┃  enter                    Send                                           ┃─────────────────────╯│                                      │
+┃                              ┃                              ┃  alt-enter, ctrl-j, shift-enter New line                                 ┃                      │                                      │
+┃                              ┃╭ Message the room ───────────┃  esc                      Leave the composer (keeps the draft)           ┃─────────────────────╮│                                      │
+┃                              ┃│i to write · @ mentions an ag┃  tab                      Accept the @mention                            ┃                     ││                                      │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰─────────────────────────────┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛─────────────────────╯╰──────────────────────────────────────╯
 / search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                                                                                                              peer to peer · 1 running · demo

@@ -9,11 +9,11 @@ expression: screen
 ┃  ◆ Migrate auth to pas… 50m  ┃│                         ┃        src/checkout.rs; commit or stash them and ask again                       ┃                 ││  open 1/2                            │
 ┃  #dev                        ┃│             @coder  via ┃✓  now  Runtime changed                                                           ┃                 ││◆ Sign-off: inject a fake clock       │
 ┃  Weekly release notes    1d  ┃│               Yes. The p┃                                                                                  ┃                 ││  open 0/1                            │
-┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
-┃                              ┃│             Ada  12m    ┃                                                                                  ┃                 ││Runs                                  │
-┃                              ┃│               @Mara can ┃                                                                                  ┃                 ││· Implement, review, ship             │
-┃                              ┃│                         ┃                                                                                  ┃                 ││  awaiting-gate                       │
-┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│               ◆ proposal┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││Runs                                  │
+┃                              ┃│             Ada  12m    ┃                                                                                  ┃                 ││· Implement, review, ship             │
+┃                              ┃│               @Mara can ┃                                                                                  ┃                 ││  awaiting-gate                       │
+┃                              ┃│               ◆ proposal┃                                                                                  ┃                 ││                                      │
 ┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
 ┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
 ┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
