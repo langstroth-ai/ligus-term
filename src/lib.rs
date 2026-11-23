@@ -10,6 +10,7 @@ pub mod backend;
 pub mod cli;
 pub mod completions;
 pub mod config;
+pub mod doctor;
 pub mod help;
 pub mod keymap;
 pub mod paths;

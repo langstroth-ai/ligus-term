@@ -19,7 +19,7 @@ use crate::help::{COMMANDS, ENV, EXIT_CODES, TOPICS};
 pub const SHELLS: &[&str] = &["bash", "zsh", "fish"];
 
 /// The commands lt answers without a device, besides the plain ones.
-pub const DEVICELESS: &[&str] = &["help", "completions", "man"];
+pub const DEVICELESS: &[&str] = &["help", "completions", "man", "doctor"];
 
 /// What the scripts ask `lt __complete` for.
 pub fn complete(kind: &str, data_dir: Option<&Path>) -> Vec<String> {

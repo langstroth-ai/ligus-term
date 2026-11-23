@@ -67,8 +67,9 @@ mode, which uses the same backend:
 printf 'chats\nopen 1\nsay @coder fix it\nwait 5\nproposals\nquit\n' | cargo run -q -- --demo --plain
 ```
 
-Or one command at a time, the way another agent scripts it (exit 0 ok, 1
-error, 2 unknown command):
+Or one command at a time, the way another agent scripts it (exit 0 ok,
+then the shared table: 1 failed, 2 usage, 3 precondition, 4 a person must
+act, 5 not found, 6 refused, 7 offline; `lt help exit-codes`):
 
 ```sh
 cargo run -q -- --demo --plain runs

@@ -13,11 +13,18 @@ use crate::keymap::{BINDINGS, Context};
 
 /// The exit codes, for `lt --help` and `lt help plain`.
 pub const EXIT_CODES: &str = concat!(
-    "  0  success\n",
-    "  1  a one-shot command printed an error record, or a run it followed didn't\n",
-    "     complete; also an error while running (printed to stderr)\n",
-    "  2  an unknown command or help topic, a bad flag,\n",
-    "     or a data dir, config file, LT_RELAY_URL or device lt can't use at start-up",
+    "  0  done (warnings allowed)\n",
+    "  1  failed: the error record (or lt doctor's fix) says why; also a run a\n",
+    "     one-shot command followed that didn't complete\n",
+    "  2  usage: an unknown command, help topic or flag, a bad config file or a\n",
+    "     bad value in an LT_ variable\n",
+    "  3  a precondition you can fix: a data dir lt can't use, a device it can't\n",
+    "     open, no workspace yet, no chat open\n",
+    "  4  a person must decide or act (a passkey, a cancelled prompt)\n",
+    "  5  not found (a workspace, chat, proposal, run, member, agent)\n",
+    "  6  refused by the workspace's rules (a role, a lockdown, an agent's access)\n",
+    "  7  offline: the relay can't be reached or timed out\n",
+    "  The same table as ligus, the relay and the deploy scripts.",
 );
 
 /// One environment variable `lt` reads (itself, or through the Ligus crates).
@@ -615,6 +622,7 @@ pub const TOPICS: &[(&str, &str)] = &[
     ("troubleshooting", "refusals, keychain prompts, passkeys without a browser, and other fixes"),
     ("env", "every environment variable lt reads"),
     ("completions", "tab completion for bash, zsh and fish, and the man page"),
+    ("doctor", "lt doctor: what lt sees of this machine and device, as a ligus.checks.v1 report"),
 ];
 
 /// What `lt --help` prints after the flags.
@@ -780,6 +788,34 @@ names what was done, then that command's arguments (args in JSON).
     s
 }
 
+const DOCTOR: &str = "\
+lt doctor [--json]
+
+Checks what lt sees, without opening the device: no database, no secret
+store (so no keychain prompt) and no network. It reads the data dir's
+workspace list, the config file and the environment, and looks for agent
+runtimes on PATH the way the Agents view does.
+
+  data_dir.usable        the data dir is lt's own and owner-only
+  config.valid           the config file parses and its keys don't clash
+  secret_store.kind      which secret store holds the keys
+  relay.url              LT_RELAY_URL, when set, is an http(s) URL
+  workspaces.list        how many workspaces, and which sync through a relay
+  relay.reachable        skipped: check each relay where it runs (see next)
+  runtimes.found         the agent runtimes this device has
+  terminal.capabilities  TERM and the colour depth lt picked
+
+Text: one line per check (ok, warn, fail or skip), an indented fix: line,
+then a summary and what to run next. --json prints one document in the
+shared shape every Ligus doctor uses:
+
+  {\"schema\":\"ligus.checks.v1\",\"tool\":\"lt\",\"version\":\"...\",\"command\":\"doctor\",
+   \"ok\":true,\"exitCode\":0,\"checks\":[{\"id\",\"title\",\"status\",\"detail\",\"fix\"}],
+   \"next\":[\"langstroth-relay check --url https://relay.example.com\",\"ligus doctor\"]}
+
+Exit 0 when nothing failed (warnings allowed), 1 when a check failed.
+";
+
 const COMPLETIONS: &str = "\
 Tab completion and the man page
 
@@ -923,7 +959,7 @@ deployment's relay with lt (or the desktop), then admits each box.
 const TROUBLESHOOTING: &str = "\
 Troubleshooting
 
-\"overlaps the desktop app's data\" / \"overlaps the ligus CLI's data\" (exit 2)
+\"overlaps the desktop app's data\" / \"overlaps the ligus CLI's data\" (exit 3)
   lt is its own device. Give it its own dir: --data-dir PATH or LT_DATA_DIR.
   lt never uses LIGUS_DATA_DIR as its data dir; it only refuses to overlap it.
 
@@ -1046,6 +1082,7 @@ pub fn topic(name: &str, flags: &[(String, Option<String>, String)]) -> Option<S
         "troubleshooting" | "trouble" => TROUBLESHOOTING.to_string(),
         "env" | "environment" => format!("Environment variables lt reads\n\n{}", env_text()),
         "completions" | "man" => COMPLETIONS.to_string(),
+        "doctor" | "checks" => DOCTOR.to_string(),
         "exit" | "exit-codes" => format!("Exit codes\n{EXIT_CODES}\n"),
         _ => String::new(),
     };

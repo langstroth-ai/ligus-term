@@ -342,6 +342,19 @@ desktop and `ligus worker`, confined by this host's agent sandbox, and
 
 ## Plain mode and scripting
 
+`lt doctor` (or `lt doctor --json`, a `ligus.checks.v1` report) checks the
+data dir, the config, the secret store's kind, the workspaces and their
+relays, the agent runtimes on `PATH` and the terminal, without opening the
+device: no keychain prompt and no network. It names what to run next,
+such as `langstroth-relay check --url …` for each relay and `ligus doctor`.
+
+Exit codes are the table every Ligus tool shares (`lt help exit-codes`): 0
+done, 1 failed, 2 usage, 3 a precondition you can fix, 4 a person must act,
+5 not found, 6 refused by workspace rules, 7 offline. A one-shot command
+exits with its first error's code and also writes the error to stderr as
+`lt: <what>`, while the `error` record stays on stdout.
+
+
 `lt --plain` (also used automatically when stdin or stdout isn't a
 terminal) reads one command per line and writes one record per line: a
 keyword, tab-separated fields, text last. New messages, run changes,
