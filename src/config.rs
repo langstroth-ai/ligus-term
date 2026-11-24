@@ -2,7 +2,8 @@
 //! missing file means the defaults.
 //!
 //! ```toml
-//! theme = "auto"        # auto | dark | light | mono
+//! theme = "pollen"      # pollen | studio | harbor | meadow | slate | obsidian | a file in themes/ | mono
+//! appearance = "auto"   # auto | light | dark
 //! [keys.global]
 //! help = ["?", "f1"]
 //! ```
@@ -12,13 +13,16 @@ use std::path::Path;
 use serde::Deserialize;
 
 use crate::keymap::{Keymap, Overrides};
-use crate::theme::ThemeChoice;
+use crate::theme::{Appearance, ThemeSpec};
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     #[serde(default)]
-    pub theme: Option<ThemeChoice>,
+    pub theme: Option<String>,
+    /// Light or dark: auto follows the terminal's background.
+    #[serde(default)]
+    pub appearance: Option<Appearance>,
     #[serde(default)]
     pub keys: Overrides,
     /// Mouse support: clicks and the wheel (default on). Shift-drag still
@@ -43,6 +47,11 @@ impl Config {
         }
     }
 
+    /// The theme and appearance this file asks for.
+    pub fn theme_spec(&self) -> ThemeSpec {
+        ThemeSpec { theme: self.theme.clone(), appearance: self.appearance }
+    }
+
     pub fn keymap(&self) -> Result<Keymap, String> {
         Keymap::with_overrides(&self.keys)
     }
@@ -53,8 +62,12 @@ pub fn default_config_text() -> String {
     use crate::keymap::{BINDINGS, Context};
     let mut out = String::from(
         "# lt config. Every setting is optional; delete what you don't change.\n\
-         # theme: auto (COLORFGBG, else the terminal's answer), dark, light, or mono (also set by NO_COLOR)\n\
-         theme = \"auto\"\n\
+         # theme: pollen, studio, harbor, meadow, slate, obsidian, a theme file's name (themes/NAME.toml\n\
+         # next to this file; lt themes list), or mono (also what NO_COLOR gives when no theme is set).\n\
+         # The old auto, dark and light still work: Pollen, with that appearance.\n\
+         theme = \"pollen\"\n\
+         # appearance: auto (the terminal's background, asked at start; else COLORFGBG), light or dark\n\
+         appearance = \"auto\"\n\
          # mouse: clicks and the wheel; shift-drag selects text (false gives the terminal the mouse)\n\
          mouse = true\n",
     );

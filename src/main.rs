@@ -8,7 +8,7 @@ use ligus_term::backend::fake::{FakeBackend, FakeConfig};
 use ligus_term::backend::real::{RealBackend, RealConfig};
 use ligus_term::cli::Args;
 use ligus_term::config::{Config, default_config_text};
-use ligus_term::theme::{ColorDepth, Theme, ThemeChoice};
+use ligus_term::theme::{ColorDepth, Session, Theme, ThemeSet, ThemeSpec};
 use ligus_term::{app, paths, plain};
 
 fn env(k: &str) -> Option<String> {
@@ -81,6 +81,16 @@ async fn run() -> anyhow::Result<()> {
     if ligus_term::cli::take_trailing_json(&mut args.command) {
         args.json = true;
     }
+    // `lt themes list|check FILE [--json]`: theme files, without a device.
+    if args.command.first().is_some_and(|c| c == "themes") {
+        let config_path = paths::config_file(args.config.as_deref(), env);
+        let (out, code) = ligus_term::theme_file::command(&args.command[1..], args.json, config_path.as_deref());
+        if code == 2 {
+            fail(out.trim_end());
+        }
+        print!("{out}");
+        std::process::exit(code);
+    }
     // `lt doctor [--json]`: checks without opening the device.
     if args.command.first().is_some_and(|c| c == "doctor") {
         let report = ligus_term::doctor::run(
@@ -119,7 +129,11 @@ async fn run() -> anyhow::Result<()> {
     let config_path = paths::config_file(args.config.as_deref(), env);
     let config = Config::load(config_path.as_deref()).unwrap_or_else(|e| fail(e));
     let keymap = config.keymap().unwrap_or_else(|e| fail(format!("config: {e}")));
-    let choice = args.theme.or(config.theme).unwrap_or(ThemeChoice::Auto);
+    let flags = ThemeSpec { theme: args.theme.clone(), appearance: args.appearance };
+    let themes_dir = ligus_term::theme_file::themes_dir(config_path.as_deref());
+    let files = themes_dir.as_deref().map(ligus_term::theme_file::read_dir).unwrap_or_default();
+    let broken: Vec<String> = files.iter().filter(|r| !r.ok()).map(|r| r.id.clone()).collect();
+    let set = ThemeSet::with_custom(files.into_iter().filter_map(|r| r.theme).collect());
     let depth = ColorDepth::detect(env);
     // The full-screen app may ask the terminal for its background (OSC 11);
     // plain mode never writes anything but records.
@@ -128,7 +142,21 @@ async fn run() -> anyhow::Result<()> {
     let probe = || if tui { ligus_term::termprobe::background_is_light(ligus_term::termprobe::PROBE_TIMEOUT) } else { None };
     let ascii =
         args.ascii || env("LT_ASCII").is_some_and(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "on" | "yes"));
-    let theme = Theme { ascii, ..Theme::resolve_with(choice, env, probe).with_depth(depth) };
+    // The background is asked about once, at start, even when the
+    // appearance is set: switching to auto in the app needs the answer.
+    let auto_light = ligus_term::theme::background_is_light(env, probe);
+    let mut want = config.theme_spec().layered(&flags);
+    if let Err(e) = Theme::pick(&want, &set, env, || Some(auto_light)) {
+        let named = want.theme.clone().unwrap_or_default();
+        let hint = if broken.contains(&named) { format!(" (themes/{named} has errors: lt themes check)") } else { String::new() };
+        if flags.theme.is_some() {
+            fail(format!("{e}{hint}"));
+        }
+        eprintln!("lt: warning: config: {e}{hint}; using Pollen");
+        want.theme = None;
+    }
+    let picked = Theme::pick(&want, &set, env, || Some(auto_light)).unwrap_or(Theme::DARK);
+    let session = Session { set, depth, ascii, auto_light, theme: picked.name.to_string(), appearance: want.appearance };
 
     let mut real = None;
     let backend: Arc<dyn Backend> = if args.demo {
@@ -180,12 +208,11 @@ async fn run() -> anyhow::Result<()> {
 
     let mut state = State::new(backend.device(), keymap, app::runtime::now_ms());
     state.config_path = config_path.map(|p| p.display().to_string());
-    state.theme_name = app::runtime::theme_label(&theme, depth);
     state.mouse = config.mouse.unwrap_or(true);
     state.reduce_motion = args.reduce_motion
         || env("LT_REDUCE_MOTION").is_some_and(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "on" | "yes"));
     let mouse = state.mouse;
-    let state = app::runtime::run_tui(backend, state, theme, depth, mouse).await?;
+    let state = app::runtime::run_tui(backend, state, session, mouse).await?;
     if let Some(real) = &real {
         real.shutdown();
     }
@@ -201,8 +228,11 @@ async fn run() -> anyhow::Result<()> {
         let exe = std::env::current_exe()?;
         let mut cmd = std::process::Command::new(exe);
         cmd.arg("--demo");
-        if let Some(t) = args.theme {
-            cmd.arg("--theme").arg(format!("{t:?}").to_lowercase());
+        if let Some(t) = &args.theme {
+            cmd.arg("--theme").arg(t);
+        }
+        if let Some(a) = args.appearance {
+            cmd.arg("--appearance").arg(a.name());
         }
         if args.ascii {
             cmd.arg("--ascii");

@@ -4,7 +4,7 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
-┏ Chats ━━━━━━━━━┏ Help · 1-40 of 97 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
+┏ Chats ━━━━━━━━━┏ Help · 1-40 of 98 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
 ┃  ◆ Fix flaky ch┃What has focus comes first. / searches. Rebind keys in the config file.   ┃                │
 ┃  #dev          ┃                                                                          ┃it reading the  │
 ┃  ◆ Migrate auth┃Chats  here                                                               ┃                │
@@ -29,7 +29,8 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 ┃                ┃  ctrl-c, q                Quit (asks first while work runs here)         ┃                │
 ┃                ┃  ?, f1                    Show or hide this help                         ┃                │
 ┃                ┃  :, ctrl-p, ctrl-k        Command palette: every action, view, chat, prop┃                │
-┃                ┃  unbound                  Switch the theme: dark, light, mono (this sessi┃                │
+┃                ┃  unbound                  Switch the theme (this session)                ┃                │
+┃                ┃  unbound                  Switch light or dark (this session)            ┃                │
 ┃                ┃  space                    Show the keys you can press here (any key then ┃                │
 ┃                ┃  !                        This session's notices and errors, in full     ┃                │
 ┃                ┃  esc                      Back (to the view you came from) / close       ┃                │
@@ -40,11 +41,10 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 ┃                ┃  p, 3                     Proposals                                      ┃                │
 ┃                ┃  a, 4                     Agents, runtimes and hand-offs                 ┃                │
 ┃                ┃  h, 5                     Hosts and workers                              ┃                │
-┃                ┃  y, 6                     Task state and memory                          ┃                │
-┃                ┃  m, 7                     People                                         ┃────────────────╯
-┃                ┃  n, 8                     Notifications                                  ┃
-┃                ┃  s, 9                     Settings                                       ┃────────────────╮
-┃                ┃  tab                      Next pane                                      ┃                │
+┃                ┃  y, 6                     Task state and memory                          ┃────────────────╯
+┃                ┃  m, 7                     People                                         ┃
+┃                ┃  n, 8                     Notifications                                  ┃────────────────╮
+┃                ┃  s, 9                     Settings                                       ┃                │
 ┗━━━━━━━━━━━━━━━━┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛────────────────╯
 / search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                    peer to peer · 1 running · demo
 ```

@@ -5,7 +5,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Proposals ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Inject the clock into checkout tests ──────────────────────────╮
-┃open     Inject ┏ Commands · 41 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓s               │
+┃open     Inject ┏ Commands · 52 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓s               │
 ┃         1/2 app┃›                                                                         ┃                │
 ┃approved Export ┃──────────────────────────────────────────────────────────────────────────┃proval first)   │
 ┃         2/2 app┃▶ Approve “Inject the clock into checkout tests”       A         Proposals┃reports the     │
@@ -14,14 +14,14 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃open     Sign-of┃  Withdraw the apply request “Inject the clock into …  W         Proposals┃────────────────╯
 ┃         0/1 app┃  Quit                                                 ctrl-c q   Anywhere┃────────────────╮
 ┃open     Workflo┃  Show or hide this help                               ? f1       Anywhere┃                │
-┃         0/1 app┃  Switch the theme: dark, light, mono                             Anywhere┃                │
+┃         0/1 app┃  Switch the theme                                                Anywhere┃                │
+┃                ┃  Switch light or dark                                            Anywhere┃                │
 ┃                ┃  Show the keys you can press here                     space      Anywhere┃                │
 ┃                ┃  This session's notices and errors, in full           !          Anywhere┃                │
-┃                ┃  Switch workspace                                     w ctrl-w   Anywhere┃                │
-┃                ┃  Create or join a workspace                           +          Anywhere┃ of reading the…│
+┃                ┃  Switch workspace                                     w ctrl-w   Anywhere┃ of reading the…│
+┃                ┃  Create or join a workspace                           +          Anywhere┃                │
 ┃                ┃  Go to Chats                                          c 1        Anywhere┃                │
 ┃                ┃  Go to Workflows and runs                             f 2        Anywhere┃                │
-┃                ┃  Go to Proposals                                      p 3        Anywhere┃                │
 ┃                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                │
 ┃                                          ┃│@@ -40,9 +42,13 @@ impl Checkout {                              │
 ┃                                          ┃│     pub fn is_expired(&self) -> bool {                         │

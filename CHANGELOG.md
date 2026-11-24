@@ -4,6 +4,33 @@ All notable changes to `lt`, the Ligus terminal app (Ligus is short for
 ligustica). Versions follow [semver](https://semver.org); releases are on
 [GitHub](https://github.com/langstroth-ai/ligus-term/releases).
 
+## Unreleased
+
+### Added
+
+- Every Ligus palette: Pollen, Studio, Harbor, Meadow, Slate and Obsidian,
+  each for a light and a dark terminal. `theme = "harbor"` picks one and
+  `appearance = "auto" | "light" | "dark"` the background (also `--theme`
+  and `--appearance`); `theme = "auto" | "dark" | "light" | "mono"` work as
+  before. Settings has Theme and Appearance rows, and the palette lists
+  every theme, showing each as you move onto it.
+- Your own themes: `themes/NAME.toml` (or `.json`) next to `config.toml`, in
+  the shared Ligus theme format the desktop imports and exports. Colours
+  only, checked strictly; errors name their line, low contrast is a
+  warning. `lt themes list` and `lt themes check FILE` (each with `--json`),
+  `lt help themes`, and a `themes.valid` check in `lt doctor`.
+
+### Fixed
+
+- The light theme reads on light terminals. The accent was 2.5:1 on white
+  (1.9:1 on the selected row), mentions 2.9:1 and borders 1.3:1, and the
+  cream cells of the mark all but vanished; text now keeps 4.5:1 and borders 3:1 on the palette's canvas,
+  on white and on Solarized Light (and on the selected row), and the mark
+  uses deeper honey tones on a light background.
+- `appearance = auto` asks the terminal for its background before reading
+  `COLORFGBG`, which a shell can inherit from another terminal (over ssh,
+  in tmux), and reads Solarized Light's `COLORFGBG` (`11;15`) as light.
+
 ## v0.2.1
 
 ### Changed

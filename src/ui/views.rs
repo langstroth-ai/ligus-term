@@ -528,8 +528,16 @@ pub fn settings(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             let sel = s.settings_sel.index == 2;
             let style = if sel { t.selected() } else { t.text() };
             Line::from(vec![
-                Span::styled(format!(" Theme  {} ", s.theme_name), style),
-                Span::styled("  enter switches: dark, light, mono (this session)", t.dim()),
+                Span::styled(format!(" Theme       {} ", s.theme_name), style),
+                Span::styled("  enter: the next theme (this session)", t.dim()),
+            ])
+        },
+        {
+            let sel = s.settings_sel.index == 3;
+            let style = if sel { t.selected() } else { t.text() };
+            Line::from(vec![
+                Span::styled(format!(" Appearance  {} ", s.appearance_name), style),
+                Span::styled("  enter: auto, light, dark", t.dim()),
             ])
         },
         kv("Config file", s.config_path.clone().unwrap_or_else(|| "none".into())),

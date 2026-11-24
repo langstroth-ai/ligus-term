@@ -556,7 +556,8 @@ The config file is `~/.config/ligus-term/config.toml` on Linux and
 the path with `--config` or `LT_CONFIG`. Every setting is optional:
 
 ```toml
-theme = "auto"   # auto (COLORFGBG, else the terminal's answer), dark, light, or mono
+theme = "pollen"       # pollen, studio, harbor, meadow, slate, obsidian, a theme file, or mono
+appearance = "auto"    # auto (the terminal's background), light or dark
 mouse = true     # clicks and the wheel; false gives the terminal the mouse
 
 [keys.global]
@@ -567,12 +568,44 @@ send = ["enter"]
 newline = ["alt-enter", "ctrl-j"]
 ```
 
-`lt --print-config` prints every context, action and default key. `--theme`
-overrides the file. `NO_COLOR` selects the mono theme unless a theme is set
-explicitly. With `auto`, lt reads the background from `COLORFGBG`, else asks
-the terminal once at start (OSC 11, waiting 100 ms at most), else picks
-dark. Settings' Theme row (or "Switch the theme" in the palette) tries dark,
-light and mono for the session.
+`lt --print-config` prints every context, action and default key.
+`--theme` and `--appearance` override the file; the old `theme = "auto"`,
+`"dark"` and `"light"` still work (Pollen, with that appearance).
+`NO_COLOR` selects the mono theme unless a theme is named. With
+`appearance = "auto"`, lt asks the terminal for its background once at
+start (OSC 11, waiting 100 ms at most), then reads `COLORFGBG`, else picks
+dark. Settings' Theme and Appearance rows, or the palette (type "theme"),
+try another for the session: the palette shows each theme as you move onto
+it, enter keeps it and esc goes back.
+
+### Themes
+
+The six palettes are the desktop's and the phone's, each for a light and a
+dark terminal, drawn on the terminal's own background: text keeps 4.5:1
+and borders 3:1 on the palette's canvas and on common terminal backgrounds
+(white, Solarized, black, GitHub Dark), and a test renders every view to
+check it.
+
+Your own theme is a file in `themes/` next to `config.toml`:
+`themes/heather.toml` (or `.json`) is `theme = "heather"`. It is the shared
+Ligus theme format, the same file the desktop imports and exports
+(Settings, Appearance), so one file works in both:
+
+```toml
+name = "Heather"
+extends = "slate"            # the palette for every colour left out
+[light]
+ink = "#2b2118"
+accentCool = "oklch(0.45 0.12 320)"
+[dark]
+accentCool = "#d7a6e8"
+```
+
+Colours only: `#rrggbb` (and `#rgb`, `#rrggbbaa`), `rgb()`/`rgba()` and
+`oklch()`. `lt themes list` shows every theme and `lt themes check FILE`
+every error (with its line) and warning (unknown keys, low contrast); both
+take `--json`. `lt help themes` lists the tokens; the schema is
+[`assets/themes/ligus-theme.v1.json`](assets/themes/ligus-theme.v1.json).
 
 The colours are the shared Ligus tokens (the same values the desktop and
 the phone use), at the depth the terminal has: 24-bit, the nearest of 256,

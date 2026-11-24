@@ -60,10 +60,14 @@ both and checks).
   fuzzy match; pure, like the reducer.
 - **`theme_tokens`**: the shared Ligus colour tokens, generated in the
   ligus repo (`assets/branding/generated/lt/ligus_tokens.rs`) and copied
-  here unchanged; `theme` builds dark and light from it, and a test checks
-  they agree. **`termprobe`** asks the terminal for its background.
-- **`config`**, **`theme`**, **`paths`**: the TOML config, dark/light/mono
-  themes, and where the data dir and config file are.
+  here unchanged with the JSON it came from (`scripts/sync-theme-tokens.sh`);
+  `theme` builds every palette, light and dark, from it, and
+  `tests/contrast.rs` checks the copy and every view's contrast.
+  **`theme_file`** reads custom themes (`themes/NAME.toml`, the shared
+  `ligus.theme.v1` format). **`termprobe`** asks the terminal for its
+  background.
+- **`config`**, **`theme`**, **`paths`**: the TOML config, the palettes,
+  appearance and mono, and where the data dir and config file are.
 - **`plain`**: the line-oriented client over the same `Backend`.
 
 ## The Backend contract

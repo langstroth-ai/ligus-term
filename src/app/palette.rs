@@ -18,6 +18,10 @@ pub enum Target {
     ShowProposal(ProposalId),
     ShowRun(RunId),
     ShowAgent(AgentId),
+    /// Keep this theme for the session (shown while selected).
+    Theme(String),
+    /// Keep this appearance for the session (shown while selected).
+    Appearance(crate::theme::Appearance),
 }
 
 /// One entry: its label, the key that does the same (if any), and where
@@ -144,6 +148,24 @@ pub fn items(s: &State) -> Vec<Item> {
             key: String::new(),
             scope: "Agent".into(),
             target: Target::ShowAgent(a.id.clone()),
+        });
+    }
+    for (id, label) in &s.themes {
+        let now = if *id == s.theme_id { " (now)" } else { "" };
+        out.push(Item {
+            label: format!("Theme: {label}{now}"),
+            key: String::new(),
+            scope: "Theme".into(),
+            target: Target::Theme(id.clone()),
+        });
+    }
+    for a in crate::theme::Appearance::ALL {
+        let now = if a == s.appearance { " (now)" } else { "" };
+        out.push(Item {
+            label: format!("Light or dark: {}{now}", a.name()),
+            key: String::new(),
+            scope: "Theme".into(),
+            target: Target::Appearance(a),
         });
     }
     out

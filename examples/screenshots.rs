@@ -35,6 +35,14 @@ const TERM_BG: &str = "#1a1206";
 const BAR_BG: &str = "#3a2812";
 const SOFT: &str = "#8a8073";
 
+/// The window's colours: the brand's dark tile by default; `--themes`
+/// draws on a plain light or dark terminal instead.
+static WINDOW: std::sync::Mutex<Option<(&'static str, &'static str, &'static str)>> = std::sync::Mutex::new(None);
+
+fn window() -> (&'static str, &'static str, &'static str) {
+    WINDOW.lock().unwrap().unwrap_or((TERM_BG, BAR_BG, SOFT))
+}
+
 const CW: f32 = 8.4; // cell width (0.6em of 14px)
 const CH: f32 = 18.0; // cell height: two half-block pixels make a square
 const FONT: f32 = 14.0;
@@ -45,7 +53,7 @@ fn hex(c: Color, theme: &Theme, fg: bool) -> String {
     match c {
         Color::Rgb(r, g, b) => format!("#{r:02x}{g:02x}{b:02x}"),
         Color::Reset if fg => hex(theme.text, theme, true),
-        Color::Reset => TERM_BG.into(),
+        Color::Reset => window().0.into(),
         other => panic!("the demo themes are all RGB, got {other:?}"),
     }
 }
@@ -147,7 +155,7 @@ fn to_svg(buf: &Buffer, theme: &Theme, title: &str) -> String {
             while x < w && look(&buf[(x, y)], theme).bg == bg {
                 x += 1;
             }
-            if bg != TERM_BG {
+            if bg != window().0 {
                 let _ = write!(
                     bgs,
                     r#"<rect x="{}" y="{}" width="{}" height="{}" fill="{bg}"/>"#,
@@ -257,7 +265,9 @@ fn to_svg(buf: &Buffer, theme: &Theme, title: &str) -> String {
     let _ = write!(out, "<title>{}</title>", esc(title));
     let _ = write!(
         out,
-        r#"<rect width="{W}" height="{H}" rx="10" fill="{TERM_BG}"/><path d="M10 0H{R}a10 10 0 0 1 10 10V{BAR}H0V10A10 10 0 0 1 10 0z" fill="{BAR_BG}"/>"#,
+        r#"<rect width="{W}" height="{H}" rx="10" fill="{TB}"/><path d="M10 0H{R}a10 10 0 0 1 10 10V{BAR}H0V10A10 10 0 0 1 10 0z" fill="{BB}"/>"#,
+        TB = window().0,
+        BB = window().1,
         W = n(width),
         H = n(height),
         R = n(width - 10.0),
@@ -267,8 +277,9 @@ fn to_svg(buf: &Buffer, theme: &Theme, title: &str) -> String {
     }
     let _ = write!(
         out,
-        r#"<text x="{}" y="20" text-anchor="middle" fill="{SOFT}" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'DejaVu Sans Mono','Liberation Mono',monospace" font-size="12">lt --demo</text>"#,
-        n(width / 2.0)
+        r#"<text x="{}" y="20" text-anchor="middle" fill="{}" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'DejaVu Sans Mono','Liberation Mono',monospace" font-size="12">lt --demo</text>"#,
+        n(width / 2.0),
+        window().2
     );
     out.push_str(&bgs);
     for (fill, d) in &shapes {
@@ -294,9 +305,44 @@ fn buffer(h: &Harness, w: u16, ht: u16, theme: &Theme) -> Buffer {
 }
 
 fn write(dir: &Path, name: &str, title: &str, buf: &Buffer) {
+    write_in(dir, name, title, buf, &Theme::DARK);
+}
+
+fn write_in(dir: &Path, name: &str, title: &str, buf: &Buffer, theme: &Theme) {
     let path = dir.join(format!("{name}.svg"));
-    std::fs::write(&path, to_svg(buf, &Theme::DARK, title)).unwrap();
+    std::fs::write(&path, to_svg(buf, theme, title)).unwrap();
     println!("{}", path.display());
+}
+
+/// `--themes DIR`: two views in every palette, light (on white) and dark
+/// (on a plain dark grey), plus the first-run mark on each background, for
+/// reviewing a colour change side by side. Nothing in the repo uses them.
+async fn themes(dir: &Path) {
+    std::fs::create_dir_all(dir).unwrap();
+    let set = ligus_term::theme::ThemeSet::builtin();
+    let views: &[(&str, &[KeyCode], bool)] =
+        &[("chats", &[], true), ("proposals", &[KeyCode::Char('p'), KeyCode::Enter], true), ("first-run", &[], false)];
+    for (view, keys, demo) in views {
+        let mut h = Harness::new(*demo).await;
+        if *demo {
+            h.key(KeyCode::Esc).await;
+        }
+        for k in *keys {
+            h.key(*k).await;
+        }
+        for id in set.ids().into_iter().filter(|i| *i != "mono") {
+            for light in [true, false] {
+                if *view == "first-run" && id != "pollen" {
+                    continue;
+                }
+                let t = set.theme(id, light).unwrap();
+                *WINDOW.lock().unwrap() = Some(if light { ("#ffffff", "#e8e8e8", "#6b6b6b") } else { ("#1e1e1e", "#2d2d2d", "#9a9a9a") });
+                let mode = if light { "light" } else { "dark" };
+                write_in(dir, &format!("{view}-{id}-{mode}"), &format!("lt: {view}, {} ({mode})", t.label), &buffer(&h, W, H, &t), &t);
+            }
+        }
+    }
+    *WINDOW.lock().unwrap() = None;
 }
 
 const W: u16 = 104;
@@ -304,6 +350,12 @@ const H: u16 = 26;
 
 #[tokio::main]
 async fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    if let [_, flag, dir] = args.as_slice()
+        && flag == "--themes"
+    {
+        return themes(Path::new(dir)).await;
+    }
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/screens");
     std::fs::create_dir_all(&dir).unwrap();
     let t = Theme::DARK;

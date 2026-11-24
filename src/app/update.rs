@@ -65,8 +65,10 @@ pub enum Msg {
     Stopped(WorkspaceId, ChatId, Result<usize>),
     /// The text went to the pager (`true`) or the scrollback.
     Shown(Result<bool>),
-    /// The runtime switched the theme (`state.theme_name` says to what).
+    /// The runtime switched the theme (`state.theme_id` says to what).
     ThemeChanged,
+    /// The runtime switched the appearance (`state.appearance`).
+    AppearanceChanged,
     /// The draft came back from the external editor.
     Edited(Result<String>),
     /// A fire-and-report action finished; `ok` is the toast on success.
@@ -515,8 +517,14 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
             vec![]
         }
         Msg::ThemeChanged => {
-            let name = s.theme_name.split(' ').next().unwrap_or("").to_string();
-            s.toast(ToastKind::Ok, format!("Theme: {name}, for this session (theme = \"{name}\" in the config file keeps it)"));
+            let label = s.themes.iter().find(|(id, _)| *id == s.theme_id).map(|(_, l)| l.clone()).unwrap_or_else(|| s.theme_id.clone());
+            let id = s.theme_id.clone();
+            s.toast(ToastKind::Ok, format!("Theme: {label}, for this session (theme = \"{id}\" in the config file keeps it)"));
+            vec![]
+        }
+        Msg::AppearanceChanged => {
+            let a = s.appearance.name();
+            s.toast(ToastKind::Ok, format!("Appearance: {a}, for this session (appearance = \"{a}\" in the config file keeps it)"));
             vec![]
         }
         Msg::Edited(Ok(text)) => {
@@ -1269,7 +1277,12 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
         Overlay::Palette { query, sel } => {
             let ctrl = k.modifiers.contains(KeyModifiers::CONTROL);
             match k.code {
-                KeyCode::Esc => s.overlay = None,
+                KeyCode::Esc => {
+                    s.overlay = None;
+                    if std::mem::take(&mut s.theme_previewing) {
+                        s.theme_request = Some(crate::theme::ThemeRequest::Revert);
+                    }
+                }
                 KeyCode::Up => *sel = sel.saturating_sub(1),
                 KeyCode::Char('p') if ctrl => *sel = sel.saturating_sub(1),
                 KeyCode::Down => *sel += 1,
@@ -1280,6 +1293,7 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
                     let q = query.text.clone();
                     let i = *sel;
                     s.overlay = None;
+                    s.theme_previewing = false;
                     let items = crate::app::palette::filtered(s, &q);
                     return match items.get(i.min(items.len().saturating_sub(1))) {
                         Some(it) => run_palette(s, it.target.clone()),
@@ -1297,9 +1311,33 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
                 Some(Overlay::Palette { query, .. }) => query.text.clone(),
                 _ => return vec![],
             };
-            let n = crate::app::palette::filtered(s, &q).len();
+            let items = crate::app::palette::filtered(s, &q);
+            let n = items.len();
             if let Some(Overlay::Palette { sel, .. }) = &mut s.overlay {
                 *sel = (*sel).min(n.saturating_sub(1));
+            }
+            // A theme under the selection shows at once; moving off it
+            // goes back to the theme kept.
+            let at = match &s.overlay {
+                Some(Overlay::Palette { sel, .. }) => items.get(*sel).map(|it| it.target.clone()),
+                _ => None,
+            };
+            use crate::app::palette::Target;
+            use crate::theme::ThemeRequest;
+            match at {
+                Some(Target::Theme(id)) => {
+                    s.theme_request = Some(ThemeRequest::Preview { theme: Some(id), appearance: None });
+                    s.theme_previewing = true;
+                }
+                Some(Target::Appearance(a)) => {
+                    s.theme_request = Some(ThemeRequest::Preview { theme: None, appearance: Some(a) });
+                    s.theme_previewing = true;
+                }
+                _ if s.theme_previewing => {
+                    s.theme_request = Some(ThemeRequest::Revert);
+                    s.theme_previewing = false;
+                }
+                _ => {}
             }
             vec![]
         }
@@ -1951,13 +1989,13 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             vec![]
         }
         SwitchTheme => {
-            use crate::theme::ThemeChoice;
-            let next = match s.theme_name.split(' ').next().unwrap_or("") {
-                "dark" => ThemeChoice::Light,
-                "light" => ThemeChoice::Mono,
-                _ => ThemeChoice::Dark,
-            };
-            s.theme_request = Some(next);
+            let i = s.themes.iter().position(|(id, _)| *id == s.theme_id).map(|i| i + 1).unwrap_or(0);
+            let next = s.themes.get(i % s.themes.len().max(1)).map(|(id, _)| id.clone());
+            s.theme_request = next.map(|t| crate::theme::ThemeRequest::Set { theme: Some(t), appearance: None });
+            vec![]
+        }
+        SwitchAppearance => {
+            s.theme_request = Some(crate::theme::ThemeRequest::Set { theme: None, appearance: Some(s.appearance.next()) });
             vec![]
         }
         Help => {
@@ -2247,6 +2285,7 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
                 0 => vec![Effect::SetSetting(SettingKey::NotifyMentions, !st.notify_mentions)],
                 1 => vec![Effect::SetSetting(SettingKey::AgentsMayEdit, !st.agents_may_edit)],
                 2 => main_action(s, SwitchTheme),
+                3 => main_action(s, SwitchAppearance),
                 _ => vec![],
             }
         }
@@ -2325,6 +2364,14 @@ fn run_palette(s: &mut State, target: crate::app::palette::Target) -> Vec<Effect
     use crate::app::palette::Target;
     match target {
         Target::Action(a) => main_action(s, a),
+        Target::Theme(id) => {
+            s.theme_request = Some(crate::theme::ThemeRequest::Set { theme: Some(id), appearance: None });
+            vec![]
+        }
+        Target::Appearance(a) => {
+            s.theme_request = Some(crate::theme::ThemeRequest::Set { theme: None, appearance: Some(a) });
+            vec![]
+        }
         Target::SwitchWorkspace(id) => switch_workspace(s, id),
         Target::OpenChat(id) => {
             let mut fx = go(s, View::Chats);
@@ -2374,7 +2421,7 @@ fn ask_quit(s: &mut State) {
 }
 
 /// Settings rows that can be toggled.
-pub const SETTINGS_TOGGLES: usize = 3;
+pub const SETTINGS_TOGGLES: usize = 4;
 
 fn nav_action(s: &mut State, a: Action) -> Vec<Effect> {
     match s.view {

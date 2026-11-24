@@ -3,7 +3,7 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
-┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ────┏ Help · 1-46 of 97 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────╮╭ This chat ───────────────────────────╮
+┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ────┏ Help · 1-46 of 98 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────╮╭ This chat ───────────────────────────╮
 ┃  ◆ Fix flaky checkout … 12m  ┃│             Ada  40m        ┃What has focus comes first. / searches. Rebind keys in the config file.   ┃                     ││Proposals                             │
 ┃  #dev                        ┃│               The checkout t┃                                                                          ┃                     ││◆ Inject the clock into checkout tests│
 ┃  ◆ Migrate auth to pas… 50m  ┃│                             ┃Chats  here                                                               ┃                     ││  open 1/2                            │
@@ -28,7 +28,8 @@ expression: screen
 ┃                              ┃│                             ┃  ctrl-c, q                Quit (asks first while work runs here)         ┃                     ││                                      │
 ┃                              ┃│                             ┃  ?, f1                    Show or hide this help                         ┃                     ││                                      │
 ┃                              ┃│                             ┃  :, ctrl-p, ctrl-k        Command palette: every action, view, chat, prop┃                     ││                                      │
-┃                              ┃│                             ┃  unbound                  Switch the theme: dark, light, mono (this sessi┃                     ││                                      │
+┃                              ┃│                             ┃  unbound                  Switch the theme (this session)                ┃                     ││                                      │
+┃                              ┃│                             ┃  unbound                  Switch light or dark (this session)            ┃                     ││                                      │
 ┃                              ┃│                             ┃  space                    Show the keys you can press here (any key then ┃                     ││                                      │
 ┃                              ┃│                             ┃  !                        This session's notices and errors, in full     ┃                     ││                                      │
 ┃                              ┃│                             ┃  esc                      Back (to the view you came from) / close       ┃                     ││                                      │
@@ -45,10 +46,9 @@ expression: screen
 ┃                              ┃│                             ┃  s, 9                     Settings                                       ┃                     ││                                      │
 ┃                              ┃│                             ┃  tab                      Next pane                                      ┃                     ││                                      │
 ┃                              ┃│                             ┃  shift-tab                Previous pane                                  ┃                     ││                                      │
-┃                              ┃│                             ┃  ctrl-x                   Stop the agent's turn in this chat (when it run┃                     ││                                      │
-┃                              ┃╰─────────────────────────────┃  ctrl-o, alt-←            The view you were in before                    ┃─────────────────────╯│                                      │
-┃                              ┃                              ┃  alt-→                    Forward again after going back                 ┃                      │                                      │
-┃                              ┃╭ Message the room ───────────┃  ctrl-f                   Focus mode: hide the top bar and the key hints ┃─────────────────────╮│                                      │
-┃                              ┃│i to write · @ mentions an ag┃  ctrl-l                   The chat list (over the chat in a narrow termin┃                     ││                                      │
+┃                              ┃╰─────────────────────────────┃  ctrl-x                   Stop the agent's turn in this chat (when it run┃─────────────────────╯│                                      │
+┃                              ┃                              ┃  ctrl-o, alt-←            The view you were in before                    ┃                      │                                      │
+┃                              ┃╭ Message the room ───────────┃  alt-→                    Forward again after going back                 ┃─────────────────────╮│                                      │
+┃                              ┃│i to write · @ mentions an ag┃  ctrl-f                   Focus mode: hide the top bar and the key hints ┃                     ││                                      │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰─────────────────────────────┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛─────────────────────╯╰──────────────────────────────────────╯
 / search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                                                                                                              peer to peer · 1 running · demo

@@ -20,10 +20,10 @@ expression: screen
 ┃  Sync            no relay: peer to peer, or this device only                                                                                                                                         ┃
 ┃                                                                                                                                                                                                      ┃
 ┃Appearance and keys                                                                                                                                                                                   ┃
-┃ Theme  dark   enter switches: dark, light, mono (this session)                                                                                                                                       ┃
+┃ Theme       Pollen   enter: the next theme (this session)                                                                                                                                            ┃
+┃ Appearance  auto (dark)   enter: auto, light, dark                                                                                                                                                   ┃
 ┃  Config file     ~/.config/ligus-term/config.toml                                                                                                                                                    ┃
 ┃  Keep a theme and rebind keys in the config file; lt --print-config shows every default.                                                                                                             ┃
-┃                                                                                                                                                                                                      ┃
 ┃                                                                                                                                                                                                      ┃
 ┃                                                                                                                                                                                                      ┃
 ┃                                                                                                                                                                                                      ┃

@@ -87,9 +87,13 @@ pub async fn run_effect(b: Arc<dyn Backend>, fx: Effect) -> Msg {
     }
 }
 
-/// How Settings names the theme: "dark (24-bit colour)", "mono".
-pub fn theme_label(theme: &Theme, depth: crate::theme::ColorDepth) -> String {
-    if theme.mono { theme.name.to_string() } else { format!("{} ({})", theme.name, depth.label()) }
+/// What Settings and the palette show of the theme session.
+pub fn show_theme(state: &mut State, session: &crate::theme::Session, shown: &Theme) {
+    state.theme_name = session.theme_label(shown);
+    state.theme_id.clone_from(&session.theme);
+    state.appearance = session.appearance;
+    state.appearance_name = session.appearance_label();
+    state.themes = session.list();
 }
 
 /// A desktop notification as the terminal's OSC 9 (inside tmux, through
@@ -228,13 +232,7 @@ fn suspend_for_editor(terminal: &mut ratatui::DefaultTerminal, text: &str) -> Re
 }
 
 /// Run the full-screen app until the person quits.
-pub async fn run_tui(
-    backend: Arc<dyn Backend>,
-    mut state: State,
-    theme: Theme,
-    depth: crate::theme::ColorDepth,
-    mouse: bool,
-) -> anyhow::Result<State> {
+pub async fn run_tui(backend: Arc<dyn Backend>, mut state: State, session: crate::theme::Session, mouse: bool) -> anyhow::Result<State> {
     let mut terminal = ratatui::init();
     let mut stdout = std::io::stdout();
     let _ = crossterm::execute!(stdout, crossterm::event::EnableBracketedPaste);
@@ -253,7 +251,7 @@ pub async fn run_tui(
         );
     }
 
-    let result = event_loop(&mut terminal, backend, &mut state, theme, depth).await;
+    let result = event_loop(&mut terminal, backend, &mut state, session).await;
 
     if enhanced {
         let _ = crossterm::execute!(stdout, crossterm::event::PopKeyboardEnhancementFlags);
@@ -274,9 +272,10 @@ async fn event_loop(
     terminal: &mut ratatui::DefaultTerminal,
     backend: Arc<dyn Backend>,
     state: &mut State,
-    mut theme: Theme,
-    depth: crate::theme::ColorDepth,
+    mut session: crate::theme::Session,
 ) -> anyhow::Result<()> {
+    let mut theme = session.current();
+    show_theme(state, &session, &theme);
     let (tx, mut rx) = mpsc::unbounded_channel::<Msg>();
     let mut tasks = tokio::task::JoinSet::new();
 
@@ -349,10 +348,25 @@ async fn event_loop(
             input = spawn_input(tx.clone());
             let _ = tx.send(Msg::Edited(result.map_err(crate::backend::BackendError)));
         }
-        if let Some(choice) = state.theme_request.take() {
-            theme = Theme { ascii: theme.ascii, ..Theme::resolve(choice, |_| None).with_depth(depth) };
-            state.theme_name = theme_label(&theme, depth);
-            update(state, Msg::ThemeChanged);
+        if let Some(req) = state.theme_request.take() {
+            use crate::theme::ThemeRequest;
+            match req {
+                ThemeRequest::Set { theme: t, appearance: a } => {
+                    if let Some(t) = &t {
+                        session.theme.clone_from(t);
+                    }
+                    if let Some(a) = a {
+                        session.appearance = a;
+                    }
+                    theme = session.current();
+                    show_theme(state, &session, &theme);
+                    update(state, if t.is_some() { Msg::ThemeChanged } else { Msg::AppearanceChanged });
+                }
+                ThemeRequest::Preview { theme: t, appearance: a } => {
+                    theme = session.build(t.as_deref().unwrap_or(&session.theme), a.unwrap_or(session.appearance));
+                }
+                ThemeRequest::Revert => theme = session.current(),
+            }
         }
         if std::mem::take(&mut state.bell) {
             use std::io::Write;
