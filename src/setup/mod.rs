@@ -43,21 +43,16 @@ pub const NOT_IN_LT: &str = "not in lt yet";
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LtFlow {
     Engine(FlowId),
-    /// `lt setup device`: link this computer as one of your devices. A
-    /// hook: the flow is listed only when the backend can link
-    /// ([`crate::backend::Backend::links_devices`]); its steps are the
-    /// backend's link screens (`computer_link::setup` in the crates lists
-    /// them), not an engine form.
+    /// `lt setup device`: link this computer as one of your devices. Listed
+    /// when the backend links ([`crate::backend::Backend::links_devices`]);
+    /// in the full-screen app it opens lt's Add to my devices screens, and
+    /// `lt setup device` hands the steps to them (`computer_link::setup`
+    /// in the crates lists them), not an engine form.
     Device,
 }
 
-/// The device flow's words (`computer_link::setup` in the crates).
-pub mod device {
-    pub const FLOW_ID: &str = "device";
-    pub const TITLE: &str = "Add a computer";
-    pub const SUMMARY: &str = "Link this computer to your devices, so it acts as you (not a separate member).";
-    pub const WHY: &str = "Joining with an invite makes a new member. Linking makes this computer one of your devices: your desktop signs it with your passkey, and the workspace key is sealed to this computer.";
-}
+/// The device flow's words, as the crates register it.
+pub use ligus_runtime::computer_link::setup as device;
 
 impl LtFlow {
     /// The engine's flows, in order.
@@ -576,8 +571,66 @@ pub fn list_json(rows: &[FlowRow]) -> serde_json::Value {
     lt_json(r.to_json(0))
 }
 
-/// A device-flow outcome the backend builds (the hook's run).
-pub fn device_outcome(checks: Vec<Check>, next: Vec<String>, exit: i32, done: bool) -> SetupOutcome {
+/// The device row: linked (as whose device) or not yet.
+pub fn device_row(linked: Option<String>) -> FlowRow {
+    match linked {
+        Some(p) => FlowRow { flow: LtFlow::Device, progress: Progress::Done, detail: shown(&format!("one of {p}'s devices")) },
+        None => FlowRow { flow: LtFlow::Device, progress: Progress::Todo, detail: "not linked to your devices".into() },
+    }
+}
+
+/// The device flow's form: its steps, a person's where the crates say so.
+/// Its fields are lt's link screens', not flags (`lt setup device` takes
+/// none: the request and the code are made and pasted there).
+pub fn device_form() -> SetupForm {
+    SetupForm {
+        flow: LtFlow::Device,
+        preflight: vec![],
+        blocked: false,
+        steps: device::STEPS
+            .iter()
+            .map(|(id, title, person)| SetupStep {
+                id: id.to_string(),
+                title: title.to_string(),
+                kind: if *person { StepKind::Person } else { StepKind::Verify },
+                fields: vec![],
+                where_: if *person { "your desktop: Settings > Profile > My devices > Add a computer".into() } else { String::new() },
+            })
+            .collect(),
+    }
+}
+
+/// `lt setup device`: done when this computer is linked; otherwise the
+/// steps are a person's, in lt's link screens and on their desktop (exit 4).
+pub fn device_run(linked: Option<String>) -> SetupOutcome {
+    match linked {
+        Some(p) => device_outcome(
+            vec![Check::ok("device.linked", "device", format!("this computer is one of {p}'s devices"))],
+            vec![],
+            exit::OK,
+            true,
+        ),
+        None => {
+            let what = "in lt: the palette's Link this computer to my devices (or lt link-request), approve it on your desktop under My devices > Add a computer, then paste the code back (lt link-redeem CODE --approver-fingerprint FP)";
+            device_outcome(
+                vec![
+                    Check::warn(
+                        "device.request",
+                        "device",
+                        "this computer isn't one of your devices yet: linking needs your desktop and your passkey",
+                    )
+                    .fix(what),
+                ],
+                vec![what.to_string()],
+                exit::PERSON,
+                false,
+            )
+        }
+    }
+}
+
+/// A device-flow outcome.
+fn device_outcome(checks: Vec<Check>, next: Vec<String>, exit: i32, done: bool) -> SetupOutcome {
     let mut r = Report::new("setup device");
     for c in checks {
         r.add(c);

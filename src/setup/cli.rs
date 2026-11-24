@@ -294,6 +294,8 @@ pub fn all_help() -> String {
         s.push_str(&flow_help(&super::form(f, &Offline, &BTreeMap::new())));
         s.push('\n');
     }
+    s.push_str(&flow_help(&super::device_form()));
+    s.push('\n');
     s.push_str(
         "Agents run on Claude Code, Codex, Copilot, Antigravity or a local model (Aider, Pi and gateways:\n\
          the desktop or ligus setup agent). Tools reach the agents whose turns run the tool loop here (a\n\

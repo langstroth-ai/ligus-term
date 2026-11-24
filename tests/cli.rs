@@ -249,7 +249,10 @@ fn setup_json_shape_and_exit_codes() {
     assert_eq!(d["tool"], "lt");
     assert_eq!(d["command"], "setup");
     let ids: Vec<&str> = d["checks"].as_array().unwrap().iter().map(|c| c["id"].as_str().unwrap()).collect();
-    assert_eq!(ids, ["agent.status", "tool.status", "folder.status", "box.status", "phone.status", "invite.status", "relay.status"]);
+    assert_eq!(
+        ids,
+        ["agent.status", "tool.status", "folder.status", "box.status", "phone.status", "invite.status", "relay.status", "device.status"]
+    );
 
     let (mut c, _home) = lt();
     c.args(["--demo", "setup", "agent", "--harness", "claude-code", "--name", "helper", "--dry-run", "--json"]);
@@ -299,4 +302,17 @@ fn setup_text_output_carries_no_escape_sequences() {
     let (code, out, err) = run(c, "");
     assert_eq!(code, 0, "{out}{err}");
     assert!(out.contains("shell tools") && !out.contains('\u{1b}') && !out.contains('\u{7}'), "{out:?}");
+}
+
+/// Linking this computer is a person's step (their desktop and passkey):
+/// lt setup device hands it to lt's link screens, exit 4.
+#[test]
+fn setup_device_hands_off() {
+    let (mut c, _home) = lt();
+    c.args(["--demo", "setup", "device", "--json"]);
+    let (code, out, err) = run(c, "");
+    assert_eq!(code, 4, "{out}{err}");
+    let d: serde_json::Value = serde_json::from_str(out.trim()).unwrap();
+    assert_eq!(d["flow"], "device");
+    assert!(d["next"][0].as_str().unwrap().contains("link-request"), "{d}");
 }

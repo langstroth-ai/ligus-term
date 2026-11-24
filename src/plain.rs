@@ -29,7 +29,11 @@ pub const HELP: &str = "\
 commands (N is a number from the last list, or an id):
   name TEXT            set your name (first run)
   create NAME          create a workspace (no server needed)
-  join CODE            join with an invite code
+  join CODE            join with an invite code (a NEW member)
+  link-request         this computer's request to be added to your devices (on your desktop:
+                       My devices > Add a computer); prints its fingerprint
+  link-redeem CODE --approver-fingerprint FP  link with the code your desktop shows, after
+                       checking the approving desktop's fingerprint (FP) is your desktop's
   workspaces           list workspaces          use N        switch workspace
   chats                list chats               open N       open a chat and print it
   new TITLE            start a chat             say TEXT     post to the open chat
@@ -173,7 +177,7 @@ pub fn error_code(message: &str) -> (&'static str, i32) {
         ("usage", 2)
     } else if any(&[" yet:", "first:", "open a chat first", "needs a relay", "set your name"]) {
         ("precondition", 3)
-    } else if any(&["passkey", "recovery words", "cancelled"]) {
+    } else if any(&["passkey", "recovery words", "cancelled", "confirm who approved"]) {
         ("needs_person", 4)
     } else if starts(&[
         "no such ",
@@ -215,6 +219,8 @@ pub const COMMANDS: &[&str] = &[
     "name",
     "create",
     "join",
+    "link-request",
+    "link-redeem",
     "check",
     "connect",
     "workspaces",
@@ -732,6 +738,60 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                     }
                     Err(e) => fail(e.0).await,
                 }
+            }
+        }
+        "link-request" => match b.link_request().await {
+            Ok(r) => {
+                say(format!("link-request\t{}\t{}\t{}", esc(&r.fingerprint), esc(&r.label), esc(&r.code))).await;
+                say(format!(
+                    "ok\t{}",
+                    esc("on your desktop: Settings > Profile > My devices > Add a computer; paste the request, compare the fingerprint, confirm with your passkey")
+                ))
+                .await;
+            }
+            Err(e) => fail(e.0).await,
+        },
+        "link-redeem" => {
+            let parts: Vec<&str> = arg.split_whitespace().collect();
+            let fp = parts.iter().position(|p| *p == "--approver-fingerprint").and_then(|i| parts.get(i + 1)).map(|s| s.to_string());
+            let grant: Vec<&str> = parts
+                .iter()
+                .enumerate()
+                .filter(|(i, p)| **p != "--approver-fingerprint" && (*i == 0 || parts[*i - 1] != "--approver-fingerprint"))
+                .map(|(_, p)| *p)
+                .collect();
+            let grant = grant.join("");
+            if grant.is_empty() {
+                return fail("usage: link-redeem CODE --approver-fingerprint FP".into()).await;
+            }
+            let check = match b.inspect_link_grant(&grant).await {
+                Ok(c) => c,
+                Err(e) => return fail(e.0).await,
+            };
+            say(format!("link-grant\t{}\t{}\t{}", esc(&check.person_name), esc(&check.workspace_name), esc(&check.approver_fingerprint)))
+                .await;
+            match fp {
+                Some(f) if f.trim().eq_ignore_ascii_case(&check.approver_fingerprint) => {}
+                Some(f) => {
+                    return fail(format!("approved by desktop {}, not {}: don't use this code", check.approver_fingerprint, f.trim()))
+                        .await;
+                }
+                None => {
+                    return fail(format!(
+                        "confirm who approved this ({}'s desktop {} for {}): link-redeem CODE --approver-fingerprint FP",
+                        check.person_name, check.approver_fingerprint, check.workspace_name
+                    ))
+                    .await;
+                }
+            }
+            match b.redeem_link(&grant).await {
+                Ok(w) => {
+                    say(format!("linked\t{}\t{}\t{}", esc(&w.id), esc(&w.name), esc(&check.person_name))).await;
+                    let mut g = s.lock().await;
+                    g.ws = Some(w.id.clone());
+                    g.workspaces.push(w);
+                }
+                Err(e) => fail(e.0).await,
             }
         }
         "workspaces" => match b.workspaces().await {

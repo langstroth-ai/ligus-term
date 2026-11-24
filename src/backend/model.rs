@@ -619,6 +619,32 @@ pub struct DeploymentSpec {
     pub token: Option<String>,
 }
 
+/// This computer's request to be added to its person's devices: the code to
+/// paste on their desktop (no secret in it) and the fingerprint both screens
+/// show.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LinkRequestView {
+    /// `liguslink1:…`.
+    pub code: String,
+    /// `XXXX-XXXX-XXXX-XXXX-XXXX`.
+    pub fingerprint: String,
+    pub label: String,
+    /// The install was already in use, so it asks with a new device key
+    /// (switched to only once the grant is redeemed).
+    pub new_device: bool,
+}
+
+/// Who a desktop's grant says approved this computer, read before anything
+/// is saved: the person confirms it is them and their desktop.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LinkGrantView {
+    pub person_name: String,
+    pub workspace_name: String,
+    /// The approving desktop's device fingerprint (its sheet shows it as
+    /// This desktop).
+    pub approver_fingerprint: String,
+}
+
 /// What an invite says about who sent it, checked before joining.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InviteCheck {

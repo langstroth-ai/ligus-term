@@ -14,7 +14,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
                                  ┃  Your name      Mara                                                 ┃
           ▄▀▀▄▄   ▄▄▀▀▄          ┃                                                                      ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  ( ) Create   ( ) Join with an invite   (•) Connect a deployment     ┃
-        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  ( ) Look around first (the demo, nothing saved)                     ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  ( ) Add to my devices   ( ) Look around first (the demo)            ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
      ▄▀▀▀▄▄▀▀▄▄▀▀▀▄▄▀▀▄▄▀▀▀▄     ┃  Relay URL      http://127.0.0.1:18443                               ┃
     ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃› Room           k8s-trial-7f3a▏                                      ┃
@@ -26,7 +26,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
           ▀▀▀▀▀   ▀▀▀▀▀          ┃                                                                      ┃
                                  ┃                                                                      ┃
                                  ┃                                                                      ┃
-                                 ┃tab next · ←→ create/join/connect/demo · enter continue · esc quit    ┃
+                                 ┃tab next · ←→ choose · enter continue · esc quit                      ┃
                                  ┃                                                                      ┃
                                  ┃                                                                      ┃
                                  ┃                                                                      ┃

@@ -66,7 +66,7 @@ async fn the_list_shows_each_flow_and_what_is_done() {
         assert!(s.contains(t), "{t}\n{s}");
     }
     assert!(s.contains("4 agents") && s.contains("✓"), "{s}");
-    assert!(!s.contains("Add a computer"), "the device flow is listed only when lt can link: {s}");
+    assert!(s.contains("Add a computer") && s.contains("not linked to your devices"), "the device flow: {s}");
     snap(&h, "setup_list", "Set up: the guided flows and what is done");
     h.key(KeyCode::Esc).await;
     assert!(h.state.overlay.is_none());
@@ -327,4 +327,17 @@ async fn quitting_during_a_run_asks_first() {
     w.stage = Stage::Running;
     h.state.overlay = Some(Overlay::SetupFlow(Box::new(w)));
     assert!(h.state.quit_guard().is_some_and(|g| g.contains("Connect a tool")));
+}
+
+/// The device row opens lt's Add to my devices screens (the link request
+/// first), not an engine form.
+#[tokio::test]
+async fn the_device_row_opens_the_link_screens() {
+    let mut h = demo().await;
+    open(&mut h, 7).await;
+    assert!(
+        matches!(&h.state.overlay, Some(Overlay::AddWorkspace(f)) if f.mode == ligus_term::app::state::FormMode::Link),
+        "{:?}",
+        h.state.overlay
+    );
 }

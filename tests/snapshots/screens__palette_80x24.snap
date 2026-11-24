@@ -4,7 +4,7 @@ expression: screen
 ---
 [NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
 ┏ Proposals ━━━━━━━━━━━━━━━━━━━┓╭ Inject the clock into checkout tests ────────╮
-┃I┏ Commands · 49 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
+┃I┏ Commands · 50 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
 ┃E┃›                                                                         ┃ │
 ┃B┃──────────────────────────────────────────────────────────────────────────┃─╯
 ┃S┃▶ Approve “Inject the clock into checkout tests”       A         Proposals┃─╮
@@ -19,8 +19,8 @@ expression: screen
 ┃ ┃  Switch workspace                                     w ctrl-w   Anywhere┃ │
 ┃ ┃  Create or join a workspace                           +          Anywhere┃ │
 ┃ ┃  Set up: an agent, a tool, a folder, a box, a phone…  u          Anywhere┃ │
-┃ ┃  Go to Chats                                          c 1        Anywhere┃ │
-┃ ┃  Go to Workflows and runs                             f 2        Anywhere┃0│
+┃ ┃  Link this computer to my devices                                Anywhere┃ │
+┃ ┃  Go to Chats                                          c 1        Anywhere┃0│
 ┃ ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ │
 ┃                              ┃│+        // 30 seconds matches the payment pr…│
 ┃                              ┃│+        self.clock.now() - self.started_at >…│

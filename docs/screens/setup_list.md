@@ -19,6 +19,7 @@ Rendered by `tests/setup.rs` (110×32, the in-memory demo backend).
 ┃                ┃  Add a phone          no phone paired                                    ┃to review       │
 ┃                ┃  Invite a person      no invites yet                                     ┃                │
 ┃                ┃  Set up a relay     ✓ https://relay.langstroth.ai                        ┃                │
+┃                ┃  Add a computer       not linked to your devices                         ┃                │
 ┃                ┃                                                                          ┃                │
 ┃                ┃An agent answers when you @mention it. It runs one harness (Claude Code,  ┃                │
 ┃                ┃Codex, Copilot, Antigravity, Aider, Pi or a local model) inside this      ┃                │
@@ -26,7 +27,6 @@ Rendered by `tests/setup.rs` (110×32, the in-memory demo backend).
 ┃                ┃                                                                          ┃                │
 ┃                ┃enter start · esc close · every flow is safe to run again                 ┃                │
 ┃                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                │
-┃                              ┃│                                                                            │
 ┃                              ┃│                                                                            │
 ┃                              ┃│                                                                            │
 ┃                              ┃╰────────────────────────────────────────────────────────────────────────────╯

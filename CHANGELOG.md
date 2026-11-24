@@ -19,7 +19,9 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   shown or logged. A person's step (pairing a phone, approving a box,
   creating an invite) says where it happens, and offers lt's own Invite
   or Admit a box when it is yours to do. Empty Agents and Hosts views, and
-  People with only you, offer the matching flow on `enter`.
+  People with only you, offer the matching flow on `enter`. The list's
+  Add a computer row shows whether this computer is one of your devices
+  and opens Add to my devices.
 - `lt setup [FLOW] [--FIELD VALUE …] [--json] [--dry-run]`: the same flags,
   `ligus.checks.v1` document and exit codes as `ligus setup` (4: a person
   must act). Secrets take `-` or `@FILE`, never the command line. Plain
@@ -30,8 +32,17 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Dependencies
 
-- The Ligus crates are pinned to a revision with the setup engine; the pin
-  moves to the next Ligus release tag.
+- The Ligus crates are pinned to a revision with the setup engine and Add
+  a computer; the pin moves to the next Ligus release tag.
+- **Add to my devices.** Use `lt` as one of your own devices in a workspace
+  you are already in on your desktop, instead of joining as a second member
+  with your name: a fourth first-run choice, and the palette's **Link this
+  computer to my devices** for an install already in use (it asks with a new
+  device key, and your desktop can then remove the old member). Your desktop
+  approves it under Settings > Profile > My devices > Add a computer with
+  your passkey; `lt` confirms the approving desktop's fingerprint before it
+  links. Plain mode: `link-request` and `link-redeem CODE
+  --approver-fingerprint FP`; `lt help devices`.
 
 ### Changed
 
@@ -57,6 +68,8 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   row menu now. Workflows and proposals drop the action lines from their
   detail, keeping a waiting gate's approve and why you can't vote.
 - Narrow terminals stack a view's detail under its list.
+- Built on a Ligus revision with "Add a computer" (the pin moves to the next
+  Ligus release tag).
 
 ## v0.2.1
 

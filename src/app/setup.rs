@@ -295,8 +295,14 @@ pub fn open_list(s: &mut State) -> Vec<Effect> {
     vec![Effect::LoadSetup(ws(s))]
 }
 
-/// Open a flow's popup.
+/// Open a flow's popup. The device flow is lt's Add to my devices screens.
 pub fn open_flow(s: &mut State, flow: LtFlow, from_list: bool) -> Vec<Effect> {
+    if flow == LtFlow::Device {
+        let mut f = crate::app::state::WorkspaceForm::linking(false);
+        f.link_asked = true;
+        s.overlay = Some(Overlay::AddWorkspace(f));
+        return vec![Effect::LinkRequest];
+    }
     s.overlay = Some(Overlay::SetupFlow(Box::new(Wizard::new(flow, from_list))));
     vec![Effect::SetupForm(ws(s), flow, SetupInputs::new())]
 }

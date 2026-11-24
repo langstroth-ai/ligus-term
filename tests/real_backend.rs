@@ -505,7 +505,7 @@ async fn setup_flows_run_on_a_real_device() {
     let ws = d.b.create_workspace("Ana", "Acme Web").await.unwrap().workspace.id;
 
     let rows = d.b.setup_status(Some(&ws)).await.unwrap();
-    assert_eq!(rows.len(), 7);
+    assert_eq!(rows.len(), 8, "the seven and the device row");
     assert_eq!(rows[0].progress, Progress::Todo, "{rows:?}");
     assert_eq!(rows[6].progress, Progress::Done, "the relay it was made on: {rows:?}");
 
