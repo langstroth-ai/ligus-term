@@ -154,6 +154,25 @@ async fn run() -> anyhow::Result<()> {
         Arc::new(b)
     };
 
+    // `lt setup [FLOW] [--FIELD VALUE ...]`: the guided flows, as `ligus
+    // setup` (its own argument parsing: words keep their quoting, and a
+    // secret flag reads stdin once).
+    if args.command.first().is_some_and(|c| c == "setup") {
+        let mut stdin = || {
+            use std::io::Read;
+            let mut s = String::new();
+            std::io::stdin().take(64 * 1024).read_to_string(&mut s).map(|_| s)
+        };
+        let mut out = std::io::stdout();
+        let code =
+            ligus_term::setup::cli::run(backend.clone(), &args.command[1..], args.json, args.workspace.as_deref(), &mut stdin, &mut out)
+                .await;
+        if let Some(real) = &real {
+            real.shutdown();
+        }
+        std::process::exit(code);
+    }
+
     if plain_mode || !std::io::stdout().is_terminal() || !std::io::stdin().is_terminal() {
         let opts = plain::PlainOpts {
             one_shot: (!args.command.is_empty()).then(|| args.command.join(" ")),

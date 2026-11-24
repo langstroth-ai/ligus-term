@@ -20,6 +20,8 @@
 mod deploy;
 pub(crate) mod detect;
 mod local;
+mod mcp;
+mod setup_ops;
 mod term_presence;
 mod turns;
 pub mod views;
@@ -1046,24 +1048,7 @@ impl Backend for RealBackend {
             return Err(BackendError(format!("{runtime} isn't a runtime on this device")));
         }
         self.call(move |i| {
-            if let Some(why) = detect::name_refusal(&name, &i.taken_names(ws)?) {
-                return Err(BackendError(why));
-            }
-            let device = i.core()?.identity.device.id.to_string();
-            let me = i.me();
-            let role = i.read(ws, |svc| Ok(svc.load_in(ws, workspace_config_session_id(ws))?.map(|c| c.role_of(&me))))?;
-            // The desktop's add-agent: owned by you, only you may use it, on
-            // a runtime of this device. An Admin pins it to this device; a
-            // Contributor's runs on its owner's device (an unpinned agent),
-            // which is this one.
-            let mut agent = ligus_core::WorkspaceAgent::new(name.clone(), runtime);
-            agent.owner_actor_id = me;
-            agent.access = ligus_core::agent::ACCESS_OWNER.into();
-            if role.is_some_and(|r| views::role(r) >= Role::Admin) {
-                agent.host_id = device;
-            }
-            i.write(ws, |svc| svc.add_agent(workspace_config_session_id(ws), ws, agent))?;
-            i.emit(Event::AgentsChanged { workspace: WorkspaceId::new(ws.to_string()) });
+            i.add_agent_here(ws, &name, runtime)?;
             Ok(name)
         })
         .await
@@ -1345,6 +1330,40 @@ impl Backend for RealBackend {
         .await
     }
 
+    async fn setup_status(&self, workspace: Option<&WorkspaceId>) -> Result<Vec<crate::setup::FlowRow>> {
+        let ws = workspace.map(ws_uuid).transpose()?;
+        self.call(move |i| Ok(crate::setup::rows(&setup_ops::RealOps::new(i.clone(), ws), None))).await
+    }
+
+    async fn setup_form(
+        &self,
+        workspace: Option<&WorkspaceId>,
+        flow: crate::setup::LtFlow,
+        inputs: crate::setup::SetupInputs,
+    ) -> Result<crate::setup::SetupForm> {
+        let crate::setup::LtFlow::Engine(f) = flow else { return err("linking this computer isn't in this build of lt") };
+        let ws = workspace.map(ws_uuid).transpose()?;
+        self.call(move |i| Ok(crate::setup::form(f, &setup_ops::RealOps::new(i.clone(), ws), &inputs))).await
+    }
+
+    async fn setup_run(
+        &self,
+        workspace: Option<&WorkspaceId>,
+        flow: crate::setup::LtFlow,
+        inputs: crate::setup::SetupInputs,
+        secrets: crate::setup::SetupSecrets,
+        dry_run: bool,
+        cancel: crate::setup::CancelFlag,
+    ) -> Result<crate::setup::SetupOutcome> {
+        let crate::setup::LtFlow::Engine(f) = flow else { return err("linking this computer isn't in this build of lt") };
+        let ws = workspace.map(ws_uuid).transpose()?;
+        self.call(move |i| {
+            let mut ops = setup_ops::RealOps::new(i.clone(), ws);
+            Ok(crate::setup::run(f, &mut ops, &inputs, secrets, dry_run, &cancel))
+        })
+        .await
+    }
+
     async fn answer_presence(&self, id: PresenceId, answer: PresenceAnswer) -> Result<()> {
         self.inner.presence.answer(id, answer).map_err(BackendError)
     }
@@ -1534,6 +1553,29 @@ impl Inner {
     /// The host an agent's turns run on: its bound host, else its owner's
     /// device when that is this device (empty: some other owner's device).
     /// The names a new agent may not take: every agent's and member's.
+    /// Add an agent on a runtime this device runs: the desktop's
+    /// add-agent, owned by you and only yours to use. An Admin pins it to
+    /// this device; a Contributor's runs on its owner's device (an
+    /// unpinned agent), which is this one. Its id.
+    fn add_agent_here(&self, ws: Uuid, name: &str, runtime: String) -> Result<Uuid> {
+        if let Some(why) = detect::name_refusal(name, &self.taken_names(ws)?) {
+            return Err(BackendError(why));
+        }
+        let device = self.core()?.identity.device.id.to_string();
+        let me = self.me();
+        let role = self.read(ws, |svc| Ok(svc.load_in(ws, workspace_config_session_id(ws))?.map(|c| c.role_of(&me))))?;
+        let mut agent = ligus_core::WorkspaceAgent::new(name.to_string(), runtime);
+        agent.owner_actor_id = me;
+        agent.access = ligus_core::agent::ACCESS_OWNER.into();
+        if role.is_some_and(|r| views::role(r) >= Role::Admin) {
+            agent.host_id = device;
+        }
+        let id = agent.id;
+        self.write(ws, |svc| svc.add_agent(workspace_config_session_id(ws), ws, agent))?;
+        self.emit(Event::AgentsChanged { workspace: WorkspaceId::new(ws.to_string()) });
+        Ok(id)
+    }
+
     fn taken_names(&self, ws: Uuid) -> Result<Vec<String>> {
         let config = self.read(ws, |svc| svc.load_in(ws, workspace_config_session_id(ws)))?;
         Ok(config
