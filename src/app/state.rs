@@ -155,6 +155,8 @@ pub struct WorkspaceForm {
     /// The checked grant (redeemed on the second Enter, once the person saw
     /// who approved it).
     pub link_checked: Option<(String, LinkGrantView)>,
+    /// Add to my devices: the longer explanation, shown with `?`.
+    pub link_about: bool,
 }
 
 impl WorkspaceForm {
@@ -177,6 +179,7 @@ impl WorkspaceForm {
             link: None,
             link_asked: false,
             link_checked: None,
+            link_about: false,
         }
     }
 

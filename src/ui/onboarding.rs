@@ -70,8 +70,8 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
     let connect = form.mode == FormMode::Connect;
     let link = form.mode == FormMode::Link;
     let h = match (first_run, connect, link) {
-        (true, _, true) => 30,
-        (false, _, true) => 25,
+        (true, _, true) => 25 + link_extra(form),
+        (false, _, true) => 21 + link_extra(form),
         (true, true, _) => 25,
         (true, false, _) => 23,
         (false, true, _) => 19,
@@ -96,8 +96,8 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
         lines.push(Line::raw(""));
         if !link {
             lines.push(field_line("Your name", &form.name, form.field == FormField::Name, w, "how others see you", t));
+            lines.push(Line::raw(""));
         }
-        lines.push(Line::raw(""));
     }
     let mode_focus = form.field == FormField::Mode;
     let opt = |label: &'static str, on: bool| {
@@ -186,29 +186,40 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
     }
     lines.push(Line::raw(""));
     let esc = if first_run { "quit" } else { "close" };
-    lines.push(Line::styled(format!("tab next · ←→ choose · enter continue · esc {esc}"), t.dim()));
+    let hints = if link { link_hints(form, esc) } else { format!("tab next · ←→ choose · enter continue · esc {esc}") };
+    lines.push(Line::styled(hints, t.dim()));
     f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
 }
 
-/// Add to my devices: this computer's request, then the desktop's code,
-/// then who approved it. Lines are broken by hand to keep their indent.
+/// Add to my devices: one line, three steps, the fingerprint and the code,
+/// then the desktop's code; then who approved it. The longer explanation is
+/// behind `?`. Lines are broken by hand to keep their indent.
 fn draw_link<'a>(lines: &mut Vec<Line<'a>>, form: &'a WorkspaceForm, focused: bool, w: usize, t: &Theme) {
+    let checked = form.link_checked.as_ref().filter(|(g, _)| *g == form.grant.text.trim());
     match &form.link {
         None => lines.push(Line::styled("  Making this computer's request…", t.dim())),
         Some(r) => {
-            for l in [
-                "  Already in the workspace on your desktop? Make this computer one",
-                "  of your devices instead of a second member with your name.",
-            ] {
-                lines.push(Line::styled(l, t.text()));
+            lines.push(Line::styled("  Make this computer one of your devices.", t.text()));
+            if form.link_about {
+                for l in [
+                    "  An invite makes a second member with your name; this makes it you.",
+                    "  It acts as you without your account key: votes ask for your",
+                    "  passkey; devices, phones and keys stay on the desktop.",
+                ] {
+                    lines.push(Line::styled(l, t.dim()));
+                }
+                if r.new_device {
+                    lines.push(Line::styled("  In use already: it asks with a new device key, and the desktop", t.dim()));
+                    lines.push(Line::styled("  can then remove the old member (their messages keep their name).", t.dim()));
+                }
             }
             lines.push(Line::raw(""));
-            for l in [
-                "  On your desktop: Settings > Profile > My devices > Add a computer.",
-                "  Paste this code, check the fingerprint, confirm with your passkey.",
-                "  Then paste the code it shows here.",
+            for (n, l) in [
+                ("1", "Desktop: My devices > Add a computer"),
+                ("2", "Paste this code, compare, confirm with your passkey"),
+                ("3", "Paste the code it shows here"),
             ] {
-                lines.push(Line::styled(l, t.dim()));
+                lines.push(Line::from(vec![Span::styled(format!("  {n} "), t.accent()), Span::styled(l, t.text())]));
             }
             lines.push(Line::raw(""));
             lines.push(Line::from(vec![
@@ -219,27 +230,32 @@ fn draw_link<'a>(lines: &mut Vec<Line<'a>>, form: &'a WorkspaceForm, focused: bo
             // selected and pasted).
             let chars: Vec<char> = r.code.chars().collect();
             for piece in chars.chunks(w.saturating_add(16).clamp(20, 66)) {
-                lines.push(Line::styled(format!("  {}", piece.iter().collect::<String>()), t.text()));
-            }
-            if r.new_device {
-                lines.push(Line::styled("  This install was already in use: it asks with a new device key,", t.dim()));
-                lines.push(Line::styled("  and your desktop can then remove the old member.", t.dim()));
+                lines.push(Line::styled(format!("  {}", piece.iter().collect::<String>()), t.dim()));
             }
             lines.push(Line::raw(""));
         }
     }
-    lines.push(field_line("Desktop's code", &form.grant, focused, w, "the code your desktop shows (ligusgrant1:…)", t));
-    match form.link_checked.as_ref().filter(|(g, _)| *g == form.grant.text.trim()) {
-        Some((_, c)) => {
-            lines.push(Line::from(vec![
-                Span::styled(format!("  Approved by {}'s desktop ", c.person_name), t.text()),
-                Span::styled(c.approver_fingerprint.clone(), t.accent()),
-            ]));
-            lines.push(Line::styled(format!("  for “{}”. Is that you and your desktop?", c.workspace_name), t.text()));
-            lines.push(Line::styled("  Enter: yes, link · change the code or esc: no", t.fg(t.warn)));
-        }
-        None => lines.push(Line::styled("  Enter shows who approved it; enter again links.", t.dim())),
+    lines.push(field_line("Desktop's code", &form.grant, focused, w, "ligusgrant1:…", t));
+    if let Some((_, c)) = checked {
+        lines.push(Line::from(vec![
+            Span::styled(format!("  Approved by {}'s desktop ", c.person_name), t.text()),
+            Span::styled(c.approver_fingerprint.clone(), t.accent()),
+        ]));
+        lines.push(Line::styled(format!("  for “{}”. Is that you?", c.workspace_name), t.text()));
     }
+}
+
+/// Rows Add to my devices needs beyond its base: the `?` text, and the
+/// approver once a code is checked.
+fn link_extra(form: &WorkspaceForm) -> u16 {
+    let checked = form.link_checked.as_ref().is_some_and(|(g, _)| *g == form.grant.text.trim());
+    (if form.link_about { 5 } else { 0 }) + if checked { 2 } else { 0 }
+}
+
+/// The key hints under Add to my devices.
+fn link_hints(form: &WorkspaceForm, esc: &str) -> String {
+    let checked = form.link_checked.as_ref().is_some_and(|(g, _)| *g == form.grant.text.trim());
+    if checked { "enter link · esc no".into() } else { format!("enter check · ? more · esc {esc}") }
 }
 
 pub fn draw_recovery(f: &mut Frame, area: Rect, c: &Created, t: &Theme) {

@@ -141,6 +141,9 @@ async fn palette_link_this_computer() {
     h.chars("link this").await;
     h.key(KeyCode::Enter).await;
     let screen = h.screen(W, H);
+    assert!(!screen.contains("new device key"), "the explanation is behind ?: {screen}");
+    h.key(KeyCode::Char('?')).await;
+    let screen = h.screen(W, H);
     assert!(screen.contains("new device key") && screen.contains("7F3A-91C0-77DE-0B14-5E62"), "{screen}");
     snap(&h, "link_from_palette", "Palette: Link this computer to my devices (an install already in use)");
 }

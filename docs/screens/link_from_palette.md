@@ -10,28 +10,28 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃  ◆ Migrate auth t┃  ( ) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃                  │
 ┃  #dev            ┃  (•) Add to my devices                                               ┃                  │
 ┃  Weekly release n┃                                                                      ┃                  │
-┃                  ┃  Already in the workspace on your desktop? Make this computer one    ┃ a small change.  │
-┃                  ┃  of your devices instead of a second member with your name.          ┃                  │
-┃                  ┃                                                                      ┃2 · p to review   │
-┃                  ┃  On your desktop: Settings > Profile > My devices > Add a computer.  ┃                  │
-┃                  ┃  Paste this code, check the fingerprint, confirm with your passkey.  ┃                  │
-┃                  ┃  Then paste the code it shows here.                                  ┃ provider uses.   │
+┃                  ┃  Make this computer one of your devices.                             ┃ a small change.  │
+┃                  ┃  An invite makes a second member with your name; this makes it you.  ┃                  │
+┃                  ┃  It acts as you without your account key: votes ask for your         ┃2 · p to review   │
+┃                  ┃  passkey; devices, phones and keys stay on the desktop.              ┃                  │
+┃                  ┃  In use already: it asks with a new device key, and the desktop      ┃                  │
+┃                  ┃  can then remove the old member (their messages keep their name).    ┃ provider uses.   │
 ┃                  ┃                                                                      ┃p to review       │
+┃                  ┃  1 Desktop: My devices > Add a computer                              ┃                  │
+┃                  ┃  2 Paste this code, compare, confirm with your passkey               ┃                  │
+┃                  ┃  3 Paste the code it shows here                                      ┃                  │
+┃                  ┃                                                                      ┃                  │
 ┃                  ┃  Fingerprint    7F3A-91C0-77DE-0B14-5E62                             ┃                  │
 ┃                  ┃  liguslink1:eyJ2IjoxLCJkZXZpY2VJZCI6ImRlbW8iLCJsYWJlbCI6Imx0IG9uIHR  ┃                  │
 ┃                  ┃  oaXMgbWFjaGluZSJ9                                                   ┃                  │
-┃                  ┃  This install was already in use: it asks with a new device key,     ┃                  │
-┃                  ┃  and your desktop can then remove the old member.                    ┃                  │
 ┃                  ┃                                                                      ┃                  │
 ┃                  ┃› Desktop's code ▏                                                    ┃                  │
-┃                  ┃  Enter shows who approved it; enter again links.                     ┃                  │
 ┃                  ┃                                                                      ┃                  │
 ┃                  ┃                                                                      ┃                  │
 ┃                  ┃                                                                      ┃                  │
-┃                  ┃tab next · ←→ choose · enter continue · esc close                     ┃                  │
-┃                  ┃                                                                      ┃──────────────────╯
-┃                  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-┃                              ┃╭ Message the room ──────────────────────────────────────────────────────────╮
+┃                  ┃enter check · ? more · esc close                                      ┃──────────────────╯
+┃                  ┃                                                                      ┃
+┃                  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛──────────────────╮
 ┃                              ┃│i to write · @ mentions an agent or a person                                │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────────────────╯
 ↑↓ chats  i write  N new chat  tab pane  w workspaces  f1 help                 peer to peer · 1 running · demo

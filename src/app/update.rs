@@ -480,10 +480,7 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
                 s.workspaces.push(ws.clone());
             }
             s.your_name = who.clone().or_else(|| s.your_name.clone()).or_else(|| Some(String::new()));
-            s.toast(
-                ToastKind::Ok,
-                format!("This computer is now one of {}'s devices in “{}”", who.unwrap_or_else(|| "your".into()), ws.name),
-            );
+            s.toast(ToastKind::Ok, format!("Linked: one of {}'s devices in “{}”", who.unwrap_or_else(|| "your".into()), ws.name));
             s.phase = Phase::Main;
             let mut fx = switch_workspace(s, ws.id);
             fx.push(Effect::LoadSettings);
@@ -1113,6 +1110,9 @@ fn form_key(f: &mut WorkspaceForm, k: &KeyEvent) -> FormOutcome {
     let i = fields.iter().position(|x| *x == f.field).unwrap_or(0);
     match k.code {
         KeyCode::Esc => return FormOutcome::Cancel,
+        // A link code never holds a `?` (base64url): it opens the longer
+        // explanation instead.
+        KeyCode::Char('?') if f.mode == FormMode::Link => f.link_about = !f.link_about,
         KeyCode::Tab | KeyCode::Down => f.field = fields[(i + 1) % fields.len()],
         KeyCode::BackTab | KeyCode::Up => f.field = fields[(i + fields.len() - 1) % fields.len()],
         KeyCode::Enter => {
