@@ -10,8 +10,7 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 ┃  Safety code     4821 0937 5512                                              ┃
 ┃                                                                              ┃
 ┃Notifications and agents                                                      ┃
-┃ [x] Notify me when I'm @mentioned or needed  a bell; a desktop notification  ┃
-┃while lt is in the background                                                 ┃
+┃ [x] Notify me when I'm @mentioned or needed                                  ┃
 ┃ [ ] Let agents edit files and run commands  on this device's hosts           ┃
 ┃                                                                              ┃
 ┃This device                                                                   ┃
@@ -22,9 +21,10 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 ┃  Sync            no relay: peer to peer, or this device only                 ┃
 ┃                                                                              ┃
 ┃Appearance and keys                                                           ┃
-┃ Theme  dark   enter switches: dark, light, mono (this session)               ┃
+┃ Theme  dark   this session                                                   ┃
 ┃  Config file     ~/.config/ligus-term/config.toml                            ┃
-┃  Keep a theme and rebind keys in the config file; lt --print-config shows    ┃
+┃                                                                              ┃
+┃                                                                              ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-↑↓ select  enter toggle  ? help                  peer to peer · 1 running · demo
+enter toggle  ? help                             peer to peer · 1 running · demo
 ```

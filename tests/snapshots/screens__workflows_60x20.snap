@@ -3,22 +3,22 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA]+1• │ 1 2 Flows 3 4 5 6 7 8(1) 9           Northwind API
-┏ Workflows 2 · Runs 2 ━━━┓╭ Detail ───────────────────────╮
-┃▸ Implement, review, s…  ┃│Implement, review, ship        │
-┃▸ Weekly security dige…  ┃│in Fix flaky checkout test     │
-┃  Impleme… ●●◆ awaiting-g┃│                               │
-┃  Weekly … ● completed 1d┃│The coder implements, the      │
-┃                         ┃│reviewer checks it, a person   │
-┃                         ┃│signs off.                     │
-┃                         ┃│                               │
-┃                         ┃│  Implement @coder             │
-┃                         ┃│  Review @reviewer  after      │
-┃                         ┃│implement                      │
-┃                         ┃│  Sign-off gate (1 approval)   │
-┃                         ┃│after review                   │
-┃                         ┃│                               │
-┃                         ┃│S Start a run: this device     │
-┃                         ┃│drives it; stages go to their  │
-┃                         ┃│agents' hosts                  │
-┗━━━━━━━━━━━━━━━━━━━━━━━━━┛╰───────────────────────────────╯
-↑↓ select  S start  A approve gate  R reject  …  ? help
+┏ Workflows 2 · Runs 2 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃▸ Implement, review, ship  Fix flaky checkout test        ┃
+┃▸ Weekly security digest  Migrate auth to passkeys        ┃
+┃  Implement, review, ship ●●◆ awaiting-gate 4m            ┃
+┃  Weekly security digest ● completed 1d                   ┃
+┃                                                          ┃
+┃                                                          ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+╭ Detail ──────────────────────────────────────────────────╮
+│Implement, review, ship                                   │
+│in Fix flaky checkout test                                │
+│                                                          │
+│The coder implements, the reviewer checks it, a person    │
+│signs off.                                                │
+│                                                          │
+│  Implement @coder                                        │
+│  Review @reviewer  after implement                       │
+╰──────────────────────────────────────────────────────────╯
+S start run  . actions  ? help      peer to peer · 1 running

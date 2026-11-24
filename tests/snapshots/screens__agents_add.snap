@@ -3,34 +3,34 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
-╭ Agents ────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│Agent        Status   Runtime      Runs on            Who can use            Doing                          │
-│@primary     idle     claude-code  This device        Everyone               answers untagged messages      │
-│@coder       busy     claude-code  sff · online       Only me                working 40%: wiring the CSV exp│
-│@reviewer    idle     codex        This device        Everyone               reviews diffs                  │
-│@scout       idle     ollama       sff · online       Everyone                                              │
-│                                                                                                            │
-│                                                                                                            │
-│                                                                                                            │
-╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-┏ Available on this device · N or enter adds an agent ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃Runtime           ┏ Add an agent on this device ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                  ┃
-┃GitHub Copilot CLI┃@copilot                                                              ┃ run `copilot logi┃
-┃Ollama (local)    ┃GitHub Copilot CLI  not ready · no Copilot CLI login found: run       ┃                  ┃
-┗━━━━━━━━━━━━━━━━━━┃`copilot login` in a terminal                                         ┃━━━━━━━━━━━━━━━━━━┛
-╭ Usage on this dev┃Runs on this device. Only you can use it until you share it (E).      ┃──────────────────╮
-│                  ┃                                                                      ┃                  │
-│                  ┃enter add · esc cancel                                                ┃                  │
-│                  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                  │
-╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-╭ Hand-offs ─────────────────────────────────────────────────────────────────────────────────────────────────╮
-│@coder → @reviewer review the fake-clock change 20m                                                         │
-╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-╭ Runtimes ──────────────────────────────────────────────────────────────────────────────────────────────────╮
-│Runtime       Kind                     Model                              Where         Status              │
-│claude-code   Claude Code              default                            local CLI     Configured · Active │
-│codex         Codex                    default                            local CLI     Configured          │
-│ollama        Ollama (local)           qwen3-coder:30b                    local server  Configured          │
-│copilot       GitHub Copilot CLI       default                            local CLI     Not configured      │
-╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-↑↓ agents  N add agent  r runtime  E who can use  ? help                       peer to peer · 1 running · demo
+┏ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Agent ───────────────────────────────────────────────────╮
+┃@ligus     idle                                 ┃│@ligus  idle                                              │
+┃@coder     busy · sff                           ┃│                                                          │
+┃@reviewer  idle                                 ┃│Runtime     claude-code                                   │
+┃@scout     idle · sff                           ┃│Runs on     This device                                   │
+┃                                                ┃│Who can use Everyone                                      │
+┃                                                ┃│Doing       answers untagged messages                     │
+┃                                                ┃│                                                          │
+┃                                                ┃│Usage       its owner sees it                             │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                  ┏ Add an agent on this device ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                  │
+┃                  ┃@copilot                                                              ┃                  │
+┃                  ┃GitHub Copilot CLI  not ready · no Copilot CLI login found: run       ┃                  │
+┃                  ┃`copilot login` in a terminal                                         ┃                  │
+┃                  ┃Runs on this device. Only you can use it until you share it (E).      ┃                  │
+┃                  ┃                                                                      ┃                  │
+┃                  ┃enter add · esc cancel                                                ┃                  │
+┃                  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                  │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────╯
+N add agent  . actions  ? help                                                 peer to peer · 1 running · demo

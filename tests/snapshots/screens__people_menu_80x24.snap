@@ -1,0 +1,28 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
+┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃Mara (you)  owner · founder                                                   ┃
+┃Ada         admin                                                             ┃
+┃Lin         contributor                                                       ┃
+┃Sam         viewer                                                            ┃
+┃sff box     contributor · box                                                 ┃
+┃         ┏ Lin ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓         ┃
+┃         ┃› r  Change role…                                         ┃         ┃
+┃         ┃──────────────────────────────────────────────────────────┃         ┃
+┃         ┃  I  Create an invite                                     ┃         ┃
+┃         ┃  B  Admit a box…                                         ┃         ┃
+┃         ┃──────────────────────────────────────────────────────────┃         ┃
+┃         ┃  X  Remove from the workspace…                           ┃         ┃
+┃         ┃                                                          ┃         ┃
+┃         ┃enter choose · or its key · esc close                     ┃         ┃
+┃         ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛         ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+↑↓ select  enter choose  esc close               peer to peer · 1 running · demo

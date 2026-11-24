@@ -4,13 +4,16 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 
 ```text
 [NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
-┏ ┏ Help · 1-20 of 97 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─╮
-┃ ┃What has focus comes first. / searches. Rebind keys in the config file.   ┃ │
+┏ ┏ Help · 1-20 of 101 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─╮
+┃ ┃Each chat is a room with people and agents. @ mentions an agent or a      ┃ │
+┃ ┃person; enter on a chat opens it and puts you in the composer.            ┃ │
 ┃ ┃                                                                          ┃ │
-┃ ┃Chats  here                                                               ┃ │
+┃ ┃. opens a row's actions · / searches · rebind keys in the config file     ┃ │
+┃ ┃                                                                          ┃ │
+┃ ┃Chats  here                                                               ┃,│
 ┃ ┃  i                        Write a message                                ┃ │
 ┃ ┃  N                        New chat                                       ┃ │
-┃ ┃  D                        The whole transcript in $PAGER (or your termina┃,│
+┃ ┃  D                        The whole transcript in $PAGER (or your termina┃ │
 ┃ ┃  o                        Show or hide what tool calls returned          ┃ │
 ┃ ┃  L                        Lock this chat down                            ┃ │
 ┃ ┃  U                        Clear the lockdown                             ┃ │
@@ -18,13 +21,10 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 ┃ ┃Lists  here                                                               ┃ │
 ┃ ┃  ↑, k                     Up                                             ┃ │
 ┃ ┃  ↓, j                     Down                                           ┃ │
-┃ ┃  pgup, ctrl-u             Page up                                        ┃ │
-┃ ┃  pgdn, ctrl-d             Page down                                      ┃ │
-┃ ┃  home, g                  First                                          ┃ │
-┃ ┃  end, G                   Last                                           ┃─╯
-┃ ┃  enter, l, →              Open                                           ┃
-┃ ┃  /                        Find in this list (as you type; ↑↓ next match) ┃─╮
-┃ ┃                                                                          ┃ │
+┃ ┃  pgup, ctrl-u             Page up                                        ┃─╯
+┃ ┃  pgdn, ctrl-d             Page down                                      ┃
+┃ ┃  home, g                  First                                          ┃─╮
+┃ ┃  end, G                   Last                                           ┃ │
 ┗━┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛─╯
 / search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close         peer to peer
 ```

@@ -3,34 +3,34 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
-┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Member ──────────────────────────────────────────────────╮
-┃  Mara · you  owner  founder                    ┃│Lin  contributor                                          │
-┃  Ada  admin                                    ┃│                                                          │
-┃  Lin  contributor                              ┃│Role (r)                                                  │
-┃  Sam  viewer                                   ┃│  ( ) owner                                               │
-┃  sff box  contributor  service                 ┃│  ( ) admin                                               │
-┃                                                ┃│  (•) contributor                                         │
-┃                                                ┃│  ( ) viewer                                              │
-┃                                                ┃│                                                          │
-┃                                                ┃│X Remove from the workspace                               │
-┃                                                ┃│I Create an invite                                        │
-┃                                                ┃│B Admit a box (ligus serve or a worker) as a service      │
-┃                      ┏ Remove member ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                      │
-┃                      ┃Remove Lin from the workspace?                                ┃                      │
-┃                      ┃                                                              ┃ed your passkey.      │
-┃                      ┃y confirm (needs your passkey) · any other key cancels        ┃                      │
-┃                      ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                      │
-┃                                                ┃│                                                          │
-┃                                                ┃│                                                          │
-┃                                                ┃│                                                          │
-┃                                                ┃│                                                          │
-┃                                                ┃│                                                          │
-┃                                                ┃│                                                          │
-┃                                                ┃│                                                          │
-┃                                                ┃│                                                          │
-┃                                                ┃│                                                          │
-┃                                                ┃│                                                          │
-┃                                                ┃│                                                          │
-┃                                                ┃│                                                          │
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────╯
-↑↓ people  r role  X remove  I invite  B admit box  ? help                     peer to peer · 1 running · demo
+┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃Mara (you)  owner · founder                                                                                 ┃
+┃Ada         admin                                                                                           ┃
+┃Lin         contributor                                                                                     ┃
+┃Sam         viewer                                                                                          ┃
+┃sff box     contributor · box                                                                               ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃                      ┏ Remove member ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                      ┃
+┃                      ┃Remove Lin from the workspace?                                ┃                      ┃
+┃                      ┃                                                              ┃                      ┃
+┃                      ┃y confirm (needs your passkey) · any other key cancels        ┃                      ┃
+┃                      ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                      ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+I invite  . actions  ? help                                                    peer to peer · 1 running · demo

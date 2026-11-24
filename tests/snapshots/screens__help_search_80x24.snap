@@ -4,16 +4,12 @@ expression: screen
 ---
 [NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
 ┏ ┏ Help · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─╮
-┃o┃/ reject  enter keep · esc clear                                          ┃ │
-┃ ┃Proposals  here                                                           ┃ │
-┃a┃  R                        Reject (asks first)                            ┃ │
-┃ ┃                                                                          ┃ │
-┃a┃Workflows                                                                 ┃ │
+┃I┃/ reject  enter keep · esc clear                                          ┃ │
+┃E┃Proposals  here                                                           ┃ │
+┃B┃  R                        Reject (asks first)                            ┃─╯
+┃S┃                                                                          ┃─╮
+┃W┃Workflows                                                                 ┃ │
 ┃ ┃  R                        Reject the run's waiting gate (asks first)     ┃ │
-┃o┃                                                                          ┃─╯
-┃ ┃                                                                          ┃─╮
-┃o┃                                                                          ┃ │
-┃ ┃                                                                          ┃ │
 ┃ ┃                                                                          ┃ │
 ┃ ┃                                                                          ┃ │
 ┃ ┃                                                                          ┃ │
@@ -24,5 +20,9 @@ expression: screen
 ┃ ┃                                                                          ┃ │
 ┃ ┃                                                                          ┃ │
 ┃ ┃                                                                          ┃ │
+┃ ┃                                                                          ┃0│
+┃ ┃                                                                          ┃ │
+┃ ┃                                                                          ┃…│
+┃ ┃                                                                          ┃…│
 ┗━┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛─╯
 type to search  ↑↓ scroll  enter keep  esc clear        peer to peer · 1 running
