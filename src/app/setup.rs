@@ -66,6 +66,9 @@ pub struct Wizard {
     pub stopping: bool,
     /// Fields whose defaults were filled in once.
     pub seen: BTreeSet<String>,
+    /// Where each secret was typed for (the origin it would go to): one
+    /// typed for one server or relay never goes to another.
+    pub secret_for: BTreeMap<String, String>,
 }
 
 impl Wizard {
@@ -88,6 +91,7 @@ impl Wizard {
             cancel: CancelFlag::default(),
             stopping: false,
             seen: BTreeSet::new(),
+            secret_for: BTreeMap::new(),
         }
     }
 
@@ -210,9 +214,34 @@ impl Wizard {
         out
     }
 
+    /// Where a secret entered now would be sent: the URL's origin (a tool
+    /// or your own relay), the community relay's, or nothing to say.
+    pub fn destination(&self) -> String {
+        let i = self.inputs();
+        match (i.get("kind").map(String::as_str), i.get("url")) {
+            (Some("community"), _) => ligus_runtime::setup::validate::origin(ligus_core::COMMUNITY_RELAY_URL),
+            (Some("url" | "own"), Some(u)) => ligus_runtime::setup::validate::origin(u),
+            _ => String::new(),
+        }
+    }
+
+    /// Clear the secrets typed for somewhere else than where they would go
+    /// now (the URL or the relay changed after the token was typed).
+    pub fn forget_moved_secrets(&mut self) {
+        let dest = self.destination();
+        for (id, buf) in self.secrets.iter_mut() {
+            if !buf.is_empty() && self.secret_for.get(id).is_some_and(|d| *d != dest) {
+                buf.clear();
+                self.secret_for.remove(id);
+                self.error = Some("the destination changed, so the secret typed for it was cleared: type it again".into());
+            }
+        }
+    }
+
     /// The secrets for the run, taken out of the popup (its buffers are
-    /// cleared). Only fields that apply.
+    /// cleared). Only fields that apply, and only for where they were typed.
     pub fn take_secrets(&mut self) -> SetupSecrets {
+        self.forget_moved_secrets();
         let inputs = self.inputs();
         let applies: BTreeSet<String> = self
             .form
@@ -510,6 +539,7 @@ fn fill_key(w: &mut Wizard, k: &KeyEvent, ctrl: bool, wsid: Option<crate::backen
             }
         }
         FieldType::Secret => {
+            let dest = w.destination();
             let buf = w.secrets.entry(f.id.clone()).or_default();
             match k.code {
                 KeyCode::Char('u') if ctrl => buf.clear(),
@@ -517,6 +547,7 @@ fn fill_key(w: &mut Wizard, k: &KeyEvent, ctrl: bool, wsid: Option<crate::backen
                 KeyCode::Backspace => buf.pop(),
                 _ => {}
             }
+            w.secret_for.insert(f.id.clone(), dest);
         }
         FieldType::Suggest(opts) => match k.code {
             KeyCode::Up | KeyCode::Down if !opts.is_empty() => {
@@ -547,6 +578,11 @@ fn fill_key(w: &mut Wizard, k: &KeyEvent, ctrl: bool, wsid: Option<crate::backen
 }
 
 fn next_screen(w: &mut Wizard, wsid: Option<crate::backend::model::WorkspaceId>) -> Vec<Effect> {
+    w.error = None;
+    w.forget_moved_secrets();
+    if w.error.is_some() {
+        return vec![];
+    }
     if let Some(e) = w.missing() {
         w.error = Some(e);
         return vec![];
@@ -577,7 +613,11 @@ pub fn paste(w: &mut Wizard, text: &str) {
     }
     let Some(f) = w.focused().cloned() else { return };
     match f.kind {
-        FieldType::Secret => w.secrets.entry(f.id).or_default().push_str(text),
+        FieldType::Secret => {
+            let dest = w.destination();
+            w.secrets.entry(f.id.clone()).or_default().push_str(text);
+            w.secret_for.insert(f.id, dest);
+        }
         FieldType::Text | FieldType::Path | FieldType::Suggest(_) => {
             let one: String = text.lines().next().unwrap_or("").chars().filter(|c| !c.is_control()).collect();
             w.texts.entry(f.id).or_insert_with(TextBuf::single).insert_str(&one);

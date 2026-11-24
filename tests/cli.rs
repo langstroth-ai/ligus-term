@@ -289,3 +289,14 @@ fn setup_secrets_stay_off_argv_and_output() {
     assert_eq!(code, 0, "{out}{err}");
     assert!(!out.contains(canary) && !err.contains(canary), "{out}{err}");
 }
+
+/// What a peer chose (an MCP server's tool names) can't put an escape
+/// sequence on the terminal through lt setup's text output.
+#[test]
+fn setup_text_output_carries_no_escape_sequences() {
+    let (mut c, _home) = lt();
+    c.args(["--demo", "setup", "tool", "--id", "evil", "--command", "evil-mcp"]);
+    let (code, out, err) = run(c, "");
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(out.contains("shell tools") && !out.contains('\u{1b}') && !out.contains('\u{7}'), "{out:?}");
+}

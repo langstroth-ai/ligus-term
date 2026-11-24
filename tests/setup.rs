@@ -165,7 +165,7 @@ async fn a_tool_token_is_masked_and_never_shown() {
     snap(&h, "setup_tool_reach", "Connect a tool: which agents may use it");
     h.key(KeyCode::Enter).await;
     let s = h.screen(W, H);
-    assert!(s.contains("•••••••• (set)") && !s.contains("canary"), "{s}");
+    assert!(s.contains("•••••••• (only to https://mcp.example.com)") && !s.contains("canary"), "{s}");
     // The run's effect carries the secret only in its redacted secrets.
     let Some(Overlay::SetupFlow(w)) = h.state.overlay.as_mut() else { panic!() };
     let mut probe = (**w).clone();
@@ -290,4 +290,41 @@ async fn an_empty_view_offers_its_flow() {
     assert!(h.screen(W, H).contains("No agents yet · enter set one up"));
     h.key(KeyCode::Enter).await;
     assert_eq!(wizard(&h).flow, LtFlow::Engine(FlowId::Agent));
+}
+
+/// A token typed for one URL never goes to another: changing the URL after
+/// typing it clears it, and says so.
+#[tokio::test]
+async fn a_token_typed_for_one_url_is_cleared_when_the_url_changes() {
+    let mut h = demo().await;
+    open(&mut h, 1).await;
+    h.chars("issues").await;
+    h.key(KeyCode::Tab).await;
+    h.key(KeyCode::Down).await;
+    h.key(KeyCode::Tab).await;
+    h.chars("https://mcp.example.com/v1").await;
+    h.key(KeyCode::Enter).await;
+    h.chars(CANARY).await;
+    h.send(Msg::Key(KeyEvent::new(KeyCode::BackTab, KeyModifiers::NONE))).await;
+    // Back on the server screen: point it elsewhere.
+    h.key(KeyCode::Tab).await;
+    h.key(KeyCode::Tab).await;
+    for _ in 0.."https://mcp.example.com/v1".len() {
+        h.key(KeyCode::Backspace).await;
+    }
+    h.chars("https://evil.example/v1").await;
+    h.key(KeyCode::Enter).await;
+    let w = wizard(&h);
+    assert!(w.secrets.values().all(|b| b.is_empty()), "cleared: {:?}", w.inputs());
+    assert!(w.error.as_deref().is_some_and(|e| e.contains("cleared")), "{:?}", w.error);
+}
+
+/// Quitting while a flow runs asks first (it would skip the run's undo).
+#[tokio::test]
+async fn quitting_during_a_run_asks_first() {
+    let mut h = demo().await;
+    let mut w = Wizard::new(LtFlow::Engine(FlowId::Tool), false);
+    w.stage = Stage::Running;
+    h.state.overlay = Some(Overlay::SetupFlow(Box::new(w)));
+    assert!(h.state.quit_guard().is_some_and(|g| g.contains("Connect a tool")));
 }

@@ -160,7 +160,11 @@ async fn run() -> anyhow::Result<()> {
     if args.command.first().is_some_and(|c| c == "setup") {
         let mut stdin = || {
             use std::io::Read;
-            let mut s = String::new();
+            // At a terminal the secret would echo into the scrollback.
+            if std::io::stdin().is_terminal() {
+                return Err(std::io::Error::other("stdin is a terminal (it would echo the secret): pipe it in, or use @FILE"));
+            }
+            let mut s = zeroize::Zeroizing::new(String::with_capacity(64 * 1024 + 1));
             std::io::stdin().take(64 * 1024).read_to_string(&mut s).map(|_| s)
         };
         let mut out = std::io::stdout();

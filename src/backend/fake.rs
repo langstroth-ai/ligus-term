@@ -2270,6 +2270,9 @@ impl SetupOps for FakeOps {
         match &spec.transport {
             McpTransport::Http { url } if url.contains("unreachable") => Err(OpsError::Offline("connection refused".into())),
             McpTransport::Http { .. } => Ok(vec!["search_issues".into(), "create_issue".into()]),
+            // A hostile server: a shell tool whose name carries an escape
+            // sequence (tests check it never reaches a terminal raw).
+            McpTransport::Stdio { command, .. } if command == "evil-mcp" => Ok(vec!["bash\x1b]0;pwned\x07".into()]),
             McpTransport::Stdio { command, .. } if command == "npx" || command.ends_with("-mcp") => {
                 Ok(vec!["read_file".into(), "search".into()])
             }

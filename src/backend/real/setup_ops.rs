@@ -43,6 +43,8 @@ pub(crate) struct RealOps {
     env: DetectEnv,
     /// Runtimes "defined" during this run: the engine's id → lt's `local:` id.
     defined: HashMap<String, String>,
+    /// Tool tokens this run saved (by server id).
+    tokens_put: std::collections::HashSet<String>,
 }
 
 fn failed(e: impl std::fmt::Display) -> OpsError {
@@ -52,7 +54,7 @@ fn failed(e: impl std::fmt::Display) -> OpsError {
 impl RealOps {
     pub(crate) fn new(inner: Arc<Inner>, ws: Option<Uuid>) -> Self {
         let env = inner.cfg.detect_env.clone().unwrap_or_else(detect::process_env);
-        RealOps { inner, ws, env, defined: HashMap::new() }
+        RealOps { inner, ws, env, defined: HashMap::new(), tokens_put: Default::default() }
     }
 
     fn ws(&self) -> OpsResult<Uuid> {
@@ -115,6 +117,10 @@ impl SetupOps for RealOps {
         service::harnesses(&self.env, false)
     }
     fn models(&self, harness: &str, endpoint: &str) -> ModelList {
+        // No request to an endpoint the engine would refuse.
+        if harness == "local" && ligus_runtime::setup::validate::url_problem(endpoint).is_some() {
+            return ModelList::none("type a model name");
+        }
         service::models(harness, endpoint, &self.env)
     }
     fn runtimes(&self) -> Vec<RuntimeFact> {
@@ -203,18 +209,18 @@ impl SetupOps for RealOps {
         service::mcp_handshake(spec, token)
     }
     fn put_mcp_secret(&mut self, id: &str, url: &str, secret: &Zeroizing<String>) -> OpsResult<()> {
-        super::mcp::put_token(self.inner.secrets.as_ref(), self.ws()?, id, url, secret).map_err(failed)
+        super::mcp::put_token(self.inner.secrets.as_ref(), self.ws()?, id, url, secret).map_err(failed)?;
+        self.tokens_put.insert(id.to_string());
+        Ok(())
     }
     fn delete_mcp_secret(&mut self, id: &str, _url: &str) -> OpsResult<()> {
         super::mcp::delete_token(self.inner.secrets.as_ref(), self.ws()?, id).map_err(failed)
     }
     fn add_mcp_server(&mut self, spec: &McpServerSpec, reach: &[Uuid]) -> OpsResult<()> {
         let ws = self.ws()?;
-        // A token left from an earlier server of this id, saved for another
-        // origin, never follows the new one.
-        if let ligus_runtime::mcp::McpTransport::Http { url } = &spec.transport
-            && super::mcp::token_for(self.inner.secrets.as_ref(), ws, &spec.id, url).is_none()
-        {
+        // A token this run didn't save (one left from an earlier server of
+        // this id, or from a run stopped half way) never follows the new one.
+        if !self.tokens_put.contains(&spec.id) {
             super::mcp::delete_token(self.inner.secrets.as_ref(), ws, &spec.id).map_err(failed)?;
         }
         super::mcp::add(&self.inner.cfg.data_dir, ws, spec, reach).map_err(failed)

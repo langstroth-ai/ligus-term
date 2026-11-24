@@ -114,6 +114,24 @@ impl LtFlow {
 
 // ── View models ─────────────────────────────────────────────────────────────
 
+/// Text as lt may draw or print it: a check's detail can carry what a
+/// network peer chose (an MCP server's tool names, a repository's or an
+/// agent's name, a model id), so control characters (escape sequences:
+/// CSI, OSC, C1) and bidi controls become U+FFFD.
+pub fn shown(s: &str) -> String {
+    s.chars()
+        .map(|c| {
+            if c.is_control()
+                || matches!(c, '\u{061C}' | '\u{200B}'..='\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}' | '\u{FEFF}')
+            {
+                '\u{FFFD}'
+            } else {
+                c
+            }
+        })
+        .collect()
+}
+
 /// One row of the Set up list.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FlowRow {
@@ -137,12 +155,12 @@ pub struct SetupCheck {
 impl SetupCheck {
     fn of(c: &Check) -> Self {
         SetupCheck {
-            id: c.id.clone(),
+            id: shown(&c.id),
             status: c.status,
-            title: c.title.clone(),
-            detail: c.detail.clone(),
-            fix: c.fix.clone(),
-            notes: c.notes.clone(),
+            title: shown(&c.title),
+            detail: shown(&c.detail),
+            fix: c.fix.as_deref().map(shown),
+            notes: c.notes.iter().map(|n| shown(n)).collect(),
         }
     }
 
@@ -309,7 +327,11 @@ pub struct SecretBuf(Zeroizing<String>);
 
 impl SecretBuf {
     pub fn push(&mut self, c: char) {
-        if !c.is_control() {
+        // Room up front: growing would leave unzeroed copies behind.
+        if self.0.capacity() == 0 {
+            self.0 = Zeroizing::new(String::with_capacity(1024));
+        }
+        if !c.is_control() && self.0.len() < 1024 {
             self.0.push(c);
         }
     }
@@ -384,14 +406,16 @@ impl std::fmt::Debug for CancelFlag {
 pub fn rows(ops: &dyn SetupOps, device: Option<FlowRow>) -> Vec<FlowRow> {
     let mut out: Vec<FlowRow> = engine::status(ops)
         .into_iter()
-        .map(|s| FlowRow { flow: LtFlow::Engine(s.flow.id), progress: s.progress, detail: s.detail })
+        .map(|s| FlowRow { flow: LtFlow::Engine(s.flow.id), progress: s.progress, detail: shown(&s.detail) })
         .collect();
     out.extend(device);
     out
 }
 
 fn choices(o: &[engine::Choice]) -> Vec<SetupChoice> {
-    o.iter().map(|c| SetupChoice { value: c.value.clone(), label: c.label.clone(), hint: c.hint.clone(), disabled: c.disabled }).collect()
+    o.iter()
+        .map(|c| SetupChoice { value: c.value.clone(), label: shown(&c.label), hint: c.hint.as_deref().map(shown), disabled: c.disabled })
+        .collect()
 }
 
 fn field(f: &engine::Field) -> SetupField {
@@ -496,7 +520,7 @@ pub fn run(
     SetupOutcome {
         flow: LtFlow::Engine(flow),
         checks: o.report.checks.iter().map(|c| check(flow, c)).collect(),
-        next: o.report.next.iter().map(|n| for_lt(flow, n)).collect(),
+        next: o.report.next.iter().map(|n| shown(&for_lt(flow, n))).collect(),
         exit: o.exit,
         done: o.done,
         dry_run,

@@ -43,7 +43,7 @@ pub struct Usage(pub String);
 /// Where a secret flag's value comes from.
 pub enum SecretSource<'a> {
     /// One-shot: `-` reads this (stdin, once); `@FILE` an owner-only file.
-    Stdin(&'a mut dyn FnMut() -> std::io::Result<String>),
+    Stdin(&'a mut dyn FnMut() -> std::io::Result<Zeroizing<String>>),
     /// Interactive plain mode: only `@FILE`.
     FileOnly,
 }
@@ -51,7 +51,7 @@ pub enum SecretSource<'a> {
 /// An argument as an error may show it: a short plain word, else nothing
 /// (it may be a code pasted where a flag was meant).
 fn shown(a: &str) -> String {
-    if a.len() <= 16 && a.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') { a.to_string() } else { "(not shown)".to_string() }
+    if a.len() <= 24 && a.chars().all(|c| c.is_ascii_lowercase() || c == '-') { a.to_string() } else { "(not shown)".to_string() }
 }
 
 /// The flow named first, if any (`lt setup agent …`).
@@ -69,7 +69,8 @@ pub fn flow_arg(args: &[String]) -> Result<Option<LtFlow>, Usage> {
             i += 1;
             continue;
         }
-        return LtFlow::parse(a).map(Some).ok_or_else(|| Usage(format!("unknown flow {}: lt setup lists them", shown(a))));
+        // Never echoed: it may be a secret pasted where a flag was meant.
+        return LtFlow::parse(a).map(Some).ok_or_else(|| Usage("unknown flow (not shown): lt setup lists them".into()));
     }
     Ok(None)
 }
@@ -95,8 +96,7 @@ pub fn parse(args: &[String], form: Option<&SetupForm>, mut secret_src: SecretSo
                     continue;
                 }
                 return Err(Usage(format!(
-                    "unexpected argument {} for lt setup {fname}: flags are --FIELD VALUE; secrets take - or @FILE",
-                    shown(a)
+                    "unexpected argument (not shown) for lt setup {fname}: flags are --FIELD VALUE; secrets take - or @FILE"
                 )));
             }
             _ => {
@@ -132,12 +132,16 @@ pub fn parse(args: &[String], form: Option<&SetupForm>, mut secret_src: SecretSo
                                     return Err(Usage(format!("{flag} takes @FILE here (stdin carries the commands)")));
                                 }
                             },
-                            Some(path) if path.starts_with('@') => Zeroizing::new(
-                                crate::backend::presence::read_owner_only(std::path::Path::new(&path[1..]), 64 * 1024)
-                                    .map_err(|e| Usage(format!("{flag}: {e}")))?
-                                    .trim()
-                                    .to_string(),
-                            ),
+                            Some(path) if path.starts_with('@') => {
+                                let raw = Zeroizing::new(
+                                    crate::backend::presence::read_owner_only(std::path::Path::new(&path[1..]), 64 * 1024)
+                                        // Not the path: it may be a secret typed after @.
+                                        .map_err(|e| {
+                                            Usage(format!("{flag} @FILE: {}", e.rsplit(": ").next().unwrap_or("can't read it")))
+                                        })?,
+                                );
+                                Zeroizing::new(raw.trim().to_string())
+                            }
                             Some(_) => {
                                 return Err(Usage(format!(
                                     "{flag} takes - (stdin) or @FILE (owner-only), never the secret itself on the command line; if you typed one, rotate it"
@@ -167,6 +171,12 @@ pub fn parse(args: &[String], form: Option<&SetupForm>, mut secret_src: SecretSo
         }
     }
     Ok(p)
+}
+
+/// Text for a terminal: each line through plain mode's cleaner (no
+/// escape sequences or bidi controls from what a peer chose).
+fn clean_text(s: &str) -> String {
+    s.lines().map(|l| crate::plain::clean(l) + "\n").collect()
 }
 
 /// The word for a row's progress.
@@ -318,7 +328,7 @@ pub async fn run(
     args: &[String],
     json: bool,
     want_ws: Option<&str>,
-    stdin: &mut dyn FnMut() -> std::io::Result<String>,
+    stdin: &mut dyn FnMut() -> std::io::Result<Zeroizing<String>>,
     out: &mut dyn std::io::Write,
 ) -> i32 {
     let usage = |m: String| {
@@ -348,7 +358,11 @@ pub async fn run(
         return match b.setup_status(ws.as_ref()).await {
             Ok(rows) => {
                 let rows = visible(&b, rows);
-                let _ = if json || p.json { writeln!(out, "{}", super::list_json(&rows)) } else { write!(out, "{}", list_text(&rows)) };
+                let _ = if json || p.json {
+                    writeln!(out, "{}", super::list_json(&rows))
+                } else {
+                    write!(out, "{}", clean_text(&list_text(&rows)))
+                };
                 0
             }
             Err(e) => {
@@ -377,7 +391,7 @@ pub async fn run(
     }
     match b.setup_run(ws.as_ref(), flow, p.inputs, p.secrets, p.dry_run, CancelFlag::default()).await {
         Ok(o) => {
-            let _ = if json || p.json { writeln!(out, "{}", o.json) } else { write!(out, "{}", outcome_text(&o)) };
+            let _ = if json || p.json { writeln!(out, "{}", o.json) } else { write!(out, "{}", clean_text(&outcome_text(&o))) };
             o.exit
         }
         Err(e) => {
@@ -457,7 +471,7 @@ mod tests {
 
     #[test]
     fn flags_are_field_ids() {
-        let mut no_stdin = || -> std::io::Result<String> { panic!("stdin read") };
+        let mut no_stdin = || -> std::io::Result<Zeroizing<String>> { panic!("stdin read") };
         let p = parse(
             &args(&["tool", "--id", "fs", "--command", "npx -y srv", "--dry-run"]),
             Some(&form()),
@@ -472,14 +486,18 @@ mod tests {
 
     #[test]
     fn a_secret_on_the_command_line_is_refused_and_not_echoed() {
-        let mut no_stdin = || -> std::io::Result<String> { panic!("stdin read") };
+        let mut no_stdin = || -> std::io::Result<Zeroizing<String>> { panic!("stdin read") };
         let e = parse(&args(&["tool", "--token", "hrt1-canary-value"]), Some(&form()), SecretSource::Stdin(&mut no_stdin)).unwrap_err();
         assert!(!e.0.contains("hrt1-canary-value"), "{}", e.0);
         let e = parse(&args(&["tool", "--token=hrt1-canary-value"]), Some(&form()), SecretSource::FileOnly).unwrap_err();
         assert!(!e.0.contains("hrt1-canary-value"), "{}", e.0);
         let e = parse(&args(&["tool", "hrt1-canary-value-pasted"]), Some(&form()), SecretSource::FileOnly).unwrap_err();
         assert!(!e.0.contains("canary"), "{}", e.0);
-        let mut stdin = || Ok("  tok-canary \n".to_string());
+        let e = flow_arg(&args(&["abc123tok"])).unwrap_err();
+        assert!(!e.0.contains("abc123tok"), "{}", e.0);
+        let e = parse(&args(&["tool", "--token", "@hrt1-canary-xyz"]), Some(&form()), SecretSource::FileOnly).unwrap_err();
+        assert!(!e.0.contains("canary"), "{}", e.0);
+        let mut stdin = || Ok(Zeroizing::new("  tok-canary \n".to_string()));
         let p = parse(&args(&["tool", "--token", "-"]), Some(&form()), SecretSource::Stdin(&mut stdin)).unwrap();
         assert_eq!(p.secrets.ids(), vec!["token".to_string()]);
         assert!(!format!("{p:?}").contains("tok-canary"), "Debug redacts");

@@ -812,6 +812,14 @@ impl State {
     /// Why quitting now would stop work on this device: a run it drives, or
     /// an agent's turn running here. `None` when nothing would stop.
     pub fn quit_guard(&self) -> Option<String> {
+        if let Some(Overlay::SetupFlow(w)) = &self.overlay
+            && w.stage == crate::app::setup::Stage::Running
+        {
+            return Some(format!(
+                "\u{201c}{}\u{201d} is running. Quitting now could leave it half done: esc stops it cleanly first.",
+                w.flow.title()
+            ));
+        }
         let runs: Vec<&Run> = self.runs.iter().filter(|r| !r.status.is_terminal() && self.drives_here(r)).collect();
         if let Some(r) = runs.first() {
             let more = if runs.len() > 1 { format!(" and {} more", runs.len() - 1) } else { String::new() };

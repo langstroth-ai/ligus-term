@@ -280,7 +280,10 @@ pub fn flow(f: &mut Frame, area: Rect, s: &State, w: &Wizard, t: &Theme) {
                 let v = match &fd.kind {
                     FieldType::Secret => {
                         if w.secrets.get(&fd.id).is_some_and(|b| !b.is_empty()) {
-                            "•••••••• (set)".to_string()
+                            match w.destination() {
+                                d if d.is_empty() => "•••••••• (set)".to_string(),
+                                d => format!("•••••••• (only to {d})"),
+                            }
                         } else {
                             "not set".to_string()
                         }
