@@ -22,7 +22,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 │                              ││Mara  now                                                                   │
 │                              ││  Thanks, that fixed it                                                     │
 │                              ││                                                                            │
-│                              ││@primary  via claude-code · on this device  now                             │
+│                              ││@ligus  via claude-code · on this device  now                               │
 │                              ││  ▸ read_file src/checkout.rs done 0.2s                                     │
 │                              ││  Looked at the checkout test. I injected a fake clock into the session     │
 │                ┏ What you sent · enter use · esc ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                │

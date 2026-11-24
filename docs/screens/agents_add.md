@@ -5,7 +5,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Agent ───────────────────────────────────────────────────╮
-┃@primary   idle                                 ┃│@primary  idle                                            │
+┃@ligus     idle                                 ┃│@ligus  idle                                              │
 ┃@coder     busy · sff                           ┃│                                                          │
 ┃@reviewer  idle                                 ┃│Runtime     claude-code                                   │
 ┃@scout     idle · sff                           ┃│Runs on     This device                                   │

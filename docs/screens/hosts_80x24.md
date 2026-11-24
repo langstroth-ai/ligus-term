@@ -5,7 +5,7 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 ```text
 [NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
 ┏ Hosts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃● This device  @primary @reviewer                                             ┃
+┃● This device  @ligus @reviewer                                               ┃
 ┃● sff          worker · busy · @coder @scout · northwind-api                  ┃
 ┃○ ada-studio   3h ago                                                         ┃
 ┃                                                                              ┃

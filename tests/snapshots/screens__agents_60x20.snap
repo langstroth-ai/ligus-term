@@ -4,7 +4,7 @@ expression: screen
 ---
 [NA]+1• │ 1 2 3 4 Agents 5 6 7 8(1) 9          Northwind API
 ┏ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃@primary   idle                                           ┃
+┃@ligus     idle                                           ┃
 ┃@coder     busy · sff                                     ┃
 ┃@reviewer  idle                                           ┃
 ┃@scout     idle · sff                                     ┃
@@ -12,7 +12,7 @@ expression: screen
 ┃                                                          ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ╭ Agent ───────────────────────────────────────────────────╮
-│@primary  idle                                            │
+│@ligus  idle                                              │
 │                                                          │
 │Runtime     claude-code                                   │
 │Runs on     This device                                   │
