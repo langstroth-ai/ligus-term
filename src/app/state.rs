@@ -265,6 +265,17 @@ pub enum Overlay {
         checked: Option<JoinRequestCheck>,
         result: Option<BoxAdmission>,
     },
+    /// `.` on a row: the row's actions, then the view's, the destructive
+    /// ones last.
+    RowMenu {
+        title: String,
+        items: Vec<MenuItem>,
+        sel: usize,
+    },
+    /// The Agents view's "add an agent": what this device could run one on.
+    AddAgentPicker {
+        sel: usize,
+    },
     /// Add an agent on a runtime of this device: its name.
     AddAgent {
         runtime: LocalRuntime,
@@ -302,6 +313,28 @@ pub enum Overlay {
         yes: String,
         action: ConfirmAction,
     },
+}
+
+/// Where an entry of the row menu sits: the row's own actions, the
+/// view's, then the destructive ones (each asks first).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum MenuSection {
+    Row,
+    /// The view's own actions (what the desktop puts in a pane's header).
+    Pane,
+    Danger,
+}
+
+/// One entry of the row menu: what it does (as its key would), its label,
+/// and whether it is allowed (the backend's reason when not).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MenuItem {
+    pub label: String,
+    pub action: crate::keymap::Action,
+    /// The context its key is shown from.
+    pub context: Context,
+    pub allowed: Allowed,
+    pub section: MenuSection,
 }
 
 /// What a [`Overlay::Confirm`] does on `y`.
@@ -792,15 +825,10 @@ impl State {
         self.local.iter().flatten().filter(|l| l.available()).collect()
     }
 
-    /// Rows of the Agents view's list: the agents, then what is available.
+    /// Rows of the Agents view's list: the agents (what this device could
+    /// add opens from "add an agent").
     pub fn agent_rows(&self) -> usize {
-        self.agents.len() + self.available_local().len()
-    }
-
-    /// The available runtime selected in the Agents view, if the selection
-    /// is past the agents.
-    pub fn selected_local(&self) -> Option<&LocalRuntime> {
-        self.agent_sel.index.checked_sub(self.agents.len()).and_then(|i| self.available_local().get(i).copied())
+        self.agents.len()
     }
 
     /// Queue a desktop notification for when the terminal is unfocused.
@@ -844,14 +872,7 @@ impl State {
             View::Proposals => {
                 (self.proposals.iter().map(|p| format!("{} {} {}", p.title, p.author, p.status.label())).collect(), self.proposal_sel.index)
             }
-            View::Agents => (
-                self.agents
-                    .iter()
-                    .map(|a| format!("@{} {}", a.handle, a.runtime))
-                    .chain(self.available_local().iter().map(|l| l.kind.label().to_string()))
-                    .collect(),
-                self.agent_sel.index,
-            ),
+            View::Agents => (self.agents.iter().map(|a| format!("@{} {}", a.handle, a.runtime)).collect(), self.agent_sel.index),
             View::Hosts => (self.hosts.iter().map(|h| h.label.clone()).collect(), self.host_sel.index),
             View::People => (self.members.iter().map(|m| format!("{} {}", m.name, m.role.label())).collect(), self.member_sel.index),
             View::Notifications => (self.notifications.iter().map(|n| n.text.clone()).collect(), self.notification_sel.index),

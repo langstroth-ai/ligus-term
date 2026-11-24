@@ -37,6 +37,7 @@ INSTA_UPDATE=always LT_WRITE_SCREENS=1 cargo test --test screens
 | Create or join another workspace | [add_workspace.md](add_workspace.md) |
 | Workflows: definitions and runs | [workflows.md](workflows.md) |
 | A run waiting on its gate | [workflow_run_gate.md](workflow_run_gate.md) |
+| A run's row menu | [workflow_run_menu.md](workflow_run_menu.md) |
 | The gate approved: the run completes | [workflow_run_done.md](workflow_run_done.md) |
 | Starting a run | [workflow_start.md](workflow_start.md) |
 | A run started here, live | [workflow_run_live.md](workflow_run_live.md) |
@@ -44,13 +45,15 @@ INSTA_UPDATE=always LT_WRITE_SCREENS=1 cargo test --test screens
 | Diff viewer: a later hunk | [proposals_hunk.md](proposals_hunk.md) |
 | Apply on ‹host› | [apply_host.md](apply_host.md) |
 | Agents (status, what they're doing), runtimes, hand-offs | [agents.md](agents.md) |
+| Agents: what this device could add, in a popup | [agents_add_pick.md](agents_add_pick.md) |
 | Hosts and workers | [hosts.md](hosts.md) |
 | Binding this device's checkout for apply on host | [bind_checkout.md](bind_checkout.md) |
 | Hosts with a bound checkout | [hosts_bound.md](hosts_bound.md) |
 | Task state and memory | [memory.md](memory.md) |
 | A memory entry | [memory_entry.md](memory_entry.md) |
-| People: roles and actions | [people.md](people.md) |
-| People: refused actions with the reason | [people_refused.md](people_refused.md) |
+| People: one line each | [people.md](people.md) |
+| People: the row menu, destructive last | [people_menu.md](people_menu.md) |
+| People: the row menu as a viewer, refused actions with the reason | [people_refused.md](people_refused.md) |
 | Changing a role | [role_picker.md](role_picker.md) |
 | Confirm a removal | [confirm_remove.md](confirm_remove.md) |
 | Quitting while this device drives a run | [confirm_quit.md](confirm_quit.md) |

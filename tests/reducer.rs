@@ -574,6 +574,69 @@ fn people_actions_follow_the_backends_refusals() {
     assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::SetRole(w, MemberId::new("lin"), Role::Admin)]);
 }
 
+/// `.` opens the row menu: the row's actions, the view's, then the
+/// destructive ones last; esc or `.` closes it, enter or an entry's own key
+/// runs it as the key would (a destructive one still asks first), and a
+/// refused entry says why instead.
+#[test]
+fn row_menu_lists_actions_destructive_last_and_runs_them() {
+    let mut s = main_state();
+    let w = WorkspaceId::new("a");
+    key(&mut s, KeyCode::Char('m'));
+    let no = |r: &str| Allowed::No(r.into());
+    update(
+        &mut s,
+        Msg::Members(
+            w.clone(),
+            Ok(vec![
+                member("founder", Role::Owner, no("nobody cuts the workspace's founder"), no("no one above them")),
+                member("lin", Role::Contributor, Allowed::Yes, Allowed::Yes),
+            ]),
+        ),
+    );
+    key(&mut s, KeyCode::Down);
+    assert!(key(&mut s, KeyCode::Char('.')).is_empty());
+    let Some(Overlay::RowMenu { title, items, sel: 0 }) = &s.overlay else { panic!("{:?}", s.overlay) };
+    assert_eq!(title, "lin");
+    let labels: Vec<&str> = items.iter().map(|i| i.label.as_str()).collect();
+    assert_eq!(labels, vec!["Change role…", "Create an invite", "Admit a box…", "Remove from the workspace…"]);
+    let sections: Vec<MenuSection> = items.iter().map(|i| i.section).collect();
+    assert_eq!(sections, vec![MenuSection::Row, MenuSection::Pane, MenuSection::Pane, MenuSection::Danger]);
+    // esc closes it, and so does `.` again.
+    key(&mut s, KeyCode::Esc);
+    assert!(s.overlay.is_none());
+    key(&mut s, KeyCode::Char('.'));
+    key(&mut s, KeyCode::Char('.'));
+    assert!(s.overlay.is_none());
+    // Enter runs the selected entry: the role picker.
+    key(&mut s, KeyCode::Char('.'));
+    assert!(key(&mut s, KeyCode::Enter).is_empty());
+    assert!(matches!(s.overlay, Some(Overlay::RolePicker { .. })), "{:?}", s.overlay);
+    s.overlay = None;
+    // The destructive entry (last) still asks first.
+    key(&mut s, KeyCode::Char('.'));
+    key(&mut s, KeyCode::Char('G'));
+    key(&mut s, KeyCode::Enter);
+    assert!(matches!(s.overlay, Some(Overlay::ConfirmRemove { .. })), "{:?}", s.overlay);
+    assert_eq!(key(&mut s, KeyCode::Char('y')), vec![Effect::RemoveMember(w, MemberId::new("lin"))]);
+    // An entry's own key chooses it; a refused one says why and stays open.
+    key(&mut s, KeyCode::Up);
+    key(&mut s, KeyCode::Char('.'));
+    assert!(key(&mut s, KeyCode::Char('X')).is_empty());
+    assert!(s.toasts.last().unwrap().text.contains("nobody cuts the workspace's founder"));
+    assert!(matches!(s.overlay, Some(Overlay::RowMenu { .. })));
+}
+
+/// A view with nothing to act on says so instead of opening an empty menu.
+#[test]
+fn row_menu_with_nothing_to_do_is_a_toast() {
+    let mut s = main_state();
+    key(&mut s, KeyCode::Char('y'));
+    assert!(key(&mut s, KeyCode::Char('.')).is_empty());
+    assert!(s.overlay.is_none());
+    assert_eq!(s.toasts.last().unwrap().text, "Nothing to do here");
+}
+
 #[test]
 fn lockdown_clear_is_refused_with_the_reason() {
     let mut s = main_state();
@@ -845,13 +908,10 @@ fn agents_tab_offers_what_this_device_has() {
         ),
     );
     assert_eq!(s.available_local().len(), 1, "a runtime an agent uses isn't offered again");
-    assert_eq!(s.agent_rows(), 2);
-    assert!(s.selected_local().is_none());
-    // `N` on an agent row says where to look.
+    assert_eq!(s.agent_rows(), 1, "the list is the agents; what to add opens from N");
+    // `N`: the picker of what this device has.
     assert!(key(&mut s, KeyCode::Char('N')).is_empty());
-    assert!(s.overlay.is_none());
-    key(&mut s, KeyCode::Down);
-    assert_eq!(s.selected_local().map(|l| l.id.as_str()), Some("local:codex"));
+    assert_eq!(s.overlay, Some(Overlay::AddAgentPicker { sel: 0 }));
     // Enter on it: the name prompt, prefilled.
     assert!(key(&mut s, KeyCode::Enter).is_empty());
     match &s.overlay {
@@ -886,7 +946,9 @@ fn an_unsupported_cli_is_explained_not_added() {
     gemini.unsupported = Some("Gemini CLI stopped serving Google AI Pro sign-ins; install agy".into());
     update(&mut s, Msg::LocalRuntimes(a, Ok(vec![gemini])));
     key(&mut s, KeyCode::Char('N'));
-    assert!(s.overlay.is_none());
+    assert_eq!(s.overlay, Some(Overlay::AddAgentPicker { sel: 0 }));
+    key(&mut s, KeyCode::Enter);
+    assert_eq!(s.overlay, Some(Overlay::AddAgentPicker { sel: 0 }), "refused: the picker stays");
     assert!(s.toasts.last().unwrap().text.contains("install agy"));
     // Esc on the name prompt cancels without a call.
     s.overlay = Some(Overlay::AddAgent {
@@ -1015,8 +1077,10 @@ fn help_search_narrows_and_esc_backs_out() {
     key(&mut s, KeyCode::Char('3'));
     key(&mut s, KeyCode::Char('?'));
     let all = ligus_term::ui::help_lines_text(&s);
-    assert!(all[2].starts_with("Proposals"), "the focused view's keys come first: {all:?}");
-    assert!(all[2].contains("here"), "{all:?}");
+    // What the view is for, then its keys first.
+    assert!(all[0].starts_with("Changes agents propose"), "{all:?}");
+    let first = all.iter().find(|l| l.ends_with("  here")).unwrap();
+    assert!(first.starts_with("Proposals"), "the focused view's keys come first: {all:?}");
     key(&mut s, KeyCode::Char('/'));
     assert!(s.typing_text());
     for c in "hunk".chars() {
@@ -1406,10 +1470,11 @@ fn mouse_on_proposals() {
     key(&mut s, KeyCode::Char('p'));
     let w = WorkspaceId::new("a");
     update(&mut s, Msg::Proposals(w.clone(), Ok(vec![proposal("p1", ProposalStatus::Open), proposal("p2", ProposalStatus::Open)])));
-    let fx = click(&mut s, K::Down(MouseButton::Left), 5, 4);
+    // One line a proposal: the second is on the list's second row.
+    let fx = click(&mut s, K::Down(MouseButton::Left), 5, 3);
     assert_eq!(s.proposal_sel.index, 1);
     assert_eq!(fx, vec![Effect::PreviewDiff(w, ProposalId::new("p2"))]);
-    click(&mut s, K::ScrollUp, 5, 4);
+    click(&mut s, K::ScrollUp, 5, 3);
     assert_eq!(s.proposal_sel.index, 0);
 }
 

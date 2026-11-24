@@ -5,34 +5,34 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Proposals ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Inject the clock into checkout tests ──────────────────────────╮
-┃open     Inject ┏ Commands · 41 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓s               │
-┃         1/2 app┃›                                                                         ┃                │
-┃approved Export ┃──────────────────────────────────────────────────────────────────────────┃proval first)   │
-┃         2/2 app┃▶ Approve “Inject the clock into checkout tests”       A         Proposals┃reports the     │
-┃applied  Bump th┃  Reject “Inject the clock into checkout tests”        R         Proposals┃                │
-┃         2/2 app┃  Apply on a host “Inject the clock into checkout te…  O         Proposals┃                │
-┃open     Sign-of┃  Withdraw the apply request “Inject the clock into …  W         Proposals┃────────────────╯
-┃         0/1 app┃  Quit                                                 ctrl-c q   Anywhere┃────────────────╮
-┃open     Workflo┃  Show or hide this help                               ? f1       Anywhere┃                │
-┃         0/1 app┃  Switch the theme: dark, light, mono                             Anywhere┃                │
+┃Inject the clock┏ Commands · 41 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓s               │
+┃Export orders to┃›                                                                         ┃                │
+┃Bump the order s┃──────────────────────────────────────────────────────────────────────────┃────────────────╯
+┃Sign-off: inject┃▶ Approve “Inject the clock into checkout tests”       A         Proposals┃────────────────╮
+┃Workflow: Depend┃  Reject “Inject the clock into checkout tests”        R         Proposals┃                │
+┃                ┃  Apply on a host “Inject the clock into checkout te…  O         Proposals┃                │
+┃                ┃  Withdraw the apply request “Inject the clock into …  W         Proposals┃                │
+┃                ┃  Quit                                                 ctrl-c q   Anywhere┃                │
+┃                ┃  Show or hide this help                               ? f1       Anywhere┃                │
+┃                ┃  Switch the theme: dark, light, mono                             Anywhere┃ of reading the…│
 ┃                ┃  Show the keys you can press here                     space      Anywhere┃                │
 ┃                ┃  This session's notices and errors, in full           !          Anywhere┃                │
 ┃                ┃  Switch workspace                                     w ctrl-w   Anywhere┃                │
-┃                ┃  Create or join a workspace                           +          Anywhere┃ of reading the…│
+┃                ┃  Create or join a workspace                           +          Anywhere┃                │
 ┃                ┃  Go to Chats                                          c 1        Anywhere┃                │
 ┃                ┃  Go to Workflows and runs                             f 2        Anywhere┃                │
 ┃                ┃  Go to Proposals                                      p 3        Anywhere┃                │
 ┃                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                │
-┃                                          ┃│@@ -40,9 +42,13 @@ impl Checkout {                              │
-┃                                          ┃│     pub fn is_expired(&self) -> bool {                         │
-┃                                          ┃│-        self.started.elapsed().as_secs() > 30                  │
-┃                                          ┃│-    }                                                          │
 ┃                                          ┃│+        // 30 seconds matches the payment provider's session t…│
 ┃                                          ┃│+        self.clock.now() - self.started_at >= Self::SESSION_TI…│
 ┃                                          ┃│+    }                                                          │
 ┃                                          ┃│+                                                               │
 ┃                                          ┃│+    pub const SESSION_TIMEOUT_MS: Millis = 30_000;             │
 ┃                                          ┃│                                                                │
+┃                                          ┃│     pub fn summary(&self) -> String {                          │
+┃                                          ┃│                                                                │
+┃                                          ┃│▌tests/checkout.rs +8 −0                                        │
+┃                                          ┃│@@ -0,0 +1,8 @@                                                 │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────╯
 type to filter  ↑↓ select  enter run  esc close                                peer to peer · 1 running · demo
 ```

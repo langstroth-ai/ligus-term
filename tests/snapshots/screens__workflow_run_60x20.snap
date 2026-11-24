@@ -3,22 +3,22 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA]+1• │ 1 2 Flows 3 4 5 6 7 8(1) 9           Northwind API
-┏ Workflows 2 · Runs 2 ━━━┓╭ Detail ───────────────────────╮
-┃▸ Implement, review, s…  ┃│Implement, review, ship        │
-┃▸ Weekly security dige…  ┃│awaiting-gate                  │
-┃  Impleme… ●●◆ awaiting-g┃│started by Mara 30m ago ·      │
-┃  Weekly … ● completed 1d┃│driven by This device          │
-┃                         ┃│input inject a fake clock      │
-┃                         ┃│                               │
-┃                         ┃│  ● Implement @coder  succeeded│
-┃                         ┃│      Changed the checkout s…  │
-┃                         ┃│  ● Review @reviewer  succeeded│
-┃                         ┃│      Looks right; the timeo…  │
-┃                         ┃│  ◆ Sign-off gate (1 approval) │
-┃                         ┃│awaiting-approval              │
-┃                         ┃│                               │
-┃                         ┃│A approve the gate  R reject it│
-┃                         ┃│X cancel the run               │
-┃                         ┃│enter open its chat            │
-┗━━━━━━━━━━━━━━━━━━━━━━━━━┛╰───────────────────────────────╯
-↑↓ select  S start  A approve gate  R reject  …  ? help
+┏ Workflows 2 · Runs 2 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃▸ Implement, review, ship  Fix flaky checkout test        ┃
+┃▸ Weekly security digest  Migrate auth to passkeys        ┃
+┃  Implement, review, ship ●●◆ awaiting-gate 4m            ┃
+┃  Weekly security digest ● completed 1d                   ┃
+┃                                                          ┃
+┃                                                          ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+╭ Detail ──────────────────────────────────────────────────╮
+│Implement, review, ship  awaiting-gate                    │
+│started by Mara 30m ago · driven by This device           │
+│input inject a fake clock                                 │
+│                                                          │
+│  ● Implement @coder  succeeded                           │
+│      Changed the checkout struct and the timeout check.  │
+│  ● Review @reviewer  succeeded                           │
+│      Looks right; the timeout has a test.                │
+╰──────────────────────────────────────────────────────────╯
+enter open chat  A approve gate  . actions  ? help

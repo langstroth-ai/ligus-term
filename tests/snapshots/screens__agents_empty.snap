@@ -3,34 +3,34 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
-┏ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃Agent        Status   Runtime      Runs on            Who can use            Doing                          ┃
-┃@primary     idle     claude-code  This device        Everyone               answers untagged messages      ┃
-┃@coder       busy     claude-code  sff · online       Only me                working 40%: wiring the CSV exp┃
-┃@reviewer    idle     codex        This device        Everyone               reviews diffs                  ┃
-┃@scout       idle     ollama       sff · online       Everyone                                              ┃
-┃                                                                                                            ┃
-┃                                                                                                            ┃
-┃                                                                                                            ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-╭ Available on this device ──────────────────────────────────────────────────────────────────────────────────╮
-│No agent runtime found on this device.                                                                      │
-│Install Claude Code, Codex, the GitHub Copilot CLI or the Antigravity CLI (agy), start Ollama, or set       │
-│ANTHROPIC_API_KEY / OPENAI_API_KEY / OPENROUTER_API_KEY, then open this tab again.                          │
-╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-╭ Usage on this device ──────────────────────────────────────────────────────────────────────────────────────╮
-│Usage is shown to the agent's owner, on the device that runs it.                                            │
-│                                                                                                            │
-│                                                                                                            │
-╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-╭ Hand-offs ─────────────────────────────────────────────────────────────────────────────────────────────────╮
-│@coder → @reviewer review the fake-clock change 20m                                                         │
-╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-╭ Runtimes ──────────────────────────────────────────────────────────────────────────────────────────────────╮
-│Runtime       Kind                     Model                              Where         Status              │
-│claude-code   Claude Code              default                            local CLI     Configured · Active │
-│codex         Codex                    default                            local CLI     Configured          │
-│ollama        Ollama (local)           qwen3-coder:30b                    local server  Configured          │
-│copilot       GitHub Copilot CLI       default                            local CLI     Not configured      │
-╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-↑↓ agents  N add agent  r runtime  E who can use  ? help                       peer to peer · 1 running · demo
+┏ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Agent ───────────────────────────────────────────────────╮
+┃@primary   idle                                 ┃│@primary  idle                                            │
+┃@coder     busy · sff                           ┃│                                                          │
+┃@reviewer  idle                                 ┃│Runtime     claude-code                                   │
+┃@scout     idle · sff                           ┃│Runs on     This device                                   │
+┃                                                ┃│Who can use Everyone                                      │
+┃                                                ┃│Doing       answers untagged messages                     │
+┃                                                ┃│                                                          │
+┃                                                ┃│Usage       its owner sees it                             │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                      ┏ Add an agent ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                      │
+┃                      ┃No agent runtime found on this device; ? lists what to install┃                      │
+┃                      ┃esc close                                                     ┃                      │
+┃                      ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                      │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────╯
+N add agent  . actions  ? help                                                 peer to peer · 1 running · demo

@@ -5,12 +5,12 @@ expression: screen
 [NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
 ┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓ Locked down  prompt-injection marker in a tool result (fetch_url)                                                              ╭ This chat ───────────────────────────╮
 ┃  ◆ Fix flaky checkout … 12m  ┃ U clear lockdown · no network for agents · every proposal needs a human                                                        │Proposals                             │
-┃  #dev                        ┃╭ Migrate auth to passkeys ────────────────────────────────────────────────────────────────────────────────────────────────────╮│◆ Workflow: Dependency audit before r…│
-┃  ◆ Migrate auth to pas… 50m  ┃│             Lin  55m                                                                                                         ││  open 0/1                            │
-┃  #dev                        ┃│               @scout check the forum thread about passkey fallbacks                                                          ││                                      │
-┃  Weekly release notes    1d  ┃│                                                                                                                              ││Runs                                  │
-┃                              ┃│             @scout  via ollama · on sff  50m                                                                                 ││· Weekly security digest              │
-┃                              ┃│               ▸ fetch_url https://forum.example/passkey-fallbacks done                                                       ││  completed                           │
+┃  ◆ Migrate auth to pas… 50m  ┃╭ Migrate auth to passkeys ────────────────────────────────────────────────────────────────────────────────────────────────────╮│◆ Workflow: Dependency audit befo… 0/1│
+┃  Weekly release notes    1d  ┃│             Lin  55m                                                                                                         ││                                      │
+┃                              ┃│               @scout check the forum thread about passkey fallbacks                                                          ││Runs                                  │
+┃                              ┃│                                                                                                                              ││· Weekly security digest completed    │
+┃                              ┃│             @scout  via ollama · on sff  50m                                                                                 ││                                      │
+┃                              ┃│               ▸ fetch_url https://forum.example/passkey-fallbacks done                                                       ││                                      │
 ┃                              ┃│               The page contained instructions aimed at agents, so this chat is locked down.                                  ││                                      │
 ┃                              ┃│               ◆ proposal “Workflow: Dependency audit before releases” · open 0/1 · p to review                               ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
@@ -51,4 +51,4 @@ expression: screen
 ┃                              ┃╭ Message the room ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮│                                      │
 ┃                              ┃│i to write · @ mentions an agent or a person                                                                                  ││                                      │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯╰──────────────────────────────────────╯
-↑↓ chats  i write  N new chat  tab pane  w workspaces  ? help                                                                                                            peer to peer · 1 running · demo
+i write  N new chat  tab pane  . actions  ? help                                                                                                                         peer to peer · 1 running · demo

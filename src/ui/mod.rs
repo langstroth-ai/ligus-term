@@ -476,6 +476,12 @@ fn status_hints(s: &State) -> (Vec<String>, String) {
             "esc close".into(),
         );
     }
+    if let Some(crate::app::state::Overlay::RowMenu { .. }) = &s.overlay {
+        return (vec!["↑↓ select".into(), "enter choose".into()], "esc close".into());
+    }
+    // The view's primary action first, then the row menu; every other key
+    // is in the menu, the palette and the help.
+    let menu = h(C::Nav, RowMenu, "actions");
     let hints: Vec<String> = match (s.view, s.focus) {
         (View::Chats, Focus::Composer) => vec![
             h(C::Composer, Send, "send"),
@@ -483,52 +489,29 @@ fn status_hints(s: &State) -> (Vec<String>, String) {
             "@ mention".into(),
             h(C::Composer, CancelCompose, "leave"),
         ],
-        (View::Chats, _) => vec![
-            "↑↓ chats".into(),
-            h(C::Chat, Compose, "write"),
-            h(C::Chat, NewChat, "new chat"),
-            h(C::Global, FocusNext, "pane"),
-            h(C::Global, SwitchWorkspace, "workspaces"),
-        ],
-        (View::Proposals, Focus::Detail) => vec![
-            "↑↓ scroll".into(),
-            h(C::Diff, NextHunk, "next hunk"),
-            h(C::Diff, PrevHunk, "prev hunk"),
-            h(C::Review, Approve, "approve"),
-            h(C::Review, Reject, "reject"),
-            h(C::Review, ApplyOnHost, "apply"),
-        ],
-        (View::Proposals, _) => vec![
-            "↑↓ proposals".into(),
-            h(C::Nav, Select, "diff"),
-            h(C::Review, Approve, "approve"),
-            h(C::Review, Reject, "reject"),
-            h(C::Review, ApplyOnHost, "apply"),
-        ],
-        (View::People, _) => vec![
-            "↑↓ people".into(),
-            h(C::People, ChangeRole, "role"),
-            h(C::People, RemoveMember, "remove"),
-            h(C::People, Invite, "invite"),
-            h(C::People, AdmitBox, "admit box"),
-        ],
-        (View::Agents, _) => vec![
-            "↑↓ agents".into(),
-            h(C::Agents, AddAgent, "add agent"),
-            h(C::Agents, ChangeRuntime, "runtime"),
-            h(C::Agents, ToggleAccess, "who can use"),
-        ],
-        (View::Notifications, _) => vec!["↑↓ select".into(), h(C::Nav, Select, "open"), h(C::Notifications, MarkAllRead, "mark all read")],
-        (View::Settings, _) => vec!["↑↓ select".into(), h(C::Settings, Toggle, "toggle")],
-        (View::Hosts, _) => vec!["↑↓ hosts".into(), h(C::Hosts, BindCheckout, "bind checkout")],
-        (View::Workflows, _) => vec![
-            "↑↓ select".into(),
-            h(C::Workflows, StartRun, "start"),
-            h(C::Workflows, ApproveGate, "approve gate"),
-            h(C::Workflows, RejectGate, "reject"),
-            h(C::Workflows, CancelRun, "cancel"),
-        ],
-        (View::Memory, _) => vec!["↑↓ task state and memory".into()],
+        (View::Chats, _) => vec![h(C::Chat, Compose, "write"), h(C::Chat, NewChat, "new chat"), h(C::Global, FocusNext, "pane"), menu],
+        (View::Proposals, Focus::Detail) => {
+            vec![h(C::Diff, NextHunk, "next hunk"), h(C::Diff, PrevHunk, "prev hunk"), h(C::Review, Approve, "approve"), menu]
+        }
+        (View::Proposals, _) => vec![h(C::Nav, Select, "diff"), h(C::Review, Approve, "approve"), menu],
+        (View::People, _) => vec![h(C::People, Invite, "invite"), menu],
+        (View::Agents, _) => vec![h(C::Agents, AddAgent, "add agent"), menu],
+        (View::Notifications, _) => vec![h(C::Nav, Select, "open"), h(C::Notifications, MarkAllRead, "mark all read"), menu],
+        (View::Settings, _) => vec![h(C::Settings, Toggle, "toggle")],
+        (View::Hosts, _) => vec![h(C::Hosts, BindCheckout, "bind checkout")],
+        (View::Workflows, _) => match s.selected_workflow_item() {
+            Some(crate::app::state::WorkflowItem::Run(r)) => {
+                let mut v = vec![h(C::Nav, Select, "open chat")];
+                if r.stages.iter().any(|st| st.status == crate::backend::model::StageStatus::AwaitingApproval) {
+                    v.push(h(C::Workflows, ApproveGate, "approve gate"));
+                }
+                v.push(menu);
+                v
+            }
+            Some(_) => vec![h(C::Workflows, StartRun, "start run"), menu],
+            None => vec![],
+        },
+        (View::Memory, _) => vec!["↑↓ select".into()],
     };
     // While a text field has the keyboard only a command chord (f1) helps.
     let help = if s.typing_text() {

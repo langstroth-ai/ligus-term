@@ -9,8 +9,7 @@ expression: screen
 ┃  Safety code     4821 0937 5512                          ┃
 ┃                                                          ┃
 ┃Notifications and agents                                  ┃
-┃ [x] Notify me when I'm @mentioned or needed  a bell; a   ┃
-┃desktop notification while lt is in the background        ┃
+┃ [x] Notify me when I'm @mentioned or needed              ┃
 ┃ [ ] Let agents edit files and run commands  on this      ┃
 ┃device's hosts                                            ┃
 ┃                                                          ┃
@@ -20,5 +19,6 @@ expression: screen
 ┃  Secret store    none (demo)                             ┃
 ┃  Backend         demo                                    ┃
 ┃  Sync            no relay: peer to peer, or this device  ┃
+┃only                                                      ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-↑↓ select  enter toggle  ? help     peer to peer · 1 running
+enter toggle  ? help         peer to peer · 1 running · demo

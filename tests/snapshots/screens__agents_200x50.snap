@@ -3,52 +3,52 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
-┏ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃Agent        Status   Runtime      Runs on            Who can use            Doing                                                                                                                    ┃
-┃@primary     idle     claude-code  This device        Everyone               answers untagged messages                                                                                                ┃
-┃@coder       busy     claude-code  sff · online       Only me                working 40%: wiring the CSV export                                                                                       ┃
-┃@reviewer    idle     codex        This device        Everyone               reviews diffs                                                                                                            ┃
-┃@scout       idle     ollama       sff · online       Everyone                                                                                                                                        ┃
-┃                                                                                                                                                                                                      ┃
-┃                                                                                                                                                                                                      ┃
-┃                                                                                                                                                                                                      ┃
-┃                                                                                                                                                                                                      ┃
-┃                                                                                                                                                                                                      ┃
-┃                                                                                                                                                                                                      ┃
-┃                                                                                                                                                                                                      ┃
-┃                                                                                                                                                                                                      ┃
-┃                                                                                                                                                                                                      ┃
-┃                                                                                                                                                                                                      ┃
-┃                                                                                                                                                                                                      ┃
-┃                                                                                                                                                                                                      ┃
-┃                                                                                                                                                                                                      ┃
-┃                                                                                                                                                                                                      ┃
-┃                                                                                                                                                                                                      ┃
-┃                                                                                                                                                                                                      ┃
-┃                                                                                                                                                                                                      ┃
-┃                                                                                                                                                                                                      ┃
-┃                                                                                                                                                                                                      ┃
-┃                                                                                                                                                                                                      ┃
-┃                                                                                                                                                                                                      ┃
-┃                                                                                                                                                                                                      ┃
-┃                                                                                                                                                                                                      ┃
-┃                                                                                                                                                                                                      ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-╭ Available on this device · N or enter adds an agent ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│Runtime                  Model            Version   Status     Detail                                                                                                                                 │
-│GitHub Copilot CLI       default          1.0.106   not ready  no Copilot CLI login found: run `copilot login` in a terminal                                                                          │
-│Ollama (local)           qwen3:8b                   ready      Ollama at 127.0.0.1:11434                                                                                                              │
-╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-╭ Usage on this device ────────────────────────────────────────────────────────────────────────────╮╭ Hand-offs ───────────────────────────────────────────────────────────────────────────────────────╮
-│Usage is shown to the agent's owner, on the device that runs it.                                  ││@coder → @reviewer review the fake-clock change 20m                                               │
-│                                                                                                  ││                                                                                                  │
-│                                                                                                  ││                                                                                                  │
-╰──────────────────────────────────────────────────────────────────────────────────────────────────╯╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
-╭ Runtimes ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│Runtime       Kind                     Model                                                                                                                        Where         Status              │
-│claude-code   Claude Code              default                                                                                                                      local CLI     Configured · Active │
-│codex         Codex                    default                                                                                                                      local CLI     Configured          │
-│ollama        Ollama (local)           qwen3-coder:30b                                                                                                              local server  Configured          │
-│copilot       GitHub Copilot CLI       default                                                                                                                      local CLI     Not configured      │
-╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-↑↓ agents  N add agent  r runtime  E who can use  ? help                                                                                                                 peer to peer · 1 running · demo
+┏ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Agent ─────────────────────────────────────────────────────────────────────────────────────────────────────╮
+┃@primary   idle                                                                         ┃│@primary  idle                                                                                              │
+┃@coder     busy · sff                                                                   ┃│                                                                                                            │
+┃@reviewer  idle                                                                         ┃│Runtime     claude-code                                                                                     │
+┃@scout     idle · sff                                                                   ┃│Runs on     This device                                                                                     │
+┃                                                                                        ┃│Who can use Everyone                                                                                        │
+┃                                                                                        ┃│Doing       answers untagged messages                                                                       │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│Usage       its owner sees it                                                                               │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┃                                                                                        ┃│                                                                                                            │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+N add agent  . actions  ? help                                                                                                                                           peer to peer · 1 running · demo

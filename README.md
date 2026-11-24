@@ -253,13 +253,14 @@ Anyone can approve or reject a gate, from `lt`, the desktop or the phone.
 
 ### Agents and hosts
 
-Agents (`a`) lists each agent's status (busy, idle, offline), what it says
-it's doing, its runtime and its host, plus the runtimes and recent hand-offs
-between agents; `r` changes an agent's runtime. "Who can use" shows each
-agent's access: a personal agent is "Only me" (its owner's) until its owner
+Agents (`a`) lists each agent on one line with its status (busy, idle,
+offline) and its host when that isn't this device; the selected agent's
+detail shows its runtime, host, who can use it, what it says it's doing,
+its usage and its recent hand-offs. Its row menu (`.`) changes its runtime
+or who can use it. "Who can use" shows each agent's access: a personal agent is "Only me" (its owner's) until its owner
 opens it to everyone with `E` (`lt --plain access N everyone|owner`); one
 you can't use is greyed out with the reason, and the @mention list shows it
-dimmed and won't complete it. For an agent you own, the usage pane shows
+dimmed and won't complete it. For an agent you own, the detail shows
 this device's counts per member, today and this month (UTC days), with an
 estimated cost where the runtime reports token usage (most CLIs report none
 and count in turns only). A turn lt would run for someone the agent isn't
@@ -272,10 +273,10 @@ device and the workers: online (from heartbeats) or last seen, busy or
 idle, and their agents. Memory (`y`) shows agents' live task state and the
 workspace memory, read-only.
 
-#### Available on this device
+#### Adding an agent from this device
 
-Under the agents, "Available on this device" lists what this device could
-run agents on that no agent here uses yet, found the way the desktop app
+"Add an agent" (`N`, the Agents view's primary action) opens a popup of
+what this device could run agents on that no agent here uses yet, found the way the desktop app
 finds it at onboarding:
 
 - **CLI agents on `PATH`**: Claude Code (`claude`), Codex (`codex`), the
@@ -288,23 +289,25 @@ finds it at onboarding:
   `OPENAI_API_KEY`, `OPENROUTER_API_KEY`. `lt` keeps no provider keys in
   its own secret store, so there is nothing more to list there.
 
-Each row shows the runtime's kind, model, version and whether it is ready
-(installed and signed in, a key set, or a model pulled), or what to run to
-fix it (`codex login`, `copilot login`, `ollama pull`). Detection never
+Each row shows the runtime's kind, model and whether it is ready
+(installed and signed in, a key set, or a model pulled); the selected one's
+detail says where it was found or what to run to fix it (`codex login`,
+`copilot login`, `ollama pull`). Detection never
 sends a prompt or spends quota (a CLI is only asked for `--version`),
 never opens a keychain (a sign-in counts when its file exists or its token
 variable is set; Claude Code's macOS sign-in lives in the keychain, so it
 shows as unchecked and still counts as ready) and never reads or prints a
 key.
 
-Select a row and press `N` or `enter`, name the agent (a free name is
+Select one and press `enter`, name the agent (a free name is
 suggested) and press `enter`. That is the desktop's add-agent path: one
 signed roster event, an agent that is yours, "Only me" until you share it
 with `E`, and runs on this device (an Admin's is pinned to it; a
 Contributor's runs on its owner's device, this one). Its runtime is a
 device-local one (`local:codex`, `local:ollama/qwen3:8b`): a CLI uses its
 own sign-in, a hosted API reads its key from this device's environment at
-each turn. When nothing is found, the section says what to install or set.
+each turn. When nothing is found, the popup says so and `?` lists what to
+install or set.
 Plain mode: `lt --plain available`, then `lt --plain add-agent N [NAME]`.
 
 ### The proposals queue
@@ -421,16 +424,16 @@ Press a view's key from anywhere outside a text field:
 | `c` `1` | Chats | Chat list, transcript with streaming replies and tool calls, which agents are thinking, the composer with @mention completion, the lockdown bar |
 | `f` `2` | Workflows | Definitions and runs, live: each stage's status and output, the gate waiting for approval, who drives the run |
 | `p` `3` | Proposals | The queue across chats, with votes, Approve/Reject, apply on a host, and a diff viewer |
-| `a` `4` | Agents | Agents, runtimes and recent hand-offs |
+| `a` `4` | Agents | Agents, one line each, and the selected one's runtime, host, access, usage and hand-offs |
 | `h` `5` | Hosts | This device and the workers, and the checkout this device applies proposals in |
 | `y` `6` | Memory | Agents' task state and the workspace memory, read-only |
-| `m` `7` | People | Members, roles, founder and service badges, invites, admitting a box; actions the rank rules refuse are crossed out with the reason |
+| `m` `7` | People | Members, one line each with their role (founder and box marks); invites, admitting a box and role changes in the row menu, where actions the rank rules refuse are dimmed with the reason |
 | `n` `8` | Notifications | @mentions of you; Enter jumps to the chat |
 | `s` `9` | Settings | You, notifications, this device (data dir, secret store), theme and config |
 | `w` | Workspaces | The switcher; `+` creates, joins or connects another |
 | `:` `ctrl-p` `ctrl-k` | Commands | The command palette: type a few letters of any action, view, workspace, chat, proposal, run or agent, and `enter`. The focused view's actions come first, each with its key, so the palette teaches the keys |
 | `!` | Messages | This session's notices and errors in full, newest first: a toast that went by can be read again |
-| `?` | Help | Every keybinding, as currently configured: what has focus first, scrollable, and `/` narrows it to the keys that match |
+| `?` | Help | What the view is for, then every keybinding, as currently configured: what has focus first, scrollable, and `/` narrows it to the keys that match |
 
 ![A chat in lt: the chat list, a transcript where @coder streams its reply after two file tool calls, @reviewer thinking, and the composer](assets/screens/chat.svg)
 
@@ -445,18 +448,30 @@ The default keys (all can be rebound, see [Configure](#configure)):
 | Where | Keys |
 |---|---|
 | Anywhere | `q` / `ctrl-c` quit (while this device drives a run or an agent's turn it asks first; a second `ctrl-c` quits) · `:` / `ctrl-p` / `ctrl-k` command palette · `space` then pause: a sheet of the keys you can press here (any key then acts as usual) · `?` / `f1` help · `!` messages · `esc` back (to the view you came from) · `ctrl-o` / `alt-left` the previous view, `alt-right` forward again · `w` / `ctrl-w` workspaces · `+` add a workspace · `tab` / `shift-tab` next or previous pane · `ctrl-l` the chat list · `ctrl-f` focus mode (no top bar or key hints; one quiet `◆` badge while something needs you) · `ctrl-x` stop the agent's turn in this chat (when it runs on this device) |
-| Lists | `↑ ↓` or `j k` move · `pgup pgdn` (`ctrl-u ctrl-d`) · `g G` (`home end`) first and last · `enter` (`l`, `→`) open · `/` find as you type (`↑ ↓` the previous or next match, `enter` keep, `esc` back to where you were) |
+| Lists | `↑ ↓` or `j k` move · `pgup pgdn` (`ctrl-u ctrl-d`) · `g G` (`home end`) first and last · `enter` (`l`, `→`) the row's main action (open) · `.` / `shift-f10` the row menu (see below) · `/` find as you type (`↑ ↓` the previous or next match, `enter` keep, `esc` back to where you were) |
 | Chats | `D` the whole transcript in `$PAGER` (or left in your terminal's scrollback) · `i` write (lt starts with the cursor in the open chat's composer; `esc` leaves it) · `N` new chat · `o` show what tool calls returned · `L` lock the chat down · `U` clear the lockdown |
 | Composer | `enter` send · `alt-enter` / `ctrl-j` new line (`shift-enter` too, in terminals with the kitty keyboard protocol) · `@` mention, then `tab` or `enter` to accept · `↑` on an empty draft recalls what you sent (`↓` comes back) · `ctrl-r` search what you sent · `ctrl-g` write the draft in `$VISUAL` / `$EDITOR` · `esc` leave (the draft is kept) |
 | Workflows | `S` start a run (asks for its input) · `A` / `R` approve or reject the run's waiting gate (reject asks first) · `X` cancel the run (asks first) · `enter` on a run opens its chat |
 | Proposals | `A` approve · `R` reject (asks first) · `O` apply on a host · `W` withdraw the apply request |
 | Diff viewer | `]` / `[` next and previous hunk · `}` / `{` next and previous file |
 | People | `r` change role · `X` remove · `I` invite · `B` admit a box |
-| Agents | `r` change runtime · `E` who can use it · `N` (or `enter` on a row under "Available on this device") add it as an agent |
+| Agents | `r` change runtime · `E` who can use it · `N` add an agent (a popup of what this device has) |
 | Hosts | `b` set this device's checkout for apply on host |
 | Notifications | `M` mark all read |
 | Settings | `enter` / `t` toggle |
 | Passkey prompt | `enter` open the browser · `f` use a recovery-words file · `esc` cancel |
+
+Every view follows one layout: a list of one-line rows (who or what each
+is, then one muted status), the selected row's detail beside it when there
+is one, and the key hints showing only the view's primary action, the row
+menu and help. `enter` does a row's main thing (open, view the diff, open
+the run's chat). Everything else you can do to a row is in its menu: `.`
+(or `shift-f10`) lists the row's actions, then the view's (invite, admit a
+box, mark all read), then the destructive ones last (remove, reject, cancel
+a run), which still ask first. Each entry shows its key, which works in the
+menu and without it; one the rules refuse is dimmed with the reason.
+Explanations of a view are behind `?`; warnings stay on screen (a chat's
+lockdown, no checkout bound, an offline host, a passkey being needed).
 
 The mouse works too (on by default; `mouse = false` in the config turns it
 off): click a tab to open it, a chat or a proposal to select it, the

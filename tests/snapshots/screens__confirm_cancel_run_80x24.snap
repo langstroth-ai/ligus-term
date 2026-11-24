@@ -17,12 +17,12 @@ expression: screen
 ┃       ┃                                                              ┃       │
 ┃       ┃y cancel the run · any other key backs out                    ┃       │
 ┃       ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛       │
-┃                                  ┃│X cancel the run                          │
-┃                                  ┃│enter open its chat                       │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
 ┃                                  ┃│                                          │
 ┃                                  ┃│                                          │
 ┃                                  ┃│                                          │
 ┃                                  ┃│                                          │
 ┃                                  ┃│                                          │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────╯
-↑↓ select  S start  A approve gate  R reject  X cancel  ? help      peer to peer
+enter open chat  A approve gate  . actions  ? help      peer to peer · 1 running

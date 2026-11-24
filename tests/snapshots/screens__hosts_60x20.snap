@@ -3,11 +3,13 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA]+1• │ 1 2 3 4 5 Hosts 6 7 8(1) 9           Northwind API
-┏ Workers & hosts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ Host             Kind  Status   Work Agents     Repos    ┃
-┃ This device      DEVIC online   idle @primary @          ┃
-┃ sff              WORKE online   busy @coder @sc northwind┃
-┃ ada-studio       DEVIC 3h ago   idle                     ┃
+┏ Hosts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃● This device  @primary @reviewer                         ┃
+┃● sff          worker · busy · @coder @scout · northwin…  ┃
+┃○ ada-studio   3h ago                                     ┃
+┃                                                          ┃
+┃                                                          ┃
+┃                                                          ┃
 ┃                                                          ┃
 ┃                                                          ┃
 ┃                                                          ┃
@@ -18,7 +20,5 @@ expression: screen
 ┃                                                          ┃
 ┃                                                          ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-No checkout bound: this device can't apply proposals here. b
-bind one
-A host runs agents and applies approved proposals on its
-↑↓ hosts  b bind checkout  ? help   peer to peer · 1 running
+ No checkout bound: this device can't apply proposals · b b…
+b bind checkout  ? help      peer to peer · 1 running · demo

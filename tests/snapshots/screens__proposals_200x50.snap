@@ -4,16 +4,12 @@ expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
 ┏ Proposals ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Inject the clock into checkout tests ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-┃open     Inject the clock into checkout tests     ┃│open  by @coder · 2 files changed · 1/2 approvals                                                                                                 │
-┃         1/2 approvals · @coder · 37m             ┃│✓ Ada approved · admin                                                                                                                            │
-┃approved Export orders to CSV                     ┃│A Approve   R Reject   O Apply on sff… (needs approval first)                                                                                     │
-┃         2/2 approvals · @coder · 1d              ┃│That host applies it once, on its checkout, and reports the result.                                                                               │
-┃applied  Bump the order schema version            ┃│                                                                                                                                                  │
-┃         2/2 approvals · @reviewer · 2d           ┃│                                                                                                                                                  │
-┃open     Sign-off: inject a fake clock            ┃╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-┃         0/1 approvals · workflow · 4m            ┃╭ Diff · 2 files · hunk 1/3 ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-┃open     Workflow: Dependency audit before rel…   ┃│▌src/checkout.rs +9 −3                                                                                                                            │
-┃         0/1 approvals · @scout · 20m             ┃│@@ -12,7 +12,9 @@ pub struct Checkout {                                                                                                           │
+┃Inject the clock into checkout …  open 1/2 · 37m  ┃│open  by @coder · 2 files changed · 1/2 approvals                                                                                                 │
+┃Export orders to CSV           approved 2/2 · 1d  ┃│✓ Ada approved · admin                                                                                                                            │
+┃Bump the order schema version   applied 2/2 · 2d  ┃╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+┃Sign-off: inject a fake clock      open 0/1 · 4m  ┃╭ Diff · 2 files · hunk 1/3 ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+┃Workflow: Dependency audit befo…  open 0/1 · 20m  ┃│▌src/checkout.rs +9 −3                                                                                                                            │
+┃                                                  ┃│@@ -12,7 +12,9 @@ pub struct Checkout {                                                                                                           │
 ┃                                                  ┃│     pub cart: CartId,                                                                                                                            │
 ┃                                                  ┃│     pub items: Vec<LineItem>,                                                                                                                    │
 ┃                                                  ┃│-    pub started: Instant,                                                                                                                        │
@@ -50,5 +46,9 @@ expression: screen
 ┃                                                  ┃│                                                                                                                                                  │
 ┃                                                  ┃│                                                                                                                                                  │
 ┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
+┃                                                  ┃│                                                                                                                                                  │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-↑↓ proposals  enter diff  A approve  R reject  O apply  ? help                                                                                                           peer to peer · 1 running · demo
+enter diff  A approve  . actions  ? help                                                                                                                                 peer to peer · 1 running · demo

@@ -4,11 +4,13 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 
 ```text
 [NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
-┏ Workers & hosts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃  Host                 Kind    Status     Work  Agents            Repos       ┃
-┃● This device          DEVICE  online     idle  @primary @reviewe             ┃
-┃● sff                  WORKER  online     busy  @coder @scout     northwind-ap┃
-┃○ ada-studio           DEVICE  3h ago     idle                                ┃
+┏ Hosts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃● This device  @primary @reviewer                                             ┃
+┃● sff          worker · busy · @coder @scout · northwind-api                  ┃
+┃○ ada-studio   3h ago                                                         ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
 ┃                                                                              ┃
 ┃                                                                              ┃
 ┃                                                                              ┃
@@ -23,8 +25,6 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 ┃                                                                              ┃
 ┃                                                                              ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-No checkout bound: this device can't apply proposals here. b bind one
-A host runs agents and applies approved proposals on its checkout. A worker is
-headless.
-↑↓ hosts  b bind checkout  ? help                peer to peer · 1 running · demo
+ No checkout bound: this device can't apply proposals · b bind
+b bind checkout  ? help                          peer to peer · 1 running · demo
 ```

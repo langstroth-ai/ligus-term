@@ -3,11 +3,11 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
-┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Member ──────────────────────────────────╮
-┃  Mara · you  owner  founder      ┃│Mara  owner                               │
-┃  Ada  admin                      ┃│                                          │
-┃  Lin  contributor                ┃│Founder: nobody can remove or demote them.│
-┃  Sam  viewer                     ┃│Role (r)                                  │
+┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃Mara (you)  owner · founder                                                   ┃
+┃Ada         admin                                                             ┃
+┃Lin         contributor                                                       ┃
+┃Sam         viewer                                                            ┃
 ┏ Admit a box ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃Sealed to the box (sff): check its fingerprint matches                        ┃
 ┃K3QF-7XMA-2DPL-90RW-ZT4E                                                      ┃
@@ -19,10 +19,10 @@ expression: screen
 ┃                                                                              ┃
 ┃                                                                              ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-┃                                  ┃│your passkey.                             │
-┃                                  ┃│                                          │
-┃                                  ┃│                                          │
-┃                                  ┃│                                          │
-┃                                  ┃│                                          │
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────╯
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 …  ? help  ✓ Confirmed with your passkey         peer to peer · 1 running · demo

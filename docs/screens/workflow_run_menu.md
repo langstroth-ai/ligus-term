@@ -1,0 +1,38 @@
+# A run's row menu
+
+Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
+
+```text
+[NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
+┏ Workflows 2 · Runs 2 ━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Detail ──────────────────────────────────────────────────╮
+┃▸ Implement, review, ship  Fix flaky checkout…  ┃│Implement, review, ship  awaiting-gate                    │
+┃▸ Weekly security digest  Migrate auth to pas…  ┃│started by Mara 30m ago · driven by This device           │
+┃  Implement, review, ship ●●◆ awaiting-gate 4m  ┃│input inject a fake clock                                 │
+┃  Weekly security digest ● completed 1d         ┃│                                                          │
+┃                                                ┃│  ● Implement @coder  succeeded                           │
+┃                                                ┃│      Changed the checkout struct and the timeout check.  │
+┃                                                ┃│  ● Review @reviewer  succeeded                           │
+┃                                                ┃│      Looks right; the timeout has a test.                │
+┃                                                ┃│  ◆ Sign-off gate (1 approval)  awaiting-approval         │
+┃                        ┏ Implement, review, ship ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                        │
+┃                        ┃› A      Approve the gate                                 ┃e                       │
+┃                        ┃  enter  Open its chat                                    ┃                        │
+┃                        ┃  S      Start another run…                               ┃                        │
+┃                        ┃──────────────────────────────────────────────────────────┃                        │
+┃                        ┃  R      Reject the gate…                                 ┃                        │
+┃                        ┃  X      Cancel the run…                                  ┃                        │
+┃                        ┃                                                          ┃                        │
+┃                        ┃enter choose · or its key · esc close                     ┃                        │
+┃                        ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                        │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────╯
+↑↓ select  enter choose  esc close                                             peer to peer · 1 running · demo
+```

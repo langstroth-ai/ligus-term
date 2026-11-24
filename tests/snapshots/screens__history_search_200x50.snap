@@ -5,16 +5,16 @@ expression: screen
 [NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
 ╭ Chats ───────────────────────╮╭ Fix flaky checkout test ─────────────────────────────────────────────────────────────────────────────────────────────────────╮╭ This chat ───────────────────────────╮
 │  ◆ Fix flaky checkout … 12m  ││             Ada  40m                                                                                                         ││Proposals                             │
-│  #dev                        ││               The checkout test fails about one run in ten. Can we stop it reading the wall clock?                           ││◆ Inject a clock into the session che…│
-│  ◆ Migrate auth to pas… 50m  ││                                                                                                                              ││  open 0/1                            │
-│  #dev                        ││             @coder  via claude-code · on sff  38m                                                                            ││◆ Inject the clock into checkout tests│
-│  Weekly release notes    1d  ││               Yes. The payment tests already use a fake clock, so it's a small change. I'll propose it.                      ││  open 1/2                            │
-│                              ││               ◆ proposal “Inject the clock into checkout tests” · open 1/2 · p to review                                     ││◆ Sign-off: inject a fake clock       │
-│                              ││                                                                                                                              ││  open 0/1                            │
+│  ◆ Migrate auth to pas… 50m  ││               The checkout test fails about one run in ten. Can we stop it reading the wall clock?                           ││◆ Inject a clock into the session… 0/1│
+│  Weekly release notes    1d  ││                                                                                                                              ││◆ Inject the clock into checkout … 1/2│
+│                              ││             @coder  via claude-code · on sff  38m                                                                            ││◆ Sign-off: inject a fake clock 0/1   │
+│                              ││               Yes. The payment tests already use a fake clock, so it's a small change. I'll propose it.                      ││                                      │
+│                              ││               ◆ proposal “Inject the clock into checkout tests” · open 1/2 · p to review                                     ││Runs                                  │
+│                              ││                                                                                                                              ││· Implement, review, sh… awaiting-gate│
 │                              ││             Ada  12m                                                                                                         ││                                      │
-│                              ││               @Mara can you review the timeout? 30 seconds is what the provider uses.                                        ││Runs                                  │
-│                              ││               ◆ proposal “Sign-off: inject a fake clock” · open 0/1 · p to review                                            ││· Implement, review, ship             │
-│                              ││                                                                                                                              ││  awaiting-gate                       │
+│                              ││               @Mara can you review the timeout? 30 seconds is what the provider uses.                                        ││                                      │
+│                              ││               ◆ proposal “Sign-off: inject a fake clock” · open 0/1 · p to review                                            ││                                      │
+│                              ││                                                                                                                              ││                                      │
 │                              ││             Mara  now                                                                                                        ││                                      │
 │                              ││               @coder can you rerun the flaky test?                                                                           ││                                      │
 │                              ││                                                                                                                              ││                                      │

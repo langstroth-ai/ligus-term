@@ -5,10 +5,10 @@ expression: screen
 [NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
 ┏ Chats ━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test · 1/3 ───────────────────╮
 ┃  ◆ Fix flaky check… 12m  ┃│Ada  40m                                          │
-┃  #dev                    ┃│  The checkout test fails about one run in ten.   │
-┃  ◆ Migrate auth to… 50m  ┃│  Can we stop it reading the wall clock?          │
-┃  #dev                    ┃│                                                  │
-┃  Weekly release not… 1d  ┃│@coder  via claude-code · on sff  38m             │
+┃  ◆ Migrate auth to… 50m  ┃│  The checkout test fails about one run in ten.   │
+┃  Weekly release not… 1d  ┃│  Can we stop it reading the wall clock?          │
+┃                          ┃│                                                  │
+┃                          ┃│@coder  via claude-code · on sff  38m             │
 ┃                          ┃│  Yes. The payment tests already use a fake clock,│
 ┃   ┏ Workspaces ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓   │
 ┃   ┃1 [NA] Northwind API  owner · peer to peer                            ┃   │
@@ -25,4 +25,4 @@ expression: screen
 ┃                          ┃╭ Message the room ────────────────────────────────╮
 ┃                          ┃│i to write · @ mentions an agent or a person      │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────╯
-↑↓ chats  i write  N new chat  tab pane  w workspaces  ? help       peer to peer
+i write  N new chat  tab pane  . actions  ? help        peer to peer · 1 running

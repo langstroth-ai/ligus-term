@@ -3,17 +3,20 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
-┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ────┏ Help · 1-46 of 97 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────╮╭ This chat ───────────────────────────╮
-┃  ◆ Fix flaky checkout … 12m  ┃│             Ada  40m        ┃What has focus comes first. / searches. Rebind keys in the config file.   ┃                     ││Proposals                             │
-┃  #dev                        ┃│               The checkout t┃                                                                          ┃                     ││◆ Inject the clock into checkout tests│
-┃  ◆ Migrate auth to pas… 50m  ┃│                             ┃Chats  here                                                               ┃                     ││  open 1/2                            │
-┃  #dev                        ┃│             @coder  via clau┃  i                        Write a message                                ┃                     ││◆ Sign-off: inject a fake clock       │
-┃  Weekly release notes    1d  ┃│               Yes. The payme┃  N                        New chat                                       ┃                     ││  open 0/1                            │
-┃                              ┃│               ◆ proposal “In┃  D                        The whole transcript in $PAGER (or your termina┃                     ││                                      │
-┃                              ┃│                             ┃  o                        Show or hide what tool calls returned          ┃                     ││Runs                                  │
-┃                              ┃│             Ada  12m        ┃  L                        Lock this chat down                            ┃                     ││· Implement, review, ship             │
-┃                              ┃│               @Mara can you ┃  U                        Clear the lockdown                             ┃                     ││  awaiting-gate                       │
-┃                              ┃│               ◆ proposal “Si┃                                                                          ┃                     ││                                      │
+┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ────┏ Help · 1-46 of 101 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────╮╭ This chat ───────────────────────────╮
+┃  ◆ Fix flaky checkout … 12m  ┃│             Ada  40m        ┃Each chat is a room with people and agents. @ mentions an agent or a      ┃                     ││Proposals                             │
+┃  ◆ Migrate auth to pas… 50m  ┃│               The checkout t┃person; enter on a chat opens it and puts you in the composer.            ┃                     ││◆ Inject the clock into checkout … 1/2│
+┃  Weekly release notes    1d  ┃│                             ┃                                                                          ┃                     ││◆ Sign-off: inject a fake clock 0/1   │
+┃                              ┃│             @coder  via clau┃. opens a row's actions · / searches · rebind keys in the config file     ┃                     ││                                      │
+┃                              ┃│               Yes. The payme┃                                                                          ┃                     ││Runs                                  │
+┃                              ┃│               ◆ proposal “In┃Chats  here                                                               ┃                     ││· Implement, review, sh… awaiting-gate│
+┃                              ┃│                             ┃  i                        Write a message                                ┃                     ││                                      │
+┃                              ┃│             Ada  12m        ┃  N                        New chat                                       ┃                     ││                                      │
+┃                              ┃│               @Mara can you ┃  D                        The whole transcript in $PAGER (or your termina┃                     ││                                      │
+┃                              ┃│               ◆ proposal “Si┃  o                        Show or hide what tool calls returned          ┃                     ││                                      │
+┃                              ┃│                             ┃  L                        Lock this chat down                            ┃                     ││                                      │
+┃                              ┃│                             ┃  U                        Clear the lockdown                             ┃                     ││                                      │
+┃                              ┃│                             ┃                                                                          ┃                     ││                                      │
 ┃                              ┃│                             ┃Lists  here                                                               ┃                     ││                                      │
 ┃                              ┃│                             ┃  ↑, k                     Up                                             ┃                     ││                                      │
 ┃                              ┃│                             ┃  ↓, j                     Down                                           ┃                     ││                                      │
@@ -21,7 +24,8 @@ expression: screen
 ┃                              ┃│                             ┃  pgdn, ctrl-d             Page down                                      ┃                     ││                                      │
 ┃                              ┃│                             ┃  home, g                  First                                          ┃                     ││                                      │
 ┃                              ┃│                             ┃  end, G                   Last                                           ┃                     ││                                      │
-┃                              ┃│                             ┃  enter, l, →              Open                                           ┃                     ││                                      │
+┃                              ┃│                             ┃  enter, l, →              Open (the row's main action)                   ┃                     ││                                      │
+┃                              ┃│                             ┃  ., shift-f10             Actions for this row and this view (destructive┃                     ││                                      │
 ┃                              ┃│                             ┃  /                        Find in this list (as you type; ↑↓ next match) ┃                     ││                                      │
 ┃                              ┃│                             ┃                                                                          ┃                     ││                                      │
 ┃                              ┃│                             ┃Anywhere                                                                  ┃                     ││                                      │
@@ -37,18 +41,14 @@ expression: screen
 ┃                              ┃│                             ┃  c, 1                     Chats                                          ┃                     ││                                      │
 ┃                              ┃│                             ┃  f, 2                     Workflows and runs                             ┃                     ││                                      │
 ┃                              ┃│                             ┃  p, 3                     Proposals                                      ┃                     ││                                      │
-┃                              ┃│                             ┃  a, 4                     Agents, runtimes and hand-offs                 ┃                     ││                                      │
+┃                              ┃│                             ┃  a, 4                     Agents and hand-offs                           ┃                     ││                                      │
 ┃                              ┃│                             ┃  h, 5                     Hosts and workers                              ┃                     ││                                      │
 ┃                              ┃│                             ┃  y, 6                     Task state and memory                          ┃                     ││                                      │
 ┃                              ┃│                             ┃  m, 7                     People                                         ┃                     ││                                      │
 ┃                              ┃│                             ┃  n, 8                     Notifications                                  ┃                     ││                                      │
-┃                              ┃│                             ┃  s, 9                     Settings                                       ┃                     ││                                      │
-┃                              ┃│                             ┃  tab                      Next pane                                      ┃                     ││                                      │
-┃                              ┃│                             ┃  shift-tab                Previous pane                                  ┃                     ││                                      │
-┃                              ┃│                             ┃  ctrl-x                   Stop the agent's turn in this chat (when it run┃                     ││                                      │
-┃                              ┃╰─────────────────────────────┃  ctrl-o, alt-←            The view you were in before                    ┃─────────────────────╯│                                      │
-┃                              ┃                              ┃  alt-→                    Forward again after going back                 ┃                      │                                      │
-┃                              ┃╭ Message the room ───────────┃  ctrl-f                   Focus mode: hide the top bar and the key hints ┃─────────────────────╮│                                      │
-┃                              ┃│i to write · @ mentions an ag┃  ctrl-l                   The chat list (over the chat in a narrow termin┃                     ││                                      │
+┃                              ┃╰─────────────────────────────┃  s, 9                     Settings                                       ┃─────────────────────╯│                                      │
+┃                              ┃                              ┃  tab                      Next pane                                      ┃                      │                                      │
+┃                              ┃╭ Message the room ───────────┃  shift-tab                Previous pane                                  ┃─────────────────────╮│                                      │
+┃                              ┃│i to write · @ mentions an ag┃  ctrl-x                   Stop the agent's turn in this chat (when it run┃                     ││                                      │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰─────────────────────────────┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛─────────────────────╯╰──────────────────────────────────────╯
 / search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                                                                                                              peer to peer · 1 running · demo

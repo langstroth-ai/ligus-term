@@ -6,10 +6,10 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ╭ Chats ───────────────────────╮╭ Fix flaky checkout test · 1/3 ─────────────────────────────────────────────╮
 │  ◆ Fix flaky checkout … 12m  ││  ◆ proposal “Inject the clock into checkout t…” · open 1/2 · p to review   │
-│  #dev                        ││                                                                            │
-│  ◆ Migrate auth to pas… 50m  ││Ada  12m                                                                    │
-│  #dev                        ││  @Mara can you review the timeout? 30 seconds is what the provider uses.   │
-│  Weekly release notes    1d  ││  ◆ proposal “Sign-off: inject a fake clock” · open 0/1 · p to review       │
+│  ◆ Migrate auth to pas… 50m  ││                                                                            │
+│  Weekly release notes    1d  ││Ada  12m                                                                    │
+│                              ││  @Mara can you review the timeout? 30 seconds is what the provider uses.   │
+│                              ││  ◆ proposal “Sign-off: inject a fake clock” · open 0/1 · p to review       │
 │                              ││                                                                            │
 │                              ││Mara  now                                                                   │
 │                              ││  @coder can you rerun the flaky test?                                      │
