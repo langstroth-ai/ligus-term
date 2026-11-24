@@ -97,7 +97,7 @@ impl SetupOps for RealOps {
     }
 
     fn my_role(&self) -> Option<WorkspaceRole> {
-        self.read(|svc, ws| service::my_role(svc, ws))
+        self.read(service::my_role)
     }
     fn lockdown(&self) -> bool {
         self.read(|svc, ws| service::lockdown(svc, ws).0)
@@ -173,10 +173,10 @@ impl SetupOps for RealOps {
         Ok(())
     }
     fn agents(&self) -> Vec<AgentFact> {
-        self.read(|svc, ws| service::agents(svc, ws))
+        self.read(service::agents)
     }
     fn member_names(&self) -> Vec<String> {
-        self.read(|svc, ws| service::member_names(svc, ws))
+        self.read(service::member_names)
     }
     fn add_agent(&mut self, name: &str, runtime_id: &str) -> OpsResult<Uuid> {
         let ws = self.ws()?;
@@ -225,7 +225,7 @@ impl SetupOps for RealOps {
 
     // folder
     fn repos(&self) -> Vec<RepoFact> {
-        self.read(|svc, ws| service::repos(svc, ws))
+        self.read(service::repos)
     }
     fn inspect_folder(&self, path: &str) -> FolderFact {
         let abs = self.abs(path);
@@ -259,15 +259,15 @@ impl SetupOps for RealOps {
         Ok(())
     }
     fn hosts(&self) -> Vec<HostFact> {
-        self.read(|svc, ws| service::hosts(svc, ws))
+        self.read(service::hosts)
     }
 
     // phone, invite
     fn phones(&self) -> Vec<String> {
-        self.read(|svc, ws| service::phones(svc, ws))
+        self.read(service::phones)
     }
     fn invites(&self) -> Vec<InviteFact> {
-        self.read(|svc, ws| service::invites(svc, ws))
+        self.read(service::invites)
     }
 
     // relay

@@ -84,6 +84,23 @@ pub async fn run_effect(b: Arc<dyn Backend>, fx: Effect) -> Msg {
         // The full-screen loop runs the editor itself (it owns the
         // terminal); anywhere else there is no terminal to lend it.
         EditDraft(_) => Msg::Edited(Err(crate::backend::BackendError("the editor runs only in the full-screen app".into()))),
+        LoadSetup(w) => Msg::SetupRows(b.setup_status(w.as_ref()).await),
+        SetupForm(w, flow, inputs) => Msg::SetupForm(flow, b.setup_form(w.as_ref(), flow, inputs).await),
+        SetupRun { workspace, flow, inputs, secrets, dry_run, cancel } => {
+            Msg::SetupRan(flow, b.setup_run(workspace.as_ref(), flow, inputs, secrets, dry_run, cancel).await)
+        }
+        CancelSetup(c) => {
+            c.cancel();
+            Msg::Done { ok: String::new(), result: Ok(()) }
+        }
+        CompletePath(field, text) => {
+            // A directory listing: off the async threads.
+            let home = dirs::home_dir();
+            let c = tokio::task::spawn_blocking(move || crate::setup::complete::complete(&text, home.as_deref()))
+                .await
+                .unwrap_or_else(|_| crate::setup::complete::Completion { text: String::new(), candidates: vec![] });
+            Msg::PathCompleted(field, c)
+        }
     }
 }
 

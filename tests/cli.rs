@@ -234,3 +234,58 @@ fn doctor_and_error_shape() {
     assert_eq!(code, 5, "not found: {out}");
     assert!(out.contains("error\t") && err.contains("lt: no run nope"), "{out} / {err}");
 }
+
+/// `lt setup --json`: one ligus.checks.v1 document, a `<flow>.status`
+/// check per flow; a flow's run has the same shape with its flow, done,
+/// dryRun and results, and the shared exit codes (4: a person's step).
+#[test]
+fn setup_json_shape_and_exit_codes() {
+    let (mut c, _home) = lt();
+    c.args(["--demo", "setup", "--json"]);
+    let (code, out, err) = run(c, "");
+    assert_eq!(code, 0, "{err}");
+    let d: serde_json::Value = serde_json::from_str(out.trim()).unwrap();
+    assert_eq!(d["schema"], "ligus.checks.v1");
+    assert_eq!(d["tool"], "lt");
+    assert_eq!(d["command"], "setup");
+    let ids: Vec<&str> = d["checks"].as_array().unwrap().iter().map(|c| c["id"].as_str().unwrap()).collect();
+    assert_eq!(ids, ["agent.status", "tool.status", "folder.status", "box.status", "phone.status", "invite.status", "relay.status"]);
+
+    let (mut c, _home) = lt();
+    c.args(["--demo", "setup", "agent", "--harness", "claude-code", "--name", "helper", "--dry-run", "--json"]);
+    let (code, out, err) = run(c, "");
+    assert_eq!(code, 0, "{out}{err}");
+    let d: serde_json::Value = serde_json::from_str(out.trim()).unwrap();
+    assert_eq!((d["flow"].as_str(), d["dryRun"].as_bool(), d["done"].as_bool()), (Some("agent"), Some(true), Some(true)), "{d}");
+    assert_eq!(d["exitCode"], 0);
+
+    let (mut c, _home) = lt();
+    c.args(["--demo", "setup", "invite", "--json"]);
+    let (code, out, _) = run(c, "");
+    assert_eq!(code, 4, "creating an invite is a person's step: {out}");
+    let d: serde_json::Value = serde_json::from_str(out.trim()).unwrap();
+    assert_eq!(d["exitCode"], 4);
+    assert!(!d["next"].as_array().unwrap().is_empty());
+
+    let (mut c, _home) = lt();
+    c.args(["--demo", "setup", "nope"]);
+    assert_eq!(run(c, "").0, 2);
+}
+
+/// A secret is never taken from the command line, and never echoed when
+/// someone tries; from stdin it works and is printed nowhere.
+#[test]
+fn setup_secrets_stay_off_argv_and_output() {
+    let canary = "tok-canary-5c1e";
+    let (mut c, _home) = lt();
+    c.args(["--demo", "setup", "tool", "--id", "issues", "--kind", "url", "--url", "https://mcp.example.com/v1", "--token", canary]);
+    let (code, out, err) = run(c, "");
+    assert_eq!(code, 2);
+    assert!(!out.contains(canary) && !err.contains(canary), "{out}{err}");
+
+    let (mut c, _home) = lt();
+    c.args(["--demo", "setup", "tool", "--id", "issues", "--kind", "url", "--url", "https://mcp.example.com/v1", "--token", "-", "--json"]);
+    let (code, out, err) = run(c, &format!("{canary}\n"));
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(!out.contains(canary) && !err.contains(canary), "{out}{err}");
+}

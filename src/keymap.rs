@@ -160,6 +160,7 @@ pub enum Action {
     CancelRun,
     BindCheckout,
     AdmitBox,
+    Setup,
 }
 
 /// One row of the binding table: the single source for defaults, config
@@ -188,6 +189,7 @@ pub const BINDINGS: &[Binding] = &[
     b!(Global, Back, "back", "Back (to the view you came from) / close", ["esc"]),
     b!(Global, SwitchWorkspace, "switch_workspace", "Switch workspace", ["w", "ctrl-w"]),
     b!(Global, AddWorkspace, "add_workspace", "Create or join a workspace", ["+"]),
+    b!(Global, Setup, "setup", "Set up: an agent, a tool, a folder, a box, a phone, an invite, a relay", ["u"]),
     b!(Global, GoChats, "go_chats", "Chats", ["c", "1"]),
     b!(Global, GoWorkflows, "go_workflows", "Workflows and runs", ["f", "2"]),
     b!(Global, GoProposals, "go_proposals", "Proposals", ["p", "3"]),

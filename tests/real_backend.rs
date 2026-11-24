@@ -479,3 +479,75 @@ async fn local_runtimes_are_found_and_added_as_agents() {
     assert!(!misuse.exists(), "{}", std::fs::read_to_string(&misuse).unwrap_or_default());
     d.b.shutdown();
 }
+
+/// Guided setup on a real device: the list, an agent on a stub Codex
+/// (signed in by its auth file), a code folder bound from a git checkout,
+/// and a dry run of the relay flow against the test relay. The engine
+/// writes through the same paths as the rest of lt.
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn setup_flows_run_on_a_real_device() {
+    use ligus_runtime::setup::FlowId;
+    use ligus_term::setup::{CancelFlag, LtFlow, Progress, SetupInputs, SetupSecrets};
+    use std::os::unix::fs::PermissionsExt;
+
+    let tmp = tempfile::tempdir().unwrap();
+    let (bin, home) = (tmp.path().join("bin"), tmp.path().join("home"));
+    std::fs::create_dir_all(&bin).unwrap();
+    std::fs::create_dir_all(home.join(".codex")).unwrap();
+    std::fs::write(home.join(".codex/auth.json"), "not read").unwrap();
+    let p = bin.join("codex");
+    std::fs::write(&p, "#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'codex-cli 0.98.0'; exit 0; fi\nexit 9\n").unwrap();
+    std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let relay = serve(ligus_runtime::test_relay::router()).await;
+    let env = ligus_runtime::cli_detect::DetectEnv { path: bin.clone().into_os_string(), home: home.clone(), vars: Default::default() };
+    let d = device_with(&tmp.path().join("ana"), "lt Ana", &relay, |c| c.detect_env = Some(env));
+    let ws = d.b.create_workspace("Ana", "Acme Web").await.unwrap().workspace.id;
+
+    let rows = d.b.setup_status(Some(&ws)).await.unwrap();
+    assert_eq!(rows.len(), 7);
+    assert_eq!(rows[0].progress, Progress::Todo, "{rows:?}");
+    assert_eq!(rows[6].progress, Progress::Done, "the relay it was made on: {rows:?}");
+
+    let inputs = |kv: &[(&str, &str)]| -> SetupInputs { kv.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect() };
+    let run =
+        |flow, i: SetupInputs, dry| d.b.setup_run(Some(&ws), LtFlow::Engine(flow), i, SetupSecrets::new(), dry, CancelFlag::default());
+    let o = run(FlowId::Agent, inputs(&[("harness", "codex"), ("name", "fixer")]), false).await.unwrap();
+    if ligus_runtime::setup::SandboxFact::here().confined() {
+        assert_eq!(o.exit, 0, "{o:?}");
+        let agents = d.b.agents(&ws).await.unwrap();
+        let a = agents.iter().find(|a| a.handle == "fixer").unwrap();
+        assert_eq!(a.runtime.as_str(), "local:codex", "lt's device-local runtime id");
+        // Run again: already set up, nothing changes.
+        let again = run(FlowId::Agent, inputs(&[("harness", "codex"), ("name", "fixer")]), false).await.unwrap();
+        assert_eq!(again.exit, 0, "{again:?}");
+        assert_eq!(d.b.agents(&ws).await.unwrap().iter().filter(|a| a.handle == "fixer").count(), 1);
+    } else {
+        assert_eq!(o.exit, 3, "no agent sandbox here: {o:?}");
+    }
+    // lt can't run Aider: a usage error before anything.
+    let o = run(FlowId::Agent, inputs(&[("harness", "aider"), ("name", "a2")]), false).await.unwrap();
+    assert_eq!(o.exit, 2, "{o:?}");
+
+    // A git checkout becomes a workspace repository bound here.
+    let repo = tmp.path().join("web");
+    std::fs::create_dir_all(&repo).unwrap();
+    let git = |args: &[&str]| {
+        assert!(
+            std::process::Command::new("git").args(args).current_dir(&repo).env("HOME", &home).output().unwrap().status.success(),
+            "git {args:?}"
+        );
+    };
+    git(&["init", "-q", "-b", "main"]);
+    git(&["-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "root"]);
+    git(&["remote", "add", "origin", "https://github.com/acme/web"]);
+    let path = repo.display().to_string();
+    let o = run(FlowId::Folder, inputs(&[("path", path.as_str())]), false).await.unwrap();
+    assert_eq!(o.exit, 0, "{o:?}");
+    assert!(d.b.checkout(&ws).await.unwrap().is_some(), "lt's checkout is set when none was");
+
+    // The relay flow, checked only: the test relay answers.
+    let o = run(FlowId::Relay, inputs(&[("kind", "own"), ("url", relay.as_str())]), true).await.unwrap();
+    assert!(o.exit == 0 && o.dry_run, "{o:?}");
+    d.b.shutdown();
+}

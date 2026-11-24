@@ -2082,7 +2082,6 @@ impl Backend for FakeBackend {
     }
 }
 
-/// `@handle` as a whole word.
 // ── Guided setup on the demo ────────────────────────────────────────────────
 
 /// The engine's side on the demo: the demo workspace in memory, a fixed
@@ -2356,6 +2355,7 @@ impl SetupOps for FakeOps {
     }
 }
 
+/// `@handle` as a whole word.
 fn mentions(lower: &str, handle: &str) -> bool {
     let needle = format!("@{}", handle.to_lowercase());
     lower.match_indices(&needle).any(|(i, _)| {

@@ -18,6 +18,8 @@ pub enum Target {
     ShowProposal(ProposalId),
     ShowRun(RunId),
     ShowAgent(AgentId),
+    /// Open a guided setup flow.
+    Setup(crate::setup::LtFlow),
 }
 
 /// One entry: its label, the key that does the same (if any), and where
@@ -121,6 +123,10 @@ pub fn items(s: &State) -> Vec<Item> {
     for b in BINDINGS.iter().filter(|b| b.context == Context::Global && !hidden(b.action)) {
         let label = if views.contains(&b.action) { format!("Go to {}", b.help) } else { short(b.help).to_string() };
         out.push(Item { label, key: keys(s, Context::Global, b.action), scope: "Anywhere".into(), target: Target::Action(b.action) });
+    }
+    // The setup flows by name: "Set up an agent", "Connect a tool", …
+    for f in crate::setup::LtFlow::engine_flows() {
+        out.push(Item { label: f.title().into(), key: String::new(), scope: "Set up".into(), target: Target::Setup(f) });
     }
     for w in &s.workspaces {
         if s.active.as_ref() != Some(&w.id) {

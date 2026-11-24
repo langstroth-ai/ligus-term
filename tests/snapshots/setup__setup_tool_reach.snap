@@ -1,0 +1,36 @@
+---
+source: tests/setup.rs
+expression: screen
+---
+[NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
+┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test · 1/3 ─────────────────────────────────────────────╮
+┃  ◆ Fix flaky checkout … 12m  ┃│Ada  40m                                                                    │
+┃  ◆ Migrate auth to pas… 50m  ┃│  The checkout test fails about one run in ten. Can we stop it reading the  │
+┃  Weekly release notes    1d  ┃│  wall clock?                                                               │
+┃                              ┃│                                                                            │
+┃                              ┃│@coder  via claude-code · on sff  38m                                       │
+┃                              ┃│  Yes. The payment tests already use a fake clock, so it's a small change.  │
+┃                              ┃│  I'll propose it.                                                          │
+┃                ┏ Connect a tool · 3 of 3 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓· p to review   │
+┃                ┃Agents                                                                    ┃                │
+┃                ┃Agents that may use it                                                    ┃                │
+┃                ┃› [x] Every agent                                                         ┃rovider uses.   │
+┃                ┃  [ ] @ligus                                                              ┃to review       │
+┃                ┃  [ ] @coder                                                              ┃                │
+┃                ┃  [ ] @reviewer                                                           ┃                │
+┃                ┃  [ ] @scout                                                              ┃                │
+┃                ┃  Only these agents' turns are offered its tools. The default agent is    ┃                │
+┃                ┃  offered only tools every agent may use.                                 ┃                │
+┃                ┃                                                                          ┃                │
+┃                ┃enter next · tab next field · shift-tab back · esc cancel                 ┃                │
+┃                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃╰────────────────────────────────────────────────────────────────────────────╯
+┃                              ┃
+┃                              ┃╭ Message the room ──────────────────────────────────────────────────────────╮
+┃                              ┃│i to write · @ mentions an agent or a person                                │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────────────────╯
+i write  N new chat  tab pane  . actions  ? help                               peer to peer · 1 running · demo

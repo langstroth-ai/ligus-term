@@ -275,7 +275,7 @@ pub fn all_help() -> String {
         "Guided setup (lt setup)\n\n  \
          lt setup                 the flows and what is done on this device (--json: ligus.checks.v1)\n  \
          lt setup FLOW [flags]    run one; --dry-run checks and writes nothing; --json prints one document\n\n  \
-         In the full-screen app S (or the palette: Set up an agent, Connect a tool, ...) opens the list;\n  \
+         In the full-screen app u (or the palette: Set up an agent, Connect a tool, ...) opens the list;\n  \
          enter runs a flow one step per screen; esc cancels (a running flow undoes its own writes);\n  \
          d toggles a dry run. Secrets (a token, an admission code) are masked, kept only in memory and\n  \
          never printed or logged; on the command line they take - (stdin) or @FILE (owner-only).\n\n",

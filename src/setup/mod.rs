@@ -6,7 +6,7 @@
 //! implements the engine's `SetupOps` in each backend (the real one over
 //! the crates, the demo's in memory) and renders what the engine returns:
 //!
-//! * the full-screen app: the Set up list (`S`, the palette, empty states)
+//! * the full-screen app: the Set up list (`u`, the palette, empty states)
 //!   and a step-by-step popup per flow ([`crate::ui::setup`]);
 //! * `lt setup [FLOW] [--FIELD VALUE …] [--json] [--dry-run]`, the same
 //!   flags as `ligus setup` ([`cli`]).
@@ -36,7 +36,7 @@ pub use ligus_runtime::setup::{Progress, StepKind, exit};
 pub const LT_HARNESSES: &[&str] = &["claude-code", "codex", "copilot", "antigravity", "local"];
 
 /// Why a harness isn't offered here.
-pub const NOT_IN_LT: &str = "not in lt yet: the desktop or ligus setup agent";
+pub const NOT_IN_LT: &str = "not in lt yet";
 
 /// A flow as lt lists it: one of the engine's, or linking this computer
 /// to your devices.
