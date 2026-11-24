@@ -45,24 +45,29 @@ enum Fill {
 
 /// `#f0b878` → `#d98a44` (activeLight → activeDark), the kit's warm
 /// gradient, from the top-left of a cell (x 0 → .4, y 0 → 1 of its box).
-fn warm(u: f32, v: f32) -> Color {
+/// On a light background the creams would vanish (1.1:1 on white), so the
+/// mark goes a step deeper: the warm gradient `#c6713a` → `#a8561c`, honey
+/// `#c8881f` and `#d9a441` for the creams, so every cell shows.
+fn warm(u: f32, v: f32, light: bool) -> Color {
     // In three bands: at this size they read better than a smooth ramp.
     let t = (((0.4 * u + v) / 1.16).clamp(0.0, 1.0) * 3.0).floor().min(2.0) / 2.0;
     let l = |a: u8, b: u8| (a as f32 + (b as f32 - a as f32) * t).round() as u8;
-    Color::Rgb(l(0xf0, 0xd9), l(0xb8, 0x8a), l(0x78, 0x44))
+    if light { Color::Rgb(l(0xc6, 0xa8), l(0x71, 0x56), l(0x3a, 0x1c)) } else { Color::Rgb(l(0xf0, 0xd9), l(0xb8, 0x8a), l(0x78, 0x44)) }
 }
 
-fn cell_color(fill: Fill, u: f32, v: f32) -> Color {
-    match fill {
-        Fill::Warm => warm(u, v),
-        Fill::Mid => Color::Rgb(0xf0, 0xe0, 0xb8),
-        Fill::Light => Color::Rgb(0xfb, 0xf1, 0xd8),
+fn cell_color(fill: Fill, u: f32, v: f32, light: bool) -> Color {
+    match (fill, light) {
+        (Fill::Warm, _) => warm(u, v, light),
+        (Fill::Mid, false) => Color::Rgb(0xf0, 0xe0, 0xb8),
+        (Fill::Light, false) => Color::Rgb(0xfb, 0xf1, 0xd8),
+        (Fill::Mid, true) => Color::Rgb(0xc8, 0x88, 0x1f),
+        (Fill::Light, true) => Color::Rgb(0xd9, 0xa4, 0x41),
     }
 }
 
 /// The colour of pixel (`px`, `py`) of the `WIDTH` × `2·HEIGHT` grid, or
 /// `None` where the background shows (outside the mark, or in a gap).
-fn pixel(px: u16, py: u16) -> Option<Color> {
+fn pixel(px: u16, py: u16, light: bool) -> Option<Color> {
     const SS: u16 = 4;
     let scale = (2 * HEIGHT) as f32 / EXTENT_H;
     let mut hits = [0u16; 7];
@@ -86,7 +91,7 @@ fn pixel(px: u16, py: u16) -> Option<Color> {
     let x = (px as f32 + 0.5 - WIDTH as f32 / 2.0) / scale;
     let y = (py as f32 + 0.5 - HEIGHT as f32) / scale;
     let (u, v) = ((x - cx + HALF_W) / (2.0 * HALF_W), (y - cy + R) / (2.0 * R));
-    Some(cell_color(fill, u, v))
+    Some(cell_color(fill, u, v, light))
 }
 
 /// Write the mark into `buf` with its top-left at `at`, clipped to the
@@ -98,7 +103,7 @@ pub fn render(buf: &mut Buffer, at: (u16, u16), t: &Theme) {
             if !buf.area.contains((x, y).into()) {
                 continue;
             }
-            let (top, bottom) = (pixel(col, 2 * row), pixel(col, 2 * row + 1));
+            let (top, bottom) = (pixel(col, 2 * row, t.light), pixel(col, 2 * row + 1, t.light));
             let (sym, style) = match (top, bottom) {
                 (None, None) => continue,
                 _ if t.mono => {
@@ -164,5 +169,22 @@ mod tests {
     fn clipped_at_the_buffer_edge() {
         let mut buf = Buffer::empty(Rect::new(0, 0, 5, 3));
         render(&mut buf, (2, 1), &Theme::DARK);
+    }
+
+    /// Every cell of the mark shows on a light terminal: no cream on white.
+    #[test]
+    fn the_mark_shows_on_light_backgrounds() {
+        let mut buf = Buffer::empty(Rect::new(0, 0, WIDTH, HEIGHT));
+        render(&mut buf, (0, 0), &Theme::LIGHT);
+        for c in buf.content() {
+            for col in [c.fg, c.bg] {
+                if let Color::Rgb(r, g, b) = col {
+                    for bg in [(255, 255, 255), (253, 246, 227)] {
+                        let k = crate::theme_file::contrast((r, g, b), bg);
+                        assert!(k >= 2.0, "#{r:02x}{g:02x}{b:02x} is {k:.2}:1 on a light terminal");
+                    }
+                }
+            }
+        }
     }
 }

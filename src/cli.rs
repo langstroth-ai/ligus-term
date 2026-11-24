@@ -7,8 +7,6 @@ use std::path::PathBuf;
 
 use clap::Parser;
 
-use crate::theme::ThemeChoice;
-
 pub const LONG_VERSION: &str = concat!(
     env!("CARGO_PKG_VERSION"),
     "\nbackend: the Ligus crates (--demo: an in-memory sample)",
@@ -54,9 +52,15 @@ pub struct Args {
     /// Config file (default: $LT_CONFIG, else <config dir>/ligus-term/config.toml).
     #[arg(long, value_name = "PATH")]
     pub config: Option<PathBuf>,
-    /// auto, dark, light or mono (overrides the config file).
+    /// A palette (pollen, studio, harbor, meadow, slate, obsidian), a theme
+    /// file's name (lt themes list) or mono; the old auto, dark and light
+    /// mean Pollen with that appearance (overrides the config file).
     #[arg(long, value_name = "THEME")]
-    pub theme: Option<ThemeChoice>,
+    pub theme: Option<String>,
+    /// auto, light or dark: auto follows the terminal's background
+    /// (overrides the config file).
+    #[arg(long, value_name = "APPEARANCE")]
+    pub appearance: Option<crate::theme::Appearance>,
     /// ASCII only: no box drawing or symbols (status glyphs become * <> ~ ok
     /// x =), for limited fonts and braille displays. Also LT_ASCII=1.
     #[arg(long)]

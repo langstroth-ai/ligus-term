@@ -17,6 +17,7 @@ pub mod paths;
 pub mod plain;
 pub mod termprobe;
 pub mod theme;
+pub mod theme_file;
 #[rustfmt::skip]
 #[allow(dead_code)]
 pub mod theme_tokens;

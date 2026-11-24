@@ -140,6 +140,28 @@ pub fn run(inputs: Inputs<'_>, env: impl Fn(&str) -> Option<String> + Copy) -> R
     }
 
     let config_path = crate::paths::config_file(inputs.config_flag, env);
+    // Theme files: whether each loads, and whether the theme named exists.
+    let reports = crate::theme_file::themes_dir(config_path.as_deref()).map(|d| crate::theme_file::read_dir(&d)).unwrap_or_default();
+    if !reports.is_empty() || crate::config::Config::load(config_path.as_deref()).is_ok_and(|c| c.theme.is_some()) {
+        let broken: Vec<&str> = reports.iter().filter(|r| !r.ok()).map(|r| r.id.as_str()).collect();
+        let set = crate::theme::ThemeSet::with_custom(reports.iter().filter_map(|r| r.theme.clone()).collect());
+        let named =
+            crate::config::Config::load(config_path.as_deref()).ok().and_then(|c| c.theme_spec().layered(&Default::default()).theme);
+        let unknown = named.as_deref().filter(|n| *n != "mono" && set.find(n).is_none());
+        let ok = reports.len() - broken.len();
+        r.checks.push(Check {
+            id: "themes.valid",
+            title: "Themes",
+            status: if broken.is_empty() && unknown.is_none() { Status::Ok } else { Status::Warn },
+            detail: match unknown {
+                Some(n) => format!("theme = \"{n}\" isn't a palette or a theme file that loads; lt uses Pollen"),
+                None if broken.is_empty() => format!("{ok} theme file{} load", if ok == 1 { "" } else { "s" }),
+                None => format!("not loaded: {}", broken.join(", ")),
+            },
+            fix: (!broken.is_empty() || unknown.is_some())
+                .then(|| "lt themes list; lt themes check NAME shows each error and its line".into()),
+        });
+    }
     match crate::config::Config::load(config_path.as_deref()) {
         Ok(c) => match c.keymap() {
             Ok(_) => r.checks.push(Check {
@@ -401,6 +423,18 @@ mod tests {
         let r = run(Inputs { data_dir_flag: Some(&data), config_flag: Some(&cfg), find_runtimes: false }, env);
         assert_eq!(r.exit_code(), 1);
         assert!(r.checks.iter().any(|c| c.id == "config.valid" && c.status == Status::Fail && c.fix.is_some()));
+        // A theme that doesn't load is a warning naming it.
+        let cfg = dir.path().join("config.toml");
+        std::fs::write(&cfg, "theme = \"heather\"").unwrap();
+        std::fs::create_dir(dir.path().join("themes")).unwrap();
+        std::fs::write(dir.path().join("themes/heather.toml"), "[light]\nink = \"pink\"\n").unwrap();
+        let r = run(Inputs { data_dir_flag: Some(&data), config_flag: Some(&cfg), find_runtimes: false }, env);
+        let t = r.checks.iter().find(|c| c.id == "themes.valid").unwrap();
+        assert_eq!(t.status, Status::Warn, "{t:?}");
+        assert!(t.detail.contains("heather") && t.fix.as_deref().unwrap().contains("lt themes check"), "{t:?}");
+        std::fs::write(dir.path().join("themes/heather.toml"), "[light]\nink = \"#222\"\n").unwrap();
+        let r = run(Inputs { data_dir_flag: Some(&data), config_flag: Some(&cfg), find_runtimes: false }, env);
+        assert_eq!(r.checks.iter().find(|c| c.id == "themes.valid").unwrap().status, Status::Ok);
         // A bad LT_RELAY_URL fails too.
         let r = run(
             Inputs { data_dir_flag: Some(&data), config_flag: None, find_runtimes: false },

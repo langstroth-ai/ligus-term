@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docs.langstroth.ai/schemas/ligus-theme.v1.json",
+  "title": "Ligus theme file (ligus.theme.v1)",
+  "description": "A custom colour theme for the Ligus desktop app and lt (the Ligus terminal). Ligus is short for ligustica. The same file, as TOML or JSON, works in both apps. Colours only: every value is a colour, nothing else. Tokens you leave out come from the palette named by extends. Each app reads the tokens it draws with and ignores the rest.",
+  "type": "object",
+  "properties": {
+    "$schema": { "type": "string", "description": "This schema's URL (JSON files only)." },
+    "format": { "const": "ligus.theme.v1", "description": "The file format. Optional." },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+      "description": "The name shown in Settings and the palette. Defaults to the file name."
+    },
+    "extends": {
+      "enum": ["pollen", "studio", "harbor", "meadow", "slate", "obsidian"],
+      "default": "pollen",
+      "description": "The built-in palette that supplies every token this file leaves out."
+    },
+    "light": { "$ref": "#/$defs/scheme", "description": "Colours for a light background." },
+    "dark": { "$ref": "#/$defs/scheme", "description": "Colours for a dark background." }
+  },
+  "anyOf": [{ "required": ["light"] }, { "required": ["dark"] }],
+  "additionalProperties": true,
+  "$defs": {
+    "color": {
+      "type": "string",
+      "maxLength": 64,
+      "description": "#rgb, #rrggbb or #rrggbbaa; rgb(r, g, b), rgba(r, g, b, a) or rgb(r g b / a) with channels 0-255 and alpha 0-1; oklch(L C H) or oklch(L C H / a) with L 0-1 (or 0%-100%), C 0-0.5 and H 0-360.",
+      "pattern": "^\\s*(#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{8}|[rR][gG][bB][aA]?\\(\\s*\\d{1,3}\\s*(,\\s*\\d{1,3}\\s*,\\s*\\d{1,3}\\s*(,\\s*(\\d*\\.)?\\d+\\s*)?|\\s+\\d{1,3}\\s+\\d{1,3}\\s*(/\\s*(\\d*\\.)?\\d+\\s*)?)\\)|[oO][kK][lL][cC][hH]\\(\\s*(\\d*\\.)?\\d+%?\\s+(\\d*\\.)?\\d+\\s+(\\d*\\.)?\\d+\\s*(/\\s*(\\d*\\.)?\\d+\\s*)?\\))\\s*$"
+    },
+    "scheme": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "canvas": { "$ref": "#/$defs/color", "description": "Desktop: the window background. lt: the background contrast is checked against (lt never paints it; the terminal's own background shows)." },
+        "panel": { "$ref": "#/$defs/color", "description": "Desktop: cards, panes and inputs." },
+        "mist": { "$ref": "#/$defs/color", "description": "Desktop: hover and quiet fills." },
+        "line": { "$ref": "#/$defs/color", "description": "Desktop: hairlines and dividers (alpha allowed)." },
+        "ink": { "$ref": "#/$defs/color", "description": "Both: body text." },
+        "inkMuted": { "$ref": "#/$defs/color", "description": "lt: secondary text (hints, timestamps)." },
+        "accentCool": { "$ref": "#/$defs/color", "description": "Both: the accent. Desktop: buttons, links, focus. lt: headings, focus, the selected view." },
+        "accentWarm": { "$ref": "#/$defs/color", "description": "Both: needs you and @mentions." },
+        "onAccent": { "$ref": "#/$defs/color", "description": "Desktop: text on an accent-filled button." },
+        "sidebarTop": { "$ref": "#/$defs/color", "description": "Desktop: the sidebar gradient's top." },
+        "sidebarBottom": { "$ref": "#/$defs/color", "description": "Desktop: the sidebar gradient's bottom." },
+        "sidebarInk": { "$ref": "#/$defs/color", "description": "Desktop: sidebar text." },
+        "sidebarInkMuted": { "$ref": "#/$defs/color", "description": "Desktop: secondary sidebar text." },
+        "ok": { "$ref": "#/$defs/color", "description": "Both: done, success." },
+        "info": { "$ref": "#/$defs/color", "description": "Both: working, running." },
+        "warn": { "$ref": "#/$defs/color", "description": "Both: queued, warnings." },
+        "danger": { "$ref": "#/$defs/color", "description": "Both: failed, errors." },
+        "neutral": { "$ref": "#/$defs/color", "description": "Both: paused, no data." },
+        "diffAddInk": { "$ref": "#/$defs/color", "description": "Both: added lines in a diff." },
+        "diffDelInk": { "$ref": "#/$defs/color", "description": "Both: removed lines in a diff." },
+        "diffAddBg": { "$ref": "#/$defs/color", "description": "Desktop: the tint behind added lines (alpha allowed)." },
+        "diffDelBg": { "$ref": "#/$defs/color", "description": "Desktop: the tint behind removed lines (alpha allowed)." },
+        "diffComment": { "$ref": "#/$defs/color", "description": "Both: the review-comment marker." },
+        "border": { "$ref": "#/$defs/color", "description": "lt: pane borders." },
+        "selection": { "$ref": "#/$defs/color", "description": "lt: the selected row's background." },
+        "agent": { "$ref": "#/$defs/color", "description": "lt: agents' names." }
+      }
+    }
+  }
+}

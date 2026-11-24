@@ -19,7 +19,7 @@ use crate::help::{COMMANDS, ENV, EXIT_CODES, TOPICS};
 pub const SHELLS: &[&str] = &["bash", "zsh", "fish"];
 
 /// The commands lt answers without a device, besides the plain ones.
-pub const DEVICELESS: &[&str] = &["help", "completions", "man", "doctor"];
+pub const DEVICELESS: &[&str] = &["help", "completions", "man", "doctor", "themes"];
 
 /// What the scripts ask `lt __complete` for.
 pub fn complete(kind: &str, data_dir: Option<&Path>) -> Vec<String> {
@@ -33,7 +33,8 @@ pub fn complete(kind: &str, data_dir: Option<&Path>) -> Vec<String> {
         "flags" => {
             crate::cli::flags().into_iter().map(|(long, ..)| format!("--{long}")).chain(["--help".into(), "--version".into()]).collect()
         }
-        "themes" => ["auto", "dark", "light", "mono"].iter().map(|s| s.to_string()).collect(),
+        "themes" => crate::theme::ThemeSet::builtin().ids().into_iter().chain(["auto", "dark", "light"]).map(String::from).collect(),
+        "appearances" => crate::theme::Appearance::ALL.iter().map(|a| a.name().to_string()).collect(),
         "shells" => SHELLS.iter().map(|s| s.to_string()).collect(),
         "workspaces" => data_dir.map(workspace_names).unwrap_or_default(),
         _ => vec![],
@@ -78,6 +79,7 @@ _lt() {
     local IFS=$'\n'
     case "$prev" in
         --theme) COMPREPLY=($(compgen -W "$(lt __complete themes)" -- "$cur")); return ;;
+        --appearance) COMPREPLY=($(compgen -W "$(lt __complete appearances)" -- "$cur")); return ;;
         --workspace|use) COMPREPLY=($(compgen -W "$(lt __complete workspaces)" -- "$cur")); return ;;
         --data-dir|--config|--recovery-words-file) COMPREPLY=($(compgen -f -- "$cur")); return ;;
         help) COMPREPLY=($(compgen -W "$(lt __complete topics)" -- "$cur")); return ;;
@@ -90,7 +92,7 @@ _lt() {
     local i
     for ((i = 1; i < COMP_CWORD; i++)); do
         case "${COMP_WORDS[i]}" in
-            --data-dir|--config|--theme|--name|--workspace|--recovery-words-file) ((i++)) ;;
+            --data-dir|--config|--theme|--appearance|--name|--workspace|--recovery-words-file) ((i++)) ;;
             -*) ;;
             *) return ;;
         esac
@@ -106,6 +108,7 @@ _lt() {
     local -a words_
     case "${words[CURRENT-1]}" in
         --theme) words_=(${(f)"$(lt __complete themes)"}) ;;
+        --appearance) words_=(${(f)"$(lt __complete appearances)"}) ;;
         --workspace|use) words_=(${(f)"$(lt __complete workspaces)"}) ;;
         --data-dir|--config|--recovery-words-file) _files; return ;;
         help) words_=(${(f)"$(lt __complete topics)"}) ;;
@@ -132,6 +135,7 @@ complete -c lt -n '__fish_seen_subcommand_from help' -a '(lt __complete topics)'
 complete -c lt -n '__fish_seen_subcommand_from completions' -a '(lt __complete shells)'
 complete -c lt -n '__fish_seen_subcommand_from use' -a '(lt __complete workspaces)'
 complete -c lt -l theme -x -a '(lt __complete themes)'
+complete -c lt -l appearance -x -a '(lt __complete appearances)'
 complete -c lt -l workspace -x -a '(lt __complete workspaces)'
 complete -c lt -l data-dir -r -F
 complete -c lt -l config -r -F

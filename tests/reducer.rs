@@ -1380,13 +1380,16 @@ fn stop_turn_and_tool_output() {
     assert!(s.tools_expanded);
 }
 
-/// The theme switches in the app (Settings' Theme row, or the palette):
-/// dark, light, mono, round again.
+/// The theme switches in the app: Settings' Theme row cycles every
+/// palette then mono, its Appearance row cycles auto, light, dark, and the
+/// palette shows a theme while its selection is on it (esc goes back).
 #[test]
 fn theme_switches_in_the_app() {
-    use ligus_term::theme::ThemeChoice;
+    use ligus_term::app::palette::Target;
+    use ligus_term::app::state::Overlay;
+    use ligus_term::theme::{Appearance, ThemeRequest};
+    let set = |t: &str| Some(ThemeRequest::Set { theme: Some(t.into()), appearance: None });
     let mut s = main_state();
-    s.theme_name = "dark (24-bit colour)".into();
     update(
         &mut s,
         Msg::Settings(Ok(Settings {
@@ -1401,16 +1404,45 @@ fn theme_switches_in_the_app() {
     key(&mut s, KeyCode::Down);
     key(&mut s, KeyCode::Down);
     key(&mut s, KeyCode::Enter);
-    assert_eq!(s.theme_request, Some(ThemeChoice::Light));
-    s.theme_request = None;
-    s.theme_name = "light (24-bit colour)".into();
+    assert_eq!(s.theme_request.take(), set("studio"));
+    s.theme_id = "studio".into();
     update(&mut s, Msg::ThemeChanged);
-    assert!(s.toasts.last().unwrap().text.starts_with("Theme: light"));
+    let toast = &s.toasts.last().unwrap().text;
+    assert!(toast.starts_with("Theme: Studio") && toast.contains("theme = \"studio\""), "{toast}");
+    s.theme_id = "obsidian".into();
     key(&mut s, KeyCode::Char('t'));
-    assert_eq!(s.theme_request, Some(ThemeChoice::Mono));
-    s.theme_name = "mono".into();
+    assert_eq!(s.theme_request.take(), set("mono"));
+    s.theme_id = "mono".into();
     key(&mut s, KeyCode::Char('t'));
-    assert_eq!(s.theme_request, Some(ThemeChoice::Dark));
+    assert_eq!(s.theme_request.take(), set("pollen"));
+    key(&mut s, KeyCode::Down);
+    key(&mut s, KeyCode::Enter);
+    assert_eq!(s.theme_request.take(), Some(ThemeRequest::Set { theme: None, appearance: Some(Appearance::Light) }));
+    s.appearance = Appearance::Light;
+    update(&mut s, Msg::AppearanceChanged);
+    assert!(s.toasts.last().unwrap().text.contains("appearance = \"light\""));
+
+    // The palette: typing a theme's name shows it; esc goes back.
+    s.theme_id = "pollen".into();
+    key(&mut s, KeyCode::Char(':'));
+    for c in "harbor".chars() {
+        key(&mut s, KeyCode::Char(c));
+    }
+    let Some(Overlay::Palette { query, sel }) = &s.overlay else { panic!("no palette") };
+    let items = ligus_term::app::palette::filtered(&s, &query.text);
+    assert_eq!(items[*sel].target, Target::Theme("harbor".into()));
+    assert_eq!(s.theme_request.take(), Some(ThemeRequest::Preview { theme: Some("harbor".into()), appearance: None }));
+    assert!(s.theme_previewing);
+    key(&mut s, KeyCode::Esc);
+    assert_eq!(s.theme_request.take(), Some(ThemeRequest::Revert));
+    // Enter keeps it.
+    key(&mut s, KeyCode::Char(':'));
+    for c in "harbor".chars() {
+        key(&mut s, KeyCode::Char(c));
+    }
+    key(&mut s, KeyCode::Enter);
+    assert_eq!(s.theme_request.take(), set("harbor"));
+    assert!(!s.theme_previewing);
 }
 
 fn click(s: &mut State, kind: crossterm::event::MouseEventKind, column: u16, row: u16) -> Vec<Effect> {
