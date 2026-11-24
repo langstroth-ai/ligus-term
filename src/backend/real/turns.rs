@@ -82,7 +82,7 @@ fn gate(i: &Inner, ws: Uuid, sid: Uuid, trigger: Uuid, body: &str) -> Result<Gat
     let local = core.identity.actor().id;
     let device = core.identity.device.id.to_string();
     let local_only = i.local_only(ws);
-    let (session, links) = i.read(ws, |svc| Ok((svc.load(sid)?, svc.device_links(ws).unwrap_or_default())))?;
+    let (session, links) = i.read(ws, |svc| Ok((svc.load_in(ws, sid)?, svc.device_links(ws).unwrap_or_default())))?;
     let Some(session) = session else { return Ok(Gate::None) };
     let Some(target) = dispatch_target(body, &session, local_only, &links) else { return Ok(Gate::None) };
     let Some((agent, runtime_id, owner, host)) = responder(&session, target) else { return Ok(Gate::None) };
@@ -125,7 +125,7 @@ pub(crate) fn access_refusal(i: &Inner, ws: Uuid, sid: Uuid, trigger: Uuid, agen
 /// device answers it.
 pub fn post_and_plan(i: &Inner, ws: Uuid, sid: Uuid, text: &str) -> Result<(Message, Gate)> {
     let posted = i.write(ws, |svc| svc.post_user_message(sid, ws, text))?;
-    let s = i.read(ws, |svc| svc.load(sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
+    let s = i.read(ws, |svc| svc.load_in(ws, sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
     let message = views::message(&s, &posted);
     let plan = gate(i, ws, sid, posted.id, text)?;
     Ok((message, plan))
@@ -151,7 +151,7 @@ pub fn arm_fallback(inner: Arc<Inner>, plan: Plan) {
         let trigger = plan.trigger;
         let claimed = blocking(&inner, move |i| {
             let (ws, sid, trigger) = (plan.ws, plan.sid, plan.trigger);
-            let (s, links) = i.read(ws, |svc| Ok((svc.load(sid)?, svc.device_links(ws).unwrap_or_default())))?;
+            let (s, links) = i.read(ws, |svc| Ok((svc.load_in(ws, sid)?, svc.device_links(ws).unwrap_or_default())))?;
             let Some(s) = s else { return Ok(None) };
             if !ligus_runtime::turn_dispatch::deferred_turn_unanswered(&s, trigger) {
                 return Ok(None);
@@ -229,7 +229,7 @@ impl DeferredHand {
 /// The relay-sync gate: a user message that arrived through sync, answered
 /// here when it is unanswered, unclaimed by another device, and ours.
 pub fn plan_synced(i: &Inner, ws: Uuid, sid: Uuid, trigger: Uuid) -> Result<Option<Plan>> {
-    let Some(s) = i.read(ws, |svc| svc.load(sid))? else { return Ok(None) };
+    let Some(s) = i.read(ws, |svc| svc.load_in(ws, sid))? else { return Ok(None) };
     if synced_user_triggers(&s, &[trigger]).is_empty() {
         return Ok(None);
     }
@@ -468,7 +468,7 @@ fn prepare(
     let (rt, rt_id) = runtime_for(i, ws, runtime_id)?;
     let author = agent.map(|a| a.name.clone()).unwrap_or_else(|| "Ligus".into());
     let agent_id = agent.map(|a| a.id);
-    let s = i.read(ws, |svc| svc.load(sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
+    let s = i.read(ws, |svc| svc.load_in(ws, sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
     let provider = rt.provider;
     // The author's role is recognized from the signed log, never from the
     // message's self-asserted identity; so is the shell rule's.
@@ -599,7 +599,7 @@ fn plan_handoff(i: &Inner, ws: Uuid, sid: Uuid, agent_id: Uuid, trigger: Uuid) -
     let core = i.core()?;
     let local = core.identity.actor().id;
     let device = core.identity.device.id.to_string();
-    let (session, links) = i.read(ws, |svc| Ok((svc.load(sid)?, svc.device_links(ws).unwrap_or_default())))?;
+    let (session, links) = i.read(ws, |svc| Ok((svc.load_in(ws, sid)?, svc.device_links(ws).unwrap_or_default())))?;
     let Some(session) = session else { return Ok(None) };
     let Some(agent) = session.workspace_agents.iter().find(|a| a.id == agent_id).cloned() else { return Ok(None) };
     if !runs_here_linked(i.local_only(ws), &links, &session, &local, &agent.owner_actor_id, host_binding(&agent.host_id, &device)) {
@@ -675,7 +675,7 @@ impl TurnHost for TermHost {
     fn begun(&self, mid: Uuid) {
         self.thinking(false);
         super::lock(&self.inner.emitted).entry(mid).or_insert(0);
-        let s = self.inner.read(self.ws, |svc| svc.load(self.chat_uuid()));
+        let s = self.inner.read(self.ws, |svc| svc.load_in(self.ws, self.chat_uuid()));
         if let Some(m) = s.ok().flatten().and_then(|s| s.messages.iter().find(|m| m.id == mid).map(|m| views::message(&s, m))) {
             self.inner.emit(Event::MessageAdded { workspace: self.wsid.clone(), message: m });
         }
@@ -746,9 +746,9 @@ mod tests {
         let ws = Uuid::new_v4();
         svc.ensure_workspace_config(ws).unwrap();
         let chat = svc.create_chat("c", ws, "").unwrap();
-        let open = svc.load(chat.id).unwrap().unwrap();
+        let open = svc.load_in(ws, chat.id).unwrap().unwrap();
         svc.self_medicate(ws, chat.id, None, &[(ligus_core::guard::LockdownSignal::Manual, "manual".into())]).unwrap();
-        let locked = svc.load(chat.id).unwrap().unwrap();
+        let locked = svc.load_in(ws, chat.id).unwrap().unwrap();
         assert!(locked.guards.lockdown_active());
         (open, locked)
     }

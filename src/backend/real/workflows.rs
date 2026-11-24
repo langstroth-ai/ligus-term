@@ -52,7 +52,7 @@ pub struct Driving {
 }
 
 fn load_run(i: &Inner, ws: Uuid, sid: Uuid, run: Uuid) -> Result<(WorkflowRun, ChatSession)> {
-    let s = i.read(ws, |svc| svc.load(sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
+    let s = i.read(ws, |svc| svc.load_in(ws, sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
     let r = s.workflow_runs.iter().find(|r| r.id == run).cloned().ok_or_else(|| BackendError("no such run".into()))?;
     Ok((r, s))
 }
@@ -86,7 +86,7 @@ impl Inner {
         self.write(ws, |svc| svc.upsert_workflow_run(sid, ws, r))?;
         // Straight to the UI: the change feed may fold this write into the
         // next one on the chat.
-        if let Ok(Some(s)) = self.read(ws, |svc| svc.load(sid))
+        if let Ok(Some(s)) = self.read(ws, |svc| svc.load_in(ws, sid))
             && let Some(r) = s.workflow_runs.iter().find(|r| r.id == run.id)
         {
             self.emit(Event::RunChanged { workspace: WorkspaceId::new(ws.to_string()), run: self.run_view(&s, r) });
@@ -99,7 +99,7 @@ impl Inner {
         let Some(epoch) = lock(&self.drivers).get(&run).map(|d| d.epoch) else { return false };
         let Ok(core) = self.core() else { return false };
         let me = core.identity.device.id;
-        self.read(ws, |svc| svc.lease(sid, LeaseScope::WorkflowRun, &run.to_string()))
+        self.read(ws, |svc| svc.lease(ws, sid, LeaseScope::WorkflowRun, &run.to_string()))
             .ok()
             .flatten()
             .is_some_and(|l| l.current.holder == me && l.current.epoch == epoch && !l.released)
@@ -394,7 +394,7 @@ fn round(i: &Inner, ws: Uuid, sid: Uuid, run_id: Uuid) -> Result<Round> {
 /// Post a stage's prompt; decide whether it runs here or on its agent's host.
 fn prepare(i: &Inner, ws: Uuid, sid: Uuid, run: &WorkflowRun, node: &wf::WorkflowNode) -> Result<Stage> {
     let WorkflowNodeKind::Agent { agent_id, prompt_template } = &node.kind else { return err("not an agent stage") };
-    let s = i.read(ws, |svc| svc.load(sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
+    let s = i.read(ws, |svc| svc.load_in(ws, sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
     let rendered = wf::render_template(prompt_template, &run.input, &outputs(run, &s));
     let agent = match agent_id {
         Some(id) => Some(
@@ -467,7 +467,7 @@ async fn await_reply(
     loop {
         let by = author.to_string();
         let found = blocking(inner, move |i| {
-            let s = i.read(ws, |svc| svc.load(sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
+            let s = i.read(ws, |svc| svc.load_in(ws, sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
             Ok(stage_reply(&s.messages, prompt, &by))
         })
         .await?;

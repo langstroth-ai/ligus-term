@@ -91,7 +91,7 @@ impl Inner {
             return err("this workspace has no relay, so no box could reach it (start lt with LT_RELAY_URL)");
         }
         let me = self.me();
-        let role = self.read(ws, |svc| Ok(svc.load(workspace_config_session_id(ws))?.map(|c| c.role_of(&me))))?;
+        let role = self.read(ws, |svc| Ok(svc.load_in(ws, workspace_config_session_id(ws))?.map(|c| c.role_of(&me))))?;
         if role.is_none_or(|r| r.rank() < ligus_core::WorkspaceRole::Admin.rank()) {
             return err("only an Admin or Owner admits a box");
         }

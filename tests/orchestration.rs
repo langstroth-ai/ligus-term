@@ -128,7 +128,7 @@ fn spawn_worker(bx: Arc<BoxDevice>, conn: WorkspaceConn, stop: tokio::sync::watc
                 let me = bx2.device().to_string();
                 let mut n = 0;
                 for sid in svc.store().sessions_of_workspace(ws).unwrap() {
-                    let Some(s) = svc.load(sid).unwrap() else { continue };
+                    let Some(s) = svc.load_in(ws, sid).unwrap() else { continue };
                     for p in ligus_runtime::pending_turns(&s) {
                         let Some(agent) = s.workspace_agents.iter().find(|a| a.id == p.agent_id && a.host_id == me) else { continue };
                         if !svc.claim_turn(sid, ws, p.message_id).unwrap() {
@@ -257,7 +257,7 @@ async fn lt_founds_a_deployment_admits_a_box_and_drives_a_workflow() {
         let mut e = bx.engine(&conn);
         async move {
             box_sync(&mut e, &bx.db()).await;
-            bx.service().load(workspace_config_session_id(wsu)).unwrap().map(|_| ())
+            bx.service().load_in(wsu, workspace_config_session_id(wsu)).unwrap().map(|_| ())
         }
     })
     .await;
@@ -279,7 +279,8 @@ async fn lt_founds_a_deployment_admits_a_box_and_drives_a_workflow() {
     // desktop and `ligus admit close` do.
     until("Ana's device to close the redeemed admission", || async {
         let closed =
-            on_service(&a, move |svc| svc.load(workspace_config_session_id(wsu)).unwrap().unwrap().guards.closed_admissions.len()).await;
+            on_service(&a, move |svc| svc.load_in(wsu, workspace_config_session_id(wsu)).unwrap().unwrap().guards.closed_admissions.len())
+                .await;
         (closed >= 1).then_some(())
     })
     .await;
@@ -369,7 +370,7 @@ async fn lt_founds_a_deployment_admits_a_box_and_drives_a_workflow() {
         let mut e = bx.engine(&conn);
         async move {
             box_sync(&mut e, &bx.db()).await;
-            let s = bx.service().load(chat_u).unwrap()?;
+            let s = bx.service().load_in(wsu, chat_u).unwrap()?;
             s.workflow_runs.iter().any(|r| r.status == ligus_core::workflow::WorkflowRunStatus::Completed).then_some(())
         }
     })

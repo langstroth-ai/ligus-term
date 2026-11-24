@@ -449,7 +449,7 @@ mod tests {
         let ws = Uuid::new_v4();
         svc.ensure_workspace_config(ws).unwrap();
         let chat = svc.create_chat("c", ws, "").unwrap();
-        let mut s = svc.load(chat.id).unwrap().unwrap();
+        let mut s = svc.load_in(ws, chat.id).unwrap().unwrap();
         let mut second = ChatMessage::new(MessageRole::Agent, "coder", "a second answer");
         second.superseded = true;
         s.messages.push(ChatMessage::new(MessageRole::Agent, "coder", "the answer"));
