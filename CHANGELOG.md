@@ -4,6 +4,25 @@ All notable changes to `lt`, the Ligus terminal app (Ligus is short for
 ligustica). Versions follow [semver](https://semver.org); releases are on
 [GitHub](https://github.com/langstroth-ai/ligus-term/releases).
 
+## v0.2.1
+
+### Changed
+
+- Built on the Ligus 0.2.1 crates (previously 0.1.0). Writes from sync,
+  the desktop and lt landing in one chat at once are no longer lost or
+  refused with "database is locked"; secret redaction no longer stalls
+  while many secrets are registered, and fails closed if its matcher
+  can't be built.
+
+### Security
+
+- A chat's history is kept per workspace: a member of another workspace
+  this device also syncs who knows a chat's id can no longer hide, re-home
+  or disturb it. lt reads every chat in its own workspace.
+- The first start on this version upgrades the local database once (the
+  same upgrade as Ligus 0.2.1); it needs about 2.5 times the database's
+  size in free disk space and says how much to free otherwise.
+
 ## v0.2.0
 
 ### Breaking

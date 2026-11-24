@@ -259,8 +259,9 @@ impl RealBackend {
         self.call(move |i| {
             i.activate(ws);
             let me = i.me();
-            let joined =
-                i.read(ws, |svc| Ok(svc.load(workspace_config_session_id(ws))?.is_some_and(|c| c.members.iter().any(|m| m.id == me))))?;
+            let joined = i.read(ws, |svc| {
+                Ok(svc.load_in(ws, workspace_config_session_id(ws))?.is_some_and(|c| c.members.iter().any(|m| m.id == me)))
+            })?;
             if !joined {
                 return err("couldn't join: the workspace didn't accept the invite (it may be used up, expired or revoked)");
             }
@@ -427,7 +428,7 @@ impl Inner {
                 let _ = svc.store().set_workspace_pin(ws, f, fk);
             }
             let config = workspace_config_session_id(ws);
-            if svc.load(config)?.is_none() && svc.store().join_invite(ws)?.is_some() {
+            if svc.load_in(ws, config)?.is_none() && svc.store().join_invite(ws)?.is_some() {
                 return Ok(());
             }
             svc.ensure_self_member(config, ws)?;
@@ -443,7 +444,7 @@ impl Inner {
         let ws = w.id();
         let me = self.me();
         let role = self
-            .read(ws, |svc| Ok(svc.load(workspace_config_session_id(ws))?.map(|c| c.role_of(&me))))
+            .read(ws, |svc| Ok(svc.load_in(ws, workspace_config_session_id(ws))?.map(|c| c.role_of(&me))))
             .ok()
             .flatten()
             .map(views::role)
@@ -748,7 +749,7 @@ impl Backend for RealBackend {
     async fn transcript(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<Vec<Message>> {
         let (ws, sid) = (ws_uuid(workspace)?, uuid_of(chat.as_str(), "chat")?);
         self.call(move |i| {
-            let s = i.read(ws, |svc| svc.load(sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
+            let s = i.read(ws, |svc| svc.load_in(ws, sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
             Ok(views::transcript(&s))
         })
         .await
@@ -773,7 +774,7 @@ impl Backend for RealBackend {
         let ws = ws_uuid(workspace)?;
         self.call(move |i| {
             let me = i.me();
-            let config = i.read(ws, |svc| svc.load(workspace_config_session_id(ws)))?;
+            let config = i.read(ws, |svc| svc.load_in(ws, workspace_config_session_id(ws)))?;
             let mut out = vec![
                 Mentionable { handle: "primary".into(), kind: "Default agent".into(), unavailable: None },
                 Mentionable { handle: "all".into(), kind: "Everyone".into(), unavailable: None },
@@ -828,7 +829,7 @@ impl Backend for RealBackend {
         let (ws, sid) = (ws_uuid(workspace)?, uuid_of(chat.as_str(), "chat")?);
         self.call(move |i| {
             let me = i.me();
-            let s = i.read(ws, |svc| svc.load(sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
+            let s = i.read(ws, |svc| svc.load_in(ws, sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
             let view = ligus_runtime::lockdown_view::chat_lockdown(&s, sid, &me);
             if !view.can_clear {
                 return err("only a human Contributor or above clears a lockdown");
@@ -877,7 +878,7 @@ impl Backend for RealBackend {
         let (ws, pid) = (ws_uuid(workspace)?, uuid_of(proposal.as_str(), "proposal")?);
         self.call(move |i| {
             let (sid, _) = i.find_proposal(ws, pid)?;
-            let s = i.read(ws, |svc| svc.load(sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
+            let s = i.read(ws, |svc| svc.load_in(ws, sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
             let request = s.open_apply_request(pid).map(|r| r.id).ok_or_else(|| BackendError("nothing to withdraw".into()))?;
             i.write(ws, |svc| svc.withdraw_apply_request(sid, ws, request))?;
             i.proposal_view(ws, sid, pid)
@@ -1050,7 +1051,7 @@ impl Backend for RealBackend {
             }
             let device = i.core()?.identity.device.id.to_string();
             let me = i.me();
-            let role = i.read(ws, |svc| Ok(svc.load(workspace_config_session_id(ws))?.map(|c| c.role_of(&me))))?;
+            let role = i.read(ws, |svc| Ok(svc.load_in(ws, workspace_config_session_id(ws))?.map(|c| c.role_of(&me))))?;
             // The desktop's add-agent: owned by you, only you may use it, on
             // a runtime of this device. An Admin pins it to this device; a
             // Contributor's runs on its owner's device (an unpinned agent),
@@ -1072,7 +1073,7 @@ impl Backend for RealBackend {
         let (ws, aid) = (ws_uuid(workspace)?, uuid_of(agent.as_str(), "agent")?);
         self.call(move |i| {
             let a = i
-                .read(ws, |svc| svc.load(workspace_config_session_id(ws)))?
+                .read(ws, |svc| svc.load_in(ws, workspace_config_session_id(ws)))?
                 .and_then(|c| c.workspace_agents.into_iter().find(|a| a.id == aid))
                 .ok_or_else(|| BackendError("no such agent".into()))?;
             // Only who may use it changes; its budgets and notice stay.
@@ -1091,7 +1092,7 @@ impl Backend for RealBackend {
         self.call(move |i| {
             let config = workspace_config_session_id(ws);
             let mut a = i
-                .read(ws, |svc| svc.load(config))?
+                .read(ws, |svc| svc.load_in(ws, config))?
                 .and_then(|c| c.workspace_agents.into_iter().find(|a| a.id == aid))
                 .ok_or_else(|| BackendError("no such agent".into()))?;
             a.runtime_id = runtime;
@@ -1370,7 +1371,7 @@ impl Inner {
                 if sid == config {
                     continue;
                 }
-                if let Some(s) = svc.load(sid)?
+                if let Some(s) = svc.load_in(ws, sid)?
                     && !s.archived
                 {
                     out.push(s);
@@ -1453,7 +1454,7 @@ impl Inner {
     pub(crate) fn proposal_view(&self, ws: Uuid, sid: Uuid, pid: Uuid) -> Result<Proposal> {
         let me = self.me();
         let hosts = self.host_labels(ws);
-        let s = self.read(ws, |svc| svc.load(sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
+        let s = self.read(ws, |svc| svc.load_in(ws, sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
         let p = s.proposals.iter().find(|p| p.id == pid).ok_or_else(|| BackendError("no such proposal".into()))?;
         Ok(views::proposal(&s, p, &me, &hosts))
     }
@@ -1463,7 +1464,7 @@ impl Inner {
     /// Who is busy and what agents say they are doing, in `ws`.
     fn activity(&self, ws: Uuid) -> Result<Activity> {
         let now = ligus_core::flow::now_ms();
-        let config = self.read(ws, |svc| svc.load(workspace_config_session_id(ws)))?;
+        let config = self.read(ws, |svc| svc.load_in(ws, workspace_config_session_id(ws)))?;
         let agents = config.map(|c| c.workspace_agents).unwrap_or_default();
         let mut busy = std::collections::HashSet::new();
         let mut tasks = Vec::new();
@@ -1501,7 +1502,7 @@ impl Inner {
             let can_manage = svc.may_manage_agent(ws, a);
             let usage = if usage && can_manage {
                 let view = svc.agent_usage_view(a.id)?;
-                let config = svc.load(workspace_config_session_id(ws))?;
+                let config = svc.load_in(ws, workspace_config_session_id(ws))?;
                 let name = |member: &str| -> String {
                     if member.is_empty() {
                         return "Unattributed".into();
@@ -1534,7 +1535,7 @@ impl Inner {
     /// device when that is this device (empty: some other owner's device).
     /// The names a new agent may not take: every agent's and member's.
     fn taken_names(&self, ws: Uuid) -> Result<Vec<String>> {
-        let config = self.read(ws, |svc| svc.load(workspace_config_session_id(ws)))?;
+        let config = self.read(ws, |svc| svc.load_in(ws, workspace_config_session_id(ws)))?;
         Ok(config
             .map(|c| {
                 c.workspace_agents.iter().map(|a| a.name.clone()).chain(c.members.iter().map(|m| m.actor.display_name.clone())).collect()

@@ -100,7 +100,7 @@ pub fn prime(inner: &Inner, core: &Core) {
     let Ok(ids) = r.store().list_session_ids() else { return };
     let mut snaps = lock(&inner.snaps);
     for sid in ids {
-        if let Ok(Some(s)) = r.load(sid) {
+        if let Ok(Some(s)) = r.load_resolving(sid) {
             snaps.0.insert(sid, snap_of(&s));
         }
     }
@@ -159,7 +159,7 @@ fn diff(inner: &Inner, batch: HashMap<Uuid, (Uuid, bool)>) -> Vec<(Uuid, Uuid, U
         if !known.contains(&ws) {
             continue;
         }
-        let Ok(Some(s)) = inner.read(ws, |svc| svc.load(sid)) else { continue };
+        let Ok(Some(s)) = inner.read(ws, |svc| svc.load_in(ws, sid)) else { continue };
         let wsid = WorkspaceId::new(ws.to_string());
         let old = lock(&inner.snaps).0.get(&sid).cloned();
         let new = snap_of(&s);
