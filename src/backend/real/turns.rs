@@ -79,7 +79,7 @@ pub enum Gate {
 /// here. Claims the turn when it does.
 fn gate(i: &Inner, ws: Uuid, sid: Uuid, trigger: Uuid, body: &str) -> Result<Gate> {
     let core = i.core()?;
-    let local = core.identity.actor().id;
+    let local = core.author.id.clone();
     let device = core.identity.device.id.to_string();
     let local_only = i.local_only(ws);
     let (session, links) = i.read(ws, |svc| Ok((svc.load_in(ws, sid)?, svc.device_links(ws).unwrap_or_default())))?;
@@ -597,7 +597,7 @@ impl LigusHost for TermLigusHost {
 /// first so no other device answers it too.
 fn plan_handoff(i: &Inner, ws: Uuid, sid: Uuid, agent_id: Uuid, trigger: Uuid) -> Result<Option<Plan>> {
     let core = i.core()?;
-    let local = core.identity.actor().id;
+    let local = core.author.id.clone();
     let device = core.identity.device.id.to_string();
     let (session, links) = i.read(ws, |svc| Ok((svc.load_in(ws, sid)?, svc.device_links(ws).unwrap_or_default())))?;
     let Some(session) = session else { return Ok(None) };

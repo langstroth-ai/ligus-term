@@ -1722,3 +1722,33 @@ fn focus_mode_toggles() {
     mods(&mut s, KeyCode::Char('f'), KeyModifiers::CONTROL);
     assert!(!s.focus_mode, "from the composer too");
 }
+
+/// Add to my devices: the request is made once, a grant is checked first
+/// (who approved it) and redeemed only on the second Enter, and editing the
+/// code asks again.
+#[test]
+fn add_to_my_devices_checks_the_grant_before_linking() {
+    let mut s = state();
+    s.phase = Phase::Onboarding(WorkspaceForm::new(true));
+    key(&mut s, KeyCode::Tab);
+    let fx = key(&mut s, KeyCode::Char('a'));
+    assert_eq!(fx, vec![Effect::LinkRequest]);
+    assert!(key(&mut s, KeyCode::Tab).is_empty(), "asked once");
+    // No name needed: the person comes from the desktop's code.
+    let fx = key(&mut s, KeyCode::Enter);
+    assert!(fx.is_empty());
+    let Phase::Onboarding(f) = &s.phase else { panic!() };
+    assert_eq!(f.error.as_deref(), Some("Paste the code your desktop shows"));
+    update(&mut s, Msg::Paste("ligusgrant1:abc".into()));
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::InspectLink("ligusgrant1:abc".into())]);
+    let view = LinkGrantView { person_name: "Alex".into(), workspace_name: "Acme".into(), approver_fingerprint: "2C41".into() };
+    update(&mut s, Msg::LinkChecked("ligusgrant1:abc".into(), Ok(view)));
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::RedeemLink("ligusgrant1:abc".into())]);
+    // A refusal shows on the form.
+    update(&mut s, Msg::Linked(Err(BackendError("the grant wasn't issued by a device of that person".into()))));
+    let Phase::Onboarding(f) = &s.phase else { panic!() };
+    assert!(f.error.as_deref().unwrap().contains("wasn't issued"));
+    // Editing the code checks it again.
+    key(&mut s, KeyCode::Char('x'));
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::InspectLink("ligusgrant1:abcx".into())]);
+}

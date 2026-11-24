@@ -194,6 +194,27 @@ pub const COMMANDS: &[Cmd] = &[
         example: "lt --name Ada join hivews1:...",
     },
     Cmd {
+        name: "link-request",
+        usage: "link-request",
+        about: "Ask to be added to your devices: you are already in the workspace on your desktop, and this \
+                computer should act as you, not as a second member. Prints this computer's request \
+                (liguslink1:..., no secret) and its fingerprint; on your desktop, Settings > Profile > My \
+                devices > Add a computer, paste it, compare the fingerprint and confirm with your passkey. \
+                An install already in use asks with a new device key. See lt help devices.",
+        prints: "link-request, ok",
+        example: "lt --plain link-request",
+    },
+    Cmd {
+        name: "link-redeem",
+        usage: "link-redeem CODE --approver-fingerprint FP",
+        about: "Link this computer with the code your desktop showed (ligusgrant1:..., sealed to this \
+                computer). Prints who approved it; links only when FP is the approving desktop's \
+                fingerprint (its sheet shows it as This desktop), else exits 4. From then on this computer \
+                acts as that person; it no longer creates workspaces or accepts invites.",
+        prints: "link-grant, linked",
+        example: "lt --plain link-redeem ligusgrant1:... --approver-fingerprint 2C41-88E0-1B9D-04AF-6E73",
+    },
+    Cmd {
         name: "check",
         usage: "check CODE",
         about: "Say who an invite is from before joining: trusted (a key your workspaces know), unknown \
@@ -495,6 +516,9 @@ pub const RECORDS: &[(&str, &[&[&str]])] = &[
     ("recovery-key", &[&["words", "note"]]),
     ("invite", &[&["code"]]),
     ("joined", &[&["id", "name"]]),
+    ("link-request", &[&["fingerprint", "label", "code"]]),
+    ("link-grant", &[&["person", "workspace", "approver"]]),
+    ("linked", &[&["id", "name", "person"]]),
     ("workspace", &[&["n", "id", "name", "role", "sync"]]),
     ("using", &[&["id", "name"]]),
     ("invite-check", &[&["trust", "workspace", "founder", "safety_code", "relay", "note"]]),
@@ -612,12 +636,40 @@ fn typed(kind: &str, name: &str, v: &str, fields: &[String]) -> Option<String> {
     None
 }
 
+/// `lt help devices`.
+const DEVICES: &str = "\
+Use lt as one of your devices
+
+Already in a workspace on your desktop? Don't invite yourself: an invite always
+makes a new member, and you would show up twice. Add this computer to your
+devices instead; it then acts as you (your name, your role, your chats).
+
+1. In lt: first run, choose Add to my devices (or, in an install you already use,
+   the palette's Link this computer to my devices). lt shows a request (no
+   secret) and a fingerprint.
+2. On your desktop: Settings > Profile > My devices > Add a computer. Paste the
+   request, compare all five groups of the fingerprint, confirm with your passkey.
+3. Paste the code the desktop shows into lt (within 30 minutes). lt shows who
+   approved it and the desktop's fingerprint (the desktop shows it as This
+   desktop): check it is yours and confirm.
+
+A linked lt acts as you without your account key: a vote asks for your passkey
+in the browser, and account changes (devices, phones, passkeys, keys) stay on
+the desktop. It no longer creates workspaces or accepts invites. To remove it,
+revoke it in My devices on the desktop.
+
+An install already in a workspace as its own member asks with a new device key;
+the desktop then offers to remove that old member (their messages keep their
+name).
+";
+
 /// The topics `lt help TOPIC` knows, with a line each.
 pub const TOPICS: &[(&str, &str)] = &[
     ("quickstart", "install lt, then create your first workspace or join one"),
     ("keys", "every key in the full-screen app, and how to rebind them"),
     ("plain", "scripting with --plain: one-shot commands, records, --json, exit codes"),
     ("agents", "adding agents from the runtimes this device can run, and who can use them"),
+    ("devices", "use lt as one of your devices (Add to my devices), not as a second member"),
     ("kubernetes", "connecting to a Kubernetes (or home server) deployment and admitting its boxes"),
     ("troubleshooting", "refusals, keychain prompts, passkeys without a browser, and other fixes"),
     ("env", "every environment variable lt reads"),
@@ -1149,6 +1201,16 @@ pub fn topic(name: &str, flags: &[(String, Option<String>, String)]) -> Option<S
         "agents" => {
             let mut s = AGENTS.to_string();
             for n in ["available", "add-agent", "access", "agents", "runtimes"] {
+                if let Some(c) = COMMANDS.iter().find(|c| c.name == n) {
+                    s.push('\n');
+                    s.push_str(&command_text(c));
+                }
+            }
+            s
+        }
+        "devices" | "link" | "add-to-my-devices" => {
+            let mut s = DEVICES.to_string();
+            for n in ["link-request", "link-redeem"] {
                 if let Some(c) = COMMANDS.iter().find(|c| c.name == n) {
                     s.push('\n');
                     s.push_str(&command_text(c));
