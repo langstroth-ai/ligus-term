@@ -3,22 +3,22 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA]+1• │ 1 2 3 4 Agents 5 6 7 8(1) 9          Northwind API
-┏ Agents · a taller terminal shows usage, hand-offs ━━━━━━━┓
-┃Agent   Statu Runtime Runs on     Who can use   Doing     ┃
-┃@primar idle  claude- This device Everyone      answers un┃
-┃@coder  busy  claude- sff · onlin Only me       working 40┃
-┃@review idle  codex   This device Everyone      reviews di┃
-┃@scout  idle  ollama  sff · onlin Everyone                ┃
+┏ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃@ligus     idle                                           ┃
+┃@coder     busy · sff                                     ┃
+┃@reviewer  idle                                           ┃
+┃@scout     idle · sff                                     ┃
+┃                                                          ┃
+┃                                                          ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-╭ Available on this device · N or enter adds an agent ─────╮
-│Runtime            Model        Versio Status  Detail     │
-│GitHub Copilot CLI default      1.0.10 not rea no Copilot │
-│Ollama (local)     qwen3:8b            ready   Ollama at 1│
+╭ Agent ───────────────────────────────────────────────────╮
+│@ligus  idle                                              │
+│                                                          │
+│Runtime     claude-code                                   │
+│Runs on     This device                                   │
+│Who can use Everyone                                      │
+│Doing       answers untagged messages                     │
+│                                                          │
+│Usage       its owner sees it                             │
 ╰──────────────────────────────────────────────────────────╯
-╭ Runtimes ────────────────────────────────────────────────╮
-│Runtime  Kind            Model       Where    Status      │
-│claude-c Claude Code     default     local CL Configured ·│
-│codex    Codex           default     local CL Configured  │
-│ollama   Ollama (local)  qwen3-coder local se Configured  │
-╰──────────────────────────────────────────────────────────╯
-↑↓ agents  N add agent  r runtime  E who can use  ? help
+N add agent  . actions  ? help      peer to peer · 1 running

@@ -5,10 +5,10 @@ expression: "h.screen(w, ht)"
 [NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
 ┏ Chats ━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test · 1/3 ───────────────────╮
 ┃  ◆ Fix flaky check… 12m  ┃│      test checkout::expires ... ok               │
-┃  #dev                    ┃│      test result: ok. 18 passed; 0 failed        │
-┃  ◆ Migrate auth to… 50m  ┃│  ▸ edit_file src/checkout.rs error 0.1s          │
-┃  #dev                    ┃│  The fix                                         │
-┃  Weekly release not… 1d  ┃│  The test reads the wall clock, so               │
+┃  ◆ Migrate auth to… 50m  ┃│      test result: ok. 18 passed; 0 failed        │
+┃  Weekly release not… 1d  ┃│  ▸ edit_file src/checkout.rs error 0.1s          │
+┃                          ┃│  The fix                                         │
+┃                          ┃│  The test reads the wall clock, so               │
 ┃                          ┃│  Checkout::is_expired flips under load. Two      │
 ┃                          ┃│  changes:                                        │
 ┃                          ┃│  • inject a Clock                                │
@@ -25,4 +25,4 @@ expression: "h.screen(w, ht)"
 ┃                          ┃╭ Message the room ────────────────────────────────╮
 ┃                          ┃│i to write · @ mentions an agent or a person      │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────╯
-↑↓ chats  i write  N new chat  tab pane  w workspaces  ? help       peer to peer
+i write  N new chat  tab pane  . actions  ? help        peer to peer · 1 running

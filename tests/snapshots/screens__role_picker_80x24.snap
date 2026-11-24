@@ -3,26 +3,26 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
-┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Member ──────────────────────────────────╮
-┃  Mara · you  owner  founder      ┃│sff box  contributor                      │
-┃  Ada  admin                      ┃│                                          │
-┃  Lin  contributor                ┃│A service member (a box): at most         │
-┃  Sam  viewer                     ┃│Contributor, no passkey.                  │
-┃  sff box  contributor  service   ┃│Role (r)                                  │
-┃       ┏ Role for sff box ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ at    │
-┃       ┃  owner  a service member holds at most Contributor           ┃       │
-┃       ┃  admin  a service member holds at most Contributor           ┃ at    │
-┃       ┃› contributor  already that role                              ┃       │
-┃       ┃  viewer                                                      ┃       │
-┃       ┃                                                              ┃       │
-┃       ┃Refused roles are crossed out with the reason. Changing a role┃       │
-┃       ┃needs your passkey.                                           ┃       │
-┃       ┃enter choose · esc cancel                                     ┃       │
-┃       ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ker) as│
-┃                                  ┃│a service member                          │
-┃                                  ┃│                                          │
-┃                                  ┃│Changes to who's in the workspace need    │
-┃                                  ┃│your passkey.                             │
-┃                                  ┃│                                          │
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────╯
-↑↓ people  r role  X remove  I invite  B admit box  ? help          peer to peer
+┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃Mara (you)  owner · founder                                                   ┃
+┃Ada         admin                                                             ┃
+┃Lin         contributor                                                       ┃
+┃Sam         viewer                                                            ┃
+┃sff box     contributor · box                                                 ┃
+┃       ┏ Role for sff box ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓       ┃
+┃       ┃  owner  a service member holds at most Contributor           ┃       ┃
+┃       ┃  admin  a service member holds at most Contributor           ┃       ┃
+┃       ┃› contributor  already that role                              ┃       ┃
+┃       ┃  viewer                                                      ┃       ┃
+┃       ┃                                                              ┃       ┃
+┃       ┃Needs your passkey.                                           ┃       ┃
+┃       ┃enter choose · esc cancel                                     ┃       ┃
+┃       ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛       ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+I invite  . actions  ? help                      peer to peer · 1 running · demo

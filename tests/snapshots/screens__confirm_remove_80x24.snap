@@ -3,26 +3,26 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
-┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Member ──────────────────────────────────╮
-┃  Mara · you  owner  founder      ┃│Lin  contributor                          │
-┃  Ada  admin                      ┃│                                          │
-┃  Lin  contributor                ┃│Role (r)                                  │
-┃  Sam  viewer                     ┃│  ( ) owner                               │
-┃  sff box  contributor  service   ┃│  ( ) admin                               │
-┃                                  ┃│  (•) contributor                         │
-┃                                  ┃│  ( ) viewer                              │
-┃       ┏ Remove member ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓       │
-┃       ┃Remove Lin from the workspace?                                ┃       │
-┃       ┃                                                              ┃       │
-┃       ┃y confirm (needs your passkey) · any other key cancels        ┃ker) as│
-┃       ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛       │
-┃                                  ┃│                                          │
-┃                                  ┃│Changes to who's in the workspace need    │
-┃                                  ┃│your passkey.                             │
-┃                                  ┃│                                          │
-┃                                  ┃│                                          │
-┃                                  ┃│                                          │
-┃                                  ┃│                                          │
-┃                                  ┃│                                          │
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────╯
-↑↓ people  r role  X remove  I invite  B admit box  ? help          peer to peer
+┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃Mara (you)  owner · founder                                                   ┃
+┃Ada         admin                                                             ┃
+┃Lin         contributor                                                       ┃
+┃Sam         viewer                                                            ┃
+┃sff box     contributor · box                                                 ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃       ┏ Remove member ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓       ┃
+┃       ┃Remove Lin from the workspace?                                ┃       ┃
+┃       ┃                                                              ┃       ┃
+┃       ┃y confirm (needs your passkey) · any other key cancels        ┃       ┃
+┃       ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛       ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┃                                                                              ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+I invite  . actions  ? help                      peer to peer · 1 running · demo

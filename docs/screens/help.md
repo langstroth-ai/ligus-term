@@ -4,25 +4,29 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
-┏ Chats ━━━━━━━━━┏ Help · 1-40 of 98 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
-┃  ◆ Fix flaky ch┃What has focus comes first. / searches. Rebind keys in the config file.   ┃                │
-┃  #dev          ┃                                                                          ┃it reading the  │
-┃  ◆ Migrate auth┃Chats  here                                                               ┃                │
-┃  #dev          ┃  i                        Write a message                                ┃                │
-┃  Weekly release┃  N                        New chat                                       ┃                │
-┃                ┃  D                        The whole transcript in $PAGER (or your termina┃ small change.  │
-┃                ┃  o                        Show or hide what tool calls returned          ┃                │
-┃                ┃  L                        Lock this chat down                            ┃· p to review   │
-┃                ┃  U                        Clear the lockdown                             ┃                │
+┏ Chats ━━━━━━━━━┏ Help · 1-40 of 102 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
+┃  ◆ Fix flaky ch┃Each chat is a room with people and agents. @ mentions an agent or a      ┃                │
+┃  ◆ Migrate auth┃person; enter on a chat opens it and puts you in the composer.            ┃it reading the  │
+┃  Weekly release┃                                                                          ┃                │
+┃                ┃. opens a row's actions · / searches · rebind keys in the config file     ┃                │
 ┃                ┃                                                                          ┃                │
-┃                ┃Lists  here                                                               ┃rovider uses.   │
-┃                ┃  ↑, k                     Up                                             ┃to review       │
+┃                ┃Chats  here                                                               ┃ small change.  │
+┃                ┃  i                        Write a message                                ┃                │
+┃                ┃  N                        New chat                                       ┃· p to review   │
+┃                ┃  D                        The whole transcript in $PAGER (or your termina┃                │
+┃                ┃  o                        Show or hide what tool calls returned          ┃                │
+┃                ┃  L                        Lock this chat down                            ┃rovider uses.   │
+┃                ┃  U                        Clear the lockdown                             ┃to review       │
+┃                ┃                                                                          ┃                │
+┃                ┃Lists  here                                                               ┃                │
+┃                ┃  ↑, k                     Up                                             ┃                │
 ┃                ┃  ↓, j                     Down                                           ┃                │
 ┃                ┃  pgup, ctrl-u             Page up                                        ┃                │
 ┃                ┃  pgdn, ctrl-d             Page down                                      ┃                │
 ┃                ┃  home, g                  First                                          ┃                │
 ┃                ┃  end, G                   Last                                           ┃                │
-┃                ┃  enter, l, →              Open                                           ┃                │
+┃                ┃  enter, l, →              Open (the row's main action)                   ┃                │
+┃                ┃  ., shift-f10             Actions for this row and this view (destructive┃                │
 ┃                ┃  /                        Find in this list (as you type; ↑↓ next match) ┃                │
 ┃                ┃                                                                          ┃                │
 ┃                ┃Anywhere                                                                  ┃                │
@@ -37,14 +41,10 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 ┃                ┃  +                        Create or join a workspace                     ┃                │
 ┃                ┃  unbound                  Link this computer to my devices               ┃                │
 ┃                ┃  c, 1                     Chats                                          ┃                │
-┃                ┃  f, 2                     Workflows and runs                             ┃                │
-┃                ┃  p, 3                     Proposals                                      ┃                │
-┃                ┃  a, 4                     Agents, runtimes and hand-offs                 ┃                │
+┃                ┃  f, 2                     Workflows and runs                             ┃────────────────╯
+┃                ┃  p, 3                     Proposals                                      ┃
+┃                ┃  a, 4                     Agents and hand-offs                           ┃────────────────╮
 ┃                ┃  h, 5                     Hosts and workers                              ┃                │
-┃                ┃  y, 6                     Task state and memory                          ┃────────────────╯
-┃                ┃  m, 7                     People                                         ┃
-┃                ┃  n, 8                     Notifications                                  ┃────────────────╮
-┃                ┃  s, 9                     Settings                                       ┃                │
 ┗━━━━━━━━━━━━━━━━┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛────────────────╯
 / search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                    peer to peer · 1 running · demo
 ```

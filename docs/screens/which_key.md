@@ -5,16 +5,12 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Proposals ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Inject the clock into checkout tests ──────────────────────────╮
-┃open     Inject the clock into checkou…   ┃│open  by @coder · 2 files changed · 1/2 approvals               │
-┃         1/2 approvals · @coder · 37m     ┃│✓ Ada approved · admin                                          │
-┃approved Export orders to CSV             ┃│A Approve   R Reject   O Apply on sff… (needs approval first)   │
-┃         2/2 approvals · @coder · 1d      ┃│That host applies it once, on its checkout, and reports the     │
-┃applied  Bump the order schema version    ┃│result.                                                         │
-┃         2/2 approvals · @reviewer · 2d   ┃│                                                                │
-┃open     Sign-off: inject a fake clock    ┃╰────────────────────────────────────────────────────────────────╯
-┃         0/1 approvals · workflow · 4m    ┃╭ Diff · 2 files · hunk 1/3 ─────────────────────────────────────╮
-┃open     Workflow: Dependency audit be…   ┃│▌src/checkout.rs +9 −3                                          │
-┃         0/1 approvals · @scout · 20m     ┃│@@ -12,7 +12,9 @@ pub struct Checkout {                         │
+┃Inject the clock into c…  open 1/2 · 37m  ┃│open  by @coder · 2 files changed · 1/2 approvals               │
+┃Export orders to CSV   approved 2/2 · 1d  ┃│✓ Ada approved · admin                                          │
+┃Bump the order schema…  applied 2/2 · 2d  ┃╰────────────────────────────────────────────────────────────────╯
+┃Sign-off: inject a fake …  open 0/1 · 4m  ┃╭ Diff · 2 files · hunk 1/3 ─────────────────────────────────────╮
+┃Workflow: Dependency au…  open 0/1 · 20m  ┃│▌src/checkout.rs +9 −3                                          │
+┃                                          ┃│@@ -12,7 +12,9 @@ pub struct Checkout {                         │
 ┃                                          ┃│     pub cart: CartId,                                          │
 ┃                                          ┃│     pub items: Vec<LineItem>,                                  │
 ┃                                          ┃│-    pub started: Instant,                                      │
@@ -28,11 +24,15 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                          ┃│-        self.started.elapsed().as_secs() > 30                  │
 ┃                                          ┃│-    }                                                          │
 ┃                                          ┃│+        // 30 seconds matches the payment provider's session t…│
+┃                                          ┃│+        self.clock.now() - self.started_at >= Self::SESSION_TI…│
+┃                                          ┃│+    }                                                          │
+┃                                          ┃│+                                                               │
+┃                                          ┃│+    pub const SESSION_TIMEOUT_MS: Millis = 30_000;             │
 ┃┏ space … press a key · esc ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓│
 ┃┃Proposals A approve   R reject   O apply on host   W withdraw apply                                       ┃│
 ┃┃Go to     c chats   f workflows   p proposals   a agents   h hosts   y memory   m people                  ┃│
 ┃┃          n notifications   s settings                                                                    ┃│
 ┃┃Anywhere  q quit   ? help   : palette   ! messages   w switch workspace   + add workspace                 ┃│
 ┗┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╯
-↑↓ proposals  enter diff  A approve  R reject  O apply  ? help                 peer to peer · 1 running · demo
+enter diff  A approve  . actions  ? help                                       peer to peer · 1 running · demo
 ```

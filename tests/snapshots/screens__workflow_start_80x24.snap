@@ -14,7 +14,7 @@ expression: screen
 ┃       ┏ Start “Implement, review, ship” ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓       │
 ┃       ┃What to change                                                ┃ review│
 ┃       ┃export the order history                                      ┃       │
-┃       ┃enter start · esc cancel · this device drives the run         ┃t;     │
+┃       ┃enter start · esc cancel · this device drives the run         ┃       │
 ┃       ┃                                                              ┃       │
 ┃       ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛       │
 ┃                                  ┃│                                          │
@@ -25,4 +25,4 @@ expression: screen
 ┃                                  ┃│                                          │
 ┃                                  ┃│                                          │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────╯
-↑↓ select  S start  A approve gate  R reject  X cancel  f1 help     peer to peer
+S start run  . actions  f1 help                  peer to peer · 1 running · demo

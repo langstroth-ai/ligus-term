@@ -5,10 +5,10 @@ expression: screen
 [NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
 ┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ─────────────────────────────────────────────────────────────────────────────────────────────────────╮╭ This chat ───────────────────────────╮
 ┃  ✕ Fix flaky checkout … 12m  ┃│             Ada  40m                                                                                                         ││Runs                                  │
-┃  #dev                        ┃│               The checkout test fails about one run in ten. Can we stop it reading the wall clock?                           ││· Implement, review, ship             │
-┃  ‖ Migrate auth to pas… 50m  ┃│                                                                                                                              ││  awaiting-gate                       │
-┃  #dev                        ┃│             @coder  via claude-code · on sff  38m                                                                            ││                                      │
-┃  ⠋ Weekly release notes  1d  ┃│               Yes. The payment tests already use a fake clock, so it's a small change. I'll propose it.                      ││                                      │
+┃  ‖ Migrate auth to pas… 50m  ┃│               The checkout test fails about one run in ten. Can we stop it reading the wall clock?                           ││· Implement, review, sh… awaiting-gate│
+┃  ⠋ Weekly release notes  1d  ┃│                                                                                                                              ││                                      │
+┃                              ┃│             @coder  via claude-code · on sff  38m                                                                            ││                                      │
+┃                              ┃│               Yes. The payment tests already use a fake clock, so it's a small change. I'll propose it.                      ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│             Ada  12m                                                                                                         ││                                      │
 ┃                              ┃│               @Mara can you review the timeout? 30 seconds is what the provider uses.                                        ││                                      │
@@ -51,4 +51,4 @@ expression: screen
 ┃                              ┃╭ Message the room ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮│                                      │
 ┃                              ┃│i to write · @ mentions an agent or a person                                                                                  ││                                      │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯╰──────────────────────────────────────╯
-↑↓ chats  i write  N new chat  tab pane  w workspaces  ? help                                                                                                            peer to peer · 1 running · demo
+i write  N new chat  tab pane  . actions  ? help                                                                                                                         peer to peer · 1 running · demo

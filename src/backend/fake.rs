@@ -801,7 +801,7 @@ fn seed_northwind(w: &mut World) {
         runtime("copilot", RuntimeKind::Copilot, None, false, false),
     ];
     ws.agents = vec![
-        agent("a-primary", "primary", "claude-code", None, Some("answers untagged messages")),
+        agent("a-ligus", "ligus", "claude-code", None, Some("answers untagged messages")),
         Agent {
             // Yours, "Only me", with this device's counts.
             access: "owner".into(),
@@ -1003,7 +1003,7 @@ fn seed_orchestration(ws: &mut Ws) {
         h.repos = vec!["northwind-api".into()];
     }
     if let Some(h) = ws.hosts.iter_mut().find(|h| h.this_device) {
-        h.agents = vec!["primary".into(), "reviewer".into()];
+        h.agents = vec!["ligus".into(), "reviewer".into()];
     }
     if let Some(a) = ws.agents.iter_mut().find(|a| a.handle == "coder") {
         a.status = AgentStatus::Busy;
@@ -1206,7 +1206,7 @@ fn seed_docs(w: &mut World) {
     };
     ws.members = vec![member("m-jo", "Jo", Role::Owner, true, false), member("m-you", "Mara", Role::Viewer, false, false)];
     ws.runtimes = vec![runtime("claude-code", RuntimeKind::ClaudeCode, None, true, true)];
-    ws.agents = vec![agent("a-primary", "primary", "claude-code", None, None)];
+    ws.agents = vec![agent("a-ligus", "ligus", "claude-code", None, None)];
     ws.hosts = vec![Host {
         id: HostId::new("h-this"),
         label: "This device".into(),
@@ -1293,7 +1293,7 @@ impl Backend for FakeBackend {
             summary: Some(summary.clone()),
             members: vec![MemberRec { id: you, name: your_name.trim().into(), role: Role::Owner, founder: true, service: false }],
             runtimes: vec![runtime("claude-code", RuntimeKind::ClaudeCode, None, true, true)],
-            agents: vec![agent("a-primary", "primary", "claude-code", None, Some("answers untagged messages"))],
+            agents: vec![agent("a-ligus", "ligus", "claude-code", None, Some("answers untagged messages"))],
             hosts: vec![Host {
                 id: HostId::new("h-this"),
                 label: "This device".into(),
@@ -1354,7 +1354,7 @@ impl Backend for FakeBackend {
                 member("m-inviter", "Inviter", Role::Owner, true, false),
                 MemberRec { id: you, name: your_name.trim().into(), role: Role::Contributor, founder: false, service: false },
             ],
-            agents: vec![agent("a-primary", "primary", "claude-code", None, None)],
+            agents: vec![agent("a-ligus", "ligus", "claude-code", None, None)],
             runtimes: vec![runtime("claude-code", RuntimeKind::ClaudeCode, None, true, true)],
             hosts: vec![Host {
                 id: HostId::new("h-this"),
@@ -1485,7 +1485,7 @@ impl Backend for FakeBackend {
             let mut responders: Vec<Agent> = ws.agents.iter().filter(|a| mentions(&lower, &a.handle)).cloned().collect();
             let mentions_human = ws.members.iter().any(|mm| mentions(&lower, &mm.name.to_lowercase())) || mentions(&lower, "all");
             if responders.is_empty() && !mentions_human {
-                responders.extend(ws.agents.iter().find(|a| a.handle == "primary").cloned());
+                responders.extend(ws.agents.iter().find(|a| a.handle == "ligus").cloned());
             }
             if locked {
                 // A locked chat still answers, but agents get no network; the
@@ -1503,10 +1503,10 @@ impl Backend for FakeBackend {
         let mut w = self.lock();
         let ws = w.ws(workspace)?;
         let mut out = vec![
-            Mentionable { handle: "primary".into(), kind: "Default agent".into(), unavailable: None },
+            Mentionable { handle: "ligus".into(), kind: "Default agent".into(), unavailable: None },
             Mentionable { handle: "all".into(), kind: "Everyone".into(), unavailable: None },
         ];
-        out.extend(ws.agents.iter().filter(|a| a.handle != "primary").map(|a| Mentionable {
+        out.extend(ws.agents.iter().filter(|a| a.handle != "ligus").map(|a| Mentionable {
             handle: a.handle.clone(),
             kind: "Agent".into(),
             unavailable: a.unavailable.clone(),
@@ -2142,14 +2142,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn untagged_message_goes_to_primary_human_mention_to_nobody() {
+    async fn untagged_message_goes_to_the_default_agent_human_mention_to_nobody() {
         let b = FakeBackend::demo(FakeConfig::instant());
         let mut ev = b.events();
         b.send_message(&ws(), &ChatId::new("c-notes"), "@Ada thoughts?").await.unwrap();
         b.send_message(&ws(), &ChatId::new("c-notes"), "what's next").await.unwrap();
         loop {
             if let Event::Thinking { on: true, agent, .. } = ev.next().await.unwrap() {
-                assert_eq!(agent, "@primary");
+                assert_eq!(agent, "@ligus");
                 break;
             }
         }

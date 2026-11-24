@@ -4,8 +4,8 @@ expression: screen
 ---
 [NA] Northwind API · contributor │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications  Settings
 ┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ No chat open ────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮╭ This chat ───────────────────────────╮
-┃No chats yet.                 ┃│                                                                                                                              ││                                      │
-┃N start a chat                ┃│                                                                                                                              ││                                      │
+┃No chats yet · N new          ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
@@ -51,4 +51,4 @@ expression: screen
 ┃                              ┃╭ Message the room ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮│                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯╰──────────────────────────────────────╯
-↑↓ chats  i write  N new chat  tab pane  w workspaces  ? help  ✓ Linked: one of Alex's devices in “Northwind API”                                                                    peer to peer · demo
+i write  N new chat  tab pane  . actions  ? help  ✓ Linked: one of Alex's devices in “Northwind API”                                                                                 peer to peer · demo

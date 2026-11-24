@@ -20,6 +20,28 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Changed
 
+- Calmer views, the same pattern as the Ligus app: list rows are one line
+  (who or what, then one muted status), so chats, proposals, hosts and
+  people no longer take two lines or repeat a label on every row ("DEVICE",
+  "Configured").
+- Per-row actions moved into a row menu: `.` (or `shift-f10`) lists the
+  row's actions, then the view's, then the destructive ones last (they
+  still ask first). Each entry shows its key, which still works without the
+  menu; a refused one is dimmed with the reason. `enter` stays the row's
+  main action. Rebind it as `row_menu` under `[keys.nav]`.
+- The key hints show only the view's primary action (invite, add agent,
+  start run, approve), the row menu and help; the full list is behind `?`,
+  which now opens on what the view is for. The explanations that sat under
+  the views (hosts, workflows, proposals, settings, agent usage) moved
+  there; empty states are one short line.
+- Agents: one list of agents beside the selected agent's detail (runtime,
+  host, who can use it, usage, its hand-offs). Adding an agent opens a
+  popup of what this device has, instead of a second list under the
+  agents, and the runtime table is folded into the change-runtime picker.
+- People is one list; its detail pane of role buttons and actions is the
+  row menu now. Workflows and proposals drop the action lines from their
+  detail, keeping a waiting gate's approve and why you can't vote.
+- Narrow terminals stack a view's detail under its list.
 - Built on a Ligus revision with "Add a computer" (the pin moves to the next
   Ligus release tag).
 

@@ -14,8 +14,8 @@ expression: screen
 ┃                                                ┃│  Review @reviewer  after implement                       │
 ┃                                                ┃│  Sign-off gate (1 approval)  after review                │
 ┃                                                ┃│                                                          │
-┃                                                ┃│S Start a run: this device drives it; stages go to their  │
-┃                                                ┃│agents' hosts                                             │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
@@ -33,4 +33,4 @@ expression: screen
 ┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────╯
-↑↓ select  S start  A approve gate  R reject  X cancel  ? help                 peer to peer · 1 running · demo
+S start run  . actions  ? help                                                 peer to peer · 1 running · demo

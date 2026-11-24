@@ -1621,9 +1621,7 @@ mod tests {
         let (code, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "available").await;
         assert_eq!(code, 0);
         assert!(
-            out.contains(
-                "available\t1\tlocal:claude-code\tClaude Code\tdefault\t2.1.3\tready\tsigned in (claude login)\tused by @primary\t"
-            ),
+            out.contains("available\t1\tlocal:claude-code\tClaude Code\tdefault\t2.1.3\tready\tsigned in (claude login)\tused by @ligus\t"),
             "{out}"
         );
         assert!(out.lines().any(|l| l.contains("local:copilot") && l.contains("\tnot ready\t") && l.contains("\tunused\t")), "{out}");

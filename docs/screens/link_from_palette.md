@@ -6,10 +6,10 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test · 1/3 ─────────────────────────────────────────────╮
 ┃  ◆ Fix flaky checkout … 12m  ┃│Ada  40m                                                                    │
-┃  #dev            ┏ Add a workspace ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓p it reading the  │
-┃  ◆ Migrate auth t┃  ( ) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃                  │
-┃  #dev            ┃  (•) Add to my devices                                               ┃                  │
-┃  Weekly release n┃                                                                      ┃                  │
+┃  ◆ Migrate auth t┏ Add a workspace ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓p it reading the  │
+┃  Weekly release n┃  ( ) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃                  │
+┃                  ┃  (•) Add to my devices                                               ┃                  │
+┃                  ┃                                                                      ┃                  │
 ┃                  ┃  Make this computer one of your devices.                             ┃ a small change.  │
 ┃                  ┃  An invite makes a second member with your name; this makes it you.  ┃                  │
 ┃                  ┃  It acts as you without your account key: votes ask for your         ┃2 · p to review   │
@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛──────────────────╮
 ┃                              ┃│i to write · @ mentions an agent or a person                                │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────────────────╯
-↑↓ chats  i write  N new chat  tab pane  w workspaces  f1 help                 peer to peer · 1 running · demo
+i write  N new chat  tab pane  . actions  f1 help                              peer to peer · 1 running · demo
 ```

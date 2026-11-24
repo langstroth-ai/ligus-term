@@ -4,35 +4,35 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
-┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Member ──────────────────────────────────────────────────╮
-┃  Mara · you  owner  founder                    ┃│Mara  owner                                               │
-┃  Ada  admin                                    ┃│                                                          │
-┃  Lin  contributor                              ┃│Founder: nobody can remove or demote them.                │
-┃  Sam  viewer                                   ┃│Role (r)                                                  │
-┃  sff box  contributor  service                 ┃│  (•) owner                                               │
-┃                                                ┃│  ( ) admin                                               │
-┃                                                ┃│  ( ) contributor                                         │
-┃                                                ┃│  ( ) viewer                                              │
-┃            ┏ Admit a box ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓            │
-┃            ┃Check the box (sff) shows this fingerprint: K3QF-7XMA-2DPL-90RW-ZT4E              ┃            │
-┃            ┃Its terminal printed it with the join request. A different one means the request  ┃            │
-┃            ┃was swapped: don't admit it.                                                      ┃ervice      │
-┃            ┃                                                                                  ┃            │
-┃            ┃y it matches, admit (needs your passkey) · esc back                               ┃            │
-┃            ┃                                                                                  ┃sskey.      │
-┃            ┃                                                                                  ┃            │
-┃            ┃                                                                                  ┃            │
-┃            ┃                                                                                  ┃            │
-┃            ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛            │
-┃                                                ┃│                                                          │
-┃                                                ┃│                                                          │
-┃                                                ┃│                                                          │
-┃                                                ┃│                                                          │
-┃                                                ┃│                                                          │
-┃                                                ┃│                                                          │
-┃                                                ┃│                                                          │
-┃                                                ┃│                                                          │
-┃                                                ┃│                                                          │
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────╯
-↑↓ people  r role  X remove  I invite  B admit box  ? help                     peer to peer · 1 running · demo
+┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃Mara (you)  owner · founder                                                                                 ┃
+┃Ada         admin                                                                                           ┃
+┃Lin         contributor                                                                                     ┃
+┃Sam         viewer                                                                                          ┃
+┃sff box     contributor · box                                                                               ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃            ┏ Admit a box ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓            ┃
+┃            ┃Check the box (sff) shows this fingerprint: K3QF-7XMA-2DPL-90RW-ZT4E              ┃            ┃
+┃            ┃Its terminal printed it with the join request. A different one means the request  ┃            ┃
+┃            ┃was swapped: don't admit it.                                                      ┃            ┃
+┃            ┃                                                                                  ┃            ┃
+┃            ┃y it matches, admit (needs your passkey) · esc back                               ┃            ┃
+┃            ┃                                                                                  ┃            ┃
+┃            ┃                                                                                  ┃            ┃
+┃            ┃                                                                                  ┃            ┃
+┃            ┃                                                                                  ┃            ┃
+┃            ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛            ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┃                                                                                                            ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+I invite  . actions  ? help                                                    peer to peer · 1 running · demo
 ```

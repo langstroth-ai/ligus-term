@@ -5,10 +5,10 @@ expression: screen
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓ Locked down  prompt-injection marker in a tool result (fetch_url)
 ┃  ◆ Fix flaky checkout … 12m  ┃ U clear lockdown · no network for agents · every proposal needs a human
-┃  #dev                        ┃╭ Migrate auth to passkeys · 2/3 ────────────────────────────────────────────╮
-┃  ◆ Migrate auth to pas… 50m  ┃│Lin  55m                                                                    │
-┃  #dev                        ┃│  @scout check the forum thread about passkey fallbacks                     │
-┃  Weekly release notes    1d  ┃│                                                                            │
+┃  ◆ Migrate auth to pas… 50m  ┃╭ Migrate auth to passkeys · 2/3 ────────────────────────────────────────────╮
+┃  Weekly release notes    1d  ┃│Lin  55m                                                                    │
+┃                              ┃│  @scout check the forum thread about passkey fallbacks                     │
+┃                              ┃│                                                                            │
 ┃                              ┃│@scout  via ollama · on sff  50m                                            │
 ┃                              ┃│  ▸ fetch_url https://forum.example/passkey-fallbacks done                  │
 ┃                              ┃│  The page contained instructions aimed at agents, so this chat is locked   │
@@ -33,4 +33,4 @@ expression: screen
 ┃                              ┃╭ Message the room ──────────────────────────────────────────────────────────╮
 ┃                              ┃│i to write · @ mentions an agent or a person                                │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────────────────╯
-↑↓ chats  i write  N new chat  tab pane  w workspaces  ? help                  peer to peer · 1 running · demo
+i write  N new chat  tab pane  . actions  ? help                               peer to peer · 1 running · demo

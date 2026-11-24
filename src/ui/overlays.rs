@@ -8,7 +8,9 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Clear, List, ListItem, ListState, Paragraph, Wrap};
 
 use super::{center, onboarding, pane};
-use crate::app::state::{Overlay, PresenceSheet, PresenceStage, State};
+use unicode_width::UnicodeWidthStr;
+
+use crate::app::state::{MenuItem, MenuSection, Overlay, PresenceSheet, PresenceStage, State, View};
 use crate::backend::model::{Allowed, PresenceOp, Role, initials};
 use crate::keymap::{BINDINGS, Context};
 use crate::theme::Theme;
@@ -134,6 +136,8 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             f.render_widget(Paragraph::new(lines), inner);
             f.set_cursor_position(Position::new(inner.x + buf.cursor_pos().1 as u16, inner.y));
         }
+        Some(Overlay::RowMenu { title, items, sel }) => row_menu(f, area, s, title, items, *sel, t),
+        Some(Overlay::AddAgentPicker { sel }) => add_agent_picker(f, area, s, *sel, t),
         Some(Overlay::AddAgent { runtime, name }) => {
             let r = center(area, 72, 8);
             f.render_widget(Clear, r);
@@ -173,15 +177,7 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
                     ]))
                 })
                 .collect();
-            picker(
-                f,
-                area,
-                "Apply on…",
-                items,
-                *sel,
-                "That host applies it once, on its checkout, and reports the result. Nobody else applies it meanwhile.",
-                t,
-            );
+            picker(f, area, "Apply on…", items, *sel, "", t);
         }
         Some(Overlay::RolePicker { member, sel }) => {
             let m = s.members.iter().find(|m| &m.id == member);
@@ -200,22 +196,25 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
                 })
                 .collect();
             let title = format!("Role for {}", m.map(|m| m.name.as_str()).unwrap_or("?"));
-            picker(f, area, &title, items, *sel, "Refused roles are crossed out with the reason. Changing a role needs your passkey.", t);
+            picker(f, area, &title, items, *sel, "Needs your passkey.", t);
         }
         Some(Overlay::RuntimePicker { sel, agent }) => {
+            let current = s.agents.iter().find(|a| &a.id == agent).map(|a| a.runtime.clone());
             let items: Vec<ListItem> = s
                 .runtimes
                 .iter()
                 .filter(|r| r.configured)
                 .map(|r| {
+                    let model = r.model.clone().unwrap_or_else(|| "default".into());
+                    let now = if current.as_ref() == Some(&r.id) { " · current" } else { "" };
                     ListItem::new(Line::from(vec![
                         Span::styled(r.id.0.clone(), t.text()),
-                        Span::styled(format!("  {}", r.kind.label()), t.dim()),
+                        Span::styled(format!("  {} · {model} · {}{now}", r.kind.label(), r.kind.place()), t.dim()),
                     ]))
                 })
                 .collect();
             let handle = s.agents.iter().find(|a| &a.id == agent).map(|a| a.handle.clone()).unwrap_or_default();
-            picker(f, area, &format!("Runtime for @{handle}"), items, *sel, "Only configured runtimes are listed.", t);
+            picker(f, area, &format!("Runtime for @{handle}"), items, *sel, "", t);
         }
         Some(Overlay::ConfirmRemove { name, member }) => {
             let you = s.members.iter().any(|m| &m.id == member && m.you);
@@ -286,7 +285,7 @@ fn message(f: &mut Frame, area: Rect, title: &str, lines: Vec<Line>, t: &Theme) 
 
 fn picker(f: &mut Frame, area: Rect, title: &str, items: Vec<ListItem>, sel: usize, note: &str, t: &Theme) {
     let n = items.len() as u16;
-    let r = center(area, 64, n + 6);
+    let r = center(area, 64, n + if note.is_empty() { 4 } else { 5 });
     f.render_widget(Clear, r);
     let block = pane(title, true, t);
     let inner = block.inner(r);
@@ -295,10 +294,83 @@ fn picker(f: &mut Frame, area: Rect, title: &str, items: Vec<ListItem>, sel: usi
     let mut st = ListState::default().with_selected(Some(sel));
     f.render_stateful_widget(List::new(items).highlight_style(t.selected()).highlight_symbol("› "), list_area, &mut st);
     let note_area = Rect { y: inner.y + n + 1, height: inner.height.saturating_sub(n + 1), ..inner };
-    f.render_widget(
-        Paragraph::new(vec![Line::styled(note, t.dim()), Line::styled("enter choose · esc cancel", t.dim())]).wrap(Wrap { trim: true }),
-        note_area,
-    );
+    let mut lines = vec![];
+    if !note.is_empty() {
+        lines.push(Line::styled(note, t.dim()));
+    }
+    lines.push(Line::styled("enter choose · esc cancel", t.dim()));
+    f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: true }), note_area);
+}
+
+/// The row menu: the row's actions, the view's, then the destructive ones,
+/// a hairline between the groups. Each entry shows its own key; a refused
+/// one is dimmed with the reason.
+fn row_menu(f: &mut Frame, area: Rect, s: &State, title: &str, items: &[MenuItem], sel: usize, t: &Theme) {
+    let w = 60.min(area.width);
+    let inner_w = w.saturating_sub(2) as usize;
+    let keys: Vec<String> = items.iter().map(|it| s.keymap.hint(it.context, it.action)).collect();
+    let key_w = keys.iter().map(|k| k.width()).max().unwrap_or(1);
+    let mut lines: Vec<Line> = vec![];
+    for (i, (it, key)) in items.iter().zip(&keys).enumerate() {
+        if i > 0 && items[i - 1].section != it.section {
+            lines.push(Line::styled("─".repeat(inner_w), t.dim()));
+        }
+        let mark = if i == sel { "› " } else { "  " };
+        let style = |base: ratatui::style::Style| if i == sel { t.selected() } else { base };
+        let mut spans = vec![Span::styled(mark, t.accent()), Span::styled(format!("{key:<key_w$}  "), style(t.accent()))];
+        match &it.allowed {
+            Allowed::Yes => {
+                let base = if it.section == MenuSection::Danger { t.fg(t.bad) } else { t.text() };
+                spans.push(Span::styled(it.label.clone(), style(base)));
+            }
+            Allowed::No(r) => {
+                spans.push(Span::styled(it.label.clone(), style(t.disabled())));
+                let room = inner_w.saturating_sub(2 + key_w + 2 + it.label.width() + 2);
+                spans.push(Span::styled(format!("  {}", super::trunc(r, room)), t.dim()));
+            }
+        }
+        lines.push(Line::from(spans));
+    }
+    lines.push(Line::raw(""));
+    lines.push(Line::styled("enter choose · or its key · esc close", t.dim()));
+    let r = center(area, w, lines.len() as u16 + 2);
+    f.render_widget(Clear, r);
+    let title = super::trunc(title, inner_w.saturating_sub(2));
+    f.render_widget(Paragraph::new(lines).block(pane(&title, true, t)), r);
+}
+
+/// "Add an agent": what this device could run one on (the runtimes no
+/// agent here uses yet), or one line when there is nothing.
+fn add_agent_picker(f: &mut Frame, area: Rect, s: &State, sel: usize, t: &Theme) {
+    let available = s.available_local();
+    let empty = match &s.local {
+        None => Some("Looking for agent runtimes on this device\u{2026}"),
+        Some(all) if all.is_empty() => Some("No agent runtime found on this device; ? lists what to install"),
+        Some(_) if available.is_empty() => Some("Every runtime here already runs an agent"),
+        Some(_) => None,
+    };
+    if let Some(line) = empty {
+        message(f, area, "Add an agent", vec![Line::styled(line, t.dim()), Line::styled("esc close", t.dim())], t);
+        return;
+    }
+    let items: Vec<ListItem> = available
+        .iter()
+        .map(|l| {
+            let (state, style) = match (&l.unsupported, l.ready) {
+                (Some(_), _) => ("can't run", t.dim()),
+                (None, true) => ("ready", t.fg(t.good)),
+                (None, false) => ("not ready", t.fg(t.warn)),
+            };
+            let what = match &l.model {
+                Some(m) => format!("{} · {m}", l.kind.label()),
+                None => l.kind.label().to_string(),
+            };
+            ListItem::new(Line::from(vec![Span::styled(what, t.text()), Span::styled(format!("  {state}"), style)]))
+        })
+        .collect();
+    // The selected one's detail: why it isn't ready, or where it was found.
+    let note = available.get(sel).map(|l| l.unsupported.clone().unwrap_or_else(|| l.detail.clone())).unwrap_or_default();
+    picker(f, area, "Add an agent on this device", items, sel, &note, t);
 }
 
 fn switcher(f: &mut Frame, area: Rect, s: &State, sel: usize, t: &Theme) {
@@ -361,7 +433,18 @@ pub fn help_lines(s: &State, t: &Theme) -> Vec<Line<'static>> {
     };
     let mut lines = vec![];
     if q.is_empty() {
-        lines.push(Line::styled("What has focus comes first. / searches. Rebind keys in the config file.", t.dim()));
+        // What the view is for: the explanations the view itself leaves out.
+        for l in super::wrap(about(s.view), 72) {
+            lines.push(Line::styled(l, t.text()));
+        }
+        lines.push(Line::raw(""));
+        lines.push(Line::styled(
+            format!(
+                "{} opens a row's actions · / searches · rebind keys in the config file",
+                s.keymap.hint(Context::Nav, crate::keymap::Action::RowMenu)
+            ),
+            t.dim(),
+        ));
         lines.push(Line::raw(""));
     }
     let row = |keys: &str, help: &str| {
@@ -405,6 +488,36 @@ pub fn help_lines(s: &State, t: &Theme) -> Vec<Line<'static>> {
         lines.push(Line::styled(format!("No key matches \u{201c}{query}\u{201d}. esc clears the search."), t.dim()));
     }
     lines
+}
+
+/// What a view is for, and what its rows and actions mean: the help
+/// overlay's first lines, so the view itself opens on its content.
+pub fn about(v: View) -> &'static str {
+    match v {
+        View::Chats => {
+            "Each chat is a room with people and agents. @ mentions an agent or a person; enter on a chat opens it and puts you in the composer."
+        }
+        View::Workflows => {
+            "Workflow definitions, then their runs. Agents propose workflows (approve them under Proposals); the Ligus app's editor makes them too. Starting a run makes this device drive it; its stages go to their agents' hosts. Enter on a run opens its chat."
+        }
+        View::Proposals => {
+            "Changes agents propose, waiting for votes. Once approved, one host applies a proposal once, on its checkout, and reports the result; nobody else applies it meanwhile."
+        }
+        View::Agents => {
+            "The workspace's agents and where they run. An agent's usage is shown to its owner, on the device that runs it (UTC days; runtimes that report no token usage, like most CLIs, count turns only). To add one here, install Claude Code, Codex, the GitHub Copilot CLI or the Antigravity CLI (agy), start Ollama, or set ANTHROPIC_API_KEY / OPENAI_API_KEY / OPENROUTER_API_KEY."
+        }
+        View::Hosts => {
+            "A host runs agents and applies approved proposals on its checkout; a worker is a headless host. This device applies proposals only once its checkout is bound."
+        }
+        View::Memory => "Agents' live task state, then the workspace's shared memory. Read-only here.",
+        View::People => {
+            "Who is in the workspace and their role. Changes to who's in it need your passkey. A founder can't be removed or demoted; a service member (a box: ligus serve or a worker) is at most Contributor and has no passkey."
+        }
+        View::Notifications => "@mentions of you and what needs you, in every workspace. Enter opens the chat.",
+        View::Settings => {
+            "Notify: a bell, and a desktop notification while lt is in the background. The theme switch lasts this session; keep a theme and rebind keys in the config file (lt --print-config shows every default)."
+        }
+    }
 }
 
 /// How far the help overlay scrolls in a terminal `height` rows tall (the
@@ -512,11 +625,7 @@ fn messages(f: &mut Frame, area: Rect, s: &State, scroll: usize, t: &Theme) {
     let inner = block.inner(r);
     f.render_widget(block, r);
     if n == 0 {
-        let lines = vec![
-            Line::styled("Nothing yet.", t.text()),
-            Line::styled("Notices and errors from this session collect here, so one that went by can be read again.", t.dim()),
-        ];
-        f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
+        f.render_widget(Paragraph::new(Line::styled("No messages yet", t.dim())), inner);
         return;
     }
     let body_w = (inner.width as usize).saturating_sub(8).max(10);

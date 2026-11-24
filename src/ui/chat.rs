@@ -67,7 +67,7 @@ pub fn chat_hit(s: &State, area: Rect, x: u16, y: u16) -> Option<ChatHit> {
     let (list, main, rail) = areas(area, s);
     let inside = |r: Rect| x >= r.x && x < r.right() && y >= r.y && y < r.bottom();
     if let Some(l) = list.filter(|l| inside(*l)) {
-        let heights: Vec<u16> = s.chats.iter().map(|c| 1 + u16::from(c.channel.is_some())).collect();
+        let heights: Vec<u16> = s.chats.iter().map(|_| 1).collect();
         let inner_h = l.height.saturating_sub(2);
         if y <= l.y || y >= l.bottom().saturating_sub(1) || heights.is_empty() {
             return Some(ChatHit::List(None));
@@ -147,12 +147,12 @@ fn draw_rail(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             let needs = p.status == crate::backend::model::ProposalStatus::Open && p.can_vote.is_yes();
             let (glyph, style) =
                 if needs { (SessionState::NeedsYou.glyph(t.ascii), t.state(SessionState::NeedsYou)) } else { ("·", t.dim()) };
-            let state = format!("{} {}/{}", p.status.label(), p.approvals, p.quorum);
+            let state = format!(" {}/{}", p.approvals, p.quorum);
             lines.push(Line::from(vec![
                 Span::styled(format!("{glyph} "), style),
-                Span::styled(trunc(&p.title, w.saturating_sub(2)), t.text()),
+                Span::styled(trunc(&p.title, w.saturating_sub(2 + state.width())), t.text()),
+                Span::styled(state, t.dim()),
             ]));
-            lines.push(Line::styled(format!("  {state}"), t.dim()));
         }
         lines.push(Line::raw(""));
     }
@@ -160,8 +160,12 @@ fn draw_rail(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     if !runs.is_empty() {
         lines.push(Line::styled("Runs", t.dim()));
         for r in runs {
-            lines.push(Line::from(vec![Span::styled("· ", t.dim()), Span::styled(trunc(&r.name, w - 2), t.text())]));
-            lines.push(Line::styled(format!("  {}", r.status.label()), t.dim()));
+            let state = format!(" {}", r.status.label());
+            lines.push(Line::from(vec![
+                Span::styled("· ", t.dim()),
+                Span::styled(trunc(&r.name, w.saturating_sub(2 + state.width())), t.text()),
+                Span::styled(state, t.dim()),
+            ]));
         }
     }
     if lines.is_empty() {
@@ -174,11 +178,8 @@ fn draw_list(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     let block = pane("Chats", s.focus == Focus::List, t);
     let inner_w = area.width.saturating_sub(4) as usize;
     if s.chats.is_empty() {
-        let p = Paragraph::new(vec![
-            Line::styled("No chats yet.", t.dim()),
-            Line::styled(format!("{} start a chat", s.keymap.hint(Context::Chat, Action::NewChat)), t.dim()),
-        ])
-        .block(block);
+        let p = Paragraph::new(Line::styled(format!("No chats yet · {} new", s.keymap.hint(Context::Chat, Action::NewChat)), t.dim()))
+            .block(block);
         f.render_widget(p, area);
         return;
     }
@@ -197,20 +198,28 @@ fn draw_list(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             // Where the chat stands, as a glyph (the colour only repeats it).
             let st = s.session_state(&c.id);
             let chip = if st == SessionState::Idle { String::new() } else { format!("{} ", super::state_glyph(s, st, t)) };
-            let title_w = inner_w.saturating_sub(age.width() + 3 + chip.width());
-            let title = trunc(&c.title, title_w);
-            let pad = title_w.saturating_sub(title.width());
+            // One line: the title, then its channel and age, muted.
+            let room = inner_w.saturating_sub(age.width() + 3 + chip.width());
+            let title = trunc(&c.title, room);
+            let channel = c
+                .channel
+                .as_ref()
+                .map(|ch| format!("#{ch} "))
+                .filter(|ch| room.saturating_sub(title.width()) > ch.width())
+                .unwrap_or_default();
+            let pad = room.saturating_sub(title.width() + channel.width());
             let mut spans = vec![dot];
             if !chip.is_empty() {
                 spans.push(Span::styled(chip, t.state(st)));
             }
             let style = if c.unread { t.text().add_modifier(Modifier::BOLD) } else { t.text() };
-            spans.extend([Span::styled(title, style), Span::raw(" ".repeat(pad + 1)), Span::styled(age, t.dim())]);
-            let mut lines = vec![Line::from(spans)];
-            if let Some(ch) = &c.channel {
-                lines.push(Line::styled(format!("  #{ch}"), t.dim()));
-            }
-            ListItem::new(lines)
+            spans.extend([
+                Span::styled(title, style),
+                Span::raw(" ".repeat(pad + 1)),
+                Span::styled(channel, t.dim()),
+                Span::styled(age, t.dim()),
+            ]);
+            ListItem::new(Line::from(spans))
         })
         .collect();
     let list = List::new(items).block(block).highlight_style(t.selected());
