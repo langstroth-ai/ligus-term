@@ -110,6 +110,41 @@ async fn onboarding_join_with_invite() {
     snap(&h, "onboarding_join_checked", "Join: who the invite is from, checked before joining");
 }
 
+/// Add to my devices: this computer's request and fingerprint, then who
+/// approved the desktop's code, then linked (one of Alex's devices).
+#[tokio::test]
+async fn onboarding_add_to_my_devices() {
+    let mut h = Harness::new(false).await;
+    h.key(KeyCode::Tab).await;
+    h.key(KeyCode::Char('a')).await;
+    h.key(KeyCode::Tab).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("7F3A-91C0-77DE-0B14-5E62") && screen.contains("Add a computer"), "{screen}");
+    assert!(!screen.contains("Your name"), "the person's name comes from the desktop: {screen}");
+    snap(&h, "onboarding_link_request", "First run: Add to my devices (the request for your desktop)");
+    h.send(Msg::Paste("ligusgrant1:demo-grant-from-the-desktop".into())).await;
+    h.key(KeyCode::Enter).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Approved by Alex's desktop") && screen.contains("2C41-88E0-1B9D-04AF-6E73"), "{screen}");
+    snap(&h, "onboarding_link_confirm", "Add to my devices: who approved it, confirmed before linking");
+    h.key(KeyCode::Enter).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("one of Alex's devices"), "{screen}");
+    snap(&h, "onboarding_link_done", "Add to my devices: this computer is now one of Alex's devices");
+}
+
+/// The palette's Link this computer to my devices, on an install in use.
+#[tokio::test]
+async fn palette_link_this_computer() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char(':')).await;
+    h.chars("link this").await;
+    h.key(KeyCode::Enter).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("new device key") && screen.contains("7F3A-91C0-77DE-0B14-5E62"), "{screen}");
+    snap(&h, "link_from_palette", "Palette: Link this computer to my devices (an install already in use)");
+}
+
 /// The first run's fourth choice: look around in the demo first.
 #[tokio::test]
 async fn onboarding_demo_choice() {

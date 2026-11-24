@@ -1,0 +1,36 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA] Northwind API · contributor │ Chats Workflows Proposals Agents Hosts Memory People Notifications Settings
+┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ No chat open ──────────────────────────────────────────────────────────────╮
+┃No chats yet.                 ┃│                                                                            │
+┃N start a chat                ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃╰────────────────────────────────────────────────────────────────────────────╯
+┃                              ┃
+┃                              ┃╭ Message the room ──────────────────────────────────────────────────────────╮
+┃                              ┃│                                                                            │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────────────────╯
+↑↓ chats  …  ? help  ✓ This computer is now one of Alex's devices in “Northwind API”       peer to peer · demo

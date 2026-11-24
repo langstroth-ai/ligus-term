@@ -113,11 +113,39 @@ lt --print-config  # a config file with every default
 lt help            # everything below, from the binary
 ```
 
-On the first run, "Look around first" (the fourth choice) opens the demo
+On the first run, "Look around first" opens the demo
 without creating anything; quit it and run `lt` again to set up. In a new
 workspace, the empty chat shows a getting-started list read from the
 workspace itself (add an agent, invite someone, connect a box, start a
 workflow), with the keys for each, until they're done.
+
+## Use lt as one of your devices
+
+Already in a workspace on your desktop? Don't invite yourself into `lt`: an
+invite always makes a **new member**, and you would show up as two people with
+your name. Add this terminal to your devices instead, and it acts as you (your
+name, your role, your chats):
+
+1. First run: choose **Add to my devices** (in an install you already use, the
+   palette's **Link this computer to my devices**). `lt` shows a request (no
+   secret in it) and a fingerprint.
+2. On your desktop: **Settings > Profile > My devices > Add a computer**. Paste
+   the request, compare all five groups of the fingerprint, confirm with your
+   passkey.
+3. Paste the code the desktop shows into `lt` within 30 minutes. `lt` shows who
+   approved it and the desktop's fingerprint (the desktop shows it as **This
+   desktop**): check it is yours and confirm.
+
+A linked `lt` acts as you without your account key: a vote asks for your
+passkey in the browser, and account changes (devices, phones, passkeys, keys)
+stay on the desktop. It no longer creates workspaces or accepts invites.
+Revoke it from **My devices** on the desktop. An install that was already in
+the workspace as its own member asks with a new device key, and the desktop
+then offers to remove the old member (their messages keep their name).
+
+Scripted: `lt --plain link-request`, then
+`lt --plain link-redeem CODE --approver-fingerprint FP` (without the
+fingerprint it exits 4: a person compares it). `lt help devices` has it all.
 
 ## Help in the terminal
 

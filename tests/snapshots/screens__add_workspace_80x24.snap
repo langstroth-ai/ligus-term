@@ -5,16 +5,16 @@ expression: screen
 [NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
 ┏ Chats ━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test · 1/3 ───────────────────╮
 ┃  ◆ Fix flaky check… 12m  ┃│Ada  40m                                          │
-┃  #dev                    ┃│  The checkout test fails about one run in ten.   │
-┃  ◆┏ Add a workspace ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓   │
-┃  #┃› (•) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃   │
+┃  #┏ Add a workspace ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓   │
+┃  ◆┃› (•) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃   │
+┃  #┃  ( ) Add to my devices                                               ┃   │
 ┃  W┃                                                                      ┃   │
 ┃   ┃  Workspace name e.g. Northwind API                                   ┃ck,│
 ┃   ┃  No server needed: it lives on this device until you invite someone. ┃   │
 ┃   ┃                                                                      ┃   │
 ┃   ┃                                                                      ┃   │
 ┃   ┃                                                                      ┃   │
-┃   ┃tab next · ←→ create/join/connect · enter continue · esc close        ┃is │
+┃   ┃tab next · ←→ choose · enter continue · esc close                     ┃is │
 ┃   ┃                                                                      ┃   │
 ┃   ┃                                                                      ┃   │
 ┃   ┃                                                                      ┃   │

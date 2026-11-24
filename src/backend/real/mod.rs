@@ -19,6 +19,7 @@
 
 mod deploy;
 pub(crate) mod detect;
+mod link;
 mod local;
 mod term_presence;
 mod turns;
@@ -160,6 +161,9 @@ pub(crate) struct Inner {
 /// The open device.
 pub(crate) struct Core {
     identity: StoredIdentity,
+    /// Who this device authors as: its own identity, or, linked as a
+    /// person's device ("Add to my devices"), that person.
+    author: ligus_core::ActorIdentity,
     svc: Arc<Mutex<ChatService>>,
     reader: Mutex<ChatService>,
     /// The write service's change feed, kept here so nothing has to lock the
@@ -353,9 +357,19 @@ impl Inner {
         let mut svc = self.service_for(&stored)?;
         svc.set_agent_vault(Box::new(StoreKeyVault::for_data_dir(&self.cfg.data_dir)));
         svc.set_presence_provider(Some(Arc::new(Provider(self.presence.clone()))));
-        let reader = self.service_for(&stored)?;
+        let mut reader = self.service_for(&stored)?;
+        // Linked as a person's device: act as them, without their account key.
+        let author = match link::link_state(&self.cfg.data_dir)?.person {
+            Some(person) => {
+                svc.act_as_owner_device(person.clone());
+                reader.act_as_owner_device(person);
+                svc.author().clone()
+            }
+            None => stored.actor(),
+        };
         let feed = svc.change_feed();
-        let core = Arc::new(Core { identity: stored, svc: Arc::new(Mutex::new(svc)), reader: Mutex::new(reader), feed: feed.clone() });
+        let core =
+            Arc::new(Core { identity: stored, author, svc: Arc::new(Mutex::new(svc)), reader: Mutex::new(reader), feed: feed.clone() });
         *self.core.write().unwrap_or_else(|e| e.into_inner()) = Some(core.clone());
         watch::prime(self, &core);
         watch::spawn_translator(self.clone(), feed.subscribe());
@@ -410,7 +424,7 @@ impl Inner {
     }
 
     fn me(&self) -> String {
-        self.core().map(|c| c.identity.actor().id).unwrap_or_default()
+        self.core().map(|c| c.author.id.clone()).unwrap_or_default()
     }
 
     /// Make this device present in `ws`: the founder pin, its membership (a
@@ -423,9 +437,17 @@ impl Inner {
         let ka = self.identity_store().key_agreement(core.identity.device.id).ok();
         let device = core.identity.device.id.to_string();
         let label = self.cfg.device_name.clone();
+        let linked = link::link_state(&self.cfg.data_dir).ok().and_then(|s| s.linked_in(ws).cloned());
+        let mut revoked = false;
         let _ = self.write(ws, |svc| {
             if let Some((f, fk)) = saved.founder_actor_id.as_deref().zip(saved.fk.as_deref()) {
                 let _ = svc.store().set_workspace_pin(ws, f, fk);
+            }
+            // A linked computer whose device was revoked stops writing.
+            if linked.is_some() && svc.device_standing(ws, None)? == ligus_runtime::device_enroll::Standing::Revoked {
+                svc.set_write_block(Some("this computer was removed from your devices in this workspace (revoked)".into()));
+                revoked = true;
+                return Ok(());
             }
             let config = workspace_config_session_id(ws);
             if svc.load_in(ws, config)?.is_none() && svc.store().join_invite(ws)?.is_some() {
@@ -438,6 +460,12 @@ impl Inner {
             let _ = svc.ensure_host(ws, ligus_core::WorkspaceHost::new(device, ligus_core::HostKind::Device, label));
             Ok(())
         });
+        if revoked {
+            self.emit(Event::Sync {
+                workspace: WorkspaceId::new(ws.to_string()),
+                status: "revoked: this computer was removed from your devices here".into(),
+            });
+        }
     }
 
     fn summary(&self, w: &SavedWorkspace) -> WorkspaceSummary {
@@ -587,13 +615,14 @@ impl Backend for RealBackend {
 
     async fn startup(&self) -> Result<StartupState> {
         self.call(|i| {
-            let your_name = i.core().ok().map(|c| c.identity.account.display_name.clone());
+            let your_name = i.core().ok().map(|c| c.author.display_name.clone());
             Ok(StartupState { your_name, workspaces: i.workspaces() })
         })
         .await
     }
 
     async fn create_workspace(&self, your_name: &str, name: &str) -> Result<Created> {
+        self.inner.refuse_if_linked()?;
         let (your_name, name) = (your_name.trim().to_string(), name.trim().to_string());
         if name.is_empty() {
             return err("give the workspace a name");
@@ -642,6 +671,7 @@ impl Backend for RealBackend {
     }
 
     async fn join_workspace(&self, your_name: &str, invite: &str) -> Result<WorkspaceSummary> {
+        self.inner.refuse_if_linked()?;
         let mut conn = decode_workspace_invite(invite).map_err(BackendError)?;
         let redeem = ligus_runtime::box_admission::redeem_key_of(invite);
         if conn.dm_account.is_some() {
@@ -701,6 +731,23 @@ impl Backend for RealBackend {
                 .await;
         }
         joined
+    }
+
+    async fn link_request(&self) -> Result<LinkRequestView> {
+        self.call(|i| i.link_request()).await
+    }
+
+    async fn inspect_link_grant(&self, grant: &str) -> Result<LinkGrantView> {
+        let grant = grant.trim().to_string();
+        self.call(move |i| i.inspect_link_grant(&grant)).await
+    }
+
+    async fn redeem_link(&self, grant: &str) -> Result<WorkspaceSummary> {
+        self.inner.redeem_link(grant.trim()).await
+    }
+
+    fn linked_person(&self) -> Option<String> {
+        self.inner.linked_person().map(|p| ligus_runtime::display::shown(&p.display_name))
     }
 
     async fn confirm_recovery_saved(&self, workspace: &WorkspaceId) -> Result<()> {
@@ -1180,6 +1227,7 @@ impl Backend for RealBackend {
     }
 
     async fn connect_deployment(&self, your_name: &str, spec: DeploymentSpec) -> Result<Created> {
+        self.inner.refuse_if_linked()?;
         let your_name = your_name.trim().to_string();
         // Check what can be checked before touching the identity or the relay.
         deploy::deployment_conn(&spec, String::new(), String::new())?;
@@ -1354,7 +1402,7 @@ impl Inner {
     fn settings(&self) -> Settings {
         let l = lock(&self.local);
         Settings {
-            your_name: self.core().map(|c| c.identity.account.display_name.clone()).unwrap_or_default(),
+            your_name: self.core().map(|c| c.author.display_name.clone()).unwrap_or_default(),
             device_name: self.cfg.device_name.clone(),
             notify_mentions: l.notify_mentions,
             agents_may_edit: l.agents_may_edit,

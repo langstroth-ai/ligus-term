@@ -407,7 +407,7 @@ fn prepare(i: &Inner, ws: Uuid, sid: Uuid, run: &WorkflowRun, node: &wf::Workflo
         None => None,
     };
     let core = i.core()?;
-    let local = core.identity.actor().id;
+    let local = core.author.id.clone();
     let device = core.identity.device.id.to_string();
     let (owner, host, runtime_id, author) = match &agent {
         Some(a) => (a.owner_actor_id.clone(), a.host_id.clone(), a.runtime_id.clone(), a.name.clone()),

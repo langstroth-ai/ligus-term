@@ -5,7 +5,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Proposals ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Inject the clock into checkout tests ──────────────────────────╮
-┃open     Inject ┏ Commands · 41 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓s               │
+┃open     Inject ┏ Commands · 42 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓s               │
 ┃         1/2 app┃›                                                                         ┃                │
 ┃approved Export ┃──────────────────────────────────────────────────────────────────────────┃proval first)   │
 ┃         2/2 app┃▶ Approve “Inject the clock into checkout tests”       A         Proposals┃reports the     │
@@ -19,9 +19,9 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                ┃  This session's notices and errors, in full           !          Anywhere┃                │
 ┃                ┃  Switch workspace                                     w ctrl-w   Anywhere┃                │
 ┃                ┃  Create or join a workspace                           +          Anywhere┃ of reading the…│
+┃                ┃  Link this computer to my devices                                Anywhere┃                │
 ┃                ┃  Go to Chats                                          c 1        Anywhere┃                │
 ┃                ┃  Go to Workflows and runs                             f 2        Anywhere┃                │
-┃                ┃  Go to Proposals                                      p 3        Anywhere┃                │
 ┃                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                │
 ┃                                          ┃│@@ -40,9 +42,13 @@ impl Checkout {                              │
 ┃                                          ┃│     pub fn is_expired(&self) -> bool {                         │

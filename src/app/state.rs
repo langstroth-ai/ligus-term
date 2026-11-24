@@ -86,6 +86,9 @@ pub enum Phase {
 pub enum FormMode {
     Create,
     Join,
+    /// Add to my devices: this computer becomes a device of a person already
+    /// in the workspace on their desktop (not a new member).
+    Link,
     /// Found the workspace a deployment (ligus-local, Kubernetes) serves.
     Connect,
     /// Look around first: restart as `lt --demo` (first run only).
@@ -96,7 +99,8 @@ impl FormMode {
     pub fn next(self) -> Self {
         match self {
             FormMode::Create => FormMode::Join,
-            FormMode::Join => FormMode::Connect,
+            FormMode::Join => FormMode::Link,
+            FormMode::Link => FormMode::Connect,
             FormMode::Connect => FormMode::Demo,
             FormMode::Demo => FormMode::Create,
         }
@@ -105,7 +109,8 @@ impl FormMode {
         match self {
             FormMode::Create => FormMode::Demo,
             FormMode::Join => FormMode::Create,
-            FormMode::Connect => FormMode::Join,
+            FormMode::Link => FormMode::Join,
+            FormMode::Connect => FormMode::Link,
             FormMode::Demo => FormMode::Connect,
         }
     }
@@ -141,6 +146,15 @@ pub struct WorkspaceForm {
     pub busy: bool,
     /// The checked invite (join asks before joining).
     pub checked: Option<(String, InviteCheck)>,
+    /// Add to my devices: the grant the desktop shows.
+    pub grant: TextBuf,
+    /// This computer's link request, once made.
+    pub link: Option<LinkRequestView>,
+    /// The request was asked for (made once per form).
+    pub link_asked: bool,
+    /// The checked grant (redeemed on the second Enter, once the person saw
+    /// who approved it).
+    pub link_checked: Option<(String, LinkGrantView)>,
 }
 
 impl WorkspaceForm {
@@ -159,11 +173,24 @@ impl WorkspaceForm {
             error: None,
             busy: false,
             checked: None,
+            grant: TextBuf::single(),
+            link: None,
+            link_asked: false,
+            link_checked: None,
         }
+    }
+
+    /// The form opened on Add to my devices (the palette's Link this
+    /// computer to my devices).
+    pub fn linking(ask_name: bool) -> Self {
+        let mut f = Self::new(ask_name);
+        f.mode = FormMode::Link;
+        f.field = FormField::Value;
+        f
     }
     pub fn fields(&self) -> Vec<FormField> {
         let mut f = vec![];
-        if self.ask_name {
+        if self.ask_name && self.mode != FormMode::Link {
             f.push(FormField::Name);
         }
         f.push(FormField::Mode);
@@ -192,12 +219,14 @@ impl WorkspaceForm {
         match self.mode {
             FormMode::Create | FormMode::Connect | FormMode::Demo => &mut self.ws_name,
             FormMode::Join => &mut self.invite,
+            FormMode::Link => &mut self.grant,
         }
     }
     pub fn value(&self) -> &TextBuf {
         match self.mode {
             FormMode::Create | FormMode::Connect | FormMode::Demo => &self.ws_name,
             FormMode::Join => &self.invite,
+            FormMode::Link => &self.grant,
         }
     }
 }

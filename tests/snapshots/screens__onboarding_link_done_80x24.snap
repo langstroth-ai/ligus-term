@@ -1,0 +1,28 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA] │ Chats Flows Props Agents Hosts Memory People Notifs Setup   Northwind API
+┏ Chats ━━━━━━━━━━━━━━━━━━━┓╭ No chat open ────────────────────────────────────╮
+┃No chats yet.             ┃│                                                  │
+┃N start a chat            ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃╰──────────────────────────────────────────────────╯
+┃                          ┃
+┃                          ┃╭ Message the room ────────────────────────────────╮
+┃                          ┃│                                                  │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────╯
+…  ? help  ✓ This computer is now one of Alex's devices in “Northwind API”

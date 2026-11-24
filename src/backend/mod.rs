@@ -162,6 +162,18 @@ pub trait Backend: Send + Sync {
     /// its relay, room and key, with this device as the founder. Refused
     /// when the relay already holds that workspace (join it with an invite).
     async fn connect_deployment(&self, your_name: &str, spec: DeploymentSpec) -> Result<Created>;
+    /// Ask to be added to a person's devices ("Add to my devices"): this
+    /// computer's link request, remembered as pending (no workspace write).
+    async fn link_request(&self) -> Result<LinkRequestView>;
+    /// Open a desktop's grant for this computer and say who approved it
+    /// (checked offline; nothing is saved).
+    async fn inspect_link_grant(&self, grant: &str) -> Result<LinkGrantView>;
+    /// Redeem the grant once the person confirmed who approved it: connect,
+    /// pull, check the desktop's certificate for this computer, and act as
+    /// that person from then on.
+    async fn redeem_link(&self, grant: &str) -> Result<WorkspaceSummary>;
+    /// The person this computer is a device of, once linked.
+    fn linked_person(&self) -> Option<String>;
     /// The person confirmed they wrote the recovery words down.
     async fn confirm_recovery_saved(&self, workspace: &WorkspaceId) -> Result<()>;
 

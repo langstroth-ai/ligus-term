@@ -94,6 +94,8 @@ struct World {
     /// Replies streaming now, per chat, and the chats asked to stop.
     replying: HashMap<ChatId, usize>,
     stopping: std::collections::HashSet<ChatId>,
+    /// The person this demo device was linked to (Add to my devices).
+    linked: Option<String>,
 }
 
 impl World {
@@ -111,6 +113,16 @@ impl World {
             None => err("no such workspace"),
         }
     }
+}
+
+/// The demo's link request (shown, never sent anywhere).
+pub const DEMO_LINK_REQUEST: &str = "liguslink1:eyJ2IjoxLCJkZXZpY2VJZCI6ImRlbW8iLCJsYWJlbCI6Imx0IG9uIHRoaXMgbWFjaGluZSJ9";
+/// The demo's approving desktop.
+pub const DEMO_APPROVER: &str = "2C41-88E0-1B9D-04AF-6E73";
+
+/// What a linked computer says when asked to found or join a workspace.
+pub fn linked_refusal(person: &str) -> String {
+    format!("This computer is {person}'s device: create workspaces and accept invites on your desktop, then add this computer there.")
 }
 
 #[derive(Clone)]
@@ -143,6 +155,7 @@ impl FakeBackend {
             local: demo_local(),
             replying: HashMap::new(),
             stopping: Default::default(),
+            linked: None,
         };
         Self { world: Arc::new(Mutex::new(world)), tx, cfg }
     }
@@ -1250,6 +1263,9 @@ impl Backend for FakeBackend {
     }
 
     async fn create_workspace(&self, your_name: &str, name: &str) -> Result<Created> {
+        if let Some(p) = self.lock().linked.clone() {
+            return err(linked_refusal(&p));
+        }
         let name = name.trim();
         if name.is_empty() {
             return err("give the workspace a name");
@@ -1304,6 +1320,9 @@ impl Backend for FakeBackend {
     }
 
     async fn join_workspace(&self, your_name: &str, invite: &str) -> Result<WorkspaceSummary> {
+        if let Some(p) = self.lock().linked.clone() {
+            return err(linked_refusal(&p));
+        }
         let invite = invite.trim();
         if your_name.trim().is_empty() {
             return err("tell us your name first");
@@ -1355,6 +1374,37 @@ impl Backend for FakeBackend {
         drop(w);
         self.emit(Event::WorkspacesChanged);
         Ok(summary)
+    }
+
+    async fn link_request(&self) -> Result<LinkRequestView> {
+        Ok(LinkRequestView {
+            code: DEMO_LINK_REQUEST.into(),
+            fingerprint: "7F3A-91C0-77DE-0B14-5E62".into(),
+            label: self.cfg.device_name.clone(),
+            new_device: !self.lock().order.is_empty(),
+        })
+    }
+
+    async fn inspect_link_grant(&self, grant: &str) -> Result<LinkGrantView> {
+        let grant = grant.trim();
+        if !grant.starts_with("ligusgrant1:") || grant.len() < 16 {
+            return err("not a Ligus device grant (expected ligusgrant1:...)");
+        }
+        Ok(LinkGrantView { person_name: "Alex".into(), workspace_name: "Northwind API".into(), approver_fingerprint: DEMO_APPROVER.into() })
+    }
+
+    async fn redeem_link(&self, grant: &str) -> Result<WorkspaceSummary> {
+        let check = self.inspect_link_grant(grant).await?;
+        if self.lock().linked.as_deref().is_some_and(|p| p != check.person_name) {
+            return err("this computer is already someone else's device");
+        }
+        let ws = self.join_workspace(&check.person_name, "fake-invite:Northwind-API").await?;
+        self.lock().linked = Some(check.person_name);
+        Ok(ws)
+    }
+
+    fn linked_person(&self) -> Option<String> {
+        self.lock().linked.clone()
     }
 
     async fn confirm_recovery_saved(&self, workspace: &WorkspaceId) -> Result<()> {
@@ -1864,6 +1914,9 @@ impl Backend for FakeBackend {
     }
 
     async fn connect_deployment(&self, your_name: &str, spec: DeploymentSpec) -> Result<Created> {
+        if let Some(p) = self.lock().linked.clone() {
+            return err(linked_refusal(&p));
+        }
         if your_name.trim().is_empty() {
             return err("tell us your name first");
         }

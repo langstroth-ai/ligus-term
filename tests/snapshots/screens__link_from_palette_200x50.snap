@@ -1,0 +1,54 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
+┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ─────────────────────────────────────────────────────────────────────────────────────────────────────╮╭ This chat ───────────────────────────╮
+┃  ◆ Fix flaky checkout … 12m  ┃│             Ada  40m                                                                                                         ││Proposals                             │
+┃  #dev                        ┃│               The checkout test fails about one run in ten. Can we stop it reading the wall clock?                           ││◆ Inject the clock into checkout tests│
+┃  ◆ Migrate auth to pas… 50m  ┃│                                                                                                                              ││  open 1/2                            │
+┃  #dev                        ┃│             @coder  via claude-code · on sff  38m                                                                            ││◆ Sign-off: inject a fake clock       │
+┃  Weekly release notes    1d  ┃│               Yes. The payment tests already use a fake clock, so it's a small change. I'll propose it.                      ││  open 0/1                            │
+┃                              ┃│               ◆ proposal “Inject the clock into checkout tests” · open 1/2 · p to review                                     ││                                      │
+┃                              ┃│                                                                                                                              ││Runs                                  │
+┃                              ┃│             Ada  12m                                                                                                         ││· Implement, review, ship             │
+┃                              ┃│               @Mara can you review the timeout? 30 seconds is what the provider uses.                                        ││  awaiting-gate                       │
+┃                              ┃│               ◆ proposal “Sign-off: inject a fake clock” · open 0/1 · p to review                                            ││                                      │
+┃                              ┃│                               ┏ Add a workspace ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                       ││                                      │
+┃                              ┃│                               ┃  ( ) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃                       ││                                      │
+┃                              ┃│                               ┃  (•) Add to my devices                                               ┃                       ││                                      │
+┃                              ┃│                               ┃                                                                      ┃                       ││                                      │
+┃                              ┃│                               ┃  Already in the workspace on your desktop? Make this computer one    ┃                       ││                                      │
+┃                              ┃│                               ┃  of your devices instead of a second member with your name.          ┃                       ││                                      │
+┃                              ┃│                               ┃                                                                      ┃                       ││                                      │
+┃                              ┃│                               ┃  On your desktop: Settings > Profile > My devices > Add a computer.  ┃                       ││                                      │
+┃                              ┃│                               ┃  Paste this code, check the fingerprint, confirm with your passkey.  ┃                       ││                                      │
+┃                              ┃│                               ┃  Then paste the code it shows here.                                  ┃                       ││                                      │
+┃                              ┃│                               ┃                                                                      ┃                       ││                                      │
+┃                              ┃│                               ┃  Fingerprint    7F3A-91C0-77DE-0B14-5E62                             ┃                       ││                                      │
+┃                              ┃│                               ┃  liguslink1:eyJ2IjoxLCJkZXZpY2VJZCI6ImRlbW8iLCJsYWJlbCI6Imx0IG9uIHR  ┃                       ││                                      │
+┃                              ┃│                               ┃  oaXMgbWFjaGluZSJ9                                                   ┃                       ││                                      │
+┃                              ┃│                               ┃  This install was already in use: it asks with a new device key,     ┃                       ││                                      │
+┃                              ┃│                               ┃  and your desktop can then remove the old member.                    ┃                       ││                                      │
+┃                              ┃│                               ┃                                                                      ┃                       ││                                      │
+┃                              ┃│                               ┃› Desktop's code ▏                                                    ┃                       ││                                      │
+┃                              ┃│                               ┃  Enter shows who approved it; enter again links.                     ┃                       ││                                      │
+┃                              ┃│                               ┃                                                                      ┃                       ││                                      │
+┃                              ┃│                               ┃                                                                      ┃                       ││                                      │
+┃                              ┃│                               ┃                                                                      ┃                       ││                                      │
+┃                              ┃│                               ┃tab next · ←→ choose · enter continue · esc close                     ┃                       ││                                      │
+┃                              ┃│                               ┃                                                                      ┃                       ││                                      │
+┃                              ┃│                               ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                       ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│                                      │
+┃                              ┃                                                                                                                                │                                      │
+┃                              ┃╭ Message the room ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮│                                      │
+┃                              ┃│i to write · @ mentions an agent or a person                                                                                  ││                                      │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯╰──────────────────────────────────────╯
+↑↓ chats  i write  N new chat  tab pane  w workspaces  f1 help                                                                                                           peer to peer · 1 running · demo

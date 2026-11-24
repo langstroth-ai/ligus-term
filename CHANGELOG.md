@@ -4,6 +4,25 @@ All notable changes to `lt`, the Ligus terminal app (Ligus is short for
 ligustica). Versions follow [semver](https://semver.org); releases are on
 [GitHub](https://github.com/langstroth-ai/ligus-term/releases).
 
+## Unreleased
+
+### Added
+
+- **Add to my devices.** Use `lt` as one of your own devices in a workspace
+  you are already in on your desktop, instead of joining as a second member
+  with your name: a fourth first-run choice, and the palette's **Link this
+  computer to my devices** for an install already in use (it asks with a new
+  device key, and your desktop can then remove the old member). Your desktop
+  approves it under Settings > Profile > My devices > Add a computer with
+  your passkey; `lt` confirms the approving desktop's fingerprint before it
+  links. Plain mode: `link-request` and `link-redeem CODE
+  --approver-fingerprint FP`; `lt help devices`.
+
+### Changed
+
+- Built on a Ligus revision with "Add a computer" (the pin moves to the next
+  Ligus release tag).
+
 ## v0.2.1
 
 ### Changed

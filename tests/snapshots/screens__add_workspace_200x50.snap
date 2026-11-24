@@ -18,16 +18,16 @@ expression: screen
 ┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│                               ┏ Add a workspace ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                       ││                                      │
 ┃                              ┃│                               ┃› (•) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃                       ││                                      │
+┃                              ┃│                               ┃  ( ) Add to my devices                                               ┃                       ││                                      │
 ┃                              ┃│                               ┃                                                                      ┃                       ││                                      │
 ┃                              ┃│                               ┃  Workspace name e.g. Northwind API                                   ┃                       ││                                      │
 ┃                              ┃│                               ┃  No server needed: it lives on this device until you invite someone. ┃                       ││                                      │
 ┃                              ┃│                               ┃                                                                      ┃                       ││                                      │
 ┃                              ┃│                               ┃                                                                      ┃                       ││                                      │
 ┃                              ┃│                               ┃                                                                      ┃                       ││                                      │
-┃                              ┃│                               ┃tab next · ←→ create/join/connect · enter continue · esc close        ┃                       ││                                      │
+┃                              ┃│                               ┃tab next · ←→ choose · enter continue · esc close                     ┃                       ││                                      │
 ┃                              ┃│                               ┃                                                                      ┃                       ││                                      │
 ┃                              ┃│                               ┃                                                                      ┃                       ││                                      │
 ┃                              ┃│                               ┃                                                                      ┃                       ││                                      │

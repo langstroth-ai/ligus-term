@@ -68,11 +68,14 @@ fn with_splash(f: &mut Frame, area: Rect, w: u16, h: u16, first_run: bool, t: &T
 
 pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: &Theme, first_run: bool) {
     let connect = form.mode == FormMode::Connect;
-    let h = match (first_run, connect) {
-        (true, true) => 25,
-        (true, false) => 23,
-        (false, true) => 18,
-        (false, false) => 16,
+    let link = form.mode == FormMode::Link;
+    let h = match (first_run, connect, link) {
+        (true, _, true) => 30,
+        (false, _, true) => 25,
+        (true, true, _) => 25,
+        (true, false, _) => 23,
+        (false, true, _) => 19,
+        (false, false, _) => 17,
     };
     let r = with_splash(f, area, 72, h, first_run, t);
     f.render_widget(Clear, r);
@@ -91,7 +94,9 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
             Span::styled("  (compare it with people you invite)", t.dim()),
         ]));
         lines.push(Line::raw(""));
-        lines.push(field_line("Your name", &form.name, form.field == FormField::Name, w, "how others see you", t));
+        if !link {
+            lines.push(field_line("Your name", &form.name, form.field == FormField::Name, w, "how others see you", t));
+        }
         lines.push(Line::raw(""));
     }
     let mode_focus = form.field == FormField::Mode;
@@ -108,9 +113,12 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
         Span::raw("   "),
         opt("Connect a deployment", form.mode == FormMode::Connect),
     ]));
+    let mut second = vec![Span::raw("  "), opt("Add to my devices", link)];
     if first_run {
-        lines.push(Line::from(vec![Span::raw("  "), opt("Look around first (the demo, nothing saved)", form.mode == FormMode::Demo)]));
+        second.push(Span::raw("   "));
+        second.push(opt("Look around first (the demo)", form.mode == FormMode::Demo));
     }
+    lines.push(Line::from(second));
     lines.push(Line::raw(""));
     let vf = form.field == FormField::Value;
     match form.mode {
@@ -137,6 +145,7 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
                 None => lines.push(Line::styled("  Enter checks who it's from (its founder's signature); enter again joins.", t.dim())),
             }
         }
+        FormMode::Link => draw_link(&mut lines, form, vf, w, t),
         FormMode::Connect => {
             lines.push(field_line("Relay URL", &form.relay, form.field == FormField::Relay, w, "http://127.0.0.1:18443", t));
             lines.push(field_line("Room", &form.room, form.field == FormField::Room, w, "LIGUS_WORKSPACE / Secret key room", t));
@@ -166,6 +175,8 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
             FormMode::Create | FormMode::Connect | FormMode::Demo => "Creating… confirm the passkey prompt",
             FormMode::Join if form.checked.is_none() => "Checking the invite…",
             FormMode::Join => "Joining…",
+            FormMode::Link if form.link_checked.is_none() => "Opening the code…",
+            FormMode::Link => "Linking: connecting and checking your desktop's approval…",
         };
         lines.push(Line::styled(format!("  {msg}"), t.fg(t.warn)));
     } else if let Some(e) = &form.error {
@@ -175,9 +186,60 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
     }
     lines.push(Line::raw(""));
     let esc = if first_run { "quit" } else { "close" };
-    let modes = if first_run { "create/join/connect/demo" } else { "create/join/connect" };
-    lines.push(Line::styled(format!("tab next · ←→ {modes} · enter continue · esc {esc}"), t.dim()));
+    lines.push(Line::styled(format!("tab next · ←→ choose · enter continue · esc {esc}"), t.dim()));
     f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
+}
+
+/// Add to my devices: this computer's request, then the desktop's code,
+/// then who approved it. Lines are broken by hand to keep their indent.
+fn draw_link<'a>(lines: &mut Vec<Line<'a>>, form: &'a WorkspaceForm, focused: bool, w: usize, t: &Theme) {
+    match &form.link {
+        None => lines.push(Line::styled("  Making this computer's request…", t.dim())),
+        Some(r) => {
+            for l in [
+                "  Already in the workspace on your desktop? Make this computer one",
+                "  of your devices instead of a second member with your name.",
+            ] {
+                lines.push(Line::styled(l, t.text()));
+            }
+            lines.push(Line::raw(""));
+            for l in [
+                "  On your desktop: Settings > Profile > My devices > Add a computer.",
+                "  Paste this code, check the fingerprint, confirm with your passkey.",
+                "  Then paste the code it shows here.",
+            ] {
+                lines.push(Line::styled(l, t.dim()));
+            }
+            lines.push(Line::raw(""));
+            lines.push(Line::from(vec![
+                Span::styled("  Fingerprint    ", t.dim()),
+                Span::styled(r.fingerprint.clone(), t.accent().add_modifier(Modifier::BOLD)),
+            ]));
+            // The code in pieces (the desktop ignores the breaks when it is
+            // selected and pasted).
+            let chars: Vec<char> = r.code.chars().collect();
+            for piece in chars.chunks(w.saturating_add(16).clamp(20, 66)) {
+                lines.push(Line::styled(format!("  {}", piece.iter().collect::<String>()), t.text()));
+            }
+            if r.new_device {
+                lines.push(Line::styled("  This install was already in use: it asks with a new device key,", t.dim()));
+                lines.push(Line::styled("  and your desktop can then remove the old member.", t.dim()));
+            }
+            lines.push(Line::raw(""));
+        }
+    }
+    lines.push(field_line("Desktop's code", &form.grant, focused, w, "the code your desktop shows (ligusgrant1:…)", t));
+    match form.link_checked.as_ref().filter(|(g, _)| *g == form.grant.text.trim()) {
+        Some((_, c)) => {
+            lines.push(Line::from(vec![
+                Span::styled(format!("  Approved by {}'s desktop ", c.person_name), t.text()),
+                Span::styled(c.approver_fingerprint.clone(), t.accent()),
+            ]));
+            lines.push(Line::styled(format!("  for “{}”. Is that you and your desktop?", c.workspace_name), t.text()));
+            lines.push(Line::styled("  Enter: yes, link · change the code or esc: no", t.fg(t.warn)));
+        }
+        None => lines.push(Line::styled("  Enter shows who approved it; enter again links.", t.dim())),
+    }
 }
 
 pub fn draw_recovery(f: &mut Frame, area: Rect, c: &Created, t: &Theme) {
