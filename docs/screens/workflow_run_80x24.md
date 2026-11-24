@@ -17,14 +17,14 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 ┃                                  ┃│  ◆ Sign-off gate (1 approval)            │
 ┃                                  ┃│awaiting-approval                         │
 ┃                                  ┃│                                          │
-┃                                  ┃│A approve the gate  R reject it           │
-┃                                  ┃│X cancel the run                          │
-┃                                  ┃│enter open its chat                       │
+┃                                  ┃│◆ Waiting for a sign-off  A approve       │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
 ┃                                  ┃│                                          │
 ┃                                  ┃│                                          │
 ┃                                  ┃│                                          │
 ┃                                  ┃│                                          │
 ┃                                  ┃│                                          │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────╯
-↑↓ select  S start  A approve gate  R reject  X cancel  ? help      peer to peer
+enter open chat  A approve gate  . actions  ? help      peer to peer · 1 running
 ```

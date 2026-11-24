@@ -3,52 +3,52 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
-┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Member ────────────────────────────────────────────────────────────────────────────────────────────────────╮
-┃  Mara · you  owner  founder                                                            ┃│Lin  contributor                                                                                            │
-┃  Ada  admin                                                                            ┃│                                                                                                            │
-┃  Lin  contributor                                                                      ┃│Role (r)                                                                                                    │
-┃  Sam  viewer                                                                           ┃│  ( ) owner                                                                                                 │
-┃  sff box  contributor  service                                                         ┃│  ( ) admin                                                                                                 │
-┃                                                                                        ┃│  (•) contributor                                                                                           │
-┃                                                                                        ┃│  ( ) viewer                                                                                                │
-┃                                                                                        ┃│                                                                                                            │
-┃                                                                                        ┃│X Remove from the workspace                                                                                 │
-┃                                                                                        ┃│I Create an invite                                                                                          │
-┃                                                                                        ┃│B Admit a box (ligus serve or a worker) as a service member                                                 │
-┃                                                                                        ┃│                                                                                                            │
-┃                                                                                        ┃│Changes to who's in the workspace need your passkey.                                                        │
-┃                                                                                        ┃│                                                                                                            │
-┃                                                                                        ┃│                                                                                                            │
-┃                                                                                        ┃│                                                                                                            │
-┃                                                                                        ┃│                                                                                                            │
-┃                                                                ┏ Confirm with passkey ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                                                                │
-┃                                                                ┃Remove Lin from the workspace                                       ┃                                                                │
-┃                                                                ┃                                                                    ┃                                                                │
-┃                                                                ┃Event   memberRemoved                                               ┃                                                                │
-┃                                                                ┃Digest  405d68465fd0fa10                                            ┃                                                                │
-┃                                                                ┃                                                                    ┃                                                                │
-┃                                                                ┃Path to a file holding your 24 recovery words (chmod 600):          ┃                                                                │
-┃                                                                ┃› ~/ligus-words.txt▏                                                ┃                                                                │
-┃                                                                ┃                                                                    ┃                                                                │
-┃                                                                ┃enter confirm   esc back                                            ┃                                                                │
-┃                                                                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                                                                │
-┃                                                                                        ┃│                                                                                                            │
-┃                                                                                        ┃│                                                                                                            │
-┃                                                                                        ┃│                                                                                                            │
-┃                                                                                        ┃│                                                                                                            │
-┃                                                                                        ┃│                                                                                                            │
-┃                                                                                        ┃│                                                                                                            │
-┃                                                                                        ┃│                                                                                                            │
-┃                                                                                        ┃│                                                                                                            │
-┃                                                                                        ┃│                                                                                                            │
-┃                                                                                        ┃│                                                                                                            │
-┃                                                                                        ┃│                                                                                                            │
-┃                                                                                        ┃│                                                                                                            │
-┃                                                                                        ┃│                                                                                                            │
-┃                                                                                        ┃│                                                                                                            │
-┃                                                                                        ┃│                                                                                                            │
-┃                                                                                        ┃│                                                                                                            │
-┃                                                                                        ┃│                                                                                                            │
-┃                                                                                        ┃│                                                                                                            │
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-↑↓ people  r role  X remove  I invite  B admit box  f1 help                                                                                                              peer to peer · 1 running · demo
+┏ People ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃Mara (you)  owner · founder                                                                                                                                                                           ┃
+┃Ada         admin                                                                                                                                                                                     ┃
+┃Lin         contributor                                                                                                                                                                               ┃
+┃Sam         viewer                                                                                                                                                                                    ┃
+┃sff box     contributor · box                                                                                                                                                                         ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                ┏ Confirm with passkey ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                                                                ┃
+┃                                                                ┃Remove Lin from the workspace                                       ┃                                                                ┃
+┃                                                                ┃                                                                    ┃                                                                ┃
+┃                                                                ┃Event   memberRemoved                                               ┃                                                                ┃
+┃                                                                ┃Digest  405d68465fd0fa10                                            ┃                                                                ┃
+┃                                                                ┃                                                                    ┃                                                                ┃
+┃                                                                ┃Path to a file holding your 24 recovery words (chmod 600):          ┃                                                                ┃
+┃                                                                ┃› ~/ligus-words.txt▏                                                ┃                                                                ┃
+┃                                                                ┃                                                                    ┃                                                                ┃
+┃                                                                ┃enter confirm   esc back                                            ┃                                                                ┃
+┃                                                                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                                                                ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+I invite  . actions  f1 help                                                                                                                                             peer to peer · 1 running · demo

@@ -348,6 +348,43 @@ async fn themes(dir: &Path) {
 const W: u16 = 104;
 const H: u16 = 26;
 
+/// `--gallery DIR`: every view, its row menu and its add popup, at two
+/// sizes, into `DIR` (for reviewing a UI change side by side; nothing in
+/// the repo uses these).
+async fn gallery(dir: &Path) {
+    std::fs::create_dir_all(dir).unwrap();
+    let t = Theme::DARK;
+    let shots: &[(&str, &[KeyCode])] = &[
+        ("chats", &[]),
+        ("workflows", &[KeyCode::Char('f')]),
+        ("workflows-run", &[KeyCode::Char('f'), KeyCode::Down, KeyCode::Down]),
+        ("workflows-run-menu", &[KeyCode::Char('f'), KeyCode::Down, KeyCode::Down, KeyCode::Char('.')]),
+        ("proposals", &[KeyCode::Char('p')]),
+        ("proposals-menu", &[KeyCode::Char('p'), KeyCode::Char('.')]),
+        ("agents", &[KeyCode::Char('a')]),
+        ("agents-menu", &[KeyCode::Char('a'), KeyCode::Char('.')]),
+        ("agents-add", &[KeyCode::Char('a'), KeyCode::Char('N')]),
+        ("hosts", &[KeyCode::Char('h')]),
+        ("memory", &[KeyCode::Char('y')]),
+        ("people", &[KeyCode::Char('m')]),
+        ("people-menu", &[KeyCode::Char('m'), KeyCode::Down, KeyCode::Down, KeyCode::Char('.')]),
+        ("notifications", &[KeyCode::Char('n')]),
+        ("settings", &[KeyCode::Char('s')]),
+        ("help-people", &[KeyCode::Char('m'), KeyCode::Char('?')]),
+        ("messages-empty", &[KeyCode::Char('!')]),
+    ];
+    for (name, keys) in shots {
+        let mut h = Harness::new(true).await;
+        h.key(KeyCode::Esc).await; // the cursor starts in the composer
+        for k in *keys {
+            h.key(*k).await;
+        }
+        for (w, ht) in [(110, 32), (80, 24)] {
+            write(dir, &format!("{name}-{w}x{ht}"), &format!("lt: {name} ({w}×{ht})"), &buffer(&h, w, ht, &t));
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -355,6 +392,11 @@ async fn main() {
         && flag == "--themes"
     {
         return themes(Path::new(dir)).await;
+    }
+    if let [_, flag, dir] = args.as_slice()
+        && flag == "--gallery"
+    {
+        return gallery(Path::new(dir)).await;
     }
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/screens");
     std::fs::create_dir_all(&dir).unwrap();

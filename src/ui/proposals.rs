@@ -7,10 +7,11 @@ use ratatui::style::Modifier;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{List, ListItem, ListState, Paragraph};
 
+use unicode_width::UnicodeWidthStr;
+
 use super::{pane, trunc};
 use crate::app::state::{DiffRow, Focus, State, ago};
-use crate::backend::model::{Allowed, ApplyState, DiffLine, Proposal, ProposalStatus};
-use crate::keymap::{Action, Context};
+use crate::backend::model::{ApplyState, DiffLine, Proposal, ProposalStatus};
 use crate::theme::Theme;
 
 pub(crate) fn status_style(st: ProposalStatus, t: &Theme) -> ratatui::style::Style {
@@ -52,10 +53,10 @@ pub fn proposal_hit(s: &State, area: Rect, x: u16, y: u16) -> ProposalHit {
     if y <= area.y || y >= area.bottom().saturating_sub(1) || s.proposals.is_empty() {
         return ProposalHit::List(None);
     }
-    // Two lines a proposal; the list scrolls to keep the selection in view.
-    let visible = (inner_h / 2).max(1) as usize;
+    // One line a proposal; the list scrolls to keep the selection in view.
+    let visible = inner_h.max(1) as usize;
     let offset = (s.proposal_sel.index + 1).saturating_sub(visible);
-    let row = offset + ((y - area.y - 1) / 2) as usize;
+    let row = offset + (y - area.y - 1) as usize;
     ProposalHit::List((row < s.proposals.len()).then_some(row))
 }
 
@@ -68,9 +69,10 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         f.render_widget(Paragraph::new(Line::styled("Nothing is waiting for review.", t.dim())).block(block), right);
         return;
     };
-    let detail_h = 7 + p.votes.len() as u16;
+    let refused = p.status == ProposalStatus::Open && !p.can_vote.is_yes();
+    let detail_h = 3 + p.votes.len() as u16 + u16::from(p.needs_presence) + u16::from(apply_text(&p.apply).is_some()) + u16::from(refused);
     let [detail, diff] = Layout::vertical([Constraint::Length(detail_h), Constraint::Min(3)]).areas(right);
-    draw_detail(f, detail, s, p, t);
+    draw_detail(f, detail, p, t);
     draw_diff(f, diff, s, t);
 }
 
@@ -81,20 +83,26 @@ fn draw_list(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         return;
     }
     let w = area.width.saturating_sub(4) as usize;
+    // The title, then where it stands: its status (in its colour), the
+    // votes and its age.
     let items: Vec<ListItem> = s
         .proposals
         .iter()
         .map(|p| {
-            let pill = format!("{:<9}", p.status.label());
-            let l1 = Line::from(vec![
-                Span::styled(pill, status_style(p.status, t)),
-                Span::styled(trunc(&p.title, w.saturating_sub(10)), t.text()),
-            ]);
-            let mut meta = format!("         {}/{} approvals · {} · {}", p.approvals, p.quorum, p.author, ago(s.now, p.created_at));
-            if matches!(p.apply, ApplyState::Waiting { .. }) {
-                meta.push_str(" · applying");
-            }
-            ListItem::new(vec![l1, Line::styled(trunc(&meta, w), t.dim())])
+            let applying = if matches!(p.apply, ApplyState::Waiting { .. }) { " · applying" } else { "" };
+            let meta = format!(" {}/{} · {}{applying}", p.approvals, p.quorum, ago(s.now, p.created_at));
+            let label = p.status.label();
+            let tail = 2 + label.width() + meta.width();
+            let title = trunc(&p.title, w.saturating_sub(tail).max(8));
+            let pad = w.saturating_sub(title.width() + tail);
+            let needs = p.status == ProposalStatus::Open && p.can_vote.is_yes();
+            let style = if needs { t.text().add_modifier(Modifier::BOLD) } else { t.text() };
+            ListItem::new(Line::from(vec![
+                Span::styled(title, style),
+                Span::raw(" ".repeat(pad + 2)),
+                Span::styled(label, status_style(p.status, t).remove_modifier(Modifier::BOLD)),
+                Span::styled(meta, t.dim()),
+            ]))
         })
         .collect();
     let list = List::new(items).block(block).highlight_style(t.selected());
@@ -102,17 +110,8 @@ fn draw_list(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     f.render_stateful_widget(list, area, &mut st);
 }
 
-/// An action hint, crossed out with the reason when refused.
-fn action<'a>(key: String, label: String, allowed: &Allowed, t: &Theme) -> Vec<Span<'a>> {
-    match allowed {
-        Allowed::Yes => vec![Span::styled(key, t.accent()), Span::styled(format!(" {label}   "), t.text())],
-        Allowed::No(r) => vec![Span::styled(format!("{key} {label}"), t.disabled()), Span::styled(format!(" ({r})   "), t.dim())],
-    }
-}
-
-fn draw_detail(f: &mut Frame, area: Rect, s: &State, p: &Proposal, t: &Theme) {
+fn draw_detail(f: &mut Frame, area: Rect, p: &Proposal, t: &Theme) {
     let block = pane(&p.title, false, t);
-    let k = &s.keymap;
     let mut lines = vec![Line::from(vec![
         Span::styled(p.status.label(), status_style(p.status, t)),
         Span::styled(
@@ -137,33 +136,10 @@ fn draw_detail(f: &mut Frame, area: Rect, s: &State, p: &Proposal, t: &Theme) {
     if p.needs_presence {
         lines.push(Line::styled("Presence (passkey) required", t.fg(t.warn)));
     }
-    let vote = if p.status == ProposalStatus::Open { p.can_vote.clone() } else { Allowed::No(format!("already {}", p.status.label())) };
-    let mut spans = vec![];
-    let (ka, kr) = (k.hint(Context::Review, Action::Approve), k.hint(Context::Review, Action::Reject));
-    match &vote {
-        Allowed::Yes => {
-            spans.extend(action(ka, "Approve".into(), &vote, t));
-            spans.extend(action(kr, "Reject".into(), &vote, t));
-        }
-        // One reason for both buttons.
-        Allowed::No(_) => spans.extend(action(format!("{ka} Approve  {kr}"), "Reject".into(), &vote, t)),
+    // Why you can't vote stays in view (the actions are in the row menu).
+    if let (ProposalStatus::Open, Some(r)) = (p.status, p.can_vote.reason()) {
+        lines.push(Line::styled(format!("You can't vote: {r}"), t.dim()));
     }
-    let host = s
-        .default_apply_host()
-        .map(|h| if h.this_device { "this device".to_string() } else { h.label.clone() })
-        .unwrap_or_else(|| "a host".into());
-    let apply_ok = match (&p.status, &p.apply) {
-        (_, ApplyState::Waiting { .. }) => Allowed::No("one applier per proposal".into()),
-        (ProposalStatus::Approved, _) => Allowed::Yes,
-        (ProposalStatus::Applied, _) => Allowed::No("already applied".into()),
-        _ => Allowed::No("needs approval first".into()),
-    };
-    let more = if s.hosts.len() > 1 { "…" } else { "" };
-    spans.extend(action(k.hint(Context::Review, Action::ApplyOnHost), format!("Apply on {host}{more}"), &apply_ok, t));
-    if matches!(p.apply, ApplyState::Waiting { .. }) {
-        spans.extend(action(k.hint(Context::Review, Action::WithdrawApply), "Withdraw".into(), &Allowed::Yes, t));
-    }
-    lines.push(Line::from(spans));
     if let Some(a) = apply_text(&p.apply) {
         let c = match p.apply {
             ApplyState::Failed { .. } => t.bad,
@@ -171,8 +147,6 @@ fn draw_detail(f: &mut Frame, area: Rect, s: &State, p: &Proposal, t: &Theme) {
             _ => t.warn,
         };
         lines.push(Line::styled(a, t.fg(c)));
-    } else {
-        lines.push(Line::styled("That host applies it once, on its checkout, and reports the result.", t.dim()));
     }
     f.render_widget(Paragraph::new(lines).wrap(ratatui::widgets::Wrap { trim: false }).block(block), area);
 }

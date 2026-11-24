@@ -2,6 +2,7 @@
 //! backend.
 
 pub mod input;
+pub mod menu;
 pub mod palette;
 pub mod runtime;
 pub mod state;

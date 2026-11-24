@@ -5,17 +5,13 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Proposals ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Inject the clock into checkout tests ──────────────────────────╮
-┃open     Inject ┏ Commands · 3 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓s               │
-┃         1/2 app┃› appr                                                                    ┃                │
-┃approved Export ┃──────────────────────────────────────────────────────────────────────────┃proval first)   │
-┃         2/2 app┃▶ Approve “Inject the clock into checkout tests”              A  Proposals┃reports the     │
-┃applied  Bump th┃  Export orders to CSV (approved)                                 Proposal┃                │
-┃         2/2 app┃  Withdraw the apply request “Inject the clock into checkou…  W  Proposals┃                │
-┃open     Sign-of┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛────────────────╯
-┃         0/1 approvals · workflow · 4m    ┃╭ Diff · 2 files · hunk 1/3 ─────────────────────────────────────╮
-┃open     Workflow: Dependency audit be…   ┃│▌src/checkout.rs +9 −3                                          │
-┃         0/1 approvals · @scout · 20m     ┃│@@ -12,7 +12,9 @@ pub struct Checkout {                         │
-┃                                          ┃│     pub cart: CartId,                                          │
+┃Inject the clock┏ Commands · 3 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓s               │
+┃Export orders to┃› appr                                                                    ┃                │
+┃Bump the order s┃──────────────────────────────────────────────────────────────────────────┃────────────────╯
+┃Sign-off: inject┃▶ Approve “Inject the clock into checkout tests”              A  Proposals┃────────────────╮
+┃Workflow: Depend┃  Export orders to CSV (approved)                                 Proposal┃                │
+┃                ┃  Withdraw the apply request “Inject the clock into checkou…  W  Proposals┃                │
+┃                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                │
 ┃                                          ┃│     pub items: Vec<LineItem>,                                  │
 ┃                                          ┃│-    pub started: Instant,                                      │
 ┃                                          ┃│+    /// Injected, so tests set the time instead of reading the…│
@@ -33,6 +29,10 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                          ┃│+                                                               │
 ┃                                          ┃│+    pub const SESSION_TIMEOUT_MS: Millis = 30_000;             │
 ┃                                          ┃│                                                                │
+┃                                          ┃│     pub fn summary(&self) -> String {                          │
+┃                                          ┃│                                                                │
+┃                                          ┃│▌tests/checkout.rs +8 −0                                        │
+┃                                          ┃│@@ -0,0 +1,8 @@                                                 │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────╯
 type to filter  ↑↓ select  enter run  esc close                                peer to peer · 1 running · demo
 ```

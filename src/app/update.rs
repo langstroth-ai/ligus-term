@@ -1224,6 +1224,8 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
     let nav = s.keymap.resolve(&[crate::keymap::Context::Nav], &k, false);
     let ws = s.active.clone();
     let help_max = if matches!(s.overlay, Some(Overlay::Help { .. })) { crate::ui::help_max_scroll(s, s.term.1) } else { 0 };
+    let available: Vec<LocalRuntime> =
+        if matches!(s.overlay, Some(Overlay::AddAgentPicker { .. })) { s.available_local().into_iter().cloned().collect() } else { vec![] };
     let Some(overlay) = s.overlay.as_mut() else { return vec![] };
     match overlay {
         Overlay::Help { scroll, query, searching } => {
@@ -1571,6 +1573,67 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
         Overlay::Invite { .. } => {
             s.overlay = None;
             vec![]
+        }
+        Overlay::RowMenu { items, sel, .. } => {
+            let mut i = Sel { index: *sel };
+            if let Some(a) = nav
+                && a != Action::Select
+                && list_nav(&mut i, items.len(), a)
+            {
+                *sel = i.index;
+                return vec![];
+            }
+            let chosen = match (k.code, nav) {
+                (KeyCode::Esc, _) | (_, Some(Action::RowMenu)) => {
+                    s.overlay = None;
+                    return vec![];
+                }
+                (_, Some(Action::Select)) => items.get(*sel).cloned(),
+                // An entry's own key chooses it, as it would without the menu.
+                _ => {
+                    let contexts: Vec<crate::keymap::Context> = items.iter().map(|it| it.context).collect();
+                    let a = s.keymap.resolve(&contexts, &k, false);
+                    items.iter().find(|it| Some(it.action) == a).cloned()
+                }
+            };
+            let Some(it) = chosen else { return vec![] };
+            if let Allowed::No(r) = &it.allowed {
+                s.toast(ToastKind::Error, format!("{}: {r}", it.label.trim_end_matches('…')));
+                return vec![];
+            }
+            s.overlay = None;
+            main_action(s, it.action)
+        }
+        Overlay::AddAgentPicker { sel } => {
+            let mut i = Sel { index: *sel };
+            if let Some(a) = nav
+                && a != Action::Select
+                && list_nav(&mut i, available.len(), a)
+            {
+                *sel = i.index;
+                return vec![];
+            }
+            match k.code {
+                KeyCode::Esc => {
+                    s.overlay = None;
+                    vec![]
+                }
+                KeyCode::Enter => {
+                    let Some(l) = available.get(*sel).cloned() else {
+                        s.overlay = None;
+                        return vec![];
+                    };
+                    if let Some(why) = &l.unsupported {
+                        s.toast(ToastKind::Error, why.clone());
+                        return vec![];
+                    }
+                    let mut name = TextBuf::single();
+                    name.insert_str(&l.suggested_name);
+                    s.overlay = Some(Overlay::AddAgent { runtime: l, name });
+                    vec![]
+                }
+                _ => vec![],
+            }
         }
         Overlay::Confirm { action, .. } => {
             let action = action.clone();
@@ -2067,6 +2130,15 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
         }
         Up | Down | PageUp | PageDown | Top | Bottom => nav_action(s, action),
         Select => select(s),
+        RowMenu => {
+            let (title, items) = crate::app::menu::row_menu(s);
+            if items.is_empty() {
+                s.toast(ToastKind::Info, "Nothing to do here");
+            } else {
+                s.overlay = Some(Overlay::RowMenu { title, items, sel: 0 });
+            }
+            vec![]
+        }
         StopTurn => {
             let (Some(w), Some(c)) = (ws, s.open_chat.clone()) else { return vec![] };
             let live = s.thinking.get(&c).is_some_and(|t| !t.is_empty()) || s.transcript.iter().any(|m| m.streaming);
@@ -2254,22 +2326,7 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             ws.map(|w| vec![Effect::SetAgentAccess(w, a.id.clone(), everyone)]).unwrap_or_default()
         }
         AddAgent => {
-            let Some(l) = s.selected_local().cloned() else {
-                let hint = if s.available_local().is_empty() {
-                    "Nothing on this device to add: see \u{201c}Available on this device\u{201d}"
-                } else {
-                    "Select a runtime under \u{201c}Available on this device\u{201d} first"
-                };
-                s.toast(ToastKind::Info, hint);
-                return vec![];
-            };
-            if let Some(why) = &l.unsupported {
-                s.toast(ToastKind::Error, why.clone());
-                return vec![];
-            }
-            let mut name = TextBuf::single();
-            name.insert_str(&l.suggested_name);
-            s.overlay = Some(Overlay::AddAgent { runtime: l, name });
+            s.overlay = Some(Overlay::AddAgentPicker { sel: 0 });
             vec![]
         }
         ChangeRuntime => {
@@ -2588,8 +2645,6 @@ fn select(s: &mut State) -> Vec<Effect> {
                 None => vec![],
             }
         }
-        // Enter on a runtime available on this device adds it as an agent.
-        View::Agents if s.selected_local().is_some() => main_action(s, Action::AddAgent),
         View::People | View::Agents | View::Hosts | View::Memory => vec![],
     }
 }

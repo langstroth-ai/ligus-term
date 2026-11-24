@@ -962,8 +962,8 @@ Detection only runs --version, never sends a prompt, never opens a keychain and
 never reads a key's value. Each row says whether it is ready, or what to run
 (codex login, copilot login, ollama pull).
 
-In the app: Agents (a). Under \"Available on this device\", select a row and press
-N (or enter), name the agent, enter. In plain mode:
+In the app: Agents (a), then N: pick a runtime in the popup, enter, name the
+agent, enter. In plain mode:
   lt --plain available          # the list
   lt --plain add-agent 2 coder  # row 2 as @coder
 

@@ -5,16 +5,12 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ╭ Proposals ───────────────────────────────╮╭ Inject the clock into checkout tests ──────────────────────────╮
-│open     Inject the clock into checkou…   ││open  by @coder · 2 files changed · 1/2 approvals               │
-│         1/2 approvals · @coder · 37m     ││✓ Ada approved · admin                                          │
-│approved Export orders to CSV             ││A Approve   R Reject   O Apply on sff… (needs approval first)   │
-│         2/2 approvals · @coder · 1d      ││That host applies it once, on its checkout, and reports the     │
-│applied  Bump the order schema version    ││result.                                                         │
-│         2/2 approvals · @reviewer · 2d   ││                                                                │
-│open     Sign-off: inject a fake clock    │╰────────────────────────────────────────────────────────────────╯
-│         0/1 approvals · workflow · 4m    │┏ Diff · 2 files · hunk 2/3 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-│open     Workflow: Dependency audit be…   │┃@@ -40,9 +42,13 @@ impl Checkout {                              ┃
-│         0/1 approvals · @scout · 20m     │┃     pub fn is_expired(&self) -> bool {                         ┃
+│Inject the clock into c…  open 1/2 · 37m  ││open  by @coder · 2 files changed · 1/2 approvals               │
+│Export orders to CSV   approved 2/2 · 1d  ││✓ Ada approved · admin                                          │
+│Bump the order schema…  applied 2/2 · 2d  │╰────────────────────────────────────────────────────────────────╯
+│Sign-off: inject a fake …  open 0/1 · 4m  │┏ Diff · 2 files · hunk 2/3 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+│Workflow: Dependency au…  open 0/1 · 20m  │┃@@ -40,9 +42,13 @@ impl Checkout {                              ┃
+│                                          │┃     pub fn is_expired(&self) -> bool {                         ┃
 │                                          │┃-        self.started.elapsed().as_secs() > 30                  ┃
 │                                          │┃-    }                                                          ┃
 │                                          │┃+        // 30 seconds matches the payment provider's session t…┃
@@ -33,6 +29,10 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 │                                          │┃+fn expires_after_thirty_seconds() {                            ┃
 │                                          │┃+    let c = Checkout::at_fake_time(30_000);                    ┃
 │                                          │┃+    assert!(c.is_expired());                                   ┃
+│                                          │┃+}                                                              ┃
+│                                          │┃+                                                               ┃
+│                                          │┃                                                                ┃
+│                                          │┃                                                                ┃
 ╰──────────────────────────────────────────╯┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-↑↓ scroll  ] next hunk  [ prev hunk  A approve  R reject  O apply  ? help      peer to peer · 1 running · demo
+] next hunk  [ prev hunk  A approve  . actions  ? help                         peer to peer · 1 running · demo
 ```

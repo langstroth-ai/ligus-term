@@ -15,8 +15,8 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 ┃                                  ┃│  Review @reviewer  after implement       │
 ┃                                  ┃│  Sign-off gate (1 approval)  after review│
 ┃                                  ┃│                                          │
-┃                                  ┃│S Start a run: this device drives it;     │
-┃                                  ┃│stages go to their agents' hosts          │
+┃                                  ┃│                                          │
+┃                                  ┃│                                          │
 ┃                                  ┃│                                          │
 ┃                                  ┃│                                          │
 ┃                                  ┃│                                          │
@@ -26,5 +26,5 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 ┃                                  ┃│                                          │
 ┃                                  ┃│                                          │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────╯
-↑↓ select  S start  A approve gate  R reject  X cancel  ? help      peer to peer
+S start run  . actions  ? help                   peer to peer · 1 running · demo
 ```

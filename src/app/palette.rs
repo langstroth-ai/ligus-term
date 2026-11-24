@@ -40,7 +40,20 @@ fn hidden(a: Action) -> bool {
     use Action::*;
     matches!(
         a,
-        Up | Down | PageUp | PageDown | Top | Bottom | Select | Back | Send | Newline | CancelCompose | Complete | Palette | FocusPrev
+        Up | Down
+            | PageUp
+            | PageDown
+            | Top
+            | Bottom
+            | Select
+            | RowMenu
+            | Back
+            | Send
+            | Newline
+            | CancelCompose
+            | Complete
+            | Palette
+            | FocusPrev
     )
 }
 

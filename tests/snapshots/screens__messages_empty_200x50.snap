@@ -4,15 +4,15 @@ expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
 ┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ┏ Messages · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────╮╭ This chat ───────────────────────────╮
-┃  ◆ Fix flaky checkout … 12m  ┃│             Ada  40m    ┃Nothing yet.                                                                      ┃                 ││Proposals                             │
-┃  #dev                        ┃│               The checko┃Notices and errors from this session collect here, so one that went by can be read┃                 ││◆ Inject the clock into checkout tests│
-┃  ◆ Migrate auth to pas… 50m  ┃│                         ┃again.                                                                            ┃                 ││  open 1/2                            │
-┃  #dev                        ┃│             @coder  via ┃                                                                                  ┃                 ││◆ Sign-off: inject a fake clock       │
-┃  Weekly release notes    1d  ┃│               Yes. The p┃                                                                                  ┃                 ││  open 0/1                            │
-┃                              ┃│               ◆ proposal┃                                                                                  ┃                 ││                                      │
-┃                              ┃│                         ┃                                                                                  ┃                 ││Runs                                  │
-┃                              ┃│             Ada  12m    ┃                                                                                  ┃                 ││· Implement, review, ship             │
-┃                              ┃│               @Mara can ┃                                                                                  ┃                 ││  awaiting-gate                       │
+┃  ◆ Fix flaky checkout … 12m  ┃│             Ada  40m    ┃No messages yet                                                                   ┃                 ││Proposals                             │
+┃  ◆ Migrate auth to pas… 50m  ┃│               The checko┃                                                                                  ┃                 ││◆ Inject the clock into checkout … 1/2│
+┃  Weekly release notes    1d  ┃│                         ┃                                                                                  ┃                 ││◆ Sign-off: inject a fake clock 0/1   │
+┃                              ┃│             @coder  via ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│               Yes. The p┃                                                                                  ┃                 ││Runs                                  │
+┃                              ┃│               ◆ proposal┃                                                                                  ┃                 ││· Implement, review, sh… awaiting-gate│
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│             Ada  12m    ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│               @Mara can ┃                                                                                  ┃                 ││                                      │
 ┃                              ┃│               ◆ proposal┃                                                                                  ┃                 ││                                      │
 ┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
 ┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │

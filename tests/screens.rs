@@ -356,15 +356,18 @@ async fn agents_and_runtimes() {
 async fn agents_add_from_this_device() {
     let mut h = demo().await;
     h.key(KeyCode::Char('a')).await;
-    for _ in 0..4 {
-        h.key(KeyCode::Down).await;
-    }
+    h.key(KeyCode::Char('N')).await;
+    snap(&h, "agents_add_pick", "Agents: what this device could add, in a popup");
     h.key(KeyCode::Enter).await;
     snap(&h, "agents_add", "Agents: add one on this device");
     h.key(KeyCode::Enter).await;
     let screen = h.screen(W, H);
-    assert!(screen.lines().any(|l| l.contains("@copilot") && l.contains("Only me") && l.contains("This device")), "{screen}");
+    assert!(screen.contains("@copilot"), "{screen}");
     assert!(screen.contains("Added @copilot"), "{screen}");
+    h.key(KeyCode::Char('G')).await;
+    let screen = h.screen(W, H);
+    assert!(screen.lines().any(|l| l.contains("Who can use") && l.contains("Only me")), "{screen}");
+    assert!(screen.lines().any(|l| l.contains("Runs on") && l.contains("This device")), "{screen}");
     let left: Vec<String> = h.state.available_local().iter().map(|l| l.id.to_string()).collect();
     assert_eq!(left, vec!["local:ollama/qwen3:8b"]);
 }
@@ -376,6 +379,7 @@ async fn agents_nothing_on_this_device() {
     let mut h = Harness::with(fake).await;
     h.key(KeyCode::Esc).await;
     h.key(KeyCode::Char('a')).await;
+    h.key(KeyCode::Char('N')).await;
     let screen = h.screen(W, H);
     snap(&h, "agents_empty", "Agents: nothing found on this device");
     assert!(screen.contains("No agent runtime found on this device"), "{screen}");
@@ -391,10 +395,9 @@ async fn agents_usage_and_who_can_use() {
     let screen = h.screen(W, H);
     assert!(screen.contains("Mara: 3 turns, ~$0.0120"), "{screen}");
     assert!(screen.contains("Ben: 2 turns (no usage reported)"), "{screen}");
-    assert!(screen.contains("count turns only"), "{screen}");
     h.key(KeyCode::Char('E')).await;
     let screen = h.screen(W, H);
-    assert!(screen.lines().any(|l| l.contains("@coder") && l.contains("Everyone")), "{screen}");
+    assert!(screen.lines().any(|l| l.contains("Who can use") && l.contains("Everyone")), "{screen}");
     // Someone else's (here: shared, not yours to manage) is refused.
     h.key(KeyCode::Down).await;
     h.key(KeyCode::Char('E')).await;
@@ -415,7 +418,48 @@ async fn people_as_owner() {
     h.key(KeyCode::Char('m')).await;
     h.key(KeyCode::Down).await;
     h.key(KeyCode::Down).await;
-    snap(&h, "people", "People: roles and actions");
+    snap(&h, "people", "People: one line each, the view's primary action in the key hints");
+    let screen = h.screen(W, H);
+    let status = screen.lines().last().unwrap_or("");
+    assert!(status.starts_with("I invite") && status.contains(". actions"), "{status}");
+    // The row's actions are in its menu, not around the row.
+    assert!(!screen.contains("Remove from the workspace"), "{screen}");
+    h.key(KeyCode::Char('.')).await;
+    snap(&h, "people_menu", "People: the row menu, destructive last");
+    h.key(KeyCode::Esc).await;
+    assert!(!h.screen(W, H).contains("Remove from the workspace"), "esc closes the menu");
+}
+
+/// A run's row menu: approve first, the destructive ones (reject, cancel)
+/// last.
+#[tokio::test]
+async fn workflow_run_menu() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char('f')).await;
+    h.key(KeyCode::Down).await;
+    h.key(KeyCode::Down).await;
+    h.key(KeyCode::Char('.')).await;
+    snap(&h, "workflow_run_menu", "A run's row menu");
+    let screen = h.screen(W, H);
+    let (approve, cancel) = (screen.find("Approve the gate").unwrap(), screen.find("Cancel the run").unwrap());
+    assert!(approve < cancel, "{screen}");
+}
+
+/// Empty lists say so in one short line.
+#[tokio::test]
+async fn empty_states_are_one_line() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char('n')).await;
+    h.state.notifications.clear();
+    let screen = h.screen(W, H);
+    assert!(screen.contains("No notifications"), "{screen}");
+    h.key(KeyCode::Char('f')).await;
+    h.state.workflows.clear();
+    h.state.runs.clear();
+    assert!(h.screen(W, H).contains("No workflows yet"));
+    h.key(KeyCode::Char('h')).await;
+    h.state.hosts.clear();
+    assert!(h.screen(W, H).contains("No hosts yet"));
 }
 
 #[tokio::test]
@@ -424,7 +468,8 @@ async fn people_refusals_as_viewer() {
     h.key(KeyCode::Char('w')).await;
     h.key(KeyCode::Char('2')).await;
     h.key(KeyCode::Char('m')).await;
-    snap(&h, "people_refused", "People: actions the rank rules refuse, with the reason");
+    h.key(KeyCode::Char('.')).await;
+    snap(&h, "people_refused", "People: the row menu as a viewer, refused actions with the reason");
 }
 
 #[tokio::test]
@@ -942,7 +987,7 @@ async fn help_scrolls_to_the_end() {
     let up = h.screen(80, 24);
     assert_ne!(end, up, "one up from the end moves at once");
     h.key(KeyCode::Char('g')).await;
-    assert!(h.screen(80, 24).contains("What has focus comes first"));
+    assert!(h.screen(80, 24).contains("opens a row's actions"));
     // The view's own keys come first: Chats, then Lists.
     let top = h.screen(80, 24);
     let chats = top.find("Write a message").unwrap();

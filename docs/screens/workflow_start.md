@@ -15,7 +15,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                                ┃│  Review @reviewer  after implement                       │
 ┃                                                ┃│  Sign-off gate (1 approval)  after review                │
 ┃                                                ┃│                                                          │
-┃                                                ┃│S Start a run: this device drives it; stages go to their  │
+┃                                                ┃│                                                          │
 ┃                      ┏ Start “Implement, review, ship” ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                      │
 ┃                      ┃What to change                                                ┃                      │
 ┃                      ┃export the order history                                      ┃                      │
@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────╯
-↑↓ select  S start  A approve gate  R reject  X cancel  f1 help                peer to peer · 1 running · demo
+S start run  . actions  f1 help                                                peer to peer · 1 running · demo
 ```

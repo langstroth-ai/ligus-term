@@ -15,9 +15,9 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                                ┃│      @reviewer finished: export the order history        │
 ┃                                                ┃│  ◆ Sign-off gate (1 approval)  awaiting-approval         │
 ┃                                                ┃│                                                          │
-┃                                                ┃│A approve the gate  R reject it                           │
-┃                                                ┃│X cancel the run                                          │
-┃                                                ┃│enter open its chat                                       │
+┃                                                ┃│◆ Waiting for a sign-off  A approve                       │
+┃                                                ┃│                                                          │
+┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────╯
-↑↓ select  S start  A approve gate  R reject  X cancel  ? help                 peer to peer · 1 running · demo
+enter open chat  A approve gate  . actions  ? help                             peer to peer · 1 running · demo
 ```

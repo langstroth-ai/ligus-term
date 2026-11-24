@@ -4,21 +4,21 @@ expression: screen
 ---
 [NA]+1• │ 1 2 3 Props 4 5 6 7 8(1) 9           Northwind API
 ╭ Proposals ─────────────────╮╭ Inject the clock into check╮
-│open     Inject the cloc…   ││open  by @coder · 2 files   │
-│         1/2 approvals · …  ││changed · 1/2 approvals     │
-│approved Export orders t…   ││✓ Ada approved · admin      │
-│         2/2 approvals · …  ││A Approve   R Reject   O    │
-│applied  Bump the order …   ││Apply on sff… (needs        │
-│         2/2 approvals · …  ││approval first)             │
-│open     Sign-off: injec…   │╰────────────────────────────╯
-│         0/1 approvals · …  │┏ Diff · 2 files · hunk 1/3 ━┓
-│open     Workflow: Depen…   │┃▌src/checkout.rs +9 −3      ┃
-│         0/1 approvals · …  │┃@@ -12,7 +12,9 @@ pub struc…┃
+│Inject th…  open 1/2 · 37m  ││open  by @coder · 2 files   │
+│Export …  approved 2/2 · 1d ││changed · 1/2 approvals     │
+│Bump th…  applied 2/2 · 2d  │╰────────────────────────────╯
+│Sign-off: …  open 0/1 · 4m  │┏ Diff · 2 files · hunk 1/3 ━┓
+│Workflow:…  open 0/1 · 20m  │┃▌src/checkout.rs +9 −3      ┃
+│                            │┃@@ -12,7 +12,9 @@ pub struc…┃
 │                            │┃     pub cart: CartId,      ┃
 │                            │┃     pub items: Vec<LineIte…┃
 │                            │┃-    pub started: Instant,  ┃
 │                            │┃+    /// Injected, so tests…┃
 │                            │┃+    pub clock: Arc<dyn Clo…┃
 │                            │┃+    pub started_at: Millis,┃
+│                            │┃     pub paid: bool,        ┃
+│                            │┃ }                          ┃
+│                            │┃@@ -40,9 +42,13 @@ impl Che…┃
+│                            │┃     pub fn is_expired(&sel…┃
 ╰────────────────────────────╯┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-↑↓ scroll  ] next hunk  [ prev hunk  A approve  …  ? help
+] next hunk  [ prev hunk  A approve  . actions  ? help
