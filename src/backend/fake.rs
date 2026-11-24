@@ -2297,6 +2297,10 @@ impl SetupOps for FakeOps {
         self.with(|w| w.tools.retain(|t| t.id != id));
         Ok(())
     }
+    fn box_state(&self) -> OpsResult<ligus_runtime::setup::BoxFact> {
+        // lt is a person's device: a box joins from the box itself.
+        Err(OpsError::Failed("lt is a person's device; a box joins from the box".into()))
+    }
     fn repos(&self) -> Vec<RepoFact> {
         self.with(|w| w.repos.clone()).unwrap_or_default()
     }

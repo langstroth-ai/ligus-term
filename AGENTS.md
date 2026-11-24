@@ -38,6 +38,7 @@ What the tests cover:
 | `tests/keymap.rs` | Default bindings, contexts, typing rules, config overrides and errors |
 | `tests/help.rs` | `lt --help` and `lt help`: every flag, plain command, record and environment variable documented, the key table built from the keymap, `--json` output |
 | `tests/cli.rs` | The `lt` binary: `--version`, plain mode on a pipe, refusals, the data dir |
+| `tests/setup.rs` | Guided setup in the full-screen app over the demo backend (the real engine): the Set up list, a flow per field type, a failed check with its fix, a person's hand-off, cancel, dry run, empty states, and a secret that never reaches the screen, `Debug`, the effects or the log |
 | `tests/real_backend.rs` | The real backend: two devices through the in-process test relay (create, invite, join, chat, streamed replies through both dispatch gates, proposals, vote, apply on host, people, hosts, lockdown), a device reopened from disk, and agent runtimes found on the device (stub `claude` and `codex` on a temporary `PATH`, a fake Ollama) and added as agents |
 | `tests/orchestration.rs` | Orchestration over the real backend: founding a deployment's workspace, admitting a worker-like box, a workflow run end to end (a stage on the box, a gate approved from `lt`, a local stage), host beats, the invite-signature check, the deferred-claim fallback, the checkout binding, one-shot plain mode, and that DM invites and people's presence beats are ignored |
 | `tests/support/` | Helpers for the two above: file secrets, the relay, a fake model, the software passkey, devices |
@@ -48,7 +49,7 @@ diff. If the new screen is right, accept it and refresh the captures in
 `docs/screens/`:
 
 ```sh
-INSTA_UPDATE=always LT_WRITE_SCREENS=1 cargo test --test screens
+INSTA_UPDATE=always LT_WRITE_SCREENS=1 cargo test --test screens --test setup
 git diff tests/snapshots docs/screens   # read it before committing
 ```
 

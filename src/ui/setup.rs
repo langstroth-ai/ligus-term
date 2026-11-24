@@ -113,13 +113,14 @@ pub fn flow(f: &mut Frame, area: Rect, s: &State, w: &Wizard, t: &Theme) {
             "any key closes".into()
         }
         Stage::Fill if w.form.as_ref().is_some_and(|f| f.blocked) => {
-            lines.push(Line::styled("This can't run here yet:", t.text()));
+            lines.push(Line::styled("Not from here:", t.text()));
             lines.push(Line::raw(""));
             let cs: Vec<&SetupCheck> = w.form.iter().flat_map(|f| f.preflight.iter()).filter(|c| c.status != CheckStatus::Ok).collect();
             let tw = title_w(&cs);
             for c in cs {
                 check_lines(&mut lines, c, tw, width, t);
             }
+            lines.push(Line::raw(""));
             match here {
                 Some((k, what)) => format!("{k} {what} · any other key closes"),
                 None => "any key closes".into(),

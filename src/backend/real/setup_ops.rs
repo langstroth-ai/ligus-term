@@ -258,6 +258,10 @@ impl SetupOps for RealOps {
         self.inner.emit(Event::HostsChanged { workspace: ws });
         Ok(())
     }
+    fn box_state(&self) -> OpsResult<ligus_runtime::setup::BoxFact> {
+        // lt is a person's device: a box joins from the box itself.
+        Err(OpsError::Failed("lt is a person's device; a box joins from the box".into()))
+    }
     fn hosts(&self) -> Vec<HostFact> {
         self.read(service::hosts)
     }
