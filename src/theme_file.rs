@@ -834,15 +834,9 @@ pub fn parse(id: &str, text: &str, json: bool) -> Report {
                     diags.push(Diag::error(*line, "extends", format!("must be a built-in palette: {}", names.join(", "))));
                 }
             },
-            "$schema" => {
-                if string(v).is_none() {
-                    diags.push(Diag::error(*line, "$schema", "must be a string"));
-                }
-            }
-            "light" | "dark" => {
-                if !matches!(v, Value::Table(_)) {
-                    diags.push(Diag::error(*line, key.clone(), "must be a table of colours ([light] in TOML, an object in JSON)"));
-                }
+            "$schema" if string(v).is_none() => diags.push(Diag::error(*line, "$schema", "must be a string")),
+            "light" | "dark" if !matches!(v, Value::Table(_)) => {
+                diags.push(Diag::error(*line, key.clone(), "must be a table of colours ([light] in TOML, an object in JSON)"))
             }
             _ => {}
         }
