@@ -79,11 +79,13 @@ pub struct Diag {
 }
 
 impl Diag {
+    // Keys, names and quoted values come from the file: never let them
+    // reach a terminal as escape sequences or bidi controls.
     fn error(line: Option<usize>, key: impl Into<String>, message: impl Into<String>) -> Diag {
-        Diag { level: Level::Error, line, key: key.into(), message: message.into() }
+        Diag { level: Level::Error, line, key: safe(&key.into()), message: safe(&message.into()) }
     }
     fn warn(line: Option<usize>, key: impl Into<String>, message: impl Into<String>) -> Diag {
-        Diag { level: Level::Warning, line, key: key.into(), message: message.into() }
+        Diag { level: Level::Warning, line, key: safe(&key.into()), message: safe(&message.into()) }
     }
 
     /// `line 4: light.ink: …`, for stderr.
@@ -92,6 +94,18 @@ impl Diag {
         let key = if self.key.is_empty() { String::new() } else { format!("{}: ", self.key) };
         format!("{at}{key}{}", self.message)
     }
+}
+
+/// Text from a theme file (a key, a name, a file name) as it may reach a
+/// terminal: control characters (ANSI, OSC, C1) and bidi controls become
+/// U+FFFD.
+pub fn safe(s: &str) -> String {
+    s.chars().map(|c| if c.is_control() || crate::plain::is_bidi(c) { '\u{FFFD}' } else { c }).collect()
+}
+
+/// A path as it may reach a terminal.
+pub fn safe_path(p: &Path) -> String {
+    safe(&p.display().to_string())
 }
 
 /// A parsed colour: sRGB channels 0..255 (floats) and alpha 0..1.
@@ -403,13 +417,18 @@ pub fn read(path: &Path) -> Report {
         Ok(id) => id,
         Err(e) => {
             report.diags.push(Diag::error(None, "", e));
-            path.file_stem().and_then(|s| s.to_str()).unwrap_or("").clone_into(&mut report.id);
+            report.id = safe(&path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default());
             return report;
         }
     };
     report.id.clone_from(&id);
     let json = path.extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("json"));
     let size = match std::fs::metadata(path) {
+        // A FIFO or a device (/dev/zero) would hang or never end.
+        Ok(m) if !m.is_file() => {
+            report.diags.push(Diag::error(None, "", "isn't a regular file"));
+            return report;
+        }
         Ok(m) => m.len(),
         Err(e) => {
             report.diags.push(Diag::error(None, "", format!("can't read it: {e}")));
@@ -420,7 +439,12 @@ pub fn read(path: &Path) -> Report {
         report.diags.push(Diag::error(None, "", format!("{size} bytes: a theme file is at most {} KiB", MAX_FILE_BYTES / 1024)));
         return report;
     }
-    let text = match std::fs::read(path) {
+    let bytes = std::fs::File::open(path).and_then(|f| {
+        use std::io::Read;
+        let mut b = vec![];
+        f.take(MAX_FILE_BYTES + 1).read_to_end(&mut b).map(|_| b)
+    });
+    let text = match bytes {
         Ok(b) if b.len() as u64 <= MAX_FILE_BYTES => match String::from_utf8(b) {
             Ok(t) => t,
             Err(_) => {
@@ -790,10 +814,18 @@ pub fn parse(id: &str, text: &str, json: bool) -> Report {
                 }
             }
             "name" => match string(v) {
-                Some(n) if !n.trim().is_empty() && n.chars().count() <= MAX_NAME_CHARS && !n.chars().any(char::is_control) => {
+                Some(n)
+                    if !n.trim().is_empty()
+                        && n.chars().count() <= MAX_NAME_CHARS
+                        && !n.chars().any(|c| c.is_control() || crate::plain::is_bidi(c)) =>
+                {
                     label = n.trim().to_string();
                 }
-                _ => diags.push(Diag::error(*line, "name", format!("must be text, 1-{MAX_NAME_CHARS} characters, no control characters"))),
+                _ => diags.push(Diag::error(
+                    *line,
+                    "name",
+                    format!("must be text, 1-{MAX_NAME_CHARS} characters, no control or bidi characters"),
+                )),
             },
             "extends" => match string(v).as_deref().and_then(palette) {
                 Some(p) => extends = p.name,
@@ -940,14 +972,14 @@ pub fn command(args: &[String], json: bool, config: Option<&Path>) -> (String, i
             }
             out.push_str("  mono  no colour (what NO_COLOR gives when no theme is set)\n");
             match &dir {
-                Some(d) => out.push_str(&format!("\nTheme files in {}:\n", d.display())),
+                Some(d) => out.push_str(&format!("\nTheme files in {}:\n", safe_path(d))),
                 None => out.push_str("\nTheme files: no config directory\n"),
             }
             if reports.is_empty() {
                 out.push_str("  none yet: lt help themes has the format\n");
             }
             for r in &reports {
-                let file = r.path.as_ref().and_then(|p| p.file_name()).map(|f| f.to_string_lossy().to_string()).unwrap_or_default();
+                let file = safe(&r.path.as_ref().and_then(|p| p.file_name()).map(|f| f.to_string_lossy().to_string()).unwrap_or_default());
                 let errors = r.errors().count();
                 let warnings = r.warnings().count();
                 let state = match (&r.theme, errors, warnings) {
@@ -975,7 +1007,7 @@ pub fn command(args: &[String], json: bool, config: Option<&Path>) -> (String, i
                 }
             }
             if !path.exists() {
-                return (format!("themes check: no file {file}\n"), 5);
+                return (format!("themes check: no file {}\n", safe(file)), 5);
             }
             let r = read(&path);
             let code = if r.ok() { 0 } else { 1 };
@@ -993,7 +1025,7 @@ pub fn command(args: &[String], json: bool, config: Option<&Path>) -> (String, i
                 });
                 return (format!("{out}\n"), code);
             }
-            let mut out = format!("{}\n", path.display());
+            let mut out = format!("{}\n", safe_path(&path));
             for d in &r.diags {
                 let word = if d.level == Level::Error { "error" } else { "warn " };
                 out.push_str(&format!("  {word} {}\n", d.text()));
@@ -1170,6 +1202,42 @@ accentCool = "#d7a6e8"
         let r = parse("x", "[light]\ncanvas = \"#ffffff\"\naccentCool = \"#7a4b00\"\n", false);
         assert_eq!(r.theme.unwrap().light.accent.rgb, (0x7a, 0x4b, 0x00));
         assert_eq!(r.diags, vec![]);
+    }
+
+    /// Text from the file never reaches a terminal as an escape sequence
+    /// or a bidi control: keys, names, quoted values, file names.
+    #[test]
+    fn file_text_is_made_safe() {
+        let r =
+            parse("x", "\"\\u001b]0;TITLE\\u0007\\u001b[2J\" = \"x\"\n[light]\n\"\\u001b[41m\\u009b\" = \"#fff\"\nink = \"#000\"\n", false);
+        assert!(r.theme.is_some());
+        for d in &r.diags {
+            assert!(!d.text().chars().any(|c| c.is_control()), "{:?}", d.text());
+        }
+        assert!(r.diags.iter().any(|d| d.key.contains('\u{FFFD}')), "{:?}", r.diags);
+        let j = parse("x", "{\"light\": {\"\\u001b]8;;http://evil\\u0007\": \"#000\"}}", true);
+        assert!(j.diags.iter().all(|d| !d.text().contains('\u{1b}')));
+        assert!(parse("x", "name = \"\u{202e}gnp.exe\"\n[dark]\n", false).theme.is_none(), "a bidi control in the name");
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("\u{1b}[31mred.toml");
+        std::fs::write(&p, "[dark]\n").unwrap();
+        let r = read(&p);
+        assert!(!r.id.contains('\u{1b}') && !r.diags[0].text().contains('\u{1b}'), "{r:?}");
+        assert!(!safe_path(&p).contains('\u{1b}'));
+    }
+
+    /// A FIFO or a device in place of a file is refused, never read.
+    #[cfg(unix)]
+    #[test]
+    fn special_files_are_refused() {
+        let r = read(Path::new("/dev/zero"));
+        assert!(r.errors().next().unwrap().message.contains("regular file"), "{r:?}");
+        let dir = tempfile::tempdir().unwrap();
+        let fifo = dir.path().join("fifo.toml");
+        let c = std::ffi::CString::new(fifo.to_str().unwrap()).unwrap();
+        // SAFETY: a valid NUL-terminated path.
+        assert_eq!(unsafe { libc::mkfifo(c.as_ptr(), 0o600) }, 0);
+        assert!(read(&fifo).errors().next().unwrap().message.contains("regular file"));
     }
 
     #[test]
