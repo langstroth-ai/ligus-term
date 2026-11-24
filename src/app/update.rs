@@ -51,6 +51,12 @@ pub enum Msg {
     Invite(Result<String>),
     /// The invite (as typed) and what it says about its sender.
     InviteChecked(String, Result<InviteCheck>),
+    /// This computer's link request (Add to my devices).
+    LinkRequested(Result<LinkRequestView>),
+    /// A grant (as typed) and who it says approved this computer.
+    LinkChecked(String, Result<LinkGrantView>),
+    /// The grant was redeemed: this computer is the person's device here.
+    Linked(Result<WorkspaceSummary>),
     /// A join request read (no passkey yet): the request and its fingerprint.
     JoinRequestChecked(String, Result<JoinRequestCheck>),
     Admitted(Result<BoxAdmission>),
@@ -130,6 +136,12 @@ pub enum Effect {
     SetSetting(SettingKey, bool),
     AnswerPresence(PresenceId, PresenceAnswer),
     InspectInvite(String),
+    /// Make this computer's link request.
+    LinkRequest,
+    /// Read a desktop's grant (nothing saved).
+    InspectLink(String),
+    /// Redeem it, after the person confirmed.
+    RedeemLink(String),
     ConnectDeployment {
         your_name: String,
         spec: DeploymentSpec,
@@ -422,6 +434,57 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
                 Err(e) => form.error = Some(e.0),
             }
             vec![]
+        }
+        Msg::LinkRequested(r) => {
+            let form = match (&mut s.overlay, &mut s.phase) {
+                (Some(Overlay::AddWorkspace(f)), _) => f,
+                (_, Phase::Onboarding(f)) => f,
+                _ => return vec![],
+            };
+            match r {
+                Ok(v) => form.link = Some(v),
+                Err(e) => {
+                    form.error = Some(e.0);
+                    // Asked again on the next key.
+                    form.link_asked = false;
+                }
+            }
+            vec![]
+        }
+        Msg::LinkChecked(grant, r) => {
+            let form = match (&mut s.overlay, &mut s.phase) {
+                (Some(Overlay::AddWorkspace(f)), _) => f,
+                (_, Phase::Onboarding(f)) => f,
+                _ => return vec![],
+            };
+            form.busy = false;
+            match r {
+                Ok(v) => form.link_checked = Some((grant, v)),
+                Err(e) => form.error = Some(e.0),
+            }
+            vec![]
+        }
+        Msg::Linked(Err(e)) => {
+            form_error(s, e.0);
+            vec![]
+        }
+        Msg::Linked(Ok(ws)) => {
+            let who = match (&s.overlay, &s.phase) {
+                (Some(Overlay::AddWorkspace(f)), _) | (_, Phase::Onboarding(f)) => {
+                    f.link_checked.as_ref().map(|(_, v)| v.person_name.clone())
+                }
+                _ => None,
+            };
+            s.overlay = None;
+            if !s.workspaces.iter().any(|w| w.id == ws.id) {
+                s.workspaces.push(ws.clone());
+            }
+            s.your_name = who.clone().or_else(|| s.your_name.clone()).or_else(|| Some(String::new()));
+            s.toast(ToastKind::Ok, format!("Linked: one of {}'s devices in “{}”", who.unwrap_or_else(|| "your".into()), ws.name));
+            s.phase = Phase::Main;
+            let mut fx = switch_workspace(s, ws.id);
+            fx.push(Effect::LoadSettings);
+            fx
         }
         Msg::JoinRequestChecked(r, res) => {
             if let Some(Overlay::AdmitBox { request, busy, checked, result: None }) = &mut s.overlay
@@ -1007,7 +1070,7 @@ fn key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
                     s.quit = true;
                     vec![]
                 }
-                FormOutcome::None => vec![],
+                FormOutcome::None => link_effects(f),
             }
         }
         Phase::Recovery(c) => match k.code {
@@ -1030,6 +1093,15 @@ enum FormOutcome {
     Cancel,
 }
 
+/// On Add to my devices, make this computer's link request once.
+fn link_effects(f: &mut WorkspaceForm) -> Vec<Effect> {
+    if f.mode == FormMode::Link && !f.link_asked {
+        f.link_asked = true;
+        return vec![Effect::LinkRequest];
+    }
+    vec![]
+}
+
 fn form_key(f: &mut WorkspaceForm, k: &KeyEvent) -> FormOutcome {
     if f.busy {
         return FormOutcome::None;
@@ -1038,6 +1110,9 @@ fn form_key(f: &mut WorkspaceForm, k: &KeyEvent) -> FormOutcome {
     let i = fields.iter().position(|x| *x == f.field).unwrap_or(0);
     match k.code {
         KeyCode::Esc => return FormOutcome::Cancel,
+        // A link code never holds a `?` (base64url): it opens the longer
+        // explanation instead.
+        KeyCode::Char('?') if f.mode == FormMode::Link => f.link_about = !f.link_about,
         KeyCode::Tab | KeyCode::Down => f.field = fields[(i + 1) % fields.len()],
         KeyCode::BackTab | KeyCode::Up => f.field = fields[(i + fields.len() - 1) % fields.len()],
         KeyCode::Enter => {
@@ -1053,6 +1128,7 @@ fn form_key(f: &mut WorkspaceForm, k: &KeyEvent) -> FormOutcome {
                     KeyCode::Left | KeyCode::Char('h') => Some(f.mode.prev()),
                     KeyCode::Char('c') => Some(FormMode::Create),
                     KeyCode::Char('j') => Some(FormMode::Join),
+                    KeyCode::Char('a') => Some(FormMode::Link),
                     KeyCode::Char('d') => Some(FormMode::Connect),
                     _ => None,
                 };
@@ -1067,6 +1143,7 @@ fn form_key(f: &mut WorkspaceForm, k: &KeyEvent) -> FormOutcome {
                     f.mode = m;
                     f.error = None;
                     f.checked = None;
+                    f.link_checked = None;
                 }
             }
             field => {
@@ -1075,6 +1152,7 @@ fn form_key(f: &mut WorkspaceForm, k: &KeyEvent) -> FormOutcome {
                     && field == FormField::Value
                 {
                     f.checked = None;
+                    f.link_checked = None;
                 }
             }
         },
@@ -1093,6 +1171,20 @@ fn submit_form(s: &mut State, your_name: Option<String>) -> Vec<Effect> {
         s.exec_demo = true;
         s.quit = true;
         return vec![];
+    }
+    if form.mode == FormMode::Link {
+        let grant = form.grant.text.trim().to_string();
+        if grant.is_empty() {
+            form.error = Some("Paste the code your desktop shows".into());
+            return vec![];
+        }
+        form.error = None;
+        form.busy = true;
+        // First show who approved it; link on the second Enter.
+        return match &form.link_checked {
+            Some((checked, _)) if *checked == grant => vec![Effect::RedeemLink(grant)],
+            _ => vec![Effect::InspectLink(grant)],
+        };
     }
     if form.ask_name && your_name.is_empty() {
         form.error = Some("Tell us your name first".into());
@@ -1128,13 +1220,16 @@ fn submit_form(s: &mut State, your_name: Option<String>) -> Vec<Effect> {
         form.error = Some(match form.mode {
             FormMode::Create | FormMode::Connect | FormMode::Demo => "Give the workspace a name".into(),
             FormMode::Join => "Paste an invite code".into(),
+            FormMode::Link => "Paste the code your desktop shows".into(),
         });
         return vec![];
     }
     form.error = None;
     form.busy = true;
     match form.mode {
-        FormMode::Create | FormMode::Connect | FormMode::Demo => vec![Effect::CreateWorkspace { your_name, name: value }],
+        FormMode::Create | FormMode::Connect | FormMode::Demo | FormMode::Link => {
+            vec![Effect::CreateWorkspace { your_name, name: value }]
+        }
         FormMode::Join => match &form.checked {
             // First check who the invite is from; join on the second Enter.
             Some((checked, c)) if *checked == value => {
@@ -1393,7 +1488,7 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
                 s.overlay = None;
                 vec![]
             }
-            FormOutcome::None => vec![],
+            FormOutcome::None => link_effects(f),
         },
         Overlay::NewChat(buf) => match k.code {
             KeyCode::Esc => {
@@ -2058,6 +2153,12 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
         AddWorkspace => {
             s.overlay = Some(Overlay::AddWorkspace(WorkspaceForm::new(false)));
             vec![]
+        }
+        LinkDevice => {
+            let mut f = WorkspaceForm::linking(false);
+            f.link_asked = true;
+            s.overlay = Some(Overlay::AddWorkspace(f));
+            vec![Effect::LinkRequest]
         }
         GoChats => go(s, View::Chats),
         GoProposals => go(s, View::Proposals),

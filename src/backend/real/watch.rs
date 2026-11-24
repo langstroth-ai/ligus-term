@@ -152,7 +152,7 @@ pub fn spawn_translator(inner: Arc<Inner>, mut rx: broadcast::Receiver<ChatChang
 fn diff(inner: &Inner, batch: HashMap<Uuid, (Uuid, bool)>) -> Vec<(Uuid, Uuid, Uuid)> {
     let mut triggers = Vec::new();
     let Ok(core) = inner.core() else { return triggers };
-    let me = core.identity.actor().id;
+    let me = core.author.id.clone();
     let my_device = core.identity.device.id;
     let known: HashSet<Uuid> = lock(&inner.list).workspaces.iter().map(|w| w.id()).collect();
     for (sid, (ws, synced)) in batch {

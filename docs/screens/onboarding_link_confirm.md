@@ -1,0 +1,38 @@
+# Add to my devices: who approved it, confirmed before linking
+
+Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
+
+```text
+
+
+                                 ┏ Welcome to Ligus ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+                                 ┃Ligus is short for ligustica, the Italian honeybee.                   ┃
+                                 ┃This terminal is its own Ligus device, with its own keys.             ┃
+                                 ┃Safety code    4821 0937 5512  (compare it with people you invite)    ┃
+                                 ┃                                                                      ┃
+                                 ┃  ( ) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃
+                                 ┃  (•) Add to my devices   ( ) Look around first (the demo)            ┃
+          ▄▀▀▄▄   ▄▄▀▀▄          ┃                                                                      ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  Make this computer one of your devices.                             ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  1 Desktop: My devices > Add a computer                              ┃
+     ▄▀▀▀▄▄▀▀▄▄▀▀▀▄▄▀▀▄▄▀▀▀▄     ┃  2 Paste this code, compare, confirm with your passkey               ┃
+    ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃  3 Paste the code it shows here                                      ┃
+    ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃                                                                      ┃
+     ▀▀▀▀▀▀▄▄▀▀▀▀▀▀▀▄▄▀▀▀▀▀▀     ┃  Fingerprint    7F3A-91C0-77DE-0B14-5E62                             ┃
+        ▄▄▀▀▀▀▀▄ ▄▀▀▀▀▀▄▄        ┃  liguslink1:eyJ2IjoxLCJkZXZpY2VJZCI6ImRlbW8iLCJsYWJlbCI6Imx0IG9uIHR  ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  oaXMgbWFjaGluZSJ9                                                   ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
+          ▀▀▀▀▀   ▀▀▀▀▀          ┃› Desktop's code ligusgrant1:demo-grant-from-the-desktop▏             ┃
+                                 ┃  Approved by Alex's desktop 2C41-88E0-1B9D-04AF-6E73                 ┃
+                                 ┃  for “Northwind API”. Is that you?                                   ┃
+                                 ┃                                                                      ┃
+                                 ┃                                                                      ┃
+                                 ┃                                                                      ┃
+                                 ┃enter link · esc no                                                   ┃
+                                 ┃                                                                      ┃
+                                 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+
+```

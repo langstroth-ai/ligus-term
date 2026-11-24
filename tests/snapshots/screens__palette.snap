@@ -4,7 +4,7 @@ expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Proposals ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Inject the clock into checkout tests ──────────────────────────╮
-┃Inject the clock┏ Commands · 41 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓s               │
+┃Inject the clock┏ Commands · 42 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓s               │
 ┃Export orders to┃›                                                                         ┃                │
 ┃Bump the order s┃──────────────────────────────────────────────────────────────────────────┃────────────────╯
 ┃Sign-off: inject┃▶ Approve “Inject the clock into checkout tests”       A         Proposals┃────────────────╮
@@ -18,9 +18,9 @@ expression: screen
 ┃                ┃  This session's notices and errors, in full           !          Anywhere┃                │
 ┃                ┃  Switch workspace                                     w ctrl-w   Anywhere┃                │
 ┃                ┃  Create or join a workspace                           +          Anywhere┃                │
+┃                ┃  Link this computer to my devices                                Anywhere┃                │
 ┃                ┃  Go to Chats                                          c 1        Anywhere┃                │
 ┃                ┃  Go to Workflows and runs                             f 2        Anywhere┃                │
-┃                ┃  Go to Proposals                                      p 3        Anywhere┃                │
 ┃                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                │
 ┃                                          ┃│+        // 30 seconds matches the payment provider's session t…│
 ┃                                          ┃│+        self.clock.now() - self.started_at >= Self::SESSION_TI…│
