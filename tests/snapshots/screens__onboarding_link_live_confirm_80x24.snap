@@ -13,8 +13,8 @@ expression: screen
     ┃  ( ) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃
     ┃  (•) Add to my devices   ( ) Look around first (the demo)            ┃
     ┃                                                                      ┃
-    ┃  Link this computer as Alex (verified on the workspace log)?         ┃
-    ┃  In “Northwind API”, it acts as Alex from then on.                   ┃
+    ┃  Link this computer as “Alex” (verified on the workspace log)?       ┃
+    ┃  In “Northwind API”, it acts as “Alex” from then on.                 ┃
     ┃                                                                      ┃
     ┃    [ Yes, link ]   › [ No ]                                          ┃
     ┃                                                                      ┃

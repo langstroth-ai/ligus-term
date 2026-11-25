@@ -24,11 +24,10 @@ use std::time::Duration;
 use ligus_core::match_code::MatchKind;
 use ligus_runtime::approval_mailbox::{
     AbortReason, ApprovalAddress, CheckedGrant, ClaimView, GrantError, GrantTarget, LOG_CHECK_RETRY_MS, LogApprovalCheck, LogVerdict,
-    MailboxClient, MailboxError, Outcome, RequestSpec, Requester, RequesterError, RequesterEvent, ResultBody, Signer, claim_view,
+    MailboxClient, MailboxError, Outcome, RequestSpec, Requester, RequesterError, RequesterEvent, ResultBody, Signer, claim_view, hint,
     list_live, retry_log_check,
 };
 use ligus_runtime::computer_link::LinkRequest;
-use ligus_runtime::display::shown;
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
@@ -67,6 +66,21 @@ fn loopback_http(relay: &str) -> bool {
         host.split(':').next().unwrap_or("").to_string()
     };
     matches!(host.as_str(), "127.0.0.1" | "localhost" | "[::1]")
+}
+
+/// Said when check 3 refuses a grant that names another relay than the
+/// address.
+const WRONG_RELAY: &str = "your desktop's approval points at another relay than the approval address you pasted, so it may \
+                           come from a copy of the workspace, not the real one; check the address on your desktop";
+
+/// An operator's relay override (`LIGUS_RELAY_URL`, as the ligus CLI reads
+/// it): a grant may then name another relay, and the connection uses this
+/// one.
+fn relay_override() -> Option<String> {
+    std::env::var("LIGUS_RELAY_URL")
+        .ok()
+        .map(|r| r.trim().trim_end_matches('/').to_string())
+        .filter(|r| ligus_runtime::workspace_invite::usable_relay_url(r))
 }
 
 /// Read a pasted approval address (`ligusaddr1:`): an `https://` relay, or
@@ -111,6 +125,8 @@ impl Inner {
             Err(RequesterError::Mailbox(MailboxError::NoRoutes)) => return Ok(LiveLinkStart::NoMailbox { request: view }),
             Err(e) => return Err(post_error(e)),
         };
+        let mut req = req;
+        req.allow_relay_override(relay_override().is_some());
         let rid = req.rid_hex();
         let (tx, rx) = mpsc::unbounded_channel();
         *lock(&self.live) = Some(LiveHandle { rid: rid.clone(), cmd: tx });
@@ -169,11 +185,11 @@ impl Inner {
             .iter()
             .filter(|l| l.ended.is_none())
             .map(|l| {
-                let (checking, contested) = match claim_view(l, me, &classifier) {
-                    ClaimView::Unclaimed => (None, false),
-                    ClaimView::Mine => (Some("This device".to_string()), false),
-                    ClaimView::ClaimedBy { name, .. } => (Some(shown(&name)), false),
-                    ClaimView::Contested { by } => (by.map(|(n, _)| shown(&n)), true),
+                let (checking, mine, contested) = match claim_view(l, me, &classifier) {
+                    ClaimView::Unclaimed => (None, false, false),
+                    ClaimView::Mine => (None, true, false),
+                    ClaimView::ClaimedBy { name, .. } => (Some(hint(&name)), false, false),
+                    ClaimView::Contested { by } => (by.map(|(n, _)| hint(&n)), false, true),
                 };
                 ApprovalRequest {
                     kind: match l.kind() {
@@ -181,9 +197,10 @@ impl Inner {
                         MatchKind::Computer => ApprovalKind::Computer,
                         MatchKind::Phone => ApprovalKind::Phone,
                     },
-                    label: shown(&l.label()),
+                    label: hint(&l.label()),
                     at: l.put_at,
                     checking,
+                    mine,
                     contested,
                 }
             })
@@ -292,12 +309,18 @@ impl Drive {
             Err(GrantError::NotApproved(Outcome::Declined)) => return self.end(Some(LiveLinkEnd::Declined)).await,
             Err(GrantError::NotApproved(Outcome::Expired)) => return self.end(Some(LiveLinkEnd::Expired)).await,
             Err(GrantError::NotApproved(_)) => return self.end(Some(LiveLinkEnd::EndedByDesktop)).await,
+            Err(GrantError::WrongRelay) => return self.end(Some(LiveLinkEnd::Refused(WRONG_RELAY.into()))).await,
             Err(e) => return self.end(Some(LiveLinkEnd::Refused(e.to_string()))).await,
         };
         let CheckedGrant::Computer { grant, .. } = &checked else {
             return self.end(Some(LiveLinkEnd::Refused("the answer isn't for a computer".into()))).await;
         };
-        let grant = (**grant).clone();
+        let mut grant = (**grant).clone();
+        // An operator's relay override: the connection syncs (and check 5
+        // reads the log) there, never at the grant's relay.
+        if let Some(r) = relay_override() {
+            grant.conn.relay_url = r;
+        }
         let person = match self.inner.check_opened(&grant, self.device) {
             Ok(p) => p,
             Err(e) => return self.end(Some(LiveLinkEnd::Refused(e.0))).await,
@@ -328,7 +351,7 @@ impl Drive {
             .await
         };
         let name = match verdict {
-            LogVerdict::Verified { name, .. } => name,
+            LogVerdict::Verified { name, .. } => hint(&name),
             LogVerdict::NotYet(_) => {
                 self.inner.rollback_link(prepared);
                 return self.end(Some(LiveLinkEnd::Refused("the approval wasn't found on the workspace log".into()))).await;

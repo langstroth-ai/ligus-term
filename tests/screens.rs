@@ -173,7 +173,10 @@ async fn onboarding_add_to_my_devices_live() {
     h.send(ev(LiveLinkUpdate::Opened(code))).await;
     let screen = h.screen(W, H);
     assert!(
-        screen.contains("K7Q4 M9X2") && screen.contains("Check your desktop shows the same code.") && screen.contains("Yes, they match"),
+        screen.contains("K7Q4 M9X2")
+            && screen.contains("Check your desktop shows the same code.")
+            && screen.contains("Says it's “Alex's desktop”")
+            && screen.contains("Yes, they match"),
         "{screen}"
     );
     snap(&h, "onboarding_link_live_code", "Add to my devices, live: the code to compare, Yes, they match / No");
@@ -184,7 +187,7 @@ async fn onboarding_add_to_my_devices_live() {
     assert!(h.screen(W, H).contains("Checking the approval on the workspace log"));
     h.send(ev(LiveLinkUpdate::Verified { person: "Alex".into(), workspace: "Northwind API".into() })).await;
     let screen = h.screen(W, H);
-    assert!(screen.contains("Link this computer as Alex (verified on the workspace log)?") && screen.contains("Yes, link"), "{screen}");
+    assert!(screen.contains("Link this computer as “Alex” (verified on the workspace log)?") && screen.contains("Yes, link"), "{screen}");
     snap(&h, "onboarding_link_live_confirm", "Add to my devices, live: link as the person the workspace log verified?");
 }
 
@@ -216,8 +219,9 @@ async fn approval_requests_read_only() {
     let screen = h.screen(W, H);
     assert!(
         screen.contains("Approve on your desktop or phone.")
-            && screen.contains("build-2")
-            && screen.contains("Ada's desktop is checking it"),
+            && screen.contains("A box asks to join: “build-2”")
+            && screen.contains("Opened by a device that can't approve this.")
+            && screen.contains("“Ada's desktop” is checking it"),
         "{screen}"
     );
     assert!(!screen.contains("K7Q4"), "no code for a request lt isn't party to: {screen}");

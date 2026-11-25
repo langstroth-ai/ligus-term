@@ -20,20 +20,20 @@ expression: screen
 ┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│                                   ┏ Approval requests ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                           ││                                      │
 ┃                              ┃│                                   ┃Approve on your desktop or phone.                             ┃                           ││                                      │
 ┃                              ┃│                                   ┃                                                              ┃                           ││                                      │
-┃                              ┃│                                   ┃box      build-2             3m  Ada's desktop is checking it ┃                           ││                                      │
-┃                              ┃│                                   ┃computer lt on ada-mbp       1m  waiting                      ┃                           ││                                      │
+┃                              ┃│                                   ┃A box asks to join: “build-2”                                 ┃                           ││                                      │
+┃                              ┃│                                   ┃  3m ago · “Ada's desktop” is checking it                     ┃                           ││                                      │
+┃                              ┃│                                   ┃A computer asks to be your device: “lt on ada-mbp”            ┃                           ││                                      │
+┃                              ┃│                                   ┃  1m ago · waiting                                            ┃                           ││                                      │
+┃                              ┃│                                   ┃A phone asks to be your device: “Mara's iPhone”               ┃                           ││                                      │
+┃                              ┃│                                   ┃  2m ago · claimed by “Ben's desktop”                         ┃                           ││                                      │
+┃                              ┃│                                   ┃  Opened by a device that can't approve this. It may be an    ┃                           ││                                      │
+┃                              ┃│                                   ┃  attempt to intercept it.                                    ┃                           ││                                      │
 ┃                              ┃│                                   ┃                                                              ┃                           ││                                      │
 ┃                              ┃│                                   ┃r refresh · esc close                                         ┃                           ││                                      │
 ┃                              ┃│                                   ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                           ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │

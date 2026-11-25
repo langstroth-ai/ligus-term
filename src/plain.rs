@@ -386,7 +386,7 @@ fn live_line(rid: &str, u: &LiveLinkUpdate) -> String {
             "match-code\t{rid}\t{}\t{}\t{}\t{}",
             esc(&c.shown),
             esc(&c.spelled),
-            esc(format!("says it's {} (checked after approval)", c.claimed)),
+            esc(format!("says it's “{}” (checked after approval)", c.claimed)),
             esc("check your desktop shows the same code: match yes | match no")
         ),
         LiveLinkUpdate::Acknowledged => format!("link-matched\t{rid}\t{}", esc("the codes match: waiting for your desktop's passkey")),
@@ -397,7 +397,7 @@ fn live_line(rid: &str, u: &LiveLinkUpdate) -> String {
             "link-verified\t{rid}\t{}\t{}\t{}",
             esc(person),
             esc(workspace),
-            esc(format!("link this computer as {person} (verified on the workspace log)? link-as yes | link-as no"))
+            esc(format!("link this computer as “{person}” (verified on the workspace log)? link-as yes | link-as no"))
         ),
         LiveLinkUpdate::Ended(e) => format!("link-ended\t{rid}\t{}\t{}", esc(e.describe()), esc(e.next())),
     }
@@ -912,11 +912,7 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                 Ok(list) => {
                     let now = ligus_core::flow::now_ms();
                     for (i, r) in list.iter().enumerate() {
-                        let who = if r.contested {
-                            CONTESTED.to_string()
-                        } else {
-                            r.checking.clone().map(|n| format!("{n} is checking it")).unwrap_or_else(|| "waiting".into())
-                        };
+                        let who = r.checking_line();
                         say(format!(
                             "approval\t{}\t{}\t{}\t{}\t{}",
                             i + 1,
@@ -1698,7 +1694,7 @@ mod tests {
         assert_eq!(code, 4, "{out}");
         let (code, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "approvals").await;
         assert_eq!(code, 0, "{out}");
-        assert!(out.contains("approval\t1\tbox\tbuild-2\t") && out.contains("Ada's desktop is checking it"), "{out}");
+        assert!(out.contains("approval\t1\tbox\tbuild-2\t") && out.contains("“Ada's desktop” is checking it"), "{out}");
         assert!(out.contains("approve on your desktop or phone"), "{out}");
     }
 

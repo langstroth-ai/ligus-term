@@ -11,7 +11,7 @@ use super::{center, onboarding, pane};
 use unicode_width::UnicodeWidthStr;
 
 use crate::app::state::{MenuItem, MenuSection, Overlay, PresenceSheet, PresenceStage, State, View};
-use crate::backend::model::{Allowed, CONTESTED, PresenceOp, Role, initials};
+use crate::backend::model::{Allowed, PresenceOp, Role, initials};
 use crate::keymap::{BINDINGS, Context};
 use crate::theme::Theme;
 
@@ -306,20 +306,17 @@ fn approvals(
         Some(Ok(l)) if l.is_empty() => lines.push(Line::styled("No requests waiting.", t.dim())),
         Some(Ok(l)) => {
             for r in l {
-                let who = if r.contested {
-                    CONTESTED.to_string()
-                } else {
-                    match &r.checking {
-                        Some(n) => format!("{n} is checking it"),
-                        None => "waiting".into(),
+                lines.push(Line::styled(r.statement(), t.text()));
+                let ago = crate::app::state::ago_phrase(s.now, r.at);
+                if r.contested {
+                    let by = r.checking.as_ref().map(|n| format!(" · claimed by “{n}”")).unwrap_or_default();
+                    lines.push(Line::styled(format!("  {ago}{by}"), t.dim()));
+                    for l in super::wrap(&r.checking_line(), 58) {
+                        lines.push(Line::styled(format!("  {l}"), t.fg(t.warn)));
                     }
-                };
-                lines.push(Line::from(vec![
-                    Span::styled(format!("{:<9}", r.kind.label()), t.dim()),
-                    Span::styled(format!("{:<18}", super::trunc(&r.label, 17)), t.text()),
-                    Span::styled(format!("{:>4}  ", crate::app::state::ago(s.now, r.at)), t.dim()),
-                    Span::styled(who, if r.contested { t.fg(t.warn) } else { t.dim() }),
-                ]));
+                } else {
+                    lines.push(Line::styled(format!("  {ago} · {}", r.checking_line()), t.dim()));
+                }
             }
         }
     }

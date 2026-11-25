@@ -269,7 +269,7 @@ fn draw_link<'a>(lines: &mut Vec<Line<'a>>, form: &'a WorkspaceForm, focused: bo
             code_frame(lines, code, t);
             lines.push(Line::styled("  Check your desktop shows the same code.", t.text()));
             lines.push(Line::styled(
-                format!("  Says it's {} (checked after approval) · {} left", code.claimed, countdown(code.expires_at, now)),
+                format!("  Says it's “{}” (checked after approval) · {} left", code.claimed, countdown(code.expires_at, now)),
                 t.dim(),
             ));
             lines.push(Line::raw(""));
@@ -295,11 +295,11 @@ fn draw_link<'a>(lines: &mut Vec<Line<'a>>, form: &'a WorkspaceForm, focused: bo
         }
         Some(LiveStage::Confirm { person, workspace, yes, busy }) => {
             lines.push(Line::from(vec![
-                Span::styled("  Link this computer as ", t.text()),
+                Span::styled("  Link this computer as “", t.text()),
                 Span::styled(person.clone(), t.accent().add_modifier(Modifier::BOLD)),
-                Span::styled(" (verified on the workspace log)?", t.text()),
+                Span::styled("” (verified on the workspace log)?", t.text()),
             ]));
-            lines.push(Line::styled(format!("  In “{workspace}”, it acts as {person} from then on."), t.dim()));
+            lines.push(Line::styled(format!("  In “{workspace}”, it acts as “{person}” from then on."), t.dim()));
             lines.push(Line::raw(""));
             if *busy {
                 lines.push(Line::styled("  Linking…", t.fg(t.warn)));

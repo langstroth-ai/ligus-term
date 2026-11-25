@@ -1529,6 +1529,7 @@ impl Backend for FakeBackend {
                 label: "build-2".into(),
                 at: now - 3 * MIN,
                 checking: Some("Ada's desktop".into()),
+                mine: false,
                 contested: false,
             },
             ApprovalRequest {
@@ -1536,7 +1537,17 @@ impl Backend for FakeBackend {
                 label: "lt on ada-mbp".into(),
                 at: now - MIN,
                 checking: None,
+                mine: false,
                 contested: false,
+            },
+            // A claim by a device that can't approve it.
+            ApprovalRequest {
+                kind: ApprovalKind::Phone,
+                label: "Mara's iPhone".into(),
+                at: now - 2 * MIN,
+                checking: Some("Ben's desktop".into()),
+                mine: false,
+                contested: true,
             },
         ])
     }

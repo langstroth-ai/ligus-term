@@ -66,6 +66,12 @@ pub const ENV: &[EnvVar] = &[
         meaning: "the relay new workspaces sync through, an http(s) URL; needed to invite anyone",
     },
     EnvVar {
+        name: "LIGUS_RELAY_URL",
+        default: "-",
+        meaning: "an operator's relay override for Add to my devices (as the ligus CLI reads it): the desktop's \
+                  approval may name another relay than the approval address, and this computer syncs through this one",
+    },
+    EnvVar {
         name: "LT_NO_BROWSER",
         default: "off",
         meaning: "1/true/on/yes: a passkey prompt shows its page's address (for a browser on another device that \

@@ -709,7 +709,9 @@ impl LiveLinkEnd {
             Self::Declined => "Your desktop declined the request. Nothing was granted.".into(),
             Self::Expired => "The request ran out of time. Nothing was granted.".into(),
             Self::Refused(why) => format!("Not linked: {why}. Nothing was granted."),
-            Self::NotLinked { person } => format!("Nothing was linked. {person}'s desktop approved it: if that isn't you, tell an Admin."),
+            Self::NotLinked { person } => {
+                format!("Nothing was linked. The approval came from “{person}”: if that isn't you, tell an Admin.")
+            }
             Self::Cancelled => "Request cancelled. Nothing was granted.".into(),
         }
     }
@@ -760,6 +762,39 @@ impl ApprovalKind {
             Self::Phone => "phone",
         }
     }
+
+    /// What a request of this kind asks, verb first, before its quoted
+    /// label (the kind word comes from the request's kind, never from its
+    /// label).
+    pub fn asks(self) -> &'static str {
+        match self {
+            Self::Box => "A box asks to join",
+            Self::Computer => "A computer asks to be your device",
+            Self::Phone => "A phone asks to be your device",
+        }
+    }
+}
+
+impl ApprovalRequest {
+    /// `A box asks to join: “build-1”`.
+    pub fn statement(&self) -> String {
+        format!("{}: “{}”", self.kind.asks(), self.label)
+    }
+
+    /// Who is checking it, the name quoted (`“Ben's desktop” is checking
+    /// it`), `waiting`, or the contested warning.
+    pub fn checking_line(&self) -> String {
+        if self.contested {
+            return CONTESTED.to_string();
+        }
+        if self.mine {
+            return "this device is checking it".into();
+        }
+        match &self.checking {
+            Some(n) => format!("“{n}” is checking it"),
+            None => "waiting".into(),
+        }
+    }
 }
 
 /// A live approval request in the workspace's mailbox, read only: lt can't
@@ -774,6 +809,8 @@ pub struct ApprovalRequest {
     pub at: Millis,
     /// Who says they are checking it ("Ben's desktop"), as its claim says.
     pub checking: Option<String>,
+    /// This device claimed it.
+    pub mine: bool,
     /// Opened or claimed by a device that can't approve this kind (or
     /// opened with no claim): it may be an attempt to intercept it.
     pub contested: bool,

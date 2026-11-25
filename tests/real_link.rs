@@ -262,7 +262,7 @@ mod live {
         );
         let (mut session, _, req) = open(d, &laptop, &rid).await;
         let listed = a.b.approvals(&ws).await.unwrap();
-        assert_eq!((listed[0].checking.as_deref(), listed[0].contested), (Some("This device"), false), "{listed:?}");
+        assert!(listed[0].mine && !listed[0].contested, "{listed:?}");
 
         // Nothing is acknowledged before the person says the codes match.
         let svc = a.b.service().unwrap();
@@ -297,6 +297,47 @@ mod live {
         assert_eq!(joined.your_role, Role::Owner, "it carries Ana's role");
         assert_eq!(laptop.b.linked_person().as_deref(), Some("Ana"));
         assert!(!tmp.path().join("laptop").join(ligus_runtime::approval_mailbox::PENDING_FILE).exists(), "the request was settled");
+    }
+
+    /// Check 3 pins the relay: an approval whose connection names another
+    /// relay than the address (here the same server under another name) is
+    /// refused, and nothing is linked.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn a_grant_naming_another_relay_is_refused() {
+        let tmp = tempfile::tempdir().unwrap();
+        let relay = serve(ligus_runtime::test_relay::router()).await;
+        let a = device(&tmp.path().join("ana"), "Ana's desktop", &relay);
+        let (_ws, wsu, conn) = founded(&a, tmp.path()).await;
+        let elsewhere = relay.replace("127.0.0.1", "localhost");
+        let d = desk(&a, &tmp.path().join("ana"), &elsewhere, wsu, &conn).await;
+        let address = d.address.clone();
+        let laptop = device(&tmp.path().join("laptop"), "lt on laptop", &relay);
+        let LiveLinkStart::Posted { rid, .. } = laptop.b.link_live(&address).await.unwrap() else { panic!() };
+        let (mut session, _, req) = open(d, &laptop, &rid).await;
+        laptop.b.link_live_code(&rid, true).await.unwrap();
+        let svc = a.b.service().unwrap();
+        let grant = {
+            let (svc, req, conn) = (svc.clone(), req.clone(), conn.clone());
+            tokio::task::spawn_blocking(move || svc.lock().unwrap().prepare_computer_link(wsu, &req, &conn, ligus_core::flow::now_ms()))
+                .await
+                .unwrap()
+                .unwrap()
+        };
+        session.offer(grant).await.unwrap();
+        acked(&mut session).await;
+        {
+            let (svc, req, conn) = (svc.clone(), req.clone(), conn.clone());
+            tokio::task::spawn_blocking(move || svc.lock().unwrap().publish_computer_link(wsu, &req, &conn, ligus_core::flow::now_ms()))
+                .await
+                .unwrap()
+                .unwrap();
+        }
+        session.finish_approved(None).await.unwrap();
+        let end = update_where(&laptop, &rid, "the end", |u| matches!(u, LiveLinkUpdate::Ended(_) | LiveLinkUpdate::Verified { .. })).await;
+        let LiveLinkUpdate::Ended(LiveLinkEnd::Refused(why)) = end else { panic!("{end:?}") };
+        assert!(why.contains("another relay"), "{why}");
+        assert!(laptop.b.linked_person().is_none());
+        assert!(laptop.b.workspaces().await.unwrap().is_empty());
     }
 
     /// The codes don't match: No ends the request and nothing is granted.
