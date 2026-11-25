@@ -366,9 +366,10 @@ fn countdown(expires_at: Millis, now: Millis) -> String {
 fn buttons<'a>(yes_label: &'a str, no_label: &'a str, yes: bool, t: &Theme) -> Line<'a> {
     let b = |label: &'a str, on: bool| {
         let style = if on { t.selected().add_modifier(Modifier::BOLD) } else { t.text() };
-        Span::styled(format!("{}[ {label} ]", if on { "›" } else { " " }), style)
+        Span::styled(format!("[ {label} ]"), style)
     };
-    Line::from(vec![Span::raw("  "), b(yes_label, yes), Span::raw("   "), b(no_label, !yes)])
+    let mark = |on: bool| Span::styled(if on { "› " } else { "  " }, t.accent());
+    Line::from(vec![Span::raw("  "), mark(yes), b(yes_label, yes), Span::raw("   "), mark(!yes), b(no_label, !yes)])
 }
 
 /// The key hints under Add to my devices.

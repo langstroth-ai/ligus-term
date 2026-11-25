@@ -23,7 +23,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
      ▀▀▀▀▀▀▄▄▀▀▀▀▀▀▀▄▄▀▀▀▀▀▀     ┃  Check your desktop shows the same code.                             ┃
         ▄▄▀▀▀▀▀▄ ▄▀▀▀▀▀▄▄        ┃  Says it's Alex's desktop (checked after approval) · 5:00 left       ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
-        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃   [ Yes, they match ]   ›[ No ]                                      ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃    [ Yes, they match ]   › [ No ]                                    ┃
           ▀▀▀▀▀   ▀▀▀▀▀          ┃                                                                      ┃
                                  ┃                                                                      ┃
                                  ┃                                                                      ┃

@@ -21,7 +21,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
     ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃  Link this computer as Alex (verified on the workspace log)?         ┃
      ▀▀▀▀▀▀▄▄▀▀▀▀▀▀▀▄▄▀▀▀▀▀▀     ┃  In “Northwind API”, it acts as Alex from then on.                   ┃
         ▄▄▀▀▀▀▀▄ ▄▀▀▀▀▀▄▄        ┃                                                                      ┃
-        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃   [ Yes, link ]   ›[ No ]                                            ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃    [ Yes, link ]   › [ No ]                                          ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
           ▀▀▀▀▀   ▀▀▀▀▀          ┃                                                                      ┃
                                  ┃                                                                      ┃
