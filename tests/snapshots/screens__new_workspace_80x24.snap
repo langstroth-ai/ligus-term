@@ -25,4 +25,4 @@ expression: screen
 ┏ Message the room ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃Type a message · @ mentions an agent or a person · esc for keys               ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-enter send  …  f1 help  ✓ Confirmed with your passkey    this device only · demo
+…  ctrl-p commands  f1 help  ✓ Confirmed with your passkey      this device only

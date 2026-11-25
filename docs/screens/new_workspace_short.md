@@ -22,5 +22,5 @@ Rendered by `tests/screens.rs` (110×20, the in-memory demo backend).
 │                              │┏ Message the room ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 │                              │┃Type a message · @ mentions an agent or a person · esc for keys             ┃
 ╰──────────────────────────────╯┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-enter send  alt-enter newline  @ mention  …  f1 help  ✓ Confirmed with your passkey    this device only · demo
+enter send  …  ctrl-p commands  f1 help  ✓ Confirmed with your passkey                 this device only · demo
 ```

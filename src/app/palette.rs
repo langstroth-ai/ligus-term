@@ -90,6 +90,18 @@ fn short(help: &str) -> &str {
     }
 }
 
+/// Words an action is also found by, beyond its label ("link" finds Link
+/// this computer to my devices as "add a computer" does).
+fn synonyms(a: Action) -> &'static str {
+    match a {
+        Action::LinkDevice => "link add a computer device devices my devices desktop terminal lt same person second member invited myself",
+        Action::AdmitBox => "box serve worker admission",
+        Action::Invite => "invite person people",
+        Action::CopySafetyCode => "copy fingerprint safety code clipboard",
+        _ => "",
+    }
+}
+
 fn keys(s: &State, ctx: Context, a: Action) -> String {
     s.keymap.keys(ctx, a).iter().take(2).map(|c| c.to_string()).collect::<Vec<_>>().join(" ")
 }
@@ -125,6 +137,10 @@ pub fn items(s: &State) -> Vec<Item> {
         Action::GoSettings,
     ];
     for b in BINDINGS.iter().filter(|b| b.context == Context::Global && !hidden(b.action)) {
+        // Already listed for the focused view, with its key there.
+        if out.iter().any(|it| it.target == Target::Action(b.action)) {
+            continue;
+        }
         let label = if views.contains(&b.action) { format!("Go to {}", b.help) } else { short(b.help).to_string() };
         out.push(Item { label, key: keys(s, Context::Global, b.action), scope: "Anywhere".into(), target: Target::Action(b.action) });
     }
@@ -230,7 +246,15 @@ pub fn filtered(s: &State, query: &str) -> Vec<Item> {
         .filter_map(|(i, it)| {
             let label = score(query, &it.label);
             let scope = score(query, &format!("{} {}", it.scope, it.label)).map(|x| x - 10);
-            label.max(scope).map(|sc| (sc, i, it))
+            let words = match &it.target {
+                Target::Action(a) if !synonyms(*a).is_empty() => {
+                    // Two letters at least, so a stray letter doesn't match.
+                    let q = query.trim().to_lowercase();
+                    (q.chars().count() >= 2 && synonyms(*a).contains(q.as_str())).then_some(30)
+                }
+                _ => None,
+            };
+            label.max(scope).max(words).map(|sc| (sc, i, it))
         })
         .collect();
     if !query.trim().is_empty() {

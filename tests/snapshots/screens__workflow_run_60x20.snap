@@ -21,4 +21,4 @@ expression: screen
 │  ● Review @reviewer  succeeded                           │
 │      Looks right; the timeout has a test.                │
 ╰──────────────────────────────────────────────────────────╯
-enter open chat  A approve gate  . actions  ? help
+enter open chat  A approve gate  …  : commands  ? help

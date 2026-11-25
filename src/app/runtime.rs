@@ -96,6 +96,12 @@ pub async fn run_effect(b: Arc<dyn Backend>, fx: Effect) -> Msg {
             c.cancel();
             Msg::Done { ok: String::new(), result: Ok(()) }
         }
+        // No terminal here: only the platform's tool.
+        Copy(c) => {
+            let text = c.text.clone();
+            let native = tokio::task::spawn_blocking(move || crate::clipboard::copy_native(&text)).await.ok().flatten();
+            Msg::Copied(crate::clipboard::outcome(native, false, c.fallback))
+        }
         CompletePath(field, text) => {
             // A directory listing: off the async threads.
             let home = dirs::home_dir();
@@ -338,6 +344,20 @@ async fn event_loop(
         let run = |tasks: &mut tokio::task::JoinSet<()>, fx: Effect, edit: &mut Option<String>, page: &mut Option<String>| match fx {
             Effect::EditDraft(text) => *edit = Some(text),
             Effect::ShowText(text) => *page = Some(text),
+            // The terminal's clipboard (OSC 52) from here, then the
+            // platform's tool.
+            Effect::Copy(c) => {
+                use std::io::Write;
+                let mut out = std::io::stdout();
+                let sent =
+                    out.write_all(&crate::clipboard::osc52(&c.text, std::env::var_os("TMUX").is_some())).is_ok() && out.flush().is_ok();
+                let t = tx.clone();
+                tasks.spawn(async move {
+                    let text = c.text.clone();
+                    let native = tokio::task::spawn_blocking(move || crate::clipboard::copy_native(&text)).await.ok().flatten();
+                    let _ = t.send(Msg::Copied(crate::clipboard::outcome(native, sent, c.fallback)));
+                });
+            }
             fx => spawn(tasks, fx),
         };
         for fx in update(state, msg) {

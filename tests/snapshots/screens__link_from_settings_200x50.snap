@@ -1,0 +1,54 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
+┏ Settings ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃You                                                                                                                                                                                                   ┃
+┃  Name            Mara                                                                                                                                                                                ┃
+┃  Safety code     4821 0937 5512                                                                                                                                                                      ┃
+┃  This terminal is its own member · D link to my devices                                                                                                                                              ┃
+┃                                                                                                                                                                                                      ┃
+┃Notifications and agents                                                                                                                                                                              ┃
+┃ [x] Notify me when I'm @mentioned or needed                                                                                                                                                          ┃
+┃ [ ] Let agents edit files and run commands  on this device's hosts                                                                                                                                   ┃
+┃                                                                                                                                                                                                      ┃
+┃This device                                                                                                                                                                                           ┃
+┃  Device          lt on this terminal                                                                                                                                                                 ┃
+┃  Data dir        ~/.ligus-term                                                                                                                                                                       ┃
+┃  Secret store    none (demo)                                  ┏ Add a workspace ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                                                               ┃
+┃  Backend         demo                                         ┃  ( ) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃                                                               ┃
+┃  Sync            no relay: peer to peer, or this device only  ┃  (•) Add to my devices                                               ┃                                                               ┃
+┃                                                               ┃                                                                      ┃                                                               ┃
+┃Appearance and keys                                            ┃  Make this computer one of your devices.                             ┃                                                               ┃
+┃ Theme       Pollen   this session                             ┃                                                                      ┃                                                               ┃
+┃ Appearance  auto (dark)                                       ┃  1 Desktop: My devices > Add a computer (palette: link)              ┃                                                               ┃
+┃  Config file     ~/.config/ligus-term/config.toml             ┃  2 Paste this code (c copies it), compare, confirm                   ┃                                                               ┃
+┃                                                               ┃  3 Paste the code it shows here                                      ┃                                                               ┃
+┃                                                               ┃                                                                      ┃                                                               ┃
+┃                                                               ┃  Fingerprint    7F3A-91C0-77DE-0B14-5E62                             ┃                                                               ┃
+┃                                                               ┃  liguslink1:eyJ2IjoxLCJkZXZpY2VJZCI6ImRlbW8iLCJsYWJlbCI6Imx0IG9uIHR  ┃                                                               ┃
+┃                                                               ┃  oaXMgbWFjaGluZSJ9                                                   ┃                                                               ┃
+┃                                                               ┃                                                                      ┃                                                               ┃
+┃                                                               ┃› Desktop's code ▏                                                    ┃                                                               ┃
+┃                                                               ┃                                                                      ┃                                                               ┃
+┃                                                               ┃                                                                      ┃                                                               ┃
+┃                                                               ┃                                                                      ┃                                                               ┃
+┃                                                               ┃c copy · o full screen · enter check · ? more · esc close             ┃                                                               ┃
+┃                                                               ┃                                                                      ┃                                                               ┃
+┃                                                               ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                                                               ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┃                                                                                                                                                                                                      ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+enter toggle  ctrl-p commands  f1 help                                                                                                                                   peer to peer · 1 running · demo

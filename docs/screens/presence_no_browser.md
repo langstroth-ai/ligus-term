@@ -34,5 +34,5 @@ Y2Utbm9uY2U
 ┃                                                                                                            ┃
 ┃                                                                                                            ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-I invite  . actions  ? help                                                    peer to peer · 1 running · demo
+I invite  . actions  : commands  ? help                                        peer to peer · 1 running · demo
 ```

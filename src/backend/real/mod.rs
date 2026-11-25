@@ -1427,6 +1427,7 @@ impl Inner {
             notify_mentions: l.notify_mentions,
             agents_may_edit: l.agents_may_edit,
             relay_url: self.cfg.relay_url.clone(),
+            linked_to: self.linked_person().map(|p| ligus_runtime::display::shown(&p.display_name)),
         }
     }
 

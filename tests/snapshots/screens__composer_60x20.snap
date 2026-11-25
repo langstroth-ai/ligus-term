@@ -21,4 +21,4 @@ expression: screen
 ┏ Message the room ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃@co                                                       ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-enter send  alt-enter newline  @ mention  esc leave  f1 help
+enter send  alt-enter newline  …  ctrl-p commands  f1 help

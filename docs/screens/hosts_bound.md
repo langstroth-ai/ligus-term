@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                                                                                            ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
  Applies proposals in /srv/northwind-api
-b bind checkout  ? help                                                        peer to peer · 1 running · demo
+b bind checkout  : commands  ? help                                            peer to peer · 1 running · demo
 ```

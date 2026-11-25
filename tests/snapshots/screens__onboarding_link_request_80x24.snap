@@ -6,14 +6,15 @@ expression: screen
     ┃Ligus is short for ligustica, the Italian honeybee.                   ┃
     ┃This terminal is its own Ligus device, with its own keys.             ┃
     ┃Safety code    4821 0937 5512  (compare it with people you invite)    ┃
+    ┃Once in: : opens every command, ? shows every key.                    ┃
     ┃                                                                      ┃
     ┃  ( ) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃
     ┃  (•) Add to my devices   ( ) Look around first (the demo)            ┃
     ┃                                                                      ┃
     ┃  Make this computer one of your devices.                             ┃
     ┃                                                                      ┃
-    ┃  1 Desktop: My devices > Add a computer                              ┃
-    ┃  2 Paste this code, compare, confirm with your passkey               ┃
+    ┃  1 Desktop: My devices > Add a computer (palette: link)              ┃
+    ┃  2 Paste this code (c copies it), compare, confirm                   ┃
     ┃  3 Paste the code it shows here                                      ┃
     ┃                                                                      ┃
     ┃  Fingerprint    7F3A-91C0-77DE-0B14-5E62                             ┃
@@ -24,5 +25,4 @@ expression: screen
     ┃                                                                      ┃
     ┃                                                                      ┃
     ┃                                                                      ┃
-    ┃enter check · ? more · esc quit                                       ┃
     ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛

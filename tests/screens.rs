@@ -468,6 +468,45 @@ async fn people_as_owner() {
     assert!(!h.screen(W, H).contains("Remove from the workspace"), "esc closes the menu");
 }
 
+/// This terminal as its own member, next to the person's desktop member
+/// (it joined with an invite): People and Settings say so on one muted
+/// line, with the key that links it.
+#[tokio::test]
+async fn own_member_link_hint() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char('m')).await;
+    let mut you = h.state.members.iter().find(|m| m.you).cloned().unwrap();
+    you.name = "zaz".into();
+    you.founder = false;
+    let mut desk = h.state.members.iter().find(|m| !m.you && !m.service).cloned().unwrap();
+    desk.name = "zazulam".into();
+    desk.founder = true;
+    desk.id = MemberId::new("m-desk");
+    h.state.members = vec![desk, you];
+    let screen = h.screen(W, H);
+    assert!(screen.contains("This terminal is its own member · D link to my devices"), "{screen}");
+    snap(&h, "people_own_member", "People: this terminal is its own member, next to you on your desktop");
+    h.key(KeyCode::Char('s')).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("This terminal is its own member · D link to my devices"), "{screen}");
+    let status = screen.lines().last().unwrap_or("");
+    assert!(status.contains(": commands") && status.contains("? help"), "{status}");
+    h.key(KeyCode::Char('D')).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("c copy · o full screen"), "{screen}");
+    snap(&h, "link_from_settings", "Settings: D links this terminal; c copies the request, o shows it alone");
+    h.key(KeyCode::Char('o')).await;
+    let screen = h.screen(W, H);
+    // The code's lines hold nothing but the code: no border glyphs.
+    let code_lines: Vec<&str> = screen
+        .lines()
+        .filter(|l| l.starts_with("liguslink1:") || l.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == ' '))
+        .collect();
+    assert!(screen.lines().any(|l| l.starts_with("liguslink1:")), "{screen}");
+    assert!(code_lines.iter().all(|l| !l.contains('┃') && !l.contains('│')), "{screen}");
+    snap(&h, "link_request_full_screen", "Add to my devices: the request alone on the screen, to select or copy (c)");
+}
+
 /// A run's row menu: approve first, the destructive ones (reject, cancel)
 /// last.
 #[tokio::test]

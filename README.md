@@ -151,9 +151,12 @@ invite always makes a **new member**, and you would show up as two people with
 your name. Add this terminal to your devices instead, and it acts as you (your
 name, your role, your chats):
 
-1. First run: choose **Add to my devices** (in an install you already use, the
-   palette's **Link this computer to my devices**). `lt` shows a request (no
-   secret in it) and a fingerprint.
+1. First run: choose **Add to my devices**. In an install you already use,
+   press **D** in Settings or People (they say **This terminal is its own
+   member** while it is), or type **link** in the palette (`:`). `lt` shows a
+   request (no secret in it) and a fingerprint. **c** copies the request; **o**
+   shows it alone on the screen, with nothing around it, to select with the
+   mouse.
 2. On your desktop: **Settings > Profile > My devices > Add a computer**. Paste
    the request, compare all five groups of the fingerprint, confirm with your
    passkey.
@@ -573,17 +576,18 @@ The default keys (all can be rebound, see [Configure](#configure)):
 | Workflows | `S` start a run (asks for its input) · `A` / `R` approve or reject the run's waiting gate (reject asks first) · `X` cancel the run (asks first) · `enter` on a run opens its chat |
 | Proposals | `A` approve · `R` reject (asks first) · `O` apply on a host · `W` withdraw the apply request |
 | Diff viewer | `]` / `[` next and previous hunk · `}` / `{` next and previous file |
-| People | `r` change role · `X` remove · `I` invite · `B` admit a box |
+| People | `r` change role · `X` remove · `I` invite · `B` admit a box · `D` link to my devices (while this terminal is its own member) |
 | Agents | `r` change runtime · `E` who can use it · `N` add an agent (a popup of what this device has) |
 | Hosts | `b` set this device's checkout for apply on host |
 | Notifications | `M` mark all read |
-| Settings | `enter` / `t` toggle |
+| Settings | `enter` / `t` toggle · `D` link to my devices |
+| A code to paste elsewhere (link request, invite, admission, fingerprint) | `c` copy · `o` show it alone on the screen (`ctrl-y` copies on the link form while you paste) |
 | Passkey prompt | `enter` open the browser · `f` use a recovery-words file · `esc` cancel |
 
 Every view follows one layout: a list of one-line rows (who or what each
 is, then one muted status), the selected row's detail beside it when there
 is one, and the key hints showing only the view's primary action, the row
-menu and help. `enter` does a row's main thing (open, view the diff, open
+menu, the palette (`: commands`) and help. `enter` does a row's main thing (open, view the diff, open
 the run's chat). Everything else you can do to a row is in its menu: `.`
 (or `shift-f10`) lists the row's actions, then the view's (invite, admit a
 box, mark all read), then the destructive ones last (remove, reject, cancel
@@ -598,6 +602,14 @@ transcript or the composer to focus it, and scroll lists, the transcript
 and the diff with the wheel (the wheel moves through overlays like `↑`/`↓`).
 Because lt has the mouse, selecting text to copy takes shift-drag in most
 terminals (option-drag in some).
+
+A code meant for pasting elsewhere (the link request, an invite, a box's
+admission, a fingerprint) has **c** to copy it and **o** to show it alone on
+the screen. **c** sets the clipboard through the terminal (OSC 52, through
+tmux's passthrough too) and with `pbcopy`, `wl-copy`, `xclip`, `xsel` or
+`clip.exe` when there is one; it only ever copies when you press it, and never
+logs the code. On the link form, while you paste the desktop's code, **c**
+types: **ctrl-y** copies there.
 
 While the composer or another text field has focus, letters type. Only
 chords with `ctrl` or `alt` (and function keys) reach the global bindings.

@@ -18,7 +18,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃            ┃Its terminal printed it with the join request. A different one means the request  ┃            ┃
 ┃            ┃was swapped: don't admit it.                                                      ┃            ┃
 ┃            ┃                                                                                  ┃            ┃
-┃            ┃y it matches, admit (needs your passkey) · esc back                               ┃            ┃
+┃            ┃y it matches, admit (needs your passkey) · c copy · esc back                      ┃            ┃
 ┃            ┃                                                                                  ┃            ┃
 ┃            ┃                                                                                  ┃            ┃
 ┃            ┃                                                                                  ┃            ┃
@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                                                                                            ┃
 ┃                                                                                                            ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-I invite  . actions  ? help                                                    peer to peer · 1 running · demo
+I invite  . actions  : commands  ? help                                        peer to peer · 1 running · demo
 ```

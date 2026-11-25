@@ -596,6 +596,9 @@ pub struct Settings {
     pub notify_mentions: bool,
     pub agents_may_edit: bool,
     pub relay_url: Option<String>,
+    /// The person this install is a device of ("Add to my devices"); none
+    /// while it is its own member.
+    pub linked_to: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

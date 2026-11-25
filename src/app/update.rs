@@ -16,6 +16,8 @@ use ligus_runtime::setup::FlowId;
 /// answer to an [`Effect`].
 #[derive(Debug, Clone)]
 pub enum Msg {
+    /// A copy reached a clipboard (the toast), or how to get the code.
+    Copied(std::result::Result<String, String>),
     Key(KeyEvent),
     Paste(String),
     /// The terminal gained (`true`) or lost focus.
@@ -195,6 +197,9 @@ pub enum Effect {
     CancelSetup(crate::setup::CancelFlag),
     /// Complete a path field's folder (lists one directory).
     CompletePath(String, String),
+    /// Copy a code to the clipboard (only ever on a key press); the
+    /// runtime answers [`Msg::Copied`].
+    Copy(crate::clipboard::Clip),
 }
 
 /// How long the proposal selection rests before its diff loads.
@@ -394,6 +399,14 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
         }
         Msg::Settings(Ok(st)) => {
             s.settings = Some(st);
+            vec![]
+        }
+        Msg::Copied(Ok(m)) => {
+            s.toast(ToastKind::Ok, m);
+            vec![]
+        }
+        Msg::Copied(Err(m)) => {
+            s.toast(ToastKind::Info, m);
             vec![]
         }
         Msg::Created(Ok(c)) => {
@@ -1127,6 +1140,7 @@ fn key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
                     vec![]
                 }
                 FormOutcome::None => link_effects(f),
+                out => link_code_outcome(s, out),
             }
         }
         Phase::Recovery(c) => match k.code {
@@ -1147,6 +1161,37 @@ enum FormOutcome {
     None,
     Submit,
     Cancel,
+    /// Copy this computer's link request (`c`, or ctrl-y).
+    CopyLink,
+    /// Show the link request alone, full screen (`o`).
+    ShowLink,
+}
+
+/// The fallback when no clipboard is reachable for the link request.
+const LINK_FALLBACK: &str = "run lt --plain link-request";
+
+/// Copy the link request, or open it full screen, for a form outcome.
+fn link_code_outcome(s: &mut State, out: FormOutcome) -> Vec<Effect> {
+    let form = match (&s.overlay, &s.phase) {
+        (Some(Overlay::AddWorkspace(f)), _) | (None, Phase::Onboarding(f)) => f,
+        _ => return vec![],
+    };
+    let Some(r) = form.link.clone() else { return vec![] };
+    match out {
+        FormOutcome::CopyLink => vec![Effect::Copy(crate::clipboard::Clip::new(r.code, LINK_FALLBACK))],
+        FormOutcome::ShowLink => {
+            show_code(s, "This computer's link request", r.code, Some(r.fingerprint), LINK_FALLBACK);
+            vec![]
+        }
+        _ => vec![],
+    }
+}
+
+/// Show a code alone on the screen, with no border in its lines, so a
+/// mouse selection takes just the code; `esc` goes back to what was open.
+pub(crate) fn show_code(s: &mut State, title: &str, code: String, fingerprint: Option<String>, fallback: &'static str) {
+    let back = s.overlay.take().map(Box::new);
+    s.overlay = Some(Overlay::Code { title: title.into(), code, fingerprint, fallback, back });
 }
 
 /// On Add to my devices, make this computer's link request once.
@@ -1169,6 +1214,18 @@ fn form_key(f: &mut WorkspaceForm, k: &KeyEvent) -> FormOutcome {
         // A link code never holds a `?` (base64url): it opens the longer
         // explanation instead.
         KeyCode::Char('?') if f.mode == FormMode::Link => f.link_about = !f.link_about,
+        // The request is pasted on the desktop: ctrl-y copies it anywhere
+        // on the form; c and o work while the desktop's code is empty (a
+        // grant is pasted, never typed, and starts with "ligusgrant1:").
+        KeyCode::Char('y') if f.mode == FormMode::Link && f.link.is_some() && k.modifiers.contains(KeyModifiers::CONTROL) => {
+            return FormOutcome::CopyLink;
+        }
+        KeyCode::Char('c') if f.mode == FormMode::Link && f.link.is_some() && f.grant.text.is_empty() && k.modifiers.is_empty() => {
+            return FormOutcome::CopyLink;
+        }
+        KeyCode::Char('o') if f.mode == FormMode::Link && f.link.is_some() && f.grant.text.is_empty() && k.modifiers.is_empty() => {
+            return FormOutcome::ShowLink;
+        }
         KeyCode::Tab | KeyCode::Down => f.field = fields[(i + 1) % fields.len()],
         KeyCode::BackTab | KeyCode::Up => f.field = fields[(i + fields.len() - 1) % fields.len()],
         KeyCode::Enter => {
@@ -1580,6 +1637,15 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
                 vec![]
             }
             FormOutcome::None => link_effects(f),
+            out => link_code_outcome(s, out),
+        },
+        Overlay::Code { code, fallback, back, .. } => match k.code {
+            KeyCode::Char('c') => vec![Effect::Copy(crate::clipboard::Clip::new(code.clone(), fallback))],
+            KeyCode::Char('?') => vec![],
+            _ => {
+                s.overlay = back.take().map(|b| *b);
+                vec![]
+            }
         },
         Overlay::NewChat(buf) => match k.code {
             KeyCode::Esc => {
@@ -1718,10 +1784,19 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
                 vec![]
             }
         },
-        Overlay::Invite { .. } => {
-            s.overlay = None;
-            vec![]
-        }
+        Overlay::Invite { code } => match (k.code, code.clone()) {
+            // An invite admits whoever holds it: copied only on this key,
+            // and never logged.
+            (KeyCode::Char('c'), Some(c)) => vec![Effect::Copy(crate::clipboard::Clip::new(c, "press o and select it"))],
+            (KeyCode::Char('o'), Some(c)) => {
+                show_code(s, "Invite code (it works once)", c, None, "select it with the mouse");
+                vec![]
+            }
+            _ => {
+                s.overlay = None;
+                vec![]
+            }
+        },
         Overlay::RowMenu { items, sel, .. } => {
             let mut i = Sel { index: *sel };
             if let Some(a) = nav
@@ -1804,9 +1879,19 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
             if *busy {
                 return vec![];
             }
-            if result.is_some() {
-                s.overlay = None;
-                return vec![];
+            if let Some(a) = result {
+                return match k.code {
+                    KeyCode::Char('c') => vec![Effect::Copy(crate::clipboard::Clip::new(a.code.clone(), "press o and select it"))],
+                    KeyCode::Char('o') => {
+                        let (code, fp) = (a.code.clone(), a.fingerprint.clone());
+                        show_code(s, "The box's admission code", code, fp, "select it with the mouse");
+                        vec![]
+                    }
+                    _ => {
+                        s.overlay = None;
+                        vec![]
+                    }
+                };
             }
             // The fingerprint is on screen: y admits (the passkey prompt
             // comes only now), esc goes back to the request.
@@ -1820,6 +1905,10 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
                     KeyCode::Esc => {
                         *checked = None;
                         vec![]
+                    }
+                    KeyCode::Char('c') => {
+                        let fp = checked.as_ref().map(|c| c.fingerprint.clone()).unwrap_or_default();
+                        vec![Effect::Copy(crate::clipboard::Clip::new(fp, "compare it on screen"))]
                     }
                     _ => vec![],
                 };
@@ -2246,6 +2335,10 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             vec![]
         }
         LinkDevice => {
+            if let Some(p) = s.settings.as_ref().and_then(|st| st.linked_to.clone()) {
+                s.toast(ToastKind::Info, format!("Already one of {p}'s devices"));
+                return vec![];
+            }
             let mut f = WorkspaceForm::linking(false);
             f.link_asked = true;
             s.overlay = Some(Overlay::AddWorkspace(f));
@@ -2566,6 +2659,10 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             }
             s.overlay = Some(Overlay::AdmitBox { request: TextBuf::single(), busy: false, checked: None, result: None });
             vec![]
+        }
+        CopySafetyCode => {
+            let code = s.device.safety_code.clone();
+            vec![Effect::Copy(crate::clipboard::Clip::new(code, "select it in Settings"))]
         }
     }
 }

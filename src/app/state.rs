@@ -287,6 +287,18 @@ pub enum Overlay {
     Invite {
         code: Option<String>,
     },
+    /// A code meant for pasting elsewhere, alone on the screen with no
+    /// border in its lines (a mouse selection takes just the code): `c`
+    /// copies it, any other key goes back to `back`.
+    Code {
+        title: String,
+        code: String,
+        fingerprint: Option<String>,
+        /// The plain-mode command that prints it, when no clipboard is
+        /// reachable.
+        fallback: &'static str,
+        back: Option<Box<Overlay>>,
+    },
     /// Admit a box: paste its join request (or leave it empty for a bearer
     /// code), compare its fingerprint with the box's terminal (before any
     /// passkey prompt), then the code to hand it.
@@ -748,6 +760,36 @@ impl State {
 
     pub fn selected_member(&self) -> Option<&Member> {
         self.members.get(self.member_sel.index)
+    }
+
+    /// This install is its own member of the active workspace (not linked
+    /// as someone's device), and someone else is in it too: Settings says
+    /// so and offers Link to my devices.
+    pub fn own_member_unlinked(&self) -> bool {
+        let Some(st) = &self.settings else { return false };
+        st.linked_to.is_none()
+            && self.active_workspace().is_some()
+            && self.members.iter().any(|m| m.you && !m.service)
+            && self.members.iter().any(|m| !m.you && !m.service)
+    }
+
+    /// Another member that very likely is the person at this terminal on
+    /// their desktop: the same name (ignoring case, spaces and
+    /// punctuation), or one name a prefix of the other of at least three
+    /// characters ("zaz" and "zazulam"). Only a hint: People says so and
+    /// offers Link to my devices; nothing is done on its own.
+    pub fn likely_me_elsewhere(&self) -> Option<&Member> {
+        if !self.own_member_unlinked() {
+            return None;
+        }
+        let me = self.members.iter().find(|m| m.you && !m.service)?;
+        let key = |n: &str| n.chars().filter(|c| c.is_alphanumeric()).flat_map(char::to_lowercase).collect::<String>();
+        let mine = key(&me.name);
+        self.members.iter().filter(|m| !m.you && !m.service).find(|m| {
+            let theirs = key(&m.name);
+            let (short, long) = if theirs.len() <= mine.len() { (&theirs, &mine) } else { (&mine, &theirs) };
+            !short.is_empty() && (short == long || (short.chars().count() >= 3 && long.starts_with(short.as_str())))
+        })
     }
 
     /// The selected workflow row: a definition or a run.

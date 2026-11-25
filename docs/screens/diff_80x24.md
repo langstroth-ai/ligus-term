@@ -26,5 +26,5 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 │                              │┃+        // 30 seconds matches the payment pr…┃
 │                              │┃+        self.clock.now() - self.started_at >…┃
 ╰──────────────────────────────╯┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-] next hunk  [ prev hunk  A approve  . actions  ? help  peer to peer · 1 running
+] next hunk  [ prev hunk  A approve  . actions  : commands  ? help  peer to peer
 ```
