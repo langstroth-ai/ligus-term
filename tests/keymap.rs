@@ -121,7 +121,11 @@ fn bad_config_is_reported_clearly() {
     let e = Config::parse("[keys.global]\nhelp = [\"meta-z\"]").unwrap().keymap().unwrap_err();
     assert!(e.contains("unknown key"), "{e}");
     assert!(Config::parse("colour = \"red\"").is_err(), "unknown fields are refused");
-    assert!(Config::parse("theme = \"sepia\"").is_err());
+    // A theme name is checked at start (it may be a theme file's); its
+    // type and the appearance are checked here.
+    assert!(Config::parse("theme = 3").is_err());
+    assert!(Config::parse("appearance = \"sepia\"").is_err());
+    assert_eq!(Config::parse("theme = \"harbor\"\nappearance = \"light\"").unwrap().theme.as_deref(), Some("harbor"));
 }
 
 #[test]

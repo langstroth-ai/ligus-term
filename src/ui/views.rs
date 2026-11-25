@@ -355,7 +355,12 @@ pub fn settings(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         {
             let sel = s.settings_sel.index == 2;
             let style = if sel { t.selected() } else { t.text() };
-            Line::from(vec![Span::styled(format!(" Theme  {} ", s.theme_name), style), Span::styled("  this session", t.dim())])
+            Line::from(vec![Span::styled(format!(" Theme       {} ", s.theme_name), style), Span::styled("  this session", t.dim())])
+        },
+        {
+            let sel = s.settings_sel.index == 3;
+            let style = if sel { t.selected() } else { t.text() };
+            Line::from(vec![Span::styled(format!(" Appearance  {} ", s.appearance_name), style)])
         },
         kv("Config file", s.config_path.clone().unwrap_or_else(|| "none".into())),
     ];

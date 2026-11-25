@@ -1,0 +1,349 @@
+{
+  "$comment": "The one colour source for Ligus. Base colours are authored in OKLCH; assets/branding/tokens/generate.mjs writes the desktop CSS and theme module, the iOS colour catalogue and the lt colour table from this file, and tokens/validate.mjs checks contrast and colour-vision safety. Edit this file, then run: node assets/branding/tokens/generate.mjs. Names are stable: the phone matches themes by palette name.",
+  "format": "ligus.tokens.v1",
+  "studio": {
+    "bg": "#f4f1ea",
+    "panel": "#ffffff",
+    "ink": "#221f1a",
+    "soft": "#8a8073",
+    "line": "rgba(40,30,20,.12)",
+    "honeyLight": "#f0c25a",
+    "honeyDark": "#c8881f",
+    "honeyDeep": "#8a5a14",
+    "warmLight": "#e3a460",
+    "warmDark": "#c6713a",
+    "tileTop": "#9a6620",
+    "tileBottom": "#4a2e12",
+    "tileTopDark": "#3a2812",
+    "tileBottomDark": "#1a1206",
+    "cellLight": "#fbf1d8",
+    "cellMid": "#f0e0b8",
+    "activeLight": "#f0b878",
+    "activeDark": "#d98a44"
+  },
+  "themes": {
+    "pollen": {
+      "light": {
+        "canvas": "oklch(0.9648 0.0208 88.72)",
+        "ink": "oklch(0.2376 0.0267 76.06)",
+        "panel": "oklch(0.9912 0.011 89.72)",
+        "mist": "oklch(0.9363 0.0298 85.56)",
+        "line": "oklch(0.4736 0.0879 75.73 / 0.12)",
+        "accentWarm": "oklch(0.6833 0.1353 58.52)",
+        "accentCool": "oklch(0.7205 0.1435 75.42)",
+        "sidebarTop": "oklch(0.3293 0.0581 63.2)",
+        "sidebarBottom": "oklch(0.5 0.0952 68.94)",
+        "sidebarInk": "oklch(0.9622 0.0357 89.44)",
+        "sidebarInkMuted": "oklch(0.9409 0.0398 84.58)",
+        "scheme": "light"
+      },
+      "dark": {
+        "canvas": "oklch(0.1723 0.0162 76.15)",
+        "ink": "oklch(0.9445 0.0386 89.1)",
+        "panel": "oklch(0.2154 0.0236 74.84)",
+        "mist": "oklch(0.2565 0.0306 74.34)",
+        "line": "oklch(0.8507 0.1087 83.6 / 0.1)",
+        "accentWarm": "oklch(0.7337 0.1239 62.2)",
+        "accentCool": "oklch(0.8352 0.1319 85.23)",
+        "sidebarTop": "oklch(0.1309 0.0139 82.39)",
+        "sidebarBottom": "oklch(0.2369 0.0329 73.04)",
+        "sidebarInk": "oklch(0.9594 0.0345 88.77)",
+        "sidebarInkMuted": "oklch(0.7557 0.076 80.43)",
+        "scheme": "dark"
+      }
+    },
+    "studio": {
+      "light": {
+        "canvas": "oklch(0.9704 0.0013 286.38)",
+        "ink": "oklch(0.276 0.0062 258.36)",
+        "panel": "oklch(1 0 89.88)",
+        "mist": "oklch(0.9341 0.0042 271.37)",
+        "line": "oklch(0.1998 0.0086 264.36 / 0.1)",
+        "accentWarm": "oklch(0.6453 0.0212 72.45)",
+        "accentCool": "oklch(0.465 0.022 258.37)",
+        "sidebarTop": "oklch(0.28 0.0102 260.7)",
+        "sidebarBottom": "oklch(0.3628 0.0132 261.74)",
+        "sidebarInk": "oklch(0.97 0.0029 264.54)",
+        "sidebarInkMuted": "oklch(0.7819 0.0122 264.5)",
+        "scheme": "light"
+      },
+      "dark": {
+        "canvas": "oklch(0.2169 0.0066 258.37)",
+        "ink": "oklch(0.9367 0.0058 264.53)",
+        "panel": "oklch(0.2589 0.0087 255.58)",
+        "mist": "oklch(0.2962 0.01 260.71)",
+        "line": "oklch(1 0 89.88 / 0.08)",
+        "accentWarm": "oklch(0.7044 0.0208 72.49)",
+        "accentCool": "oklch(0.6696 0.0237 256.76)",
+        "sidebarTop": "oklch(0.1809 0.0052 248.12)",
+        "sidebarBottom": "oklch(0.2463 0.0088 255.59)",
+        "sidebarInk": "oklch(0.9605 0.0046 258.32)",
+        "sidebarInkMuted": "oklch(0.7204 0.0129 259.82)",
+        "scheme": "dark"
+      }
+    },
+    "harbor": {
+      "light": {
+        "canvas": "oklch(0.9603 0.0101 238.51)",
+        "ink": "oklch(0.2767 0.0388 245.25)",
+        "panel": "oklch(0.9889 0.0058 239.82)",
+        "mist": "oklch(0.9235 0.0202 238.68)",
+        "line": "oklch(0.3439 0.0689 244.61 / 0.12)",
+        "accentWarm": "oklch(0.735 0.1174 58.56)",
+        "accentCool": "oklch(0.5497 0.1254 242.61)",
+        "sidebarTop": "oklch(0.3132 0.0619 243.71)",
+        "sidebarBottom": "oklch(0.4325 0.0813 238.76)",
+        "sidebarInk": "oklch(0.9602 0.0159 233.02)",
+        "sidebarInkMuted": "oklch(0.8694 0.034 237.03)",
+        "scheme": "light"
+      },
+      "dark": {
+        "canvas": "oklch(0.1974 0.0236 254.36)",
+        "ink": "oklch(0.9272 0.0195 240.74)",
+        "panel": "oklch(0.2438 0.0295 253.09)",
+        "mist": "oklch(0.2801 0.0354 252.35)",
+        "line": "oklch(0.7481 0.0956 244.71 / 0.1)",
+        "accentWarm": "oklch(0.7615 0.1132 60.48)",
+        "accentCool": "oklch(0.6958 0.1248 236.32)",
+        "sidebarTop": "oklch(0.1705 0.0245 254.13)",
+        "sidebarBottom": "oklch(0.2705 0.0457 249.85)",
+        "sidebarInk": "oklch(0.9534 0.0192 235.72)",
+        "sidebarInkMuted": "oklch(0.756 0.0488 243.59)",
+        "scheme": "dark"
+      }
+    },
+    "slate": {
+      "light": {
+        "canvas": "oklch(0.9717 0.0051 247.88)",
+        "ink": "oklch(0.2678 0.0234 248.72)",
+        "panel": "oklch(1 0 89.88)",
+        "mist": "oklch(0.9493 0.0103 247.94)",
+        "line": "oklch(0.2407 0.0353 255.88 / 0.11)",
+        "accentWarm": "oklch(0.5934 0.1166 49.08)",
+        "accentCool": "oklch(0.545 0.1478 256.72)",
+        "sidebarTop": "oklch(0.2255 0.0149 261.63)",
+        "sidebarBottom": "oklch(0.1818 0.0088 264.33)",
+        "sidebarInk": "oklch(0.947 0.0097 252.81)",
+        "sidebarInkMuted": "oklch(0.7016 0.0209 252.94)",
+        "scheme": "light"
+      },
+      "dark": {
+        "canvas": "oklch(0.2047 0.0104 268.17)",
+        "ink": "oklch(0.9362 0.0075 260.73)",
+        "panel": "oklch(0.2753 0.0165 259.78)",
+        "mist": "oklch(0.226 0.0125 264.28)",
+        "line": "oklch(1 0 89.88 / 0.1)",
+        "accentWarm": "oklch(0.6862 0.1178 54.42)",
+        "accentCool": "oklch(0.6811 0.1353 254.34)",
+        "sidebarTop": "oklch(0.2383 0.0147 261.65)",
+        "sidebarBottom": "oklch(0.1954 0.0087 264.35)",
+        "sidebarInk": "oklch(0.9362 0.0075 260.73)",
+        "sidebarInkMuted": "oklch(0.6638 0.0232 259.19)",
+        "scheme": "dark"
+      }
+    },
+    "meadow": {
+      "light": {
+        "canvas": "oklch(0.9611 0.0151 123.04)",
+        "ink": "oklch(0.2721 0.0325 141.26)",
+        "panel": "oklch(0.9876 0.0094 119.57)",
+        "mist": "oklch(0.9241 0.0287 128.81)",
+        "line": "oklch(0.3597 0.074 138.4 / 0.12)",
+        "accentWarm": "oklch(0.6943 0.111 61.59)",
+        "accentCool": "oklch(0.5792 0.1211 143.24)",
+        "sidebarTop": "oklch(0.3121 0.0532 145.89)",
+        "sidebarBottom": "oklch(0.4354 0.0751 144.15)",
+        "sidebarInk": "oklch(0.9628 0.0227 128.73)",
+        "sidebarInkMuted": "oklch(0.8795 0.0424 134.25)",
+        "scheme": "light"
+      },
+      "dark": {
+        "canvas": "oklch(0.1979 0.0198 144.78)",
+        "ink": "oklch(0.9286 0.0295 132.6)",
+        "panel": "oklch(0.2387 0.0236 144.79)",
+        "mist": "oklch(0.2837 0.0316 144.69)",
+        "line": "oklch(0.7822 0.0983 140.36 / 0.1)",
+        "accentWarm": "oklch(0.723 0.1116 64.43)",
+        "accentCool": "oklch(0.701 0.1362 142.93)",
+        "sidebarTop": "oklch(0.171 0.0204 144.62)",
+        "sidebarBottom": "oklch(0.2715 0.0405 144.36)",
+        "sidebarInk": "oklch(0.9528 0.0293 132.59)",
+        "sidebarInkMuted": "oklch(0.7684 0.0646 137.92)",
+        "scheme": "dark"
+      }
+    },
+    "obsidian": {
+      "light": {
+        "canvas": "oklch(0.187 0.0063 271.07)",
+        "ink": "oklch(0.9248 0.0071 268.54)",
+        "panel": "oklch(0.2174 0.0084 264.38)",
+        "mist": "oklch(0.2468 0.0105 260.69)",
+        "line": "oklch(0.9363 0.0116 264.51 / 0.09)",
+        "accentWarm": "oklch(0.6734 0.0091 271.28)",
+        "accentCool": "oklch(0.876 0.0072 268.54)",
+        "sidebarTop": "oklch(0.1593 0.0066 270.98)",
+        "sidebarBottom": "oklch(0.1874 0.0083 274.45)",
+        "sidebarInk": "oklch(0.9248 0.0071 268.54)",
+        "sidebarInkMuted": "oklch(0.6561 0.0173 266.22)",
+        "scheme": "dark"
+      },
+      "dark": {
+        "canvas": "oklch(0.187 0.0063 271.07)",
+        "ink": "oklch(0.9248 0.0071 268.54)",
+        "panel": "oklch(0.2174 0.0084 264.38)",
+        "mist": "oklch(0.2468 0.0105 260.69)",
+        "line": "oklch(0.9363 0.0116 264.51 / 0.09)",
+        "accentWarm": "oklch(0.6734 0.0091 271.28)",
+        "accentCool": "oklch(0.876 0.0072 268.54)",
+        "sidebarTop": "oklch(0.1593 0.0066 270.98)",
+        "sidebarBottom": "oklch(0.1874 0.0083 274.45)",
+        "sidebarInk": "oklch(0.9248 0.0071 268.54)",
+        "sidebarInkMuted": "oklch(0.6561 0.0173 266.22)",
+        "scheme": "dark"
+      }
+    }
+  },
+  "schemes": {
+    "light": {
+      "status": {
+        "ok": "oklch(0.5668 0.1315 153.34)",
+        "info": "oklch(0.5 0.09 248)",
+        "warn": "oklch(0.5211 0.1301 45.31)",
+        "danger": "oklch(0.63 0.2 27)",
+        "neutral": "oklch(0.45 0.012 80)"
+      },
+      "overlay": "oklch(0 0 0 / 0.05)",
+      "onAccent": "oklch(1 0 0)",
+      "numbers": {
+        "turnMix": "91%",
+        "turnRailL": "54%",
+        "turnNameL": "40%",
+        "accentInkL": "42%",
+        "fillL": "45%"
+      },
+      "diff": {
+        "addBg": "oklch(0.5668 0.1315 153.34 / 0.12)",
+        "addInk": "oklch(0.42 0.1 153.34)",
+        "delBg": "oklch(0.5532 0.1801 25.3 / 0.11)",
+        "delInk": "oklch(0.45 0.15 25.3)",
+        "comment": "oklch(0.52 0.12 58.5)"
+      },
+      "presence": [
+        "oklch(0.56 0.13 255)",
+        "oklch(0.56 0.13 25)",
+        "oklch(0.56 0.13 150)",
+        "oklch(0.56 0.13 305)",
+        "oklch(0.56 0.118 65)",
+        "oklch(0.56 0.09 195)",
+        "oklch(0.56 0.13 345)",
+        "oklch(0.56 0.115 110)"
+      ]
+    },
+    "dark": {
+      "status": {
+        "ok": "oklch(0.8 0.17 148)",
+        "info": "oklch(0.72 0.07 246)",
+        "warn": "oklch(0.85 0.08 47)",
+        "danger": "oklch(0.6978 0.1584 22.02)",
+        "neutral": "oklch(0.74 0.01 80)"
+      },
+      "overlay": "oklch(1 0 0 / 0.06)",
+      "onAccent": "oklch(0.1909 0.0087 264.35)",
+      "numbers": {
+        "turnMix": "87%",
+        "turnRailL": "70%",
+        "turnNameL": "82%",
+        "accentInkL": "84%",
+        "fillL": "82%"
+      },
+      "diff": {
+        "addBg": "oklch(0.7645 0.1459 153.53 / 0.14)",
+        "addInk": "oklch(0.84 0.12 153.53)",
+        "delBg": "oklch(0.6978 0.1584 22.02 / 0.14)",
+        "delInk": "oklch(0.84 0.08 22.02)",
+        "comment": "oklch(0.8 0.11 62)"
+      },
+      "presence": [
+        "oklch(0.76 0.118 255)",
+        "oklch(0.76 0.12 25)",
+        "oklch(0.76 0.12 150)",
+        "oklch(0.76 0.12 305)",
+        "oklch(0.76 0.12 65)",
+        "oklch(0.76 0.12 195)",
+        "oklch(0.76 0.12 345)",
+        "oklch(0.76 0.12 110)"
+      ]
+    }
+  },
+  "states": {
+    "working": {
+      "role": "info",
+      "word": "Working",
+      "icon": "IconStateWorking",
+      "sfSymbol": "circle.dotted",
+      "lt": "⠹",
+      "ascii": "*"
+    },
+    "needsYou": {
+      "role": "accentWarm",
+      "word": "Needs you",
+      "icon": "IconStateNeedsYou",
+      "sfSymbol": "diamond.fill",
+      "lt": "◆",
+      "ascii": "<>"
+    },
+    "queued": {
+      "role": "warn",
+      "word": "Queued",
+      "icon": "IconStateQueued",
+      "sfSymbol": "hourglass",
+      "lt": "⧗",
+      "ascii": "~"
+    },
+    "done": {
+      "role": "ok",
+      "word": "Done",
+      "icon": "IconStateDone",
+      "sfSymbol": "checkmark.circle",
+      "lt": "✓",
+      "ascii": "ok"
+    },
+    "failed": {
+      "role": "danger",
+      "word": "Failed",
+      "icon": "IconStateFailed",
+      "sfSymbol": "xmark.octagon",
+      "lt": "✕",
+      "ascii": "x"
+    },
+    "paused": {
+      "role": "neutral",
+      "word": "Paused",
+      "icon": "IconStatePaused",
+      "sfSymbol": "pause.circle",
+      "lt": "‖",
+      "ascii": "="
+    },
+    "warning": {
+      "role": "warn",
+      "word": "Warning",
+      "icon": "IconAlertTriangle",
+      "sfSymbol": "exclamationmark.triangle",
+      "lt": "!",
+      "ascii": "!"
+    },
+    "unknown": {
+      "role": "neutral",
+      "word": "No data",
+      "icon": "IconStateUnknown",
+      "sfSymbol": "questionmark.circle.dashed",
+      "lt": "?",
+      "ascii": "?"
+    }
+  },
+  "motion": {
+    "dur": "140ms",
+    "durSlow": "220ms",
+    "pulse": "300ms"
+  }
+}

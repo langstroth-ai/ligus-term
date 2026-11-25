@@ -126,7 +126,7 @@ pub const ENV: &[EnvVar] = &[
     EnvVar { name: "COPILOT_HOME", default: "~/.copilot", meaning: "where detection looks for the Copilot CLI's sign-in" },
     EnvVar { name: "PATH", default: "-", meaning: "where detection finds claude, codex, copilot and agy" },
     EnvVar { name: "HOME", default: "-", meaning: "the default data dir's parent; without it, ./ligus-term-data" },
-    EnvVar { name: "NO_COLOR", default: "-", meaning: "any value: the mono theme, unless a theme is set" },
+    EnvVar { name: "NO_COLOR", default: "-", meaning: "any value: the mono theme, unless a theme is named (--theme, theme =)" },
     EnvVar {
         name: "COLORTERM",
         default: "-",
@@ -142,7 +142,7 @@ pub const ENV: &[EnvVar] = &[
     EnvVar {
         name: "COLORFGBG",
         default: "-",
-        meaning: "the auto theme reads the background from it (7 or 15 is light); without it lt asks the terminal (OSC 11), else dark",
+        meaning: "appearance = auto asks the terminal for its background (OSC 11) first; without an answer it reads this (7, 9-15 are light), else dark",
     },
 ];
 
@@ -691,6 +691,7 @@ pub const TOPICS: &[(&str, &str)] = &[
     ("completions", "tab completion for bash, zsh and fish, and the man page"),
     ("doctor", "lt doctor: what lt sees of this machine and device, as a ligus.checks.v1 report"),
     ("setup", "the guided setup flows: an agent, a tool, a folder, a box, a phone, an invite, a relay"),
+    ("themes", "the palettes, light and dark, and your own theme files (lt themes list, lt themes check)"),
 ];
 
 /// What `lt --help` prints after the flags.
@@ -866,6 +867,7 @@ runtimes on PATH the way the Agents view does.
 
   data_dir.usable        the data dir is lt's own and owner-only
   config.valid           the config file parses and its keys don't clash
+  themes.valid           theme files load and the theme named exists (when there are any)
   secret_store.kind      which secret store holds the keys
   relay.url              LT_RELAY_URL, when set, is an http(s) URL
   workspaces.list        how many workspaces, and which sync through a relay
@@ -882,6 +884,81 @@ shared shape every Ligus doctor uses:
    \"next\":[\"langstroth-relay check --url https://relay.example.com\",\"ligus doctor\"]}
 
 Exit 0 when nothing failed (warnings allowed), 1 when a check failed.
+";
+
+const THEMES: &str = "\
+Themes: the palettes, light and dark, and your own
+
+lt draws with the same six palettes as the desktop and the phone, each for a
+light and a dark terminal, on the terminal's own background:
+
+  pollen    honey and gold (the default)
+  studio    neutral graphite
+  harbor    ocean blue
+  meadow    botanical green
+  slate     cool blue-grey
+  obsidian  monochrome silver (re-lit for a light terminal)
+  mono      no colour: bold and reverse only
+
+In config.toml (lt --print-config shows it), or --theme and --appearance:
+
+  theme = \"harbor\"       a palette, a theme file's name, or mono
+  appearance = \"auto\"    auto (the terminal's background), light or dark
+
+The old values still work: theme = auto, dark or light is Pollen with that
+appearance. NO_COLOR gives mono unless a theme is named. Settings has a Theme
+row and an Appearance row (enter cycles them), and the palette (: or ctrl-k)
+lists every theme: moving onto one shows it, enter keeps it for the session,
+esc goes back. A terminal without 24-bit colour (no COLORTERM=truecolor) gets
+the nearest of its 256 or 16; LT_COLOR_DEPTH=truecolor|256|16 overrides that.
+
+Your own theme
+  A file in the themes directory next to config.toml, themes/NAME.toml (or
+  NAME.json), in the shared Ligus theme format: the same file the desktop
+  imports (Settings, Appearance, Import a theme) and exports. NAME is what
+  theme = names: lowercase letters, digits, - and _.
+
+    name = \"Heather\"          # shown in Settings (default: the file name)
+    extends = \"slate\"         # the palette that gives every colour left out
+    [light]
+    ink = \"#2b2118\"
+    accentCool = \"oklch(0.45 0.12 320)\"
+    [dark]
+    accentCool = \"#d7a6e8\"
+
+  Colours: #rgb, #rrggbb, #rrggbbaa; rgb(r, g, b), rgba(r, g, b, a) or
+  rgb(r g b / a); oklch(L C H) or oklch(L C H / a). Nothing else: no names,
+  no CSS. A translucent colour is painted over the canvas.
+
+  The tokens lt draws with:
+    canvas       the background contrast is checked against (lt never paints it)
+    ink          text
+    inkMuted     secondary text (default: ink at 72% over the canvas)
+    accentCool   the accent: headings, focus, the selected view
+    accentWarm   needs you and @mentions
+    border       pane borders (default: the least ink that keeps 3:1)
+    selection    the selected row's background (default: an accent tint)
+    agent        agents' names
+    ok info warn danger neutral   done, working, queued, failed, paused
+    diffAddInk diffDelInk diffComment   added and removed lines, comments
+  The desktop's own tokens (panel, mist, line, onAccent, sidebarTop,
+  sidebarBottom, sidebarInk, sidebarInkMuted, diffAddBg, diffDelBg) are
+  accepted and left to it. The schema:
+  https://docs.langstroth.ai/schemas/ligus-theme.v1.json
+
+  A bad colour, a value that isn't a string or a file over 64 KiB is an error
+  with its line, and the theme doesn't load. An unknown key, or text under
+  4.5:1 (a border under 3:1) on the canvas, is a warning and it still loads.
+  An accent or status colour too faint for text (a desktop fill colour) is
+  shown as the nearest readable shade of its hue, with a warning.
+
+lt themes list [--json]
+  The palettes and every theme file, with what each has.
+
+lt themes check FILE [--json]
+  Read one file (a path, or a name in the themes directory) and print every
+  error and warning; --json is a ligus.checks.v1 report. Exit 0 when it loads,
+  1 when it doesn't, 5 when there is no such file.
 ";
 
 const COMPLETIONS: &str = "\
@@ -1114,10 +1191,11 @@ Can't select text with the mouse
   terminals), or put mouse = false in the config file.
 
 Colours look wrong
-  --theme dark|light|mono, or theme in the config; NO_COLOR gives mono. With
-  theme = auto, lt asks the terminal for its background at start (OSC 11,
-  100 ms at most) when COLORFGBG doesn't say. Settings (or the palette's
-  Switch the theme) tries another theme for the session. --ascii (or
+  --theme PALETTE and --appearance light|dark, or theme and appearance in the
+  config (lt help themes); NO_COLOR gives mono. With appearance = auto, lt asks
+  the terminal for its background at start (OSC 11, 100 ms at most), then
+  reads COLORFGBG. Settings (or the palette: type theme) tries another for the
+  session, shown as you move. --ascii (or
   LT_ASCII=1) drops box drawing and symbols for limited fonts.
   Settings shows the colour depth lt picked: 24-bit with COLORTERM=truecolor,
   else 256, or 16 on a basic TERM. LT_COLOR_DEPTH=truecolor|256|16 overrides it
@@ -1169,6 +1247,7 @@ pub fn topic(name: &str, flags: &[(String, Option<String>, String)]) -> Option<S
             }
             s
         }
+        "themes" | "theme" | "colours" | "colors" | "appearance" => THEMES.to_string(),
         "exit" | "exit-codes" => format!("Exit codes\n{EXIT_CODES}\n"),
         _ => String::new(),
     };

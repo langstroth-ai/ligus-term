@@ -561,7 +561,18 @@ pub struct State {
     pub theme_name: String,
     /// A theme picked in the app (Settings, the palette), for the runtime
     /// to switch to; this session only.
-    pub theme_request: Option<crate::theme::ThemeChoice>,
+    pub theme_request: Option<crate::theme::ThemeRequest>,
+    /// What `theme =` would say for the theme in use ("pollen", a theme
+    /// file's name, "mono"), and the appearance.
+    pub theme_id: String,
+    pub appearance: crate::theme::Appearance,
+    /// How Settings shows the appearance: "auto (light)".
+    pub appearance_name: String,
+    /// Every theme this run knows, (id, label), in the order Settings
+    /// cycles them (the palette lists them too).
+    pub themes: Vec<(String, String)>,
+    /// The palette's selection is showing a theme it hasn't kept.
+    pub theme_previewing: bool,
     /// Ring the terminal bell once (a mention arrived, a chat needs you).
     pub bell: bool,
     /// Desktop notifications to send (OSC 9) if the terminal is unfocused;
@@ -663,8 +674,18 @@ impl State {
             log: vec![],
             sync_status: HashMap::new(),
             config_path: None,
-            theme_name: "dark".into(),
+            theme_name: "Pollen".into(),
             theme_request: None,
+            theme_id: "pollen".into(),
+            appearance: crate::theme::Appearance::Auto,
+            appearance_name: "auto (dark)".into(),
+            themes: crate::theme::ThemeSet::builtin()
+                .families()
+                .iter()
+                .map(|f| (f.id.to_string(), f.label.to_string()))
+                .chain([("mono".to_string(), "Mono".to_string())])
+                .collect(),
+            theme_previewing: false,
             bell: false,
             signals: vec![],
             focused: true,

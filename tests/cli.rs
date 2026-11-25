@@ -316,3 +316,66 @@ fn setup_device_hands_off() {
     assert_eq!(d["flow"], "device");
     assert!(d["next"][0].as_str().unwrap().contains("link-request"), "{d}");
 }
+
+/// `lt themes list|check`: no device, plain text or one JSON document, and
+/// the shared exit codes (1 a file that doesn't load, 5 no such file).
+#[test]
+fn themes_list_and_check() {
+    let (mut c, home) = lt();
+    let cfg = home.path().join("cfg");
+    std::fs::create_dir_all(cfg.join("themes")).unwrap();
+    std::fs::write(cfg.join("themes/heather.toml"), "name = \"Heather\"\n[light]\nink = \"#2b2118\"\nsparkle = \"#fff\"\n").unwrap();
+    std::fs::write(cfg.join("themes/broken.json"), "{\n  \"dark\": {\n    \"ink\": \"red; } body {\"\n  }\n}\n").unwrap();
+    let config = cfg.join("config.toml");
+    c.arg("--config").arg(&config).args(["themes", "list"]);
+    let (code, out, err) = run(c, "");
+    assert_eq!(code, 0, "{err}");
+    assert!(out.contains("harbor") && out.contains("heather") && out.contains("Heather (extends pollen), 1 warning"), "{out}");
+    assert!(out.contains("broken") && out.contains("not loaded: 1 error"), "{out}");
+
+    let (mut c, _h) = lt();
+    c.arg("--config").arg(&config).args(["themes", "list", "--json"]);
+    let (code, out, _) = run(c, "");
+    assert_eq!(code, 0);
+    let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(v["themes"].as_array().unwrap().len(), 9, "{v}");
+
+    let (mut c, _h) = lt();
+    c.arg("--config").arg(&config).args(["themes", "check", "broken", "--json"]);
+    let (code, out, _) = run(c, "");
+    assert_eq!(code, 1);
+    let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(v["schema"], "ligus.checks.v1");
+    assert_eq!(v["checks"][0]["status"], "fail");
+    assert_eq!(v["checks"][0]["line"], 3);
+    assert_eq!(v["checks"][0]["title"], "dark.ink");
+
+    let (mut c, _h) = lt();
+    c.arg("--config").arg(&config).args(["themes", "check", "heather"]);
+    let (code, out, _) = run(c, "");
+    assert_eq!(code, 0);
+    assert!(out.contains("warn  line 4: light.sparkle") && out.contains("ok: Heather loads"), "{out}");
+
+    let (mut c, _h) = lt();
+    c.arg("--config").arg(&config).args(["themes", "check", "nope"]);
+    assert_eq!(run(c, "").0, 5);
+    let (mut c, _h) = lt();
+    c.args(["themes", "frobnicate"]);
+    assert_eq!(run(c, "").0, 2);
+}
+
+/// An unknown --theme is a usage error naming what exists; the old values
+/// and a palette with an appearance are accepted.
+#[test]
+fn theme_flags() {
+    let (mut c, _h) = lt();
+    c.args(["--demo", "--theme", "sepia"]);
+    let (code, _, err) = run(c, "quit\n");
+    assert_eq!(code, 2);
+    assert!(err.contains("sepia") && err.contains("harbor"), "{err}");
+    for args in [["--theme", "light"], ["--theme", "meadow"], ["--appearance", "dark"]] {
+        let (mut c, _h) = lt();
+        c.arg("--demo").args(args);
+        assert_eq!(run(c, "quit\n").0, 0, "{args:?}");
+    }
+}

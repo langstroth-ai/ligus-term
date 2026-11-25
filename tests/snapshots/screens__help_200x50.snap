@@ -3,7 +3,7 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
-┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ────┏ Help · 1-46 of 103 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────╮╭ This chat ───────────────────────────╮
+┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ────┏ Help · 1-46 of 104 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────╮╭ This chat ───────────────────────────╮
 ┃  ◆ Fix flaky checkout … 12m  ┃│             Ada  40m        ┃Each chat is a room with people and agents. @ mentions an agent or a      ┃                     ││Proposals                             │
 ┃  ◆ Migrate auth to pas… 50m  ┃│               The checkout t┃person; enter on a chat opens it and puts you in the composer.            ┃                     ││◆ Inject the clock into checkout … 1/2│
 ┃  Weekly release notes    1d  ┃│                             ┃                                                                          ┃                     ││◆ Sign-off: inject a fake clock 0/1   │
@@ -32,7 +32,8 @@ expression: screen
 ┃                              ┃│                             ┃  ctrl-c, q                Quit (asks first while work runs here)         ┃                     ││                                      │
 ┃                              ┃│                             ┃  ?, f1                    Show or hide this help                         ┃                     ││                                      │
 ┃                              ┃│                             ┃  :, ctrl-p, ctrl-k        Command palette: every action, view, chat, prop┃                     ││                                      │
-┃                              ┃│                             ┃  unbound                  Switch the theme: dark, light, mono (this sessi┃                     ││                                      │
+┃                              ┃│                             ┃  unbound                  Switch the theme (this session)                ┃                     ││                                      │
+┃                              ┃│                             ┃  unbound                  Switch light or dark (this session)            ┃                     ││                                      │
 ┃                              ┃│                             ┃  space                    Show the keys you can press here (any key then ┃                     ││                                      │
 ┃                              ┃│                             ┃  !                        This session's notices and errors, in full     ┃                     ││                                      │
 ┃                              ┃│                             ┃  esc                      Back (to the view you came from) / close       ┃                     ││                                      │
@@ -45,10 +46,9 @@ expression: screen
 ┃                              ┃│                             ┃  p, 3                     Proposals                                      ┃                     ││                                      │
 ┃                              ┃│                             ┃  a, 4                     Agents and hand-offs                           ┃                     ││                                      │
 ┃                              ┃│                             ┃  h, 5                     Hosts and workers                              ┃                     ││                                      │
-┃                              ┃│                             ┃  y, 6                     Task state and memory                          ┃                     ││                                      │
-┃                              ┃╰─────────────────────────────┃  m, 7                     People                                         ┃─────────────────────╯│                                      │
-┃                              ┃                              ┃  n, 8                     Notifications                                  ┃                      │                                      │
-┃                              ┃╭ Message the room ───────────┃  s, 9                     Settings                                       ┃─────────────────────╮│                                      │
-┃                              ┃│i to write · @ mentions an ag┃  tab                      Next pane                                      ┃                     ││                                      │
+┃                              ┃╰─────────────────────────────┃  y, 6                     Task state and memory                          ┃─────────────────────╯│                                      │
+┃                              ┃                              ┃  m, 7                     People                                         ┃                      │                                      │
+┃                              ┃╭ Message the room ───────────┃  n, 8                     Notifications                                  ┃─────────────────────╮│                                      │
+┃                              ┃│i to write · @ mentions an ag┃  s, 9                     Settings                                       ┃                     ││                                      │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰─────────────────────────────┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛─────────────────────╯╰──────────────────────────────────────╯
 / search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                                                                                                              peer to peer · 1 running · demo

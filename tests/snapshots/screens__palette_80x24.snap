@@ -4,7 +4,7 @@ expression: screen
 ---
 [NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
 ┏ Proposals ━━━━━━━━━━━━━━━━━━━┓╭ Inject the clock into checkout tests ────────╮
-┃I┏ Commands · 50 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
+┃I┏ Commands · 61 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
 ┃E┃›                                                                         ┃ │
 ┃B┃──────────────────────────────────────────────────────────────────────────┃─╯
 ┃S┃▶ Approve “Inject the clock into checkout tests”       A         Proposals┃─╮
@@ -13,14 +13,14 @@ expression: screen
 ┃ ┃  Withdraw the apply request “Inject the clock into …  W         Proposals┃ │
 ┃ ┃  Quit                                                 ctrl-c q   Anywhere┃ │
 ┃ ┃  Show or hide this help                               ? f1       Anywhere┃ │
-┃ ┃  Switch the theme: dark, light, mono                             Anywhere┃…│
+┃ ┃  Switch the theme                                                Anywhere┃…│
+┃ ┃  Switch light or dark                                            Anywhere┃ │
 ┃ ┃  Show the keys you can press here                     space      Anywhere┃ │
 ┃ ┃  This session's notices and errors, in full           !          Anywhere┃ │
 ┃ ┃  Switch workspace                                     w ctrl-w   Anywhere┃ │
 ┃ ┃  Create or join a workspace                           +          Anywhere┃ │
 ┃ ┃  Set up: an agent, a tool, a folder, a box, a phone…  u          Anywhere┃ │
-┃ ┃  Link this computer to my devices                                Anywhere┃ │
-┃ ┃  Go to Chats                                          c 1        Anywhere┃0│
+┃ ┃  Link this computer to my devices                                Anywhere┃0│
 ┃ ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ │
 ┃                              ┃│+        // 30 seconds matches the payment pr…│
 ┃                              ┃│+        self.clock.now() - self.started_at >…│

@@ -21,9 +21,9 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 ┃  Sync            no relay: peer to peer, or this device only                 ┃
 ┃                                                                              ┃
 ┃Appearance and keys                                                           ┃
-┃ Theme  dark   this session                                                   ┃
+┃ Theme       Pollen   this session                                            ┃
+┃ Appearance  auto (dark)                                                      ┃
 ┃  Config file     ~/.config/ligus-term/config.toml                            ┃
-┃                                                                              ┃
 ┃                                                                              ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 enter toggle  ? help                             peer to peer · 1 running · demo

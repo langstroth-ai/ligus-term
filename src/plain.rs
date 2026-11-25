@@ -103,7 +103,7 @@ type Out = Arc<Output>;
 
 /// Bidi controls: they reorder what a terminal shows (U+061C, U+200E/F,
 /// U+202A..U+202E, U+2066..U+2069).
-fn is_bidi(c: char) -> bool {
+pub(crate) fn is_bidi(c: char) -> bool {
     matches!(c, '\u{061C}' | '\u{200E}' | '\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}')
 }
 
