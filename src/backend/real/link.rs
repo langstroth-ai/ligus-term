@@ -41,6 +41,71 @@ pub(crate) fn link_state(data_dir: &std::path::Path) -> Result<LinkState> {
         .map_err(|e| BackendError(format!("{} is unreadable ({e}): fix or remove it", LinkState::path(data_dir).display())))
 }
 
+/// What a write says when this lt's open identity is no longer the data
+/// dir's (another lt on it linked it, and following it failed).
+pub(crate) const STALE: &str = "this lt is out of date: another lt on this data dir linked this computer to your devices since it opened. \
+     Quit this lt and start it again (it then acts as the person it was linked to)";
+
+/// What a write says while a link is being redeemed on this install.
+pub(crate) const LINKING: &str = "this computer is being linked to your devices: try again in a moment";
+
+/// What a write says in a workspace a linked install wasn't linked into.
+pub(crate) const NOT_LINKED_HERE: &str = "this computer is linked to someone's devices in another workspace, not this one: \
+     add it to this workspace from the desktop (My devices > Add a computer), or use another LT_DATA_DIR";
+
+/// What a refused write says when the workspace certifies this device for
+/// `owner` but this install doesn't act as them.
+pub(crate) fn mismatch(owner: &str) -> String {
+    format!(
+        "Refused: this computer is certified as one of {}'s devices in this workspace, but lt is signing as its old member, \
+         who isn't a member here any more (its link record, computer-link.json, is missing or names someone else). \
+         Fix: re-link this computer: palette > Link this computer to my devices (or lt --plain link-request), \
+         approve it on the desktop, then paste the code back",
+        shown(owner)
+    )
+}
+
+/// A refusal of the role gate (`role Viewer cannot perform messageAppended`),
+/// in words: what was refused, why, and the fix. A device that signs as
+/// someone who isn't a member (removed, or an install still signing as its
+/// old member) is told to link this computer again; a role too low, which
+/// role it needs. Anything else passes through.
+pub(crate) fn explain(svc: &ligus_runtime::ChatService, ws: Uuid, e: BackendError) -> BackendError {
+    let s = &e.0;
+    let Some(rest) = s.strip_prefix("role ") else { return e };
+    let Some((_, kind)) = rest.split_once(" cannot perform ") else { return e };
+    let action = match kind.trim() {
+        "messageAppended" => "posting a message".to_string(),
+        "sessionCreated" => "starting a chat".to_string(),
+        "proposalVoteCast" => "voting".to_string(),
+        other => format!("this change ({other})"),
+    };
+    let me = svc.author().clone();
+    let config = svc.load_in(ws, ligus_core::workspace_config_session_id(ws)).ok().flatten();
+    let member = config.as_ref().and_then(|c| c.members.iter().find(|m| m.id == me.id).cloned());
+    // Only the wording: a device certified for someone this install doesn't
+    // act as (its link record missing or someone else's) is told to re-link.
+    // Never a block: anyone can publish a certificate for a public key.
+    let owner = match svc.device_standing(ws, Some(&me.id)) {
+        Ok(ligus_runtime::device_enroll::Standing::OwnerDevice(o)) if o.account_id != me.account_id => Some(o),
+        _ => None,
+    };
+    match (member, owner) {
+        (None, Some(owner)) => BackendError(mismatch(&owner.display_name)),
+        (None, None) => BackendError(format!(
+            "Refused: this computer signs as {}, who isn't a member of this workspace any more, so {action} isn't allowed. \
+             Why: an Admin removed that member (the duplicate left when this computer was linked to your devices?). \
+             Fix: re-link this computer: palette > Link this computer to my devices (or lt --plain link-request), \
+             approve it on your desktop under Settings > Profile > My devices > Add a computer, then paste the code back",
+            shown(&me.display_name)
+        )),
+        (Some(m), _) => BackendError(format!(
+            "Refused: your role here is {:?}, and {action} needs a higher one. Fix: ask an Owner or Admin to change your role (People)",
+            m.role
+        )),
+    }
+}
+
 /// What a linked install says when asked to found or join a workspace.
 pub(crate) fn refusal(person: &str) -> String {
     crate::backend::fake::linked_refusal(&shown(person))
@@ -152,6 +217,15 @@ impl Inner {
         self.open_core(stored).map(|_| ())
     }
 
+    /// Push what this device holds for `w` and the relay hasn't got.
+    async fn push_unpushed(&self, w: &SavedWorkspace) -> Result<()> {
+        let mut engine = self.sync_engine(w)?;
+        let unpushed = engine.take_unpushed(&EventStore::open(self.db()).map_err(one_line)?).map_err(one_line)?;
+        engine.push_envelopes(&unpushed).await.map_err(one_line)?;
+        engine.take_unpushed(&EventStore::open(self.db()).map_err(one_line)?).map_err(one_line)?;
+        Ok(())
+    }
+
     /// Everything up to the link record. Writes nothing to the workspace.
     async fn redeem_steps(self: &Arc<Self>, g: &OpenedGrant) -> Result<ligus_core::ActorIdentity> {
         let ws = g.workspace_id;
@@ -175,11 +249,27 @@ impl Inner {
     }
 
     pub(crate) async fn redeem_link(self: &Arc<Self>, grant: &str) -> Result<WorkspaceSummary> {
+        // The data dir's identity changes step by step below: nothing
+        // follows it until the link is recorded (or rolled back).
+        struct Linking<'a>(&'a std::sync::atomic::AtomicUsize);
+        impl Drop for Linking<'_> {
+            fn drop(&mut self) {
+                self.0.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+            }
+        }
+        self.linking.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let _linking = Linking(&self.linking);
         let (g, device, _) = self.open_grant(grant)?;
         let ws = g.workspace_id;
         let ids = self.identity_store();
         let old = ids.load().map_err(one_line)?.ok_or_else(|| BackendError("make a link request first".into()))?;
         let previous_entry = lock(&self.list).get(ws).cloned();
+        // What this install wrote as its own member and hasn't pushed yet
+        // goes out now, while it is still a member: pushed after the desktop
+        // removes that member, it would be refused there.
+        if let Some(w) = &previous_entry {
+            let _ = self.push_unpushed(w).await;
+        }
         // The sync loop of a workspace this install held as its own member
         // stops: it is replaced.
         if let Some(stop) = lock(&self.loops).remove(&ws) {
