@@ -1567,6 +1567,12 @@ impl Inner {
             notify_mentions: l.notify_mentions,
             agents_may_edit: l.agents_may_edit,
             relay_url: self.cfg.relay_url.clone(),
+            // The person as the open core acts for them (their roster name),
+            // falling back to the link record's.
+            linked_to: match self.core() {
+                Ok(c) if c.person.is_some() => Some(ligus_runtime::display::shown(&c.author.display_name)),
+                _ => self.linked_person().map(|p| ligus_runtime::display::shown(&p.display_name)),
+            },
         }
     }
 

@@ -21,4 +21,4 @@ expression: screen
 ┃                                                          ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
  No checkout bound: this device can't apply proposals · b b…
-b bind checkout  ? help      peer to peer · 1 running · demo
+b bind checkout  : commands  ? help             peer to peer

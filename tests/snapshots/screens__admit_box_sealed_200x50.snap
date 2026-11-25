@@ -28,7 +28,7 @@ expression: screen
 ┃                                                         ┃                                                                                  ┃                                                         ┃
 ┃                                                         ┃ligusadmit1:sealed-for-39                                                         ┃                                                         ┃
 ┃                                                         ┃                                                                                  ┃                                                         ┃
-┃                                                         ┃any key closes                                                                    ┃                                                         ┃
+┃                                                         ┃c copy · o full screen (to select it) · any other key closes                      ┃                                                         ┃
 ┃                                                         ┃                                                                                  ┃                                                         ┃
 ┃                                                         ┃                                                                                  ┃                                                         ┃
 ┃                                                         ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                                                         ┃
@@ -51,4 +51,4 @@ expression: screen
 ┃                                                                                                                                                                                                      ┃
 ┃                                                                                                                                                                                                      ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-I invite  . actions  ? help  ✓ Confirmed with your passkey                                                                                                               peer to peer · 1 running · demo
+I invite  . actions  : commands  ? help  ✓ Confirmed with your passkey                                                                                                   peer to peer · 1 running · demo

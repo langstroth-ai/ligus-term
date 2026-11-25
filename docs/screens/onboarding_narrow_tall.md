@@ -4,7 +4,6 @@ Rendered by `tests/screens.rs` (80×40, the in-memory demo backend).
 
 ```text
 
-
                                  ▄▀▀▄▄   ▄▄▀▀▄
                                ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀
                                ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀
@@ -22,6 +21,7 @@ Rendered by `tests/screens.rs` (80×40, the in-memory demo backend).
     ┃Ligus is short for ligustica, the Italian honeybee.                   ┃
     ┃This terminal is its own Ligus device, with its own keys.             ┃
     ┃Safety code    4821 0937 5512  (compare it with people you invite)    ┃
+    ┃Once in: : opens every command, ? shows every key.                    ┃
     ┃                                                                      ┃
     ┃› Your name      ▏                                                    ┃
     ┃                                                                      ┃

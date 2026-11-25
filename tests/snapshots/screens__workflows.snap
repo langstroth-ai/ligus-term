@@ -33,4 +33,4 @@ expression: screen
 ┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────╯
-S start run  . actions  ? help                                                 peer to peer · 1 running · demo
+S start run  . actions  : commands  ? help                                     peer to peer · 1 running · demo

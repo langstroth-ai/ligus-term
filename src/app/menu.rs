@@ -112,6 +112,9 @@ pub fn row_menu(s: &State) -> (String, Vec<MenuItem>) {
                 Allowed::No("only an Admin or Owner".into())
             };
             items.push(item("Admit a box…", AdmitBox, ctx, admit, Pane));
+            if s.own_member_unlinked() {
+                items.push(item("Link to my devices…", LinkDevice, ctx, Allowed::Yes, Pane));
+            }
         }
         View::Notifications => {
             if let Some(n) = s.notifications.get(s.notification_sel.index) {
@@ -149,7 +152,16 @@ pub fn row_menu(s: &State) -> (String, Vec<MenuItem>) {
                 None => {}
             }
         }
-        View::Settings | View::Memory => {}
+        View::Settings => {
+            let ctx = Context::Settings;
+            if s.settings.as_ref().is_some_and(|st| st.linked_to.is_none()) && s.active_workspace().is_some() {
+                items.push(item("Link to my devices…", LinkDevice, ctx, Allowed::Yes, Pane));
+            }
+            if !s.device.safety_code.is_empty() {
+                items.push(item("Copy your safety code", CopySafetyCode, ctx, Allowed::Yes, Pane));
+            }
+        }
+        View::Memory => {}
     }
     items.sort_by_key(|i| i.section);
     (title, items)

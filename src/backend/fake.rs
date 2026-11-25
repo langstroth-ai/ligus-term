@@ -152,6 +152,7 @@ impl FakeBackend {
                 notify_mentions: true,
                 agents_may_edit: false,
                 relay_url: None,
+                linked_to: None,
             },
             seq: 100,
             clock: DEMO_NOW,
@@ -1885,7 +1886,8 @@ impl Backend for FakeBackend {
     }
 
     async fn settings(&self) -> Result<Settings> {
-        Ok(self.lock().settings.clone())
+        let w = self.lock();
+        Ok(Settings { linked_to: w.linked.clone(), ..w.settings.clone() })
     }
 
     async fn set_setting(&self, key: SettingKey, on: bool) -> Result<Settings> {
@@ -1894,7 +1896,7 @@ impl Backend for FakeBackend {
             SettingKey::NotifyMentions => w.settings.notify_mentions = on,
             SettingKey::AgentsMayEdit => w.settings.agents_may_edit = on,
         }
-        Ok(w.settings.clone())
+        Ok(Settings { linked_to: w.linked.clone(), ..w.settings.clone() })
     }
 
     async fn inspect_invite(&self, invite: &str) -> Result<InviteCheck> {

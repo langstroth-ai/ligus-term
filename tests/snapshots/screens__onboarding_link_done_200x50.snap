@@ -51,4 +51,4 @@ expression: screen
 ┃                              ┃╭ Message the room ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮│                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯╰──────────────────────────────────────╯
-i write  N new chat  tab pane  . actions  ? help  ✓ Linked: one of Alex's devices in “Northwind API”                                                                                 peer to peer · demo
+i write  N new chat  tab pane  . actions  : commands  ? help  ✓ Linked: one of Alex's devices in “Northwind API”                                                                     peer to peer · demo

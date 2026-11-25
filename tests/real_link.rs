@@ -172,6 +172,7 @@ async fn a_linked_install_posts_after_its_old_member_is_removed() {
     let grant = approve(&a, wsu, &req.code, &conn).await;
     redeem(&lt, &grant).await;
     assert_eq!(lt.b.linked_person().as_deref(), Some("Ana"));
+    assert_eq!(lt.b.settings().await.unwrap().linked_to.as_deref(), Some("Ana"));
 
     // The desktop removes the old member.
     let zaz = a.b.members(&ws).await.unwrap().into_iter().find(|m| m.name == "zaz").unwrap();
@@ -234,6 +235,8 @@ async fn an_open_lt_follows_a_link_redeemed_by_another_lt() {
     // The open lt posts as Ana now.
     tui.b.send_message(&ws, &desk_chat.id, "from the open lt").await.unwrap();
     assert_eq!(tui.b.linked_person().as_deref(), Some("Ana"));
+    let st = tui.b.settings().await.unwrap();
+    assert_eq!((st.linked_to.as_deref(), st.your_name.as_str()), (Some("Ana"), "Ana"), "Settings shows Device of Ana, never zaz");
     until("Ana to see it as hers", || async {
         a.b.transcript(&ws, &desk_chat.id)
             .await

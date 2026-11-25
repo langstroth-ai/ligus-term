@@ -252,7 +252,25 @@ pub fn hosts(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     f.render_widget(Paragraph::new(Line::from(fit_spans(checkout, w))), note);
 }
 
+/// "This terminal is its own member · D link to my devices": one muted
+/// line, while this install is a member of its own.
+fn own_member_line(s: &State, ctx: Context, indent: &str, t: &Theme) -> Line<'static> {
+    let key = s.keymap.hint(ctx, Action::LinkDevice);
+    Line::from(vec![
+        Span::styled(format!("{indent}This terminal is its own member"), t.dim()),
+        Span::styled(format!(" · {key} link to my devices"), t.dim()),
+    ])
+}
+
 pub fn people(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
+    // Someone here looks like you on your desktop: say so on one line.
+    let area = if s.likely_me_elsewhere().is_some() {
+        let [list, note] = Layout::vertical([Constraint::Min(3), Constraint::Length(1)]).areas(area);
+        f.render_widget(Paragraph::new(own_member_line(s, Context::People, " ", t)), note);
+        list
+    } else {
+        area
+    };
     if s.members.is_empty() {
         return empty_pane(f, area, "People", "Nobody else here yet · enter invite someone", true, t);
     }
@@ -335,6 +353,14 @@ pub fn settings(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         head("You"),
         kv("Name", if st.your_name.is_empty() { "—".into() } else { st.your_name.clone() }),
         kv("Safety code", d.safety_code.clone()),
+    ];
+    let mut lines = lines;
+    match st.linked_to.as_ref() {
+        Some(p) => lines.push(kv("Device of", format!("{p} (linked to their devices)"))),
+        None if s.own_member_unlinked() => lines.push(own_member_line(s, Context::Settings, "  ", t)),
+        None => {}
+    }
+    lines.extend([
         Line::raw(""),
         head("Notifications and agents"),
         toggle(0, st.notify_mentions, "Notify me when I'm @mentioned or needed", ""),
@@ -363,7 +389,7 @@ pub fn settings(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             Line::from(vec![Span::styled(format!(" Appearance  {} ", s.appearance_name), style)])
         },
         kv("Config file", s.config_path.clone().unwrap_or_else(|| "none".into())),
-    ];
+    ]);
     f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }).block(block), area);
 }
 

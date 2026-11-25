@@ -51,4 +51,4 @@ expression: screen
 ┃                                                                                        ┃│                                                                                                            │
 ┃                                                                                        ┃│                                                                                                            │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-S start run  . actions  f1 help                                                                                                                                          peer to peer · 1 running · demo
+S start run  . actions  ctrl-p commands  f1 help                                                                                                                         peer to peer · 1 running · demo

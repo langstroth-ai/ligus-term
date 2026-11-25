@@ -7,6 +7,7 @@ expression: screen
 ┃You                                                       ┃
 ┃  Name            Mara                                    ┃
 ┃  Safety code     4821 0937 5512                          ┃
+┃  This terminal is its own member · D link to my devices  ┃
 ┃                                                          ┃
 ┃Notifications and agents                                  ┃
 ┃ [x] Notify me when I'm @mentioned or needed              ┃
@@ -19,6 +20,5 @@ expression: screen
 ┃  Secret store    none (demo)                             ┃
 ┃  Backend         demo                                    ┃
 ┃  Sync            no relay: peer to peer, or this device  ┃
-┃only                                                      ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-enter toggle  ? help         peer to peer · 1 running · demo
+enter toggle  : commands  ? help    peer to peer · 1 running

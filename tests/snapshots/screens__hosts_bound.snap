@@ -33,4 +33,4 @@ expression: screen
 ┃                                                                                                            ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
  Applies proposals in /srv/northwind-api
-b bind checkout  ? help                                                        peer to peer · 1 running · demo
+b bind checkout  : commands  ? help                                            peer to peer · 1 running · demo

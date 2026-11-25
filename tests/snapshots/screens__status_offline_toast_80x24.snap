@@ -25,4 +25,4 @@ expression: screen
 ┃                          ┃╭ Message the room ────────────────────────────────╮
 ┃                          ┃│i to write · @ mentions an agent or a person      │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────╯
-…  ? help  ✗ turn failed: no runtime for @coder     ⚠ offline · 1 running · demo
+i write  …  : commands  ? help  ✗ turn failed: no runtime for @coder   ⚠ offline

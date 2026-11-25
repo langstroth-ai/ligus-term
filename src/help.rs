@@ -45,7 +45,14 @@ pub const ENV: &[EnvVar] = &[
     EnvVar { name: "LT_ASCII", default: "off", meaning: "1/true/on/yes: ASCII only, like --ascii" },
     EnvVar { name: "LT_REDUCE_MOTION", default: "off", meaning: "1/true/on/yes: spinners stand still, like --reduce-motion" },
     EnvVar { name: "PAGER", default: "none: the scrollback", meaning: "where D in a chat shows its whole transcript" },
-    EnvVar { name: "TMUX", default: "-", meaning: "set inside tmux: a needs-you notification goes through tmux's passthrough" },
+    EnvVar {
+        name: "TMUX",
+        default: "-",
+        meaning: "set inside tmux: a needs-you notification and a copied code (c) go through tmux's passthrough",
+    },
+    EnvVar { name: "WAYLAND_DISPLAY", default: "-", meaning: "set: c copies a code with wl-copy too (besides the terminal's OSC 52)" },
+    EnvVar { name: "DISPLAY", default: "-", meaning: "set: c copies a code with xclip or xsel too (besides the terminal's OSC 52)" },
+    EnvVar { name: "WSL_DISTRO_NAME", default: "-", meaning: "set (WSL): c copies a code with clip.exe too" },
     EnvVar {
         name: "VISUAL",
         default: "$EDITOR, else vi",
@@ -659,9 +666,11 @@ Already in a workspace on your desktop? Don't invite yourself: an invite always
 makes a new member, and you would show up twice. Add this computer to your
 devices instead; it then acts as you (your name, your role, your chats).
 
-1. In lt: first run, choose Add to my devices (or, in an install you already use,
-   the palette's Link this computer to my devices). lt shows a request (no
-   secret) and a fingerprint.
+1. In lt: first run, choose Add to my devices. In an install you already use,
+   press D in Settings or People (they say \"This terminal is its own member\"
+   while it is), or type link in the palette (:). lt shows a request (no
+   secret) and a fingerprint. c copies the request (ctrl-y once you are pasting
+   the desktop's code); o shows it alone on the screen to select it.
 2. On your desktop: Settings > Profile > My devices > Add a computer. Paste the
    request, compare all five groups of the fingerprint, confirm with your passkey.
 3. Paste the code the desktop shows into lt (within 30 minutes). lt shows who
@@ -673,9 +682,11 @@ in the browser, and account changes (devices, phones, passkeys, keys) stay on
 the desktop. It no longer creates workspaces or accepts invites. To remove it,
 revoke it in My devices on the desktop.
 
-An install already in a workspace as its own member asks with a new device key;
-the desktop then offers to remove that old member (their messages keep their
-name).
+Already invited yourself? An install already in a workspace as its own member
+asks with a new device key; the desktop then offers to remove that old member
+(their messages keep their name). On the desktop, People also points at a
+member that looks like you on another computer, and its row menu opens Add a
+computer for it.
 ";
 
 /// The topics `lt help TOPIC` knows, with a line each.

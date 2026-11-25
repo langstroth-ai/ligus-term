@@ -8,6 +8,7 @@
 pub mod app;
 pub mod backend;
 pub mod cli;
+pub mod clipboard;
 pub mod completions;
 pub mod config;
 pub mod doctor;

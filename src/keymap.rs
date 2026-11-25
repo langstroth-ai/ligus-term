@@ -163,6 +163,7 @@ pub enum Action {
     BindCheckout,
     AdmitBox,
     Setup,
+    CopySafetyCode,
 }
 
 /// One row of the binding table: the single source for defaults, config
@@ -243,10 +244,13 @@ pub const BINDINGS: &[Binding] = &[
     b!(People, RemoveMember, "remove_member", "Remove from the workspace", ["X"]),
     b!(People, Invite, "invite", "Create an invite", ["I"]),
     b!(People, AdmitBox, "admit_box", "Admit a box (ligus serve or worker)", ["B"]),
+    b!(People, LinkDevice, "link_device", "Link to my devices: this terminal as one of your devices, not its own member", ["D"]),
     b!(Agents, ChangeRuntime, "change_runtime", "Change the agent's runtime", ["r"]),
     b!(Agents, ToggleAccess, "toggle_access", "Who can use the agent: only me or everyone", ["E"]),
     b!(Agents, AddAgent, "add_agent", "Add an agent on a runtime this device has", ["N"]),
     b!(Settings, Toggle, "toggle", "Toggle", ["enter", "t"]),
+    b!(Settings, LinkDevice, "link_device", "Link to my devices: this terminal as one of your devices, not its own member", ["D"]),
+    b!(Settings, CopySafetyCode, "copy_safety_code", "Copy your safety code", []),
     b!(Notifications, MarkAllRead, "mark_all_read", "Mark all read", ["M"]),
     b!(Workflows, StartRun, "start_run", "Start a run of this workflow", ["S"]),
     b!(Workflows, ApproveGate, "approve_gate", "Approve the run's waiting gate", ["A"]),

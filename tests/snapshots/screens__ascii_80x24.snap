@@ -25,4 +25,4 @@ expression: screen
 |                          |+ Message the room --------------------------------+
 |                          ||i to write . @ mentions an agent or a person      |
 +--------------------------++--------------------------------------------------+
-i write  .  ? help  ok Runtime changed           peer to peer . 1 running . demo
+.  : commands  ? help  ok Runtime changed        peer to peer . 1 running . demo

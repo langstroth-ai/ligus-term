@@ -52,5 +52,5 @@ Rendered by `tests/screens.rs` (200×50, the in-memory demo backend).
 │                              │┏ Message the room ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓│                                      │
 │                              │┃Type a message · @ mentions an agent or a person · esc for keys                                                               ┃│                                      │
 ╰──────────────────────────────╯┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────╯
-enter send  alt-enter newline  @ mention  esc leave  f1 help                                                                                                             peer to peer · 1 running · demo
+enter send  alt-enter newline  @ mention  esc leave  ctrl-p commands  f1 help                                                                                            peer to peer · 1 running · demo
 ```

@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────╯
-S start run  . actions  f1 help                                                peer to peer · 1 running · demo
+S start run  . actions  ctrl-p commands  f1 help                               peer to peer · 1 running · demo
 ```

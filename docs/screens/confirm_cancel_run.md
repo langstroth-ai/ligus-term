@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                                ┃│                                                          │
 ┃                                                ┃│                                                          │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────╯
-enter open chat  A approve gate  . actions  ? help                             peer to peer · 1 running · demo
+enter open chat  A approve gate  . actions  : commands  ? help                 peer to peer · 1 running · demo
 ```

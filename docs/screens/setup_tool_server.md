@@ -34,5 +34,5 @@ Rendered by `tests/setup.rs` (110×32, the in-memory demo backend).
 ┃                              ┃╭ Message the room ──────────────────────────────────────────────────────────╮
 ┃                              ┃│i to write · @ mentions an agent or a person                                │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────────────────╯
-i write  N new chat  tab pane  . actions  f1 help                              peer to peer · 1 running · demo
+i write  N new chat  tab pane  . actions  ctrl-p commands  f1 help             peer to peer · 1 running · demo
 ```

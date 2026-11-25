@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                              ┃╭ Message the room ──────────────────────────────────────────────────────────╮
 ┃                              ┃│i to write · @ mentions an agent or a person                                │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────────────────╯
-i write  N new chat  tab pane  …  ? help  ✗ turn failed: no runtime for @coder    ⚠ offline · 1 running · demo
+i write  N new chat  …  : commands  ? help  ✗ turn failed: no runtime for @coder  ⚠ offline · 1 running · demo
 ```
