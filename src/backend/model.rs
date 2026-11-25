@@ -637,6 +637,8 @@ pub struct Settings {
     /// The person this install is a device of ("Add to my devices"); none
     /// while it is its own member.
     pub linked_to: Option<String>,
+    /// A link request this install made and hasn't redeemed yet.
+    pub link_pending: Option<LinkPending>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -673,6 +675,39 @@ pub struct LinkRequestView {
     /// The install was already in use, so it asks with a new device key
     /// (switched to only once the grant is redeemed).
     pub new_device: bool,
+}
+
+/// A link this install started and hasn't finished: the newest pending
+/// request (all times Unix ms). Expired ones are dropped when it is read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LinkPending {
+    pub started_ms: i64,
+    /// The desktop may approve it until then.
+    pub approve_by_ms: i64,
+    /// A code the desktop showed for it works until then.
+    pub expires_ms: i64,
+    /// Requests waiting (each `link-request` makes one).
+    pub count: usize,
+}
+
+impl LinkPending {
+    /// The one line Settings, the start notice and `link-status` show;
+    /// `hh_mm` writes a time as the person's clock shows it.
+    pub fn line(&self, now_ms: i64, hh_mm: impl Fn(i64) -> String) -> String {
+        if now_ms < self.approve_by_ms {
+            format!("Linking waiting for your desktop's code (started {}; expires {})", hh_mm(self.started_ms), hh_mm(self.approve_by_ms))
+        } else {
+            format!("Linking waiting: the code your desktop showed works until {}", hh_mm(self.expires_ms))
+        }
+    }
+}
+
+/// Where linking stands on this install (`lt link-status`).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct LinkStatusView {
+    /// The person this install is a device of, once linked.
+    pub linked_to: Option<String>,
+    pub pending: Option<LinkPending>,
 }
 
 /// Who a desktop's grant says approved this computer, read before anything

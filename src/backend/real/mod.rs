@@ -887,6 +887,10 @@ impl Backend for RealBackend {
         self.call(|i| i.link_request()).await
     }
 
+    async fn link_status(&self) -> Result<LinkStatusView> {
+        self.call(|i| i.link_status()).await
+    }
+
     async fn inspect_link_grant(&self, grant: &str) -> Result<LinkGrantView> {
         let grant = grant.trim().to_string();
         self.call(move |i| i.inspect_link_grant(&grant)).await
@@ -1605,6 +1609,7 @@ impl Inner {
                 Ok(c) if c.person.is_some() => Some(ligus_runtime::display::shown(&c.author.display_name)),
                 _ => self.linked_person().map(|p| ligus_runtime::display::shown(&p.display_name)),
             },
+            link_pending: self.link_status().ok().and_then(|v| v.pending),
         }
     }
 

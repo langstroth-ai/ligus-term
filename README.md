@@ -160,9 +160,10 @@ name, your role, your chats):
 2. On your desktop: **Settings > Profile > My devices > Add a computer**. Paste
    the request, compare all five groups of the fingerprint, confirm with your
    passkey.
-3. Paste the code the desktop shows into `lt` within 30 minutes. `lt` shows who
-   approved it and the desktop's fingerprint (the desktop shows it as **This
-   desktop**): check it is yours and confirm.
+3. On the desktop press **Copy for lt**, then paste into `lt` (⌘V, or
+   ctrl-shift-v on Linux). `lt` goes straight to who approved it and the
+   desktop's fingerprint (the desktop shows it as **This desktop**): check it
+   is yours and confirm. The code works for 30 minutes.
 
 A linked `lt` acts as you without your account key: a vote asks for your
 passkey in the browser, and account changes (devices, phones, passkeys, keys)
@@ -171,9 +172,22 @@ Revoke it from **My devices** on the desktop. An install that was already in
 the workspace as its own member asks with a new device key, and the desktop
 then offers to remove the old member (their messages keep their name).
 
-Scripted: `lt --plain link-request`, then
-`lt --plain link-redeem CODE --approver-fingerprint FP` (without the
-fingerprint it exits 4: a person compares it). `lt help devices` has it all.
+From a shell:
+
+```sh
+lt --plain link-request --copy   # or | pbcopy: stdout has only the request
+lt --plain link-redeem           # Enter reads the desktop's code from the clipboard
+```
+
+`link-redeem` with no code asks for a paste it doesn't echo, or reads the
+clipboard on a bare Enter, then asks **Is that your desktop?** The desktop's
+**Copy command** button copies that command with its fingerprint filled in
+(`--approver-fingerprint FP`). The code never goes on the command line; in a
+script, pipe it in: `lt --plain link-redeem - --approver-fingerprint FP <
+code-file` (without a terminal the fingerprint is required, else exit 4).
+A link started and not finished shows in Settings and when `lt` starts
+("Linking waiting for your desktop's code (started 14:02; expires 14:17)");
+`lt --plain link-status` says the same. `lt help devices` has it all.
 
 ## Help in the terminal
 

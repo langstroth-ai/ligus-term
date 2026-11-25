@@ -407,6 +407,13 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
         }
         Msg::Settings(Ok(st)) => {
             s.settings = Some(st);
+            // A link started and not finished: say so once, on start.
+            if !s.link_notice_shown
+                && let Some(line) = s.link_pending_line()
+            {
+                s.link_notice_shown = true;
+                s.toast(ToastKind::Info, line);
+            }
             vec![]
         }
         Msg::Copied(Ok(m)) => {
@@ -1078,6 +1085,15 @@ fn mouse(s: &mut State, m: crossterm::event::MouseEvent) -> Vec<Effect> {
     }
 }
 
+/// A message as a sentence: its first letter upper-case.
+fn sentence(m: &str) -> String {
+    let mut c = m.chars();
+    match c.next() {
+        Some(f) => f.to_uppercase().chain(c).collect(),
+        None => String::new(),
+    }
+}
+
 fn paste(s: &mut State, text: &str) -> Vec<Effect> {
     if let Some(p) = s.presence.front_mut() {
         if let PresenceStage::EnteringPath(b) = &mut p.stage {
@@ -1101,6 +1117,28 @@ fn paste(s: &mut State, text: &str) -> Vec<Effect> {
             *scroll = 0;
         }
         (Some(Overlay::AddWorkspace(f)), _) | (None, Phase::Onboarding(f)) => {
+            // A desktop's code goes straight to who approved it, whatever
+            // came with it (whitespace, line breaks, a copied command).
+            let on_code = matches!(f.field, FormField::Value | FormField::Mode);
+            if on_code && !f.busy && (f.mode == FormMode::Link || text.contains(crate::link_code::GRANT_PREFIX)) {
+                match crate::link_code::grant_in(text) {
+                    crate::link_code::Pasted::Grant(g) => {
+                        f.mode = FormMode::Link;
+                        f.field = FormField::Value;
+                        f.grant.set(&g);
+                        f.error = None;
+                        f.checked = None;
+                        f.link_checked = None;
+                        f.busy = true;
+                        return vec![Effect::InspectLink(g)];
+                    }
+                    other if f.mode == FormMode::Link => {
+                        f.error = Some(sentence(&crate::link_code::not_a_grant(&other, false)));
+                        return vec![];
+                    }
+                    _ => {}
+                }
+            }
             match f.field {
                 FormField::Name => f.name.insert_str(text),
                 FormField::Value | FormField::Relay | FormField::Room | FormField::Key | FormField::Token => {
@@ -1312,11 +1350,18 @@ fn submit_form(s: &mut State, your_name: Option<String>) -> Vec<Effect> {
         return vec![];
     }
     if form.mode == FormMode::Link {
-        let grant = form.grant.text.trim().to_string();
-        if grant.is_empty() {
+        let typed = form.grant.text.trim().to_string();
+        if typed.is_empty() {
             form.error = Some("Paste the code your desktop shows".into());
             return vec![];
         }
+        let grant = match crate::link_code::grant_in(&typed) {
+            crate::link_code::Pasted::Grant(g) => g,
+            other => {
+                form.error = Some(sentence(&crate::link_code::not_a_grant(&other, false)));
+                return vec![];
+            }
+        };
         form.error = None;
         form.busy = true;
         // First show who approved it; link on the second Enter.
