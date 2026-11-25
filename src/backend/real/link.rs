@@ -72,13 +72,18 @@ pub(crate) fn mismatch(owner: &str) -> String {
 /// role it needs. Anything else passes through.
 pub(crate) fn explain(svc: &ligus_runtime::ChatService, ws: Uuid, e: BackendError) -> BackendError {
     let s = &e.0;
-    let Some(rest) = s.strip_prefix("role ") else { return e };
-    let Some((_, kind)) = rest.split_once(" cannot perform ") else { return e };
-    let action = match kind.trim() {
-        "messageAppended" => "posting a message".to_string(),
-        "sessionCreated" => "starting a chat".to_string(),
-        "proposalVoteCast" => "voting".to_string(),
-        other => format!("this change ({other})"),
+    let action = if let Some(rest) = s.strip_prefix("role ") {
+        let Some((_, kind)) = rest.split_once(" cannot perform ") else { return e };
+        ligus_runtime::role_refusal::action_phrase(kind.trim())
+    } else if s.starts_with("Refused: this device signs as ") && s.contains("isn't a member of this workspace") {
+        // The Ligus crates' own explanation of the same refusal: lt says
+        // it in its own words (its keys, and a link mismatch by name).
+        match s.split_once(", so ").and_then(|(_, r)| r.split_once(" isn't allowed")) {
+            Some((a, _)) => a.to_string(),
+            None => return e,
+        }
+    } else {
+        return e;
     };
     let me = svc.author().clone();
     let config = svc.load_in(ws, ligus_core::workspace_config_session_id(ws)).ok().flatten();
