@@ -6,6 +6,7 @@ mod onboarding;
 mod overlays;
 mod palette;
 mod proposals;
+pub(crate) mod setup;
 mod splash;
 mod views;
 

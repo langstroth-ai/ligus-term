@@ -394,7 +394,73 @@ desktop and `ligus worker`, confined by this host's agent sandbox, and
 - Edits land in a per-turn worktree of the bound checkout and come back as
   a proposal; nothing is written to your checkout until it is applied.
 
-`lt` has no MCP server catalog yet.
+Tools (MCP servers) you connect with **Connect a tool** (see [Guided
+setup](#guided-setup)) are this device's, per workspace: their list is in
+the data dir (`mcp-servers.json`), which agents may reach each one is in
+`mcp-reach.json`, and a URL server's bearer token is in the secret store,
+sent only to the origin it was saved for. They are offered to turns that
+run the tool loop here (a model API or a local model), narrowed by the
+chat's sandbox envelope and each tool's reach; coding CLIs keep their own
+MCP configuration.
+
+## Guided setup
+
+`u` (or the palette: "Set up an agent", "Connect a tool", "Add a code
+folder", "Add a box", "Add a phone", "Invite a person", "Set up a relay")
+opens the Set up list: one line per flow and what is already done on this
+device. It is the same engine as `ligus setup` and the Ligus desktop's
+wizards, so the steps, checks, fix lines and rules are the same
+everywhere.
+
+- `enter` runs a flow in a popup, one step per screen: pick a harness
+  (each shows whether it is installed and signed in), type a name, take a
+  model suggestion with `↑`/`↓`, tick the agents a tool may reach, switch a
+  test turn on with `space`, complete a folder with `tab`. `enter` goes on,
+  `shift-tab` goes back.
+- Nothing is written until the review: it shows what will run, and `d`
+  makes it a dry run (checks and validation only). The run's checks show
+  in the popup with a `fix:` line under anything that failed; `r` goes back
+  with what you entered.
+- `esc` before the run closes with nothing written; `esc` during it stops
+  between steps, and the run undoes its own writes.
+- Secrets (a tool's bearer token, a relay's access token) are typed into a
+  masked field drawn as a fixed row of dots. They are held only in memory
+  (zeroized), never shown, logged or put in the messages log, and go
+  straight to this device's secret store.
+- Some steps are a person's, somewhere else, and the flow says where:
+  pairing a phone prints a secret link, so it is `ligus pair` in your own
+  terminal on the box; a box joins from the box (`ligus setup box`) and an
+  Admin approves it with a passkey; an invite is created where its code is
+  shown. When the step is yours to do in `lt`, the popup offers it (`i`
+  creates an invite here, `a` admits a box).
+- An empty Agents or Hosts view, and People with only you in it, offer the
+  matching flow on `enter`.
+- The list's last row, **Add a computer**, says whether this computer is
+  one of your devices; `enter` opens Add to my devices (the link request,
+  your desktop's approval, the code back). `lt setup device` says the same
+  and hands the steps to those screens (exit 4 until it is linked).
+- Agents run on Claude Code, Codex, the Copilot CLI, the Antigravity CLI or
+  a local model; Aider, Pi and model gateways are shown but are set up from
+  the desktop or `ligus setup agent`.
+
+On the command line, `lt setup` lists the flows and `lt setup FLOW` runs
+one, with the engine's field ids as flags, as `ligus setup` takes them:
+
+```sh
+lt setup                                   # what is done (--json: ligus.checks.v1)
+lt setup agent --harness codex --name fixer --test-turn
+lt setup tool --id issues --kind url --url https://mcp.example.com/v1 --token - < token.txt
+lt setup folder --path ~/src/web --dry-run
+lt setup invite --json                     # exit 4: create it where the code is shown
+```
+
+A secret flag takes `-` (stdin) or `@FILE` (an owner-only file), never the
+value on the command line; one given there is refused without being
+echoed. `--json` prints one `ligus.checks.v1` document (with `flow`,
+`done`, `dryRun` and `results`), and the exit code is the shared one: 4
+means a person must act and `next` says what. Every flow is safe to run
+again. `lt help setup` lists every flow's flags; in `lt --plain`, `setup`
+prints records (and takes secrets only as `@FILE`).
 
 ## Plain mode and scripting
 

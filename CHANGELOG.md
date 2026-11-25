@@ -4,10 +4,31 @@ All notable changes to `lt`, the Ligus terminal app (Ligus is short for
 ligustica). Versions follow [semver](https://semver.org); releases are on
 [GitHub](https://github.com/langstroth-ai/ligus-term/releases).
 
-## Unreleased
+## v0.3.0
 
 ### Added
 
+- Guided setup, on the same engine as `ligus setup` and the Ligus
+  desktop's wizards: `u` (or the palette: "Set up an agent", "Connect a
+  tool", "Add a code folder", "Add a box", "Add a phone", "Invite a
+  person", "Set up a relay") opens the Set up list with what is done, and
+  `enter` runs a flow one step per screen. Nothing is written before the
+  review (`d` makes it a dry run); the run's checks show with their fix
+  lines; `esc` during a run stops it between steps and it undoes its own
+  writes. Secret fields are masked, held only in zeroized memory and never
+  shown or logged. A person's step (pairing a phone, approving a box,
+  creating an invite) says where it happens, and offers lt's own Invite
+  or Admit a box when it is yours to do. Empty Agents and Hosts views, and
+  People with only you, offer the matching flow on `enter`. The list's
+  Add a computer row shows whether this computer is one of your devices
+  and opens Add to my devices.
+- `lt setup [FLOW] [--FIELD VALUE …] [--json] [--dry-run]`: the same flags,
+  `ligus.checks.v1` document and exit codes as `ligus setup` (4: a person
+  must act). Secrets take `-` or `@FILE`, never the command line. Plain
+  mode has a `setup` command; `lt help setup` lists every flow's flags.
+- Connect a tool: this device's MCP servers per workspace, with a reach
+  per agent and a bearer token kept in the secret store for its origin
+  only, offered to turns that run the tool loop here.
 - Every Ligus palette: Pollen, Studio, Harbor, Meadow, Slate and Obsidian,
   each for a light and a dark terminal. `theme = "harbor"` picks one and
   `appearance = "auto" | "light" | "dark"` the background (also `--theme`
@@ -28,6 +49,13 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   your passkey; `lt` confirms the approving desktop's fingerprint before it
   links. Plain mode: `link-request` and `link-redeem CODE
   --approver-fingerprint FP`; `lt help devices`.
+
+### Dependencies
+
+- Built on the Ligus 0.3.0 crates (`ligus-core` and `ligus-runtime` at tag
+  v0.3.0, previously 0.2.1): the shared setup engine, Add a computer, the
+  `@hive` alias for the default agent and reserved agent names, and relay
+  and tool tokens sent only to their own server.
 
 ### Changed
 
@@ -53,8 +81,6 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   row menu now. Workflows and proposals drop the action lines from their
   detail, keeping a waiting gate's approve and why you can't vote.
 - Narrow terminals stack a view's detail under its list.
-- Built on a Ligus revision with "Add a computer" (the pin moves to the next
-  Ligus release tag).
 
 ### Fixed
 

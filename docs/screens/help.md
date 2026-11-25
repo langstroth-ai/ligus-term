@@ -4,7 +4,7 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
-┏ Chats ━━━━━━━━━┏ Help · 1-40 of 103 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
+┏ Chats ━━━━━━━━━┏ Help · 1-40 of 104 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
 ┃  ◆ Fix flaky ch┃Each chat is a room with people and agents. @ mentions an agent or a      ┃                │
 ┃  ◆ Migrate auth┃person; enter on a chat opens it and puts you in the composer.            ┃it reading the  │
 ┃  Weekly release┃                                                                          ┃                │
@@ -40,11 +40,11 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 ┃                ┃  esc                      Back (to the view you came from) / close       ┃                │
 ┃                ┃  w, ctrl-w                Switch workspace                               ┃                │
 ┃                ┃  +                        Create or join a workspace                     ┃                │
-┃                ┃  unbound                  Link this computer to my devices               ┃                │
-┃                ┃  c, 1                     Chats                                          ┃────────────────╯
-┃                ┃  f, 2                     Workflows and runs                             ┃
-┃                ┃  p, 3                     Proposals                                      ┃────────────────╮
-┃                ┃  a, 4                     Agents and hand-offs                           ┃                │
+┃                ┃  u                        Set up: an agent, a tool, a folder, a box, a ph┃                │
+┃                ┃  unbound                  Link this computer to my devices               ┃────────────────╯
+┃                ┃  c, 1                     Chats                                          ┃
+┃                ┃  f, 2                     Workflows and runs                             ┃────────────────╮
+┃                ┃  p, 3                     Proposals                                      ┃                │
 ┗━━━━━━━━━━━━━━━━┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛────────────────╯
 / search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                    peer to peer · 1 running · demo
 ```

@@ -89,7 +89,7 @@ fn empty_pane(f: &mut Frame, area: Rect, title: &str, text: &str, focused: bool,
 pub fn agents(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     let [list, detail] = list_and_detail(area);
     if s.agents.is_empty() {
-        empty_pane(f, list, "Agents", "No agents yet", true, t);
+        empty_pane(f, list, "Agents", "No agents yet · enter set one up", true, t);
     } else {
         let w = list.width.saturating_sub(4) as usize;
         let rows = s
@@ -201,7 +201,7 @@ fn usage_lines(a: &crate::backend::model::Agent, t: &Theme) -> Vec<Line<'static>
 pub fn hosts(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     let [table_area, note] = Layout::vertical([Constraint::Min(3), Constraint::Length(1)]).areas(area);
     if s.hosts.is_empty() {
-        empty_pane(f, table_area, "Hosts", "No hosts yet", true, t);
+        empty_pane(f, table_area, "Hosts", "No hosts yet · enter add a box", true, t);
     } else {
         let w = table_area.width.saturating_sub(4) as usize;
         let rows = s
@@ -254,7 +254,7 @@ pub fn hosts(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
 
 pub fn people(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     if s.members.is_empty() {
-        return empty_pane(f, area, "People", "Nobody else here yet", true, t);
+        return empty_pane(f, area, "People", "Nobody else here yet · enter invite someone", true, t);
     }
     let w = area.width.saturating_sub(4) as usize;
     let rows = s
@@ -275,7 +275,13 @@ pub fn people(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             (name, status)
         })
         .collect();
-    let lw = List::new(one_line_rows(rows, w)).block(pane("People", true, t)).highlight_style(t.selected());
+    let mut items = one_line_rows(rows, w);
+    // Just you: the view's one action is inviting someone.
+    if s.members.len() == 1 {
+        items.push(ListItem::new(Line::raw("")));
+        items.push(ListItem::new(Line::styled("Nobody else here yet · enter invite someone", t.dim())));
+    }
+    let lw = List::new(items).block(pane("People", true, t)).highlight_style(t.selected());
     let mut st = ListState::default().with_selected(Some(s.member_sel.index));
     f.render_stateful_widget(lw, area, &mut st);
 }

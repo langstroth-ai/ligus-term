@@ -5,7 +5,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Proposals ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Inject the clock into checkout tests ──────────────────────────╮
-┃Inject the clock┏ Commands · 53 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓s               │
+┃Inject the clock┏ Commands · 61 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓s               │
 ┃Export orders to┃›                                                                         ┃                │
 ┃Bump the order s┃──────────────────────────────────────────────────────────────────────────┃────────────────╯
 ┃Sign-off: inject┃▶ Approve “Inject the clock into checkout tests”       A         Proposals┃────────────────╮
@@ -20,8 +20,8 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                ┃  This session's notices and errors, in full           !          Anywhere┃                │
 ┃                ┃  Switch workspace                                     w ctrl-w   Anywhere┃                │
 ┃                ┃  Create or join a workspace                           +          Anywhere┃                │
+┃                ┃  Set up: an agent, a tool, a folder, a box, a phone…  u          Anywhere┃                │
 ┃                ┃  Link this computer to my devices                                Anywhere┃                │
-┃                ┃  Go to Chats                                          c 1        Anywhere┃                │
 ┃                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                │
 ┃                                          ┃│+        // 30 seconds matches the payment provider's session t…│
 ┃                                          ┃│+        self.clock.now() - self.started_at >= Self::SESSION_TI…│

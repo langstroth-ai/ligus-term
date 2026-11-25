@@ -58,6 +58,8 @@ commands (N is a number from the last list, or an id):
   gate R approve|reject  decide run R's waiting gate      cancel-run R  cancel run R
   tasks / memory / handoffs  agents' task state, workspace memory, hand-offs
   checkout [PATH|none] show or set this device's checkout for apply on host
+  setup [FLOW [--FIELD VALUE ...]]  the guided setup flows (agent tool folder box phone invite relay);
+                       secrets only as @FILE here; lt help setup has every flag
   confirm ID           answer a passkey prompt in the browser
   confirm ID file PATH answer it with a recovery-words file
   cancel ID            cancel a passkey prompt
@@ -261,6 +263,7 @@ pub const COMMANDS: &[&str] = &[
     "memory",
     "handoffs",
     "checkout",
+    "setup",
 ];
 
 fn run_line(i: usize, r: &Run) -> String {
@@ -867,6 +870,12 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                     g.workspaces.push(c.workspace);
                 }
                 Err(e) => fail(e.0).await,
+            }
+        }
+        "setup" => {
+            for line in crate::setup::cli::plain(b, ws.as_ref(), arg).await {
+                let rec = line.split('\t').map(esc).collect::<Vec<_>>().join("\t");
+                say(rec).await;
             }
         }
         _ if ws.is_none() && cmd != "notifications" && cmd != "settings" && cmd != "confirm" && cmd != "cancel" => need_ws().await,

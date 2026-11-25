@@ -23,6 +23,8 @@ use futures::stream::BoxStream;
 
 use model::*;
 
+pub use crate::setup::{CancelFlag, FlowRow, LtFlow, SetupForm, SetupInputs, SetupOutcome, SetupSecrets};
+
 /// An error the UI shows as is (one line, no trailing period needed).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BackendError(pub String);
@@ -262,4 +264,28 @@ pub trait Backend: Send + Sync {
     // ── Presence ───────────────────────────────────────────────────────
     /// Answer a [`Event::PresencePrompt`].
     async fn answer_presence(&self, id: PresenceId, answer: PresenceAnswer) -> Result<()>;
+
+    // ── Guided setup (`ligus_runtime::setup`) ──────────────────────────
+    /// The Set up list for `workspace` (or before there is one): each flow
+    /// and what is done (cheap: no network, no probes).
+    async fn setup_status(&self, workspace: Option<&WorkspaceId>) -> Result<Vec<FlowRow>>;
+    /// A flow's form for these values so far (a harness's models fill in
+    /// once it is chosen).
+    async fn setup_form(&self, workspace: Option<&WorkspaceId>, flow: LtFlow, inputs: SetupInputs) -> Result<SetupForm>;
+    /// Run a flow as a person. `cancel` stops it between steps (the engine
+    /// undoes its own writes). Secrets go to the engine and nowhere else.
+    async fn setup_run(
+        &self,
+        workspace: Option<&WorkspaceId>,
+        flow: LtFlow,
+        inputs: SetupInputs,
+        secrets: SetupSecrets,
+        dry_run: bool,
+        cancel: CancelFlag,
+    ) -> Result<SetupOutcome>;
+    /// Whether this backend links this computer to the person's devices
+    /// (the `device` flow, Add to my devices).
+    fn links_devices(&self) -> bool {
+        true
+    }
 }

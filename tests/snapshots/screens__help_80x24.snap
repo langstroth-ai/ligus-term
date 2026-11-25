@@ -3,7 +3,7 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
-┏ ┏ Help · 1-20 of 103 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─╮
+┏ ┏ Help · 1-20 of 104 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─╮
 ┃ ┃Each chat is a room with people and agents. @ mentions an agent or a      ┃ │
 ┃ ┃person; enter on a chat opens it and puts you in the composer.            ┃ │
 ┃ ┃                                                                          ┃ │
