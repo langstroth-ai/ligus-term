@@ -347,6 +347,11 @@ impl Inner {
                     tokio::spawn(lp.run(rx, move |st| {
                         let status = match st {
                             SyncStatus::Synced(r) => {
+                                // Another lt on this data dir may have linked
+                                // it to the person's devices: follow it, even
+                                // with nobody at the keyboard.
+                                let me3 = me.clone();
+                                tokio::task::spawn_blocking(move || me3.follow_disk());
                                 // A joiner redeems its invite once the config log arrives.
                                 if !joined && r.pulled > 0 {
                                     joined = true;
@@ -508,6 +513,9 @@ async fn presence_loop(
 /// Heartbeat (every minute) and apply what was asked of this host.
 fn host_tick(inner: &Inner, ws: Uuid, touch: bool) {
     let Ok(core) = inner.core() else { return };
+    if inner.may_sign(&core, ws).is_err() {
+        return;
+    }
     let device = core.identity.device.id.to_string();
     if touch {
         let _ = inner.write(ws, |svc| svc.touch_host(ws, &device, 60));
