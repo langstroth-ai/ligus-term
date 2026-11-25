@@ -1083,6 +1083,30 @@ impl Backend for RealBackend {
         .await
     }
 
+    async fn archive_proposal(&self, workspace: &WorkspaceId, proposal: &ProposalId, archived: bool) -> Result<Proposal> {
+        let (ws, pid) = (ws_uuid(workspace)?, uuid_of(proposal.as_str(), "proposal")?);
+        self.call(move |i| {
+            let (sid, _) = i.find_proposal(ws, pid)?;
+            i.write(ws, |svc| svc.archive_proposals(sid, ws, &[pid], archived))?;
+            i.proposal_view(ws, sid, pid)
+        })
+        .await
+    }
+
+    async fn hide_proposal(&self, workspace: &WorkspaceId, proposal: &ProposalId, hidden: bool) -> Result<Proposal> {
+        let (ws, pid) = (ws_uuid(workspace)?, uuid_of(proposal.as_str(), "proposal")?);
+        self.call(move |i| {
+            let (sid, _) = i.find_proposal(ws, pid)?;
+            // Device-local: nothing is signed or synced.
+            let core = i.core()?;
+            lock(&core.svc).set_proposals_hidden(ws, &[pid], hidden).map_err(one_line)?;
+            let p = i.proposal_view(ws, sid, pid)?;
+            i.emit(Event::ProposalChanged { workspace: WorkspaceId::new(ws.to_string()), proposal: p.clone() });
+            Ok(p)
+        })
+        .await
+    }
+
     async fn agents(&self, workspace: &WorkspaceId) -> Result<Vec<Agent>> {
         let ws = ws_uuid(workspace)?;
         self.call(move |i| {
@@ -1654,13 +1678,21 @@ impl Inner {
             .collect()
     }
 
+    /// The proposals hidden on this device in `ws` ("Hide for me").
+    pub(crate) fn hidden_proposals(&self, ws: Uuid) -> std::collections::BTreeSet<Uuid> {
+        self.read(ws, |svc| svc.hidden_proposals(ws)).unwrap_or_default()
+    }
+
+    /// Every proposal of `ws`, each on its shelf (the inbox, archived, or
+    /// hidden here).
     pub(crate) fn proposals(&self, ws: Uuid) -> Result<Vec<Proposal>> {
         let me = self.me();
         let hosts = self.host_labels(ws);
+        let hidden = self.hidden_proposals(ws);
         let mut out: Vec<Proposal> = self
             .chat_sessions(ws)?
             .iter()
-            .flat_map(|s| s.proposals.iter().filter(|p| !p.dismissed).map(|p| views::proposal(s, p, &me, &hosts)).collect::<Vec<_>>())
+            .flat_map(|s| s.proposals.iter().map(|p| views::proposal(s, p, &me, &hosts, &hidden)).collect::<Vec<_>>())
             .collect();
         out.sort_by_key(|x| std::cmp::Reverse(x.created_at));
         Ok(out)
@@ -1678,7 +1710,7 @@ impl Inner {
         let hosts = self.host_labels(ws);
         let s = self.read(ws, |svc| svc.load_in(ws, sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
         let p = s.proposals.iter().find(|p| p.id == pid).ok_or_else(|| BackendError("no such proposal".into()))?;
-        Ok(views::proposal(&s, p, &me, &hosts))
+        Ok(views::proposal(&s, p, &me, &hosts, &self.hidden_proposals(ws)))
     }
 }
 

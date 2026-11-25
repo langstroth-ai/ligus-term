@@ -5,9 +5,11 @@
 //! `ligus_runtime::lockdown_view`.
 
 use ligus_core::authz::{MemberAction, RosterState, member_action_refusal};
+use ligus_core::proposal_archive::{self, Archived};
 use ligus_core::workflow::{self as wf, NodeRunStatus, WorkflowNodeKind, WorkflowRunStatus};
 use ligus_core::workspace_repo::ApplyOutcome;
 use ligus_core::{ActionProposal, ActorKind, ChatMessage, ChatSession, MessageRole, ModelProviderKind, Timestamp, WorkspaceRole};
+use std::collections::BTreeSet;
 use uuid::Uuid;
 
 use crate::backend::model::*;
@@ -87,7 +89,8 @@ pub fn transcript(s: &ChatSession) -> Vec<Message> {
 
 /// A proposal for `me`. `can_vote` is the backend's: an open proposal you
 /// haven't voted on, at or above its role floor.
-pub fn proposal(s: &ChatSession, p: &ActionProposal, me: &str, hosts: &[(String, String)]) -> Proposal {
+/// `hidden` is this device's "Hide for me" set for the workspace.
+pub fn proposal(s: &ChatSession, p: &ActionProposal, me: &str, hosts: &[(String, String)], hidden: &BTreeSet<Uuid>) -> Proposal {
     let host_label = |id: &Uuid| {
         let id = id.to_string();
         hosts.iter().find(|(h, _)| *h == id).map(|(_, l)| l.clone()).unwrap_or(id)
@@ -119,6 +122,28 @@ pub fn proposal(s: &ChatSession, p: &ActionProposal, me: &str, hosts: &[(String,
     };
     let name_of = |id: &str| s.members.iter().find(|m| m.id == id).map(|m| m.actor.display_name.clone());
     let gate = s.workflow_runs.iter().any(|r| r.nodes.iter().any(|n| n.proposal_id == Some(p.id)));
+    // A gate whose run settled or reset is closed by the run (lt's
+    // driver marks it dismissed while still open): out of the inbox, and
+    // nothing to restore.
+    let closed_gate = gate && p.dismissed && p.status == ligus_core::ProposalStatus::Open;
+    let waiting = proposal_archive::waits_on_someone(p, s) && !closed_gate;
+    let shelf = match ligus_runtime::chat_service::shelf(p, s, hidden, Timestamp::now()) {
+        _ if closed_gate && !hidden.contains(&p.id) => Shelf::Archived,
+        ligus_runtime::chat_service::Shelf::Inbox => Shelf::Inbox,
+        ligus_runtime::chat_service::Shelf::Archived(Archived::ByPerson) => Shelf::Archived,
+        ligus_runtime::chat_service::Shelf::Archived(Archived::Auto) => Shelf::AutoArchived,
+        ligus_runtime::chat_service::Shelf::Hidden => Shelf::Hidden,
+    };
+    // Archiving is a Contributor's (the fold ignores anyone else's).
+    let can_archive = if closed_gate {
+        Allowed::No("its run no longer waits on it".into())
+    } else if !s.members.iter().any(|m| m.id == me) {
+        Allowed::No("you aren't a member of this workspace".into())
+    } else if my_role.rank() < WorkspaceRole::Contributor.rank() {
+        Allowed::No("only a Contributor or above".into())
+    } else {
+        Allowed::Yes
+    };
     let kind = if p.workflow.is_some() {
         ProposalKind::Workflow
     } else if gate {
@@ -157,6 +182,9 @@ pub fn proposal(s: &ChatSession, p: &ActionProposal, me: &str, hosts: &[(String,
         needs_presence: p.workflow.is_some(),
         apply,
         can_vote,
+        shelf,
+        waiting,
+        can_archive,
     }
 }
 

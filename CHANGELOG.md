@@ -8,6 +8,13 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Added
 
+- Archiving proposals. Archive (`e`, or the row menu) takes a settled
+  proposal off the Proposals list for everyone; one settled for the
+  workspace's auto-archive days leaves on its own. Hide for me (`H`) takes a
+  proposal off this device's list only. `v` lists the archived and hidden
+  ones, with Restore and Show again. Neither is counted in what needs you. A
+  proposal that still waits on a decision can't be archived. Plain mode:
+  `archived`, `archive N`, `restore N`, `hide N`, `show N`.
 - Link to my devices is easy to find: while this terminal is its own member,
   Settings says so on one line, and so does People when another member there
   looks like you (the same name, or a shorter one: "zaz" and "zazulam"). `D`
@@ -22,6 +29,8 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Fixed
 
+- A removed member's refusal names what to do on this computer again with
+  the newer Ligus crates, which explain the refusal themselves.
 - A linked computer kept posting as its old member when the link was
   redeemed by another `lt` on the same data dir (`lt --plain link-redeem`
   while `lt` was open): once the desktop removed that member, sending failed

@@ -210,6 +210,12 @@ pub trait Backend: Send + Sync {
     /// Ask one host to apply an approved proposal on its checkout.
     async fn request_apply(&self, workspace: &WorkspaceId, proposal: &ProposalId, host: &HostId) -> Result<Proposal>;
     async fn withdraw_apply(&self, workspace: &WorkspaceId, proposal: &ProposalId) -> Result<Proposal>;
+    /// Archive a settled proposal for everyone, or restore an archived one
+    /// (a Contributor's; one that still waits on someone is refused).
+    async fn archive_proposal(&self, workspace: &WorkspaceId, proposal: &ProposalId, archived: bool) -> Result<Proposal>;
+    /// Hide a proposal on this device only ("Hide for me"), or show it
+    /// again. Never synced.
+    async fn hide_proposal(&self, workspace: &WorkspaceId, proposal: &ProposalId, hidden: bool) -> Result<Proposal>;
 
     // ── Agents, runtimes, hosts ────────────────────────────────────────
     async fn agents(&self, workspace: &WorkspaceId) -> Result<Vec<Agent>>;

@@ -463,6 +463,44 @@ pub struct Proposal {
     pub apply: ApplyState,
     /// Whether you may vote, and why not.
     pub can_vote: Allowed,
+    /// Where it shows on this device: the inbox, archived, or hidden here.
+    pub shelf: Shelf,
+    /// It still waits on someone (open, or approved and not applied), so it
+    /// can't be archived: reject it first, or hide it for yourself.
+    pub waiting: bool,
+    /// Whether you may archive or restore it (for everyone), and why not.
+    pub can_archive: Allowed,
+}
+
+impl Proposal {
+    /// It belongs in the Proposals list and the needs-you counts here.
+    pub fn in_inbox(&self) -> bool {
+        self.shelf == Shelf::Inbox
+    }
+}
+
+/// Where a proposal shows on this device.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Shelf {
+    /// Waiting on someone, or settled and not archived yet.
+    Inbox,
+    /// Archived for everyone, by a person.
+    Archived,
+    /// Settled for the workspace's auto-archive days.
+    AutoArchived,
+    /// Hidden on this device only ("Hide for me").
+    Hidden,
+}
+
+impl Shelf {
+    pub fn label(self) -> &'static str {
+        match self {
+            Shelf::Inbox => "",
+            Shelf::Archived => "archived",
+            Shelf::AutoArchived => "auto-archived",
+            Shelf::Hidden => "hidden",
+        }
+    }
 }
 
 /// What a proposal asks for.

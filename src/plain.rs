@@ -41,6 +41,9 @@ commands (N is a number from the last list, or an id):
   lock / unlock        lock the open chat down / clear its lockdown
   proposals            list proposals           diff N       print a proposal's diff
   approve N / reject N vote                     apply N [H]  apply on host H (default: first online worker)
+  archived             list archived proposals and ones hidden here
+  archive N / hide N   archive a settled proposal for everyone / hide it on this device only
+  restore N / show N   bring back an archived / hidden one (N from archived)
   agents / runtimes / hosts / members / notifications / settings
   access N everyone|owner  who can use agent N (yours: everyone, or only you)
   available            what this device could run agents on (CLIs, Ollama, API keys)
@@ -78,6 +81,8 @@ struct Session {
     workspaces: Vec<WorkspaceSummary>,
     chats: Vec<ChatSummary>,
     proposals: Vec<Proposal>,
+    /// The last `archived` list (archived and hidden proposals).
+    archived: Vec<Proposal>,
     members: Vec<Member>,
     hosts: Vec<Host>,
     workflows: Vec<Workflow>,
@@ -233,6 +238,11 @@ pub const COMMANDS: &[&str] = &[
     "unlock",
     "stop",
     "proposals",
+    "archived",
+    "archive",
+    "restore",
+    "hide",
+    "show",
     "diff",
     "approve",
     "reject",
@@ -421,6 +431,7 @@ where
         workspaces: st.workspaces.clone(),
         chats: vec![],
         proposals: vec![],
+        archived: vec![],
         members: vec![],
         hosts: vec![],
         workflows: vec![],
@@ -1069,7 +1080,8 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
         "chats" => match b.chats(ws.as_ref().unwrap()).await {
             Ok(c) => {
                 // A chat with a proposal waiting on your vote needs you.
-                let props = b.proposals(ws.as_ref().unwrap()).await.unwrap_or_default();
+                let props: Vec<Proposal> =
+                    b.proposals(ws.as_ref().unwrap()).await.unwrap_or_default().into_iter().filter(|p| p.in_inbox()).collect();
                 for (i, x) in c.iter().enumerate() {
                     let needs_you =
                         props.iter().any(|p| p.chat.as_ref() == Some(&x.id) && p.status == ProposalStatus::Open && p.can_vote.is_yes());
@@ -1148,6 +1160,8 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
         }
         "proposals" => match b.proposals(ws.as_ref().unwrap()).await {
             Ok(p) => {
+                // The inbox: archived and hidden ones are under archived.
+                let p: Vec<Proposal> = p.into_iter().filter(|p| p.in_inbox()).collect();
                 for (i, x) in p.iter().enumerate() {
                     let apply = crate::ui::apply_text(&x.apply).unwrap_or_default();
                     say(format!(
@@ -1167,12 +1181,65 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
             }
             Err(e) => fail(e.0).await,
         },
+        "archived" => match b.proposals(ws.as_ref().unwrap()).await {
+            Ok(p) => {
+                let p: Vec<Proposal> = p.into_iter().filter(|p| !p.in_inbox()).collect();
+                for (i, x) in p.iter().enumerate() {
+                    say(format!("archived\t{}\t{}\t{}\t{}\t{}", i + 1, esc(&x.id), x.shelf.label(), x.status.label(), esc(&x.title))).await;
+                }
+                s.lock().await.archived = p;
+            }
+            Err(e) => fail(e.0).await,
+        },
+        "archive" | "hide" | "restore" | "show" => {
+            let w = ws.unwrap();
+            // archive and hide take N from proposals; restore and show
+            // from archived.
+            let from_inbox = matches!(cmd, "archive" | "hide");
+            let listed = {
+                let st = s.lock().await;
+                if from_inbox { st.proposals.is_empty() } else { st.archived.is_empty() }
+            };
+            if listed && let Ok(p) = b.proposals(&w).await {
+                let mut st = s.lock().await;
+                if from_inbox {
+                    st.proposals = p.into_iter().filter(|p| p.in_inbox()).collect();
+                } else {
+                    st.archived = p.into_iter().filter(|p| !p.in_inbox()).collect();
+                }
+            }
+            let p = {
+                let st = s.lock().await;
+                pick(if from_inbox { &st.proposals } else { &st.archived }, arg, |p| p.id.as_str()).cloned()
+            };
+            let Some(p) = p else {
+                let list = if from_inbox { "proposals" } else { "archived" };
+                return fail(format!("no proposal {arg} in {list}")).await;
+            };
+            if cmd == "show" && p.shelf != Shelf::Hidden {
+                return fail(format!("proposal {arg} isn't hidden on this device: restore {arg} brings back an archived one")).await;
+            }
+            let r = match cmd {
+                "archive" => b.archive_proposal(&w, &p.id, true).await,
+                "restore" if p.shelf == Shelf::Hidden => b.hide_proposal(&w, &p.id, false).await,
+                "restore" => b.archive_proposal(&w, &p.id, false).await,
+                "hide" => b.hide_proposal(&w, &p.id, true).await,
+                _ => b.hide_proposal(&w, &p.id, false).await,
+            };
+            match r {
+                Ok(p) => {
+                    let shelf = if p.in_inbox() { "inbox" } else { p.shelf.label() };
+                    say(format!("shelved\t{}\t{shelf}\t{}", esc(&p.id), esc(&p.title))).await
+                }
+                Err(e) => fail(e.0).await,
+            }
+        }
         "diff" | "approve" | "reject" | "apply" => {
             let w = ws.unwrap();
             if s.lock().await.proposals.is_empty()
                 && let Ok(p) = b.proposals(&w).await
             {
-                s.lock().await.proposals = p;
+                s.lock().await.proposals = p.into_iter().filter(|p| p.in_inbox()).collect();
             }
             let mut parts = arg.split_whitespace();
             let which = parts.next().unwrap_or("");

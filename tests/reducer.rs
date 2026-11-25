@@ -68,6 +68,9 @@ fn proposal(id: &str, status: ProposalStatus) -> Proposal {
         needs_presence: false,
         apply: ApplyState::NotRequested,
         can_vote: Allowed::Yes,
+        shelf: Shelf::Inbox,
+        waiting: matches!(status, ProposalStatus::Open | ProposalStatus::Approved),
+        can_archive: Allowed::Yes,
     }
 }
 
@@ -1904,4 +1907,73 @@ fn invites_and_admissions_copy_on_c_and_never_print_the_code() {
     assert!(matches!(&fx[..], [Effect::Copy(c)] if c.text == "ligusadmit1:z"));
     key(&mut s, KeyCode::Char('o'));
     assert!(matches!(&s.overlay, Some(Overlay::Code { fingerprint: Some(f), .. }) if f == "AAAA"));
+}
+
+/// Archived and hidden proposals leave the list and every count; the menu
+/// offers Archive only for a settled proposal, Restore for an archived one
+/// and Show again for a hidden one.
+#[test]
+fn archived_and_hidden_proposals_leave_the_list_and_the_counts() {
+    let mut s = main_state();
+    let w = WorkspaceId::new("a");
+    let mut open = proposal("open", ProposalStatus::Open);
+    open.chat = Some(ChatId::new("c1"));
+    let mut hidden = proposal("hidden", ProposalStatus::Open);
+    hidden.chat = Some(ChatId::new("c1"));
+    hidden.shelf = Shelf::Hidden;
+    let mut archived = proposal("archived", ProposalStatus::Rejected);
+    archived.shelf = Shelf::AutoArchived;
+    let applied = proposal("applied", ProposalStatus::Applied);
+    update(&mut s, Msg::Proposals(w.clone(), Ok(vec![open, hidden, archived, applied])));
+    let titles = |l: &[Proposal]| l.iter().map(|p| p.title.clone()).collect::<Vec<_>>();
+    assert_eq!(titles(&s.proposals), vec!["open", "applied"]);
+    assert_eq!(titles(&s.archived_proposals), vec!["hidden", "archived"]);
+    assert_eq!(s.needs_you(), 1, "the hidden open proposal isn't counted");
+    assert_eq!(s.session_signals(&ChatId::new("c1")).proposals_needing_me, 1);
+
+    key(&mut s, KeyCode::Char('p'));
+    let labels = |s: &mut State| {
+        key(s, KeyCode::Char('.'));
+        let Some(Overlay::RowMenu { items, .. }) = &s.overlay else { panic!("{:?}", s.overlay) };
+        let l: Vec<String> = items.iter().map(|i| i.label.clone()).collect();
+        s.overlay = None;
+        l
+    };
+    // An open proposal: hide it, but not archive it.
+    let l = labels(&mut s);
+    assert!(l.contains(&"Hide for me".into()) && !l.contains(&"Archive".into()), "{l:?}");
+    assert!(key(&mut s, KeyCode::Char('e')).is_empty());
+    assert!(s.toasts.last().unwrap().text.contains("still waits on a decision"));
+    // A settled one: archive it for everyone.
+    key(&mut s, KeyCode::Down);
+    let l = labels(&mut s);
+    assert!(l.contains(&"Archive".into()) && l.contains(&"Hide for me".into()), "{l:?}");
+    assert_eq!(key(&mut s, KeyCode::Char('e')), vec![Effect::ArchiveProposal(w.clone(), ProposalId::new("applied"), true)]);
+
+    // The archived view: Show again for the hidden one, Restore for the
+    // archived one.
+    key(&mut s, KeyCode::Char('v'));
+    assert!(s.show_archived);
+    assert_eq!(s.selected_proposal().unwrap().title, "hidden");
+    let l = labels(&mut s);
+    assert!(l.contains(&"Show again".into()) && !l.contains(&"Restore".into()), "{l:?}");
+    assert_eq!(key(&mut s, KeyCode::Char('H')), vec![Effect::HideProposal(w.clone(), ProposalId::new("hidden"), false)]);
+    key(&mut s, KeyCode::Down);
+    let l = labels(&mut s);
+    assert!(l.contains(&"Restore".into()), "{l:?}");
+    assert_eq!(key(&mut s, KeyCode::Char('e')), vec![Effect::ArchiveProposal(w.clone(), ProposalId::new("archived"), false)]);
+
+    // A change moves it between the lists.
+    let mut back = proposal("archived", ProposalStatus::Rejected);
+    back.waiting = false;
+    update(&mut s, Msg::Shelved(w.clone(), Ok(back)));
+    assert_eq!(titles(&s.proposals), vec!["archived", "open", "applied"]);
+    assert_eq!(titles(&s.archived_proposals), vec!["hidden"]);
+
+    // A Viewer's Archive is crossed out with the reason.
+    key(&mut s, KeyCode::Char('v'));
+    s.proposals[2].can_archive = Allowed::No("only a Contributor or above".into());
+    s.proposal_sel.index = 2;
+    assert!(key(&mut s, KeyCode::Char('e')).is_empty());
+    assert!(s.toasts.last().unwrap().text.contains("only a Contributor or above"));
 }

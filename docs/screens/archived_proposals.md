@@ -1,0 +1,38 @@
+# Proposals: the archived and hidden ones
+
+Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
+
+```text
+[NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
+┏ Archived proposals ━━━━━━━━━━━━━━━━━━━━━━┓╭ Rename the cart module to basket ──────────────────────────────╮
+┃Rename the cart module t…  archived · 3d  ┃│applied  by @coder · 1 file changed · 1/2 approvals             │
+┃Retry payment webh…  auto-archived · 10d  ┃│Archived for everyone                                           │
+┃Try a second CSV library     hidden · 2d  ┃╰────────────────────────────────────────────────────────────────╯
+┃                                          ┃╭ Diff · 0 files · hunk 1/0 ─────────────────────────────────────╮
+┃                                          ┃│No file changes.                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────╯
+enter diff  A approve  . actions  : commands  ? help                           peer to peer · 1 running · demo
+```
