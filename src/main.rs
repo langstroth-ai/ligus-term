@@ -205,6 +205,27 @@ async fn run() -> anyhow::Result<()> {
         std::process::exit(code);
     }
 
+    // `lt link-request|link-redeem|link-status`: data on stdout, the rest
+    // on stderr; the desktop's code is read from stdin, a hidden paste or
+    // the clipboard, never from argv.
+    if args.command.first().is_some_and(|c| ligus_term::link_cli::handles(c)) {
+        let (mut out, mut err) = (std::io::stdout(), std::io::stderr());
+        let mut term = ligus_term::link_cli::RealTerminal;
+        let mut io = ligus_term::link_cli::Io {
+            out: &mut out,
+            err: &mut err,
+            term: &mut term,
+            json: args.json,
+            now_ms: ligus_term::app::runtime::now_ms(),
+            utc_offset: ligus_term::link_code::local_offset_secs(),
+        };
+        let code = ligus_term::link_cli::run(backend.as_ref(), &args.command, &mut io).await;
+        if let Some(real) = &real {
+            real.shutdown();
+        }
+        std::process::exit(code);
+    }
+
     if plain_mode || !std::io::stdout().is_terminal() || !std::io::stdin().is_terminal() {
         let opts = plain::PlainOpts {
             one_shot: (!args.command.is_empty()).then(|| args.command.join(" ")),
@@ -231,6 +252,7 @@ async fn run() -> anyhow::Result<()> {
 
     let mut state = State::new(backend.device(), keymap, app::runtime::now_ms());
     state.config_path = config_path.map(|p| p.display().to_string());
+    state.utc_offset = ligus_term::link_code::local_offset_secs();
     state.mouse = config.mouse.unwrap_or(true);
     state.reduce_motion = args.reduce_motion
         || env("LT_REDUCE_MOTION").is_some_and(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "on" | "yes"));

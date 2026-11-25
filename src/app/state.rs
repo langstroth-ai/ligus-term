@@ -607,6 +607,11 @@ pub struct State {
     pub focus_mode: bool,
     /// Spinners stand still (`--reduce-motion`, `LT_REDUCE_MOTION`).
     pub reduce_motion: bool,
+    /// The person's offset from UTC (seconds), for the times lt shows
+    /// (0 in tests: UTC).
+    pub utc_offset: i32,
+    /// The "Linking waiting…" notice was shown once this run.
+    pub link_notice_shown: bool,
     pub quit: bool,
     /// Quitting to look around in the demo: `lt --demo` runs next.
     pub exec_demo: bool,
@@ -705,6 +710,8 @@ impl State {
             loaded: Default::default(),
             my_chats: Default::default(),
             reduce_motion: false,
+            utc_offset: 0,
+            link_notice_shown: false,
             notice_burst: 0,
             focus_mode: false,
             quit: false,
@@ -771,6 +778,17 @@ impl State {
             && self.active_workspace().is_some()
             && self.members.iter().any(|m| m.you && !m.service)
             && self.members.iter().any(|m| !m.you && !m.service)
+    }
+
+    /// "Linking waiting for your desktop's code (started HH:MM; expires
+    /// HH:MM)" while a link request waits, as this person's clock shows it.
+    pub fn link_pending_line(&self) -> Option<String> {
+        let st = self.settings.as_ref()?;
+        if st.linked_to.is_some() {
+            return None;
+        }
+        let p = st.link_pending.as_ref()?;
+        Some(crate::link_cli::pending_line(p, self.now, self.utc_offset))
     }
 
     /// Another member that very likely is the person at this terminal on

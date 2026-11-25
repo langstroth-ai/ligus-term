@@ -360,6 +360,10 @@ pub fn settings(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         None if s.own_member_unlinked() => lines.push(own_member_line(s, Context::Settings, "  ", t)),
         None => {}
     }
+    // A link started and not finished.
+    if let Some(line) = s.link_pending_line() {
+        lines.push(Line::from(Span::styled(format!("  {line}"), t.accent())));
+    }
     lines.extend([
         Line::raw(""),
         head("Notifications and agents"),

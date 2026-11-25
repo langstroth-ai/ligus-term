@@ -8,6 +8,23 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Added
 
+- Linking from a shell without retyping: `lt --plain link-request` prints
+  only the request on stdout (so `| pbcopy` copies exactly the code); the
+  fingerprint and the next steps go to stderr. `--copy` copies it, `--json`
+  prints `{code, fingerprint, label, expiresAt, newDevice}`.
+- `lt --plain link-redeem` with no code, at a terminal, asks for a paste it
+  doesn't echo or, on a bare Enter, reads the clipboard (`pbpaste`,
+  `wl-paste`, `xclip`, `xsel`, `Get-Clipboard`); `-` reads stdin. It shows
+  who approved the code and asks "Is that your desktop?", so
+  `--approver-fingerprint` is needed only without a terminal (else exit 4).
+  The code never needs to be on the command line.
+- The link form's Desktop's code field takes a paste with whatever came
+  with it (spaces, line breaks, a whole copied command) and goes straight to
+  who approved it.
+- A link started and not finished says so: "Linking waiting for your
+  desktop's code (started HH:MM; expires HH:MM)" in Settings, once when `lt`
+  starts, and from `lt --plain link-status`. Requests no code can answer any
+  more are dropped on their own.
 - Link to my devices is easy to find: while this terminal is its own member,
   Settings says so on one line, and so does People when another member there
   looks like you (the same name, or a shorter one: "zaz" and "zazulam"). `D`

@@ -333,3 +333,33 @@ async fn a_removed_member_is_told_why_and_what_to_do() {
     assert!(e.0.contains("zaz, who isn't a member of this workspace any more") && e.0.contains("re-link this computer"), "{e}");
     assert!(!e.0.contains("cannot perform"), "{e}");
 }
+
+/// A request that waits shows as waiting (Settings, `link-status`); one no
+/// grant can answer any more is dropped from the data dir on its own.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_waiting_link_shows_and_an_expired_one_is_cleaned_up() {
+    let tmp = tempfile::tempdir().unwrap();
+    let relay = serve(ligus_runtime::test_relay::router()).await;
+    let laptop = device(&tmp.path().join("laptop"), "lt on laptop", &relay);
+    assert_eq!(laptop.b.link_status().await.unwrap(), LinkStatusView::default());
+    laptop.b.link_request().await.unwrap();
+    laptop.b.link_request().await.unwrap();
+    let st = laptop.b.link_status().await.unwrap();
+    let p = st.pending.expect("waiting");
+    assert_eq!(p.count, 2);
+    assert_eq!(p.approve_by_ms - p.started_ms, 15 * 60_000);
+    assert_eq!(p.expires_ms - p.started_ms, 45 * 60_000);
+    assert_eq!(laptop.b.settings().await.unwrap().link_pending, Some(p));
+
+    // An hour later: both are past any grant's life.
+    let dir = tmp.path().join("laptop");
+    let path = ligus_runtime::computer_link::LinkState::path(&dir);
+    let mut state = ligus_runtime::computer_link::LinkState::load(&dir).unwrap();
+    for q in &mut state.pending {
+        q.created_at -= 60 * 60_000;
+    }
+    state.save(&dir).unwrap();
+    assert!(laptop.b.link_status().await.unwrap().pending.is_none());
+    let left = ligus_runtime::computer_link::LinkState::load(&dir).unwrap();
+    assert!(left.pending.is_empty(), "dropped from {}", path.display());
+}

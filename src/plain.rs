@@ -34,6 +34,7 @@ commands (N is a number from the last list, or an id):
                        My devices > Add a computer); prints its fingerprint
   link-redeem CODE --approver-fingerprint FP  link with the code your desktop shows, after
                        checking the approving desktop's fingerprint (FP) is your desktop's
+  link-status          whether this computer is linked, or a link is waiting for the desktop's code
   workspaces           list workspaces          use N        switch workspace
   chats                list chats               open N       open a chat and print it
   new TITLE            start a chat             say TEXT     post to the open chat
@@ -221,6 +222,7 @@ pub const COMMANDS: &[&str] = &[
     "join",
     "link-request",
     "link-redeem",
+    "link-status",
     "check",
     "connect",
     "workspaces",
@@ -764,6 +766,11 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
             if grant.is_empty() {
                 return fail("usage: link-redeem CODE --approver-fingerprint FP".into()).await;
             }
+            // The code out of whatever was pasted around it.
+            let grant = match crate::link_code::grant_in(&grant) {
+                crate::link_code::Pasted::Grant(g) => g,
+                other => return fail(crate::link_code::not_a_grant(&other, false)).await,
+            };
             let check = match b.inspect_link_grant(&grant).await {
                 Ok(c) => c,
                 Err(e) => return fail(e.0).await,
@@ -771,7 +778,7 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
             say(format!("link-grant\t{}\t{}\t{}", esc(&check.person_name), esc(&check.workspace_name), esc(&check.approver_fingerprint)))
                 .await;
             match fp {
-                Some(f) if f.trim().eq_ignore_ascii_case(&check.approver_fingerprint) => {}
+                Some(f) if crate::link_code::same_fingerprint(&f, &check.approver_fingerprint) => {}
                 Some(f) => {
                     return fail(format!("approved by desktop {}, not {}: don't use this code", check.approver_fingerprint, f.trim()))
                         .await;
@@ -794,6 +801,23 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                 Err(e) => fail(e.0).await,
             }
         }
+        "link-status" => match b.link_status().await {
+            Ok(v) => {
+                let now = crate::app::runtime::now_ms();
+                let text = crate::link_cli::status_line(&v, now, crate::link_code::local_offset_secs());
+                let state = if v.linked_to.is_some() {
+                    "linked"
+                } else if v.pending.is_some() {
+                    "waiting"
+                } else {
+                    "none"
+                };
+                let (started, expires) = v.pending.map(|p| (p.started_ms.to_string(), p.approve_by_ms.to_string())).unwrap_or_default();
+                say(format!("link-status\t{state}\t{}\t{started}\t{expires}\t{}", esc(v.linked_to.as_deref().unwrap_or("")), esc(&text)))
+                    .await;
+            }
+            Err(e) => fail(e.0).await,
+        },
         "workspaces" => match b.workspaces().await {
             Ok(w) => {
                 for (i, x) in w.iter().enumerate() {

@@ -611,7 +611,7 @@ pub fn device_run(linked: Option<String>) -> SetupOutcome {
             true,
         ),
         None => {
-            let what = "in lt: the palette's Link this computer to my devices (or lt link-request), approve it on your desktop under My devices > Add a computer, then paste the code back (lt link-redeem CODE --approver-fingerprint FP)";
+            let what = "in lt: the palette's Link this computer to my devices (or lt link-request), approve it on your desktop under My devices > Add a computer, then press Copy for lt there and paste it back (or run lt --plain link-redeem: it reads the clipboard)";
             device_outcome(
                 vec![
                     Check::warn(
