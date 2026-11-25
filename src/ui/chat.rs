@@ -230,10 +230,27 @@ fn draw_list(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
 fn draw_main(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     let chat = s.open_chat_summary();
     let lock_h = if chat.is_some_and(|c| c.lockdown.is_some()) { 2 } else { 0 };
+    // A scratch repo near its cleanup: one calm line above the transcript.
+    let notice = chat.and_then(|c| c.repo.as_ref()).filter(|r| r.mine && r.notice).and_then(|r| r.removes_on.clone());
+    let notice_h = if notice.is_some() { 1 } else { 0 };
     let comp_lines = s.composer.lines().len().clamp(1, 6) as u16;
-    let [lock, transcript, thinking, composer] =
-        Layout::vertical([Constraint::Length(lock_h), Constraint::Min(3), Constraint::Length(1), Constraint::Length(comp_lines + 2)])
-            .areas(area);
+    let [lock, notice_area, transcript, thinking, composer] = Layout::vertical([
+        Constraint::Length(lock_h),
+        Constraint::Length(notice_h),
+        Constraint::Min(3),
+        Constraint::Length(1),
+        Constraint::Length(comp_lines + 2),
+    ])
+    .areas(area);
+    if let Some(day) = notice {
+        let keep = s.keymap.hint(Context::Chat, Action::KeepScratch);
+        let w = notice_area.width as usize;
+        let line = Line::from(vec![
+            Span::styled(trunc(&format!(" This scratch repo will be removed on {day} · "), w.saturating_sub(keep.width() + 9)), t.dim()),
+            Span::styled(format!("{keep} keep it"), t.accent()),
+        ]);
+        f.render_widget(Paragraph::new(line), notice_area);
+    }
 
     if let Some(l) = chat.and_then(|c| c.lockdown.as_ref()) {
         let reasons = l.reasons.join("; ");
@@ -263,7 +280,18 @@ fn draw_main(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     if area.width < LIST_OVERLAY_BELOW && chat.is_some() && s.chats.len() > 1 {
         title = format!("{title} · {}/{}", s.chat_sel.index + 1, s.chats.len());
     }
-    let block = pane(&title, s.focus == Focus::Detail, t);
+    let mut block = pane(&title, s.focus == Focus::Detail, t);
+    // The chat's repository on the right of the title, tagged when scratch.
+    if let Some(r) = chat.and_then(|c| c.repo.as_ref())
+        && transcript.width as usize > title.width() + r.name.width() + 16
+    {
+        let mut spans = vec![Span::styled(format!(" {}", r.name), t.dim())];
+        if r.scratch {
+            spans.push(super::overlays::scratch_tag(t));
+        }
+        spans.push(Span::raw(" "));
+        block = block.title_top(Line::from(spans).right_aligned());
+    }
     let inner = block.inner(transcript);
     // A comfortable line length, centred, however wide the pane.
     let inner = if inner.width > READING_WIDTH {

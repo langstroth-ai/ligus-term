@@ -1,0 +1,54 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
+┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓ This scratch repo will be removed on 2026-11-20 · K keep it                                                                    ╭ This chat ───────────────────────────╮
+┃  ◆ Fix flaky checkout … 12m  ┃╭ Weekly release notes ───────────────────────────────────────────────────────────────────────────────── release-notes scratch ╮│Proposals                             │
+┃  ◆ Migrate auth to pas… 50m  ┃│             Mara  1d                                                                                                         ││· Export orders to CSV 2/2            │
+┃  Weekly release notes    1d  ┃│               Draft notes for 0.4: order history, export to CSV.                                                             ││· Bump the order schema version 2/2   │
+┃                              ┃│               → proposal “Bump the order schema version” · applied 2/2                                                       ││                                      │
+┃                              ┃│               → proposal “Export orders to CSV” · approved 2/2                                                               ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                               ┏ Keep it as a repo ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                       ││                                      │
+┃                              ┃│                               ┃Moves release-notes out of the scratch folder; it stays in the        ┃                       ││                                      │
+┃                              ┃│                               ┃workspace as an ordinary repo.                                        ┃                       ││                                      │
+┃                              ┃│                               ┃~/projects/release-notes                                              ┃                       ││                                      │
+┃                              ┃│                               ┃                                                                      ┃                       ││                                      │
+┃                              ┃│                               ┃enter keep · esc cancel                                               ┃                       ││                                      │
+┃                              ┃│                               ┃To publish it to GitHub (private), use the desktop or the phone.      ┃                       ││                                      │
+┃                              ┃│                               ┃                                                                      ┃                       ││                                      │
+┃                              ┃│                               ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                       ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│                                      │
+┃                              ┃                                                                                                                                │                                      │
+┃                              ┃╭ Message the room ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮│                                      │
+┃                              ┃│i to write · @ mentions an agent or a person                                                                                  ││                                      │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯╰──────────────────────────────────────╯
+i write  N new chat  tab pane  . actions  ctrl-p commands  f1 help                                                                                                       peer to peer · 1 running · demo

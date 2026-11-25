@@ -72,6 +72,51 @@ struct Ws {
     relay: Option<String>,
     tools: Vec<ligus_runtime::setup::McpFact>,
     repos: Vec<ligus_runtime::setup::RepoFact>,
+    /// The repositories chats work in (the chat repo picker), scratch ones
+    /// included, and each chat's.
+    chat_repos: Vec<FakeRepo>,
+    chat_repo: HashMap<ChatId, String>,
+}
+
+/// A workspace repository a demo chat can work in.
+#[derive(Clone)]
+struct FakeRepo {
+    view: ChatRepo,
+    here: bool,
+}
+
+impl Ws {
+    /// A repository by id: the chat repos, then the ones set up (`u`).
+    fn repo_view(&self, id: &str) -> Option<ChatRepo> {
+        self.chat_repos.iter().find(|r| r.view.id == id).map(|r| r.view.clone()).or_else(|| {
+            self.repos.iter().find(|r| r.id == id).map(|r| ChatRepo {
+                id: r.id.clone(),
+                name: r.display_name.clone(),
+                scratch: false,
+                mine: false,
+                removes_on: None,
+                notice: false,
+                keep_to: None,
+            })
+        })
+    }
+
+    /// A new scratch repo for the demo, as this device would make one.
+    fn add_scratch(&mut self, name: &str, now: Millis, seq: u64) -> ChatRepo {
+        let slug = ligus_runtime::repos::scratch::slug(name);
+        let days = i64::from(ligus_runtime::repos::scratch::DEFAULT_CLEANUP_DAYS);
+        let view = ChatRepo {
+            id: format!("r-scratch-{seq}"),
+            name: slug.clone(),
+            scratch: true,
+            mine: true,
+            removes_on: Some(ligus_runtime::repos::scratch::date(now / 1000 + days * 86_400)),
+            notice: false,
+            keep_to: Some(format!("~/projects/{slug}")),
+        };
+        self.chat_repos.push(FakeRepo { view: view.clone(), here: true });
+        view
+    }
 }
 
 #[derive(Clone)]
@@ -709,6 +754,7 @@ fn chat(id: &str, title: &str, channel: Option<&str>, at: Millis, unread: bool, 
         unread,
         mentioned,
         lockdown: None,
+        repo: None,
     }
 }
 
@@ -868,6 +914,35 @@ fn seed_northwind(w: &mut World) {
         chat("c-auth", "Migrate auth to passkeys", Some("dev"), DEMO_NOW - 50 * MIN, false, false),
         chat("c-notes", "Weekly release notes", None, DEMO_NOW - 26 * 60 * MIN, false, false),
     ];
+    // The chats' repositories: the API, bound here, and the release notes'
+    // scratch repo, two days from its cleanup.
+    ws.chat_repos = vec![
+        FakeRepo {
+            view: ChatRepo {
+                id: "r-northwind-api".into(),
+                name: "northwind-api".into(),
+                scratch: false,
+                mine: false,
+                removes_on: None,
+                notice: false,
+                keep_to: None,
+            },
+            here: true,
+        },
+        FakeRepo {
+            view: ChatRepo {
+                id: "r-release-notes".into(),
+                name: "release-notes".into(),
+                scratch: true,
+                mine: true,
+                removes_on: Some("2026-11-20".into()),
+                notice: true,
+                keep_to: Some("~/projects/release-notes".into()),
+            },
+            here: true,
+        },
+    ];
+    ws.chat_repo.insert(ChatId::new("c-notes"), "r-release-notes".into());
     ws.chats[1].lockdown =
         Some(Lockdown { reasons: vec!["prompt-injection marker in a tool result (fetch_url)".into()], clear: Allowed::Yes });
     ws.messages.insert(
@@ -1438,7 +1513,11 @@ impl Backend for FakeBackend {
 
     async fn chats(&self, workspace: &WorkspaceId) -> Result<Vec<ChatSummary>> {
         let mut w = self.lock();
-        let mut c = w.ws(workspace)?.chats.clone();
+        let ws = w.ws(workspace)?;
+        let mut c = ws.chats.clone();
+        for chat in &mut c {
+            chat.repo = ws.chat_repo.get(&chat.id).and_then(|r| ws.repo_view(r));
+        }
         c.sort_by_key(|x| std::cmp::Reverse(x.updated_at));
         Ok(c)
     }
@@ -2008,6 +2087,83 @@ impl Backend for FakeBackend {
         Ok(path)
     }
 
+    async fn repo_choices(&self, workspace: &WorkspaceId) -> Result<RepoChoices> {
+        let mut w = self.lock();
+        let role = self.your_role(&mut w, workspace)?;
+        let ws = w.ws(workspace)?;
+        let mut repos: Vec<RepoChoice> = ws
+            .chat_repos
+            .iter()
+            .map(|r| RepoChoice { id: r.view.id.clone(), name: r.view.name.clone(), scratch: r.view.scratch, here: r.here })
+            .collect();
+        for r in &ws.repos {
+            if !repos.iter().any(|x| x.id == r.id) {
+                repos.push(RepoChoice { id: r.id.clone(), name: r.display_name.clone(), scratch: false, here: r.bound_here.is_some() });
+            }
+        }
+        let new_scratch =
+            if role >= Role::Admin { Allowed::Yes } else { Allowed::No("only an Admin adds repositories, scratch ones too".into()) };
+        Ok(RepoChoices { new_scratch, repos })
+    }
+
+    async fn set_chat_repo(&self, workspace: &WorkspaceId, chat: &ChatId, repo: Option<&str>) -> Result<()> {
+        let mut w = self.lock();
+        let ws = w.ws(workspace)?;
+        if !ws.chats.iter().any(|c| &c.id == chat) {
+            return err("no such chat");
+        }
+        match repo {
+            Some(r) if ws.repo_view(r).is_none() => return err("no such repository"),
+            Some(r) => {
+                ws.chat_repo.insert(chat.clone(), r.to_string());
+            }
+            None => {
+                ws.chat_repo.remove(chat);
+            }
+        }
+        drop(w);
+        self.emit(Event::ChatsChanged { workspace: workspace.clone() });
+        Ok(())
+    }
+
+    async fn new_scratch_repo(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<ChatRepo> {
+        let mut w = self.lock();
+        if self.your_role(&mut w, workspace)? < Role::Admin {
+            return err("only an Admin can add a repository to this workspace, scratch ones too; ask an Admin");
+        }
+        let (now, seq) = (w.clock, w.seq + 1);
+        w.seq = seq;
+        let ws = w.ws(workspace)?;
+        let title =
+            ws.chats.iter().find(|c| &c.id == chat).map(|c| c.title.clone()).ok_or_else(|| super::BackendError("no such chat".into()))?;
+        let repo = ws.add_scratch(&title, now, seq);
+        ws.chat_repo.insert(chat.clone(), repo.id.clone());
+        drop(w);
+        self.emit(Event::ChatsChanged { workspace: workspace.clone() });
+        Ok(repo)
+    }
+
+    async fn keep_scratch_repo(&self, workspace: &WorkspaceId, chat: &ChatId, dest: &str) -> Result<String> {
+        let dest = dest.trim();
+        if !(dest.starts_with('/') || dest.starts_with("~/")) {
+            return err("keep it in an absolute path");
+        }
+        let mut w = self.lock();
+        let ws = w.ws(workspace)?;
+        let id = ws.chat_repo.get(chat).cloned().unwrap_or_default();
+        let taken = ws.chat_repos.iter().any(|r| r.view.keep_to.is_none() && dest.ends_with(&format!("/{}", r.view.name)));
+        let Some(r) = ws.chat_repos.iter_mut().find(|r| r.view.id == id && r.view.mine) else {
+            return err("this chat's repository isn't a scratch repo this device made");
+        };
+        if taken {
+            return err(format!("{dest} already exists"));
+        }
+        r.view = ChatRepo { scratch: false, mine: false, removes_on: None, notice: false, keep_to: None, ..r.view.clone() };
+        drop(w);
+        self.emit(Event::ChatsChanged { workspace: workspace.clone() });
+        Ok(dest.to_string())
+    }
+
     async fn workflows(&self, workspace: &WorkspaceId) -> Result<Vec<Workflow>> {
         Ok(self.lock().ws(workspace)?.workflows.clone())
     }
@@ -2402,6 +2558,29 @@ impl SetupOps for FakeOps {
         });
         self.changed(|workspace| Event::HostsChanged { workspace });
         Ok(())
+    }
+    fn create_scratch(&mut self, name: &str) -> OpsResult<(String, String)> {
+        let (now, seq) = {
+            let mut w = self.b.lock();
+            w.seq += 1;
+            (w.clock, w.seq)
+        };
+        let made = self.with(|w| {
+            let name = if name.trim().is_empty() { "scratch" } else { name.trim() };
+            let repo = w.add_scratch(name, now, seq);
+            let path = format!("~/.ligus-term/scratch/{}-{seq:08x}", repo.name);
+            w.repos.push(RepoFact {
+                id: repo.id.clone(),
+                canonical: format!("local:{seq:040x}"),
+                display_name: repo.name.clone(),
+                default_branch: "main".into(),
+                bound_here: Some(path.clone()),
+            });
+            (repo.id, path)
+        });
+        let made = made.ok_or_else(|| OpsError::Failed("create or join a workspace first".into()))?;
+        self.changed(|workspace| Event::HostsChanged { workspace });
+        Ok(made)
     }
     fn probe_relay(&self, url: &str, token: Option<&zeroize::Zeroizing<String>>) -> ProbeFact {
         if url.contains("localhost") || url.contains("127.0.0.1") {

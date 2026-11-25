@@ -82,6 +82,13 @@ pub async fn run_effect(b: Arc<dyn Backend>, fx: Effect) -> Msg {
         LoadHandoffs(w) => Msg::Handoffs(w.clone(), b.handoffs(&w).await),
         LoadCheckout(w) => Msg::Checkout(w.clone(), b.checkout(&w).await),
         SetCheckout(w, p) => Msg::Checkout(w.clone(), b.set_checkout(&w, p.as_deref()).await),
+        LoadRepoChoices(w) => Msg::RepoChoices(w.clone(), b.repo_choices(&w).await),
+        SetChatRepo(w, c, r) => {
+            let ok = if r.is_some() { "Repository set: this chat's agents work in it" } else { "This chat has no repository now" };
+            done(ok, b.set_chat_repo(&w, &c, r.as_deref()).await)
+        }
+        NewScratchRepo(w, c) => Msg::ScratchMade(w.clone(), b.new_scratch_repo(&w, &c).await),
+        KeepScratch(w, c, dest) => Msg::ScratchKept(w.clone(), b.keep_scratch_repo(&w, &c, &dest).await),
         ShowText(_) => Msg::Shown(Err(crate::backend::BackendError("the pager runs only in the full-screen app".into()))),
         StopTurn(w, c) => Msg::Stopped(w.clone(), c.clone(), b.stop_turn(&w, &c).await),
         // The full-screen loop runs the editor itself (it owns the

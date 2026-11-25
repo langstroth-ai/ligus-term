@@ -1109,3 +1109,60 @@ async fn presence_without_a_browser_here() {
     assert!(screen.contains("8765:127.0.0.1:8765"), "{screen}");
     snap(&h, "presence_no_browser", "Passkey sheet with no browser here: the address for another device");
 }
+
+/// The demo's release-notes chat: its scratch repo, tagged in the title,
+/// and the notice two days before the cleanup.
+async fn scratch_chat() -> Harness {
+    let mut h = demo().await;
+    h.key(KeyCode::Down).await;
+    h.key(KeyCode::Down).await;
+    h.key(KeyCode::Enter).await;
+    h.key(KeyCode::Esc).await;
+    assert_eq!(h.state.open_chat.as_ref().map(|c| c.as_str()), Some("c-notes"));
+    h
+}
+
+#[tokio::test]
+async fn chat_with_a_scratch_repo() {
+    let h = scratch_chat().await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("release-notes scratch"), "{screen}");
+    assert!(screen.contains("This scratch repo will be removed on 2026-11-20 · K keep it"), "{screen}");
+    snap(&h, "chat_scratch", "A chat in a scratch repo: the tag, and the notice before the cleanup");
+}
+
+#[tokio::test]
+async fn chat_repo_picker() {
+    let mut h = scratch_chat().await;
+    h.key(KeyCode::Char('r')).await;
+    let screen = h.screen(W, H);
+    let rows: Vec<&str> = ["New scratch repo", "northwind-api", "release-notes scratch", "No repository"]
+        .into_iter()
+        .filter(|r| screen.contains(r))
+        .collect();
+    assert_eq!(rows.len(), 4, "{screen}");
+    let at = |r: &str| screen.find(r).unwrap();
+    assert!(at("New scratch repo") < at("northwind-api") && at("northwind-api") < at("No repository"), "{screen}");
+    snap(&h, "repo_picker", "The chat's repository: a new scratch repo first, then the workspace's, then none");
+
+    // A new scratch repo for this chat, named after it, tagged at once.
+    h.key(KeyCode::Char('g')).await;
+    h.key(KeyCode::Enter).await;
+    let c = h.state.open_chat_summary().unwrap();
+    let r = c.repo.as_ref().expect("the chat has its scratch repo");
+    assert!(r.scratch && r.mine && r.name == "weekly-release-notes", "{r:?}");
+}
+
+#[tokio::test]
+async fn keep_a_scratch_repo() {
+    let mut h = scratch_chat().await;
+    h.key(KeyCode::Char('K')).await;
+    assert!(h.screen(W, H).contains("~/projects/release-notes"));
+    snap(&h, "keep_scratch", "Keep a scratch repo as a repo: the folder to move it to");
+    h.key(KeyCode::Enter).await;
+    let c = h.state.open_chat_summary().unwrap();
+    let r = c.repo.as_ref().unwrap();
+    assert!(!r.scratch && !r.mine, "{r:?}");
+    let screen = h.screen(W, H);
+    assert!(!screen.contains("will be removed") && !screen.contains("notes scratch"), "{screen}");
+}

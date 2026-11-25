@@ -49,7 +49,16 @@ fn ws(id: &str, role: Role) -> WorkspaceSummary {
 }
 
 fn chat(id: &str) -> ChatSummary {
-    ChatSummary { id: ChatId::new(id), title: id.into(), channel: None, updated_at: NOW, unread: true, mentioned: false, lockdown: None }
+    ChatSummary {
+        id: ChatId::new(id),
+        title: id.into(),
+        channel: None,
+        updated_at: NOW,
+        unread: true,
+        mentioned: false,
+        lockdown: None,
+        repo: None,
+    }
 }
 
 fn proposal(id: &str, status: ProposalStatus) -> Proposal {
@@ -1904,4 +1913,86 @@ fn invites_and_admissions_copy_on_c_and_never_print_the_code() {
     assert!(matches!(&fx[..], [Effect::Copy(c)] if c.text == "ligusadmit1:z"));
     key(&mut s, KeyCode::Char('o'));
     assert!(matches!(&s.overlay, Some(Overlay::Code { fingerprint: Some(f), .. }) if f == "AAAA"));
+}
+
+fn scratch_repo(notice: bool) -> ChatRepo {
+    ChatRepo {
+        id: "r-s".into(),
+        name: "spike".into(),
+        scratch: true,
+        mine: true,
+        removes_on: Some("2026-11-20".into()),
+        notice,
+        keep_to: Some("~/projects/spike".into()),
+    }
+}
+
+fn choices(new_scratch: Allowed) -> RepoChoices {
+    RepoChoices {
+        new_scratch,
+        repos: vec![
+            RepoChoice { id: "r-api".into(), name: "northwind-api".into(), scratch: false, here: true },
+            RepoChoice { id: "r-s".into(), name: "spike".into(), scratch: true, here: true },
+        ],
+    }
+}
+
+/// `r` opens the chat repo picker: "New scratch repo" first (selected for
+/// a chat with no repo), the workspace's repos, then "No repository".
+#[test]
+fn the_repo_picker_puts_a_new_scratch_repo_first() {
+    let mut s = main_state();
+    let (w, c1) = (WorkspaceId::new("a"), ChatId::new("c1"));
+    assert_eq!(key(&mut s, KeyCode::Char('r')), vec![Effect::LoadRepoChoices(w.clone())]);
+    assert!(matches!(&s.overlay, Some(Overlay::RepoPicker { sel: 0, choices: None, .. })));
+    update(&mut s, Msg::RepoChoices(w.clone(), Ok(choices(Allowed::Yes))));
+    assert!(matches!(&s.overlay, Some(Overlay::RepoPicker { sel: 0, choices: Some(_), .. })));
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::NewScratchRepo(w.clone(), c1.clone())]);
+    assert!(s.overlay.is_none());
+
+    // A repo, and "No repository" last.
+    key(&mut s, KeyCode::Char('r'));
+    update(&mut s, Msg::RepoChoices(w.clone(), Ok(choices(Allowed::Yes))));
+    key(&mut s, KeyCode::Down);
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::SetChatRepo(w.clone(), c1.clone(), Some("r-api".into()))]);
+    key(&mut s, KeyCode::Char('r'));
+    update(&mut s, Msg::RepoChoices(w.clone(), Ok(choices(Allowed::Yes))));
+    key(&mut s, KeyCode::Char('G'));
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::SetChatRepo(w, c1, None)]);
+}
+
+/// The picker starts on the chat's own repo; a member who can't add
+/// repositories gets the backend's reason, and nothing is made.
+#[test]
+fn the_repo_picker_starts_on_the_chats_repo_and_shows_refusals() {
+    let mut s = main_state();
+    let w = WorkspaceId::new("a");
+    s.chats[0].repo = Some(scratch_repo(false));
+    key(&mut s, KeyCode::Char('r'));
+    update(&mut s, Msg::RepoChoices(w.clone(), Ok(choices(Allowed::No("only an Admin adds repositories".into())))));
+    assert!(matches!(&s.overlay, Some(Overlay::RepoPicker { sel: 2, .. })));
+    key(&mut s, KeyCode::Char('g'));
+    assert!(key(&mut s, KeyCode::Enter).is_empty());
+    assert!(s.toasts.iter().any(|t| t.text.contains("only an Admin adds repositories")));
+    assert!(matches!(&s.overlay, Some(Overlay::RepoPicker { .. })), "stays open to pick another");
+}
+
+/// `K` keeps the chat's scratch repo: the suggested folder first, then
+/// the folder typed; a chat without one says so.
+#[test]
+fn keeping_a_scratch_repo() {
+    let mut s = main_state();
+    let (w, c1) = (WorkspaceId::new("a"), ChatId::new("c1"));
+    assert!(key(&mut s, KeyCode::Char('K')).is_empty());
+    assert!(s.overlay.is_none());
+    assert!(s.toasts.iter().any(|t| t.text.contains("isn't a scratch repo this device made")));
+    s.chats[0].repo = Some(scratch_repo(true));
+    key(&mut s, KeyCode::Char('K'));
+    assert!(matches!(&s.overlay, Some(Overlay::KeepScratch { path, name, .. }) if path.text == "~/projects/spike" && name == "spike"));
+    typed(&mut s, "-kept");
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::KeepScratch(w.clone(), c1, "~/projects/spike-kept".into())]);
+    // Kept: it says where, and the chat list reloads (the tag goes).
+    let fx = update(&mut s, Msg::ScratchKept(w.clone(), Ok("/Users/mara/projects/spike-kept".into())));
+    assert_eq!(fx, vec![Effect::LoadChats(w)]);
+    assert!(s.toasts.iter().any(|t| t.text.contains("Kept at /Users/mara/projects/spike-kept")));
 }

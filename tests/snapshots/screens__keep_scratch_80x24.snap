@@ -1,0 +1,28 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
+┏ Chats ━━━━━━━━━━━━━━━━━━━┓ This scratch repo will be removed on 202…K keep it
+┃  ◆ Fix flaky check… 12m  ┃╭ Weekly release notes · 3/3 ──────────────────────╮
+┃  ◆ Migrate auth to… 50m  ┃│Mara  1d                                          │
+┃  Weekly release not… 1d  ┃│  Draft notes for 0.4: order history, export to   │
+┃                          ┃│  CSV.                                            │
+┃                          ┃│  → proposal “Bump the order sc…” · applied 2/2   │
+┃   ┏ Keep it as a repo ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓   │
+┃   ┃Moves release-notes out of the scratch folder; it stays in the        ┃   │
+┃   ┃workspace as an ordinary repo.                                        ┃   │
+┃   ┃~/projects/release-notes                                              ┃   │
+┃   ┃                                                                      ┃   │
+┃   ┃enter keep · esc cancel                                               ┃   │
+┃   ┃To publish it to GitHub (private), use the desktop or the phone.      ┃   │
+┃   ┃                                                                      ┃   │
+┃   ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛   │
+┃                          ┃│                                                  │
+┃                          ┃│                                                  │
+┃                          ┃╰──────────────────────────────────────────────────╯
+┃                          ┃
+┃                          ┃╭ Message the room ────────────────────────────────╮
+┃                          ┃│i to write · @ mentions an agent or a person      │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────╯
+i write  N new chat  tab pane  . actions  ctrl-p commands  f1 help  peer to peer

@@ -58,6 +58,8 @@ commands (N is a number from the last list, or an id):
   gate R approve|reject  decide run R's waiting gate      cancel-run R  cancel run R
   tasks / memory / handoffs  agents' task state, workspace memory, hand-offs
   checkout [PATH|none] show or set this device's checkout for apply on host
+  repo [scratch|none|N]  the open chat's repository: scratch makes a new scratch repo here
+  keep [PATH]          keep the open chat's scratch repo as a repo (moved to PATH)
   setup [FLOW [--FIELD VALUE ...]]  the guided setup flows (agent tool folder box phone invite relay);
                        secrets only as @FILE here; lt help setup has every flag
   confirm ID           answer a passkey prompt in the browser
@@ -263,8 +265,19 @@ pub const COMMANDS: &[&str] = &[
     "memory",
     "handoffs",
     "checkout",
+    "repo",
+    "keep",
     "setup",
 ];
+
+/// `chatrepo CHAT ID NAME FLAGS REMOVES_ON`: the chat's repository (empty
+/// id and name, flag `none`, when it has none).
+fn chat_repo_line(chat: &ChatId, r: Option<&ChatRepo>) -> String {
+    let Some(r) = r else { return format!("chatrepo\t{}\t\t\tnone\t", esc(chat)) };
+    let flags =
+        format!("{}{}{}", if r.scratch { "scratch " } else { "" }, if r.mine { "mine " } else { "" }, if r.notice { "notice" } else { "" });
+    format!("chatrepo\t{}\t{}\t{}\t{}\t{}", esc(chat), esc(&r.id), esc(&r.name), flags.trim(), esc(r.removes_on.as_deref().unwrap_or("")))
+}
 
 fn run_line(i: usize, r: &Run) -> String {
     let done = r.stages.iter().filter(|s| s.status == StageStatus::Succeeded).count();
@@ -1063,6 +1076,55 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
             };
             match r {
                 Ok(c) => say(format!("checkout\t{}", esc(c.as_deref().unwrap_or("")))).await,
+                Err(e) => fail(e.0).await,
+            }
+        }
+        "repo" => {
+            let chat = { s.lock().await.chat.clone() };
+            let Some(chat) = chat else { return fail("open a chat first: open N".into()).await };
+            let w = ws.unwrap();
+            let set = match arg {
+                "" => Ok(()),
+                "scratch" => b.new_scratch_repo(&w, &chat).await.map(|_| ()),
+                "none" => b.set_chat_repo(&w, &chat, None).await,
+                sel => match b.repo_choices(&w).await {
+                    Ok(c) => match pick(&c.repos, sel, |r| r.id.as_str()).or_else(|| c.repos.iter().find(|r| r.name == sel)) {
+                        Some(r) => b.set_chat_repo(&w, &chat, Some(&r.id)).await,
+                        None => return fail(format!("no repository {sel}")).await,
+                    },
+                    Err(e) => Err(e),
+                },
+            };
+            if let Err(e) = set {
+                return fail(e.0).await;
+            }
+            let current = b.chats(&w).await.ok().and_then(|c| c.into_iter().find(|c| c.id == chat)).and_then(|c| c.repo);
+            say(chat_repo_line(&chat, current.as_ref())).await;
+            if arg.is_empty() {
+                match b.repo_choices(&w).await {
+                    Ok(c) => {
+                        let new = c.new_scratch.reason().unwrap_or("repo scratch makes one on this device");
+                        say(format!("repo\t0\t\tNew scratch repo\tnew\t{}", esc(new))).await;
+                        for (i, r) in c.repos.iter().enumerate() {
+                            let flags = format!("{}{}", if r.scratch { "scratch " } else { "" }, if r.here { "here" } else { "" });
+                            say(format!("repo\t{}\t{}\t{}\t{}\t", i + 1, esc(&r.id), esc(&r.name), flags.trim())).await;
+                        }
+                    }
+                    Err(e) => fail(e.0).await,
+                }
+            }
+        }
+        "keep" => {
+            let chat = { s.lock().await.chat.clone() };
+            let Some(chat) = chat else { return fail("open a chat first: open N".into()).await };
+            let w = ws.unwrap();
+            let dest = match arg {
+                "" => b.chats(&w).await.ok().and_then(|c| c.into_iter().find(|c| c.id == chat)).and_then(|c| c.repo?.keep_to),
+                p => Some(p.to_string()),
+            };
+            let Some(dest) = dest else { return fail("this chat's repository isn't a scratch repo this device made".into()).await };
+            match b.keep_scratch_repo(&w, &chat, &dest).await {
+                Ok(p) => say(format!("kept\t{}\t{}", esc(&chat), esc(&p))).await,
                 Err(e) => fail(e.0).await,
             }
         }

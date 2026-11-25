@@ -30,6 +30,10 @@ pub fn row_menu(s: &State) -> (String, Vec<MenuItem>) {
                 let tools = if s.tools_expanded { "Hide what tool calls returned" } else { "Show what tool calls returned" };
                 items.push(item(tools, ToggleTools, ctx, Allowed::Yes, Row));
                 items.push(item("Transcript in $PAGER", DumpTranscript, ctx, Allowed::Yes, Row));
+                items.push(item("Repository…", ChatRepo, ctx, Allowed::Yes, Row));
+                if c.repo.as_ref().is_some_and(|r| r.mine) {
+                    items.push(item("Keep the scratch repo as a repo…", KeepScratch, ctx, Allowed::Yes, Row));
+                }
                 match &c.lockdown {
                     None => items.push(item("Lock this chat down", LockChat, ctx, Allowed::Yes, Row)),
                     Some(l) => items.push(item("Clear the lockdown", ClearLockdown, ctx, l.clear.clone(), Row)),

@@ -136,6 +136,47 @@ pub struct ChatSummary {
     pub mentioned: bool,
     /// Lockdown is per chat.
     pub lockdown: Option<Lockdown>,
+    /// The repository its agents work in, if it has one.
+    pub repo: Option<ChatRepo>,
+}
+
+/// A chat's repository.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChatRepo {
+    pub id: String,
+    pub name: String,
+    /// A scratch repo: a throwaway one a device made empty for a chat.
+    pub scratch: bool,
+    /// A live scratch repo this device made: only this device can keep it
+    /// (its folder is here) and only this device removes it.
+    pub mine: bool,
+    /// When this device will clean it up (`2026-12-09`), unless someone
+    /// keeps it or works in it; `None` when the cleanup is off.
+    pub removes_on: Option<String>,
+    /// That day is close: the chat shows a notice.
+    pub notice: bool,
+    /// Where "Keep it as a repo" suggests (`~/projects/<name>`).
+    pub keep_to: Option<String>,
+}
+
+/// A workspace repository a chat could work in.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RepoChoice {
+    pub id: String,
+    pub name: String,
+    pub scratch: bool,
+    /// Checked out on this device (where this device's agents work in it).
+    pub here: bool,
+}
+
+/// What the chat repo picker offers.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RepoChoices {
+    /// Whether this device may make a new scratch repo (an Admin's, like
+    /// adding any repository), and why not.
+    pub new_scratch: Allowed,
+    /// The workspace's repositories, scratch ones included.
+    pub repos: Vec<RepoChoice>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -367,6 +367,9 @@ async fn gallery(dir: &Path) {
     let t = shot_theme();
     let shots: &[(&str, &[KeyCode])] = &[
         ("chats", &[]),
+        ("chats-scratch", &[KeyCode::Down, KeyCode::Down, KeyCode::Enter, KeyCode::Esc]),
+        ("chats-repo-picker", &[KeyCode::Down, KeyCode::Down, KeyCode::Enter, KeyCode::Esc, KeyCode::Char('r')]),
+        ("chats-keep-scratch", &[KeyCode::Down, KeyCode::Down, KeyCode::Enter, KeyCode::Esc, KeyCode::Char('K')]),
         ("workflows", &[KeyCode::Char('f')]),
         ("workflows-run", &[KeyCode::Char('f'), KeyCode::Down, KeyCode::Down]),
         ("workflows-run-menu", &[KeyCode::Char('f'), KeyCode::Down, KeyCode::Down, KeyCode::Char('.')]),
@@ -494,7 +497,8 @@ async fn setup_gallery(dir: &Path) {
         ("11-invite-handoff", vec![K(KeyCode::Char('u')), K(Down), K(Down), K(Down), K(Down), K(Down), K(Enter), K(Enter), K(Enter)]),
         ("12-phone-handoff", vec![K(KeyCode::Char('u')), K(Down), K(Down), K(Down), K(Down), K(Enter), K(Enter), K(Enter)]),
         ("13-box-from-here", vec![K(KeyCode::Char('u')), K(Down), K(Down), K(Down), K(Enter)]),
-        ("14-folder", vec![K(KeyCode::Char('u')), K(Down), K(Down), K(Enter), T("~/code/northwind")]),
+        ("14-folder", vec![K(KeyCode::Char('u')), K(Down), K(Down), K(Enter), K(Down), T("~/code/northwind")]),
+        ("15-folder-scratch", vec![K(KeyCode::Char('u')), K(Down), K(Down), K(Enter), K(KeyCode::Char(' '))]),
     ];
     for (name, ins) in shots {
         let mut h = Harness::new(true).await;

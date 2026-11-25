@@ -340,6 +340,21 @@ pub enum Overlay {
     },
     /// The checkout this device applies the workspace's proposals in.
     BindCheckout(TextBuf),
+    /// The chat's repository (`r`): a new scratch repo first, then the
+    /// workspace's repositories, then none. `choices` is `None` while they
+    /// load.
+    RepoPicker {
+        chat: ChatId,
+        sel: usize,
+        choices: Option<RepoChoices>,
+    },
+    /// Keep the chat's scratch repo as an ordinary repository (`K`): the
+    /// folder to move it to.
+    KeepScratch {
+        chat: ChatId,
+        name: String,
+        path: TextBuf,
+    },
     /// This session's notices and errors, newest first, in full.
     Messages {
         scroll: usize,
@@ -854,7 +869,10 @@ impl State {
         }
         match &self.overlay {
             Some(Overlay::AddWorkspace(f)) => f.field != FormField::Mode,
-            Some(Overlay::NewChat(_)) | Some(Overlay::StartRun { .. }) | Some(Overlay::BindCheckout(_)) => true,
+            Some(Overlay::NewChat(_))
+            | Some(Overlay::StartRun { .. })
+            | Some(Overlay::BindCheckout(_))
+            | Some(Overlay::KeepScratch { .. }) => true,
             Some(Overlay::Help { searching, .. }) => *searching,
             Some(Overlay::Palette { .. }) | Some(Overlay::History { .. }) => true,
             Some(Overlay::SetupFlow(w)) => w.typing(),

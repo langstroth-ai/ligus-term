@@ -3,7 +3,7 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA]+1• │ 1 Chats 2 3 4 5 6 7 8(1) 9           Northwind API
-┏ Help · 1-16 of 107 · / search · esc closes ━━━━━━━━━━━━━━┓
+┏ Help · 1-16 of 109 · / search · esc closes ━━━━━━━━━━━━━━┓
 ┃Each chat is a room with people and agents. @ mentions an ┃
 ┃person; enter on a chat opens it and puts you in the compo┃
 ┃                                                          ┃
@@ -14,11 +14,11 @@ expression: screen
 ┃  N                        New chat                       ┃
 ┃  D                        The whole transcript in $PAGER ┃
 ┃  o                        Show or hide what tool calls re┃
+┃  r                        Choose this chat's repo (or a n┃
+┃  K                        Keep this chat's scratch repo a┃
 ┃  L                        Lock this chat down            ┃
 ┃  U                        Clear the lockdown             ┃
 ┃                                                          ┃
 ┃Lists  here                                               ┃
-┃  ↑, k                     Up                             ┃
-┃  ↓, j                     Down                           ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 / search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close
