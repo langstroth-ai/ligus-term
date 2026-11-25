@@ -12,11 +12,13 @@ Rendered by `tests/setup.rs` (110×32, the in-memory demo backend).
 ┃                              ┃│@coder  via claude-code · on build-box  38m                                 │
 ┃                              ┃│  Yes. The payment tests already use a fake clock, so it's a small change.  │
 ┃                              ┃│  I'll propose it.                                                          │
-┃                              ┃│  ◆ proposal “Inject the clock into checkout t…” · open 1/2 · p to review   │
-┃                ┏ Add a code folder · 1 of 2 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                │
+┃                ┏ Add a code folder · 1 of 2 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓· p to review   │
 ┃                ┃Agents work on a repository in its own worktree per chat. Binding tells   ┃                │
-┃                ┃this device which folder holds the workspace's repository.                ┃rovider uses.   │
-┃                ┃                                                                          ┃to review       │
+┃                ┃this device which folder holds the workspace's repository.                ┃                │
+┃                ┃                                                                          ┃rovider uses.   │
+┃                ┃Folder                                                                    ┃to review       │
+┃                ┃Start with a scratch repo                                                 ┃                │
+┃                ┃  [ ] space switches                                                      ┃                │
 ┃                ┃Folder                                                                    ┃                │
 ┃                ┃› ~/code/northwind                                                        ┃                │
 ┃                ┃  A git checkout on this device (its main checkout, not a linked          ┃                │
@@ -24,8 +26,6 @@ Rendered by `tests/setup.rs` (110×32, the in-memory demo backend).
 ┃                ┃                                                                          ┃                │
 ┃                ┃enter next · tab complete · shift-tab back · esc cancel                   ┃                │
 ┃                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                │
-┃                              ┃│                                                                            │
-┃                              ┃│                                                                            │
 ┃                              ┃│                                                                            │
 ┃                              ┃│                                                                            │
 ┃                              ┃│                                                                            │

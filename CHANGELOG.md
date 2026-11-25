@@ -8,6 +8,19 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Added
 
+- Scratch repos. `r` in a chat picks its repository: **New scratch repo**
+  first (an empty repository, one empty commit on `main`, made in this
+  device's scratch folder, added to the workspace as scratch and checked out
+  here; an Admin's, as adding any repository), then the workspace's
+  repositories (scratch ones tagged), then **No repository**. A chat in a
+  scratch repo shows a small `scratch` tag by its repository, and two days
+  before the cleanup (14 days without activity) a calm line: "This scratch
+  repo will be removed on ‹date› · K keep it". `K` keeps it as a repo in a
+  folder you pick. While `lt` runs it checks hourly for scratch repos it made
+  that are due a notice or removal. Set up's "Add a code folder" offers
+  "Start with a scratch repo". Plain mode: `repo [scratch|none|N]` and
+  `keep [PATH]`.
+
 - Link to my devices is easy to find: while this terminal is its own member,
   Settings says so on one line, and so does People when another member there
   looks like you (the same name, or a shorter one: "zaz" and "zazulam"). `D`
@@ -19,6 +32,13 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   pressed; `o` shows the code alone on the screen, with no border in its
   lines, to select it with the mouse. On the link form `ctrl-y` copies while
   you paste the desktop's code. Settings' row menu copies your safety code.
+
+### Changed
+
+- This device applies an approved proposal in its checkout of the
+  proposal's repository (a scratch repo's, say) even when no checkout is
+  bound for the workspace (Hosts, `b`); that binding is still where
+  proposals without a repository are applied.
 
 ### Fixed
 

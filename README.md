@@ -381,6 +381,32 @@ kept in this device's data dir and never synced.
 
 ![The proposals queue in lt: open, approved and applied proposals on the left; on the right a proposal's votes and actions above a diff of src/checkout.rs](assets/screens/proposals.svg)
 
+### A chat's repository and scratch repos
+
+Each chat can work in one of the workspace's repositories; its agents
+running on this device work in this device's checkout of it, on the chat's
+own branch and worktree. `r` in a chat (or "Repository…" in its row menu)
+picks it:
+
+- **New scratch repo** (first): no code yet? `lt` makes an empty
+  repository (one empty commit on `main`) in its scratch folder
+  (`<data dir>/scratch/<name>-<id>`), adds it to the workspace as scratch
+  and checks it out here. Adding a repository is an Admin's, scratch ones
+  too; anyone else is told so.
+- The workspace's repositories, a small `scratch` tag on scratch ones.
+- **No repository**.
+
+A chat in a scratch repo shows the tag beside its repository in the
+title. A scratch repo nobody keeps is removed after 14 days without
+activity, by the device that made it (`lt` checks hourly while it runs):
+two days before, its chats get a note and a calm line above the
+transcript, "This scratch repo will be removed on ‹date› · K keep it".
+`K` keeps it as a repo: it moves to the folder you pick (`~/projects/‹name›`
+is suggested) and stays in the workspace as an ordinary repository.
+Publishing it to GitHub (a private repository) is done from the desktop
+or the phone. Plain mode: `lt --plain repo [scratch|none|N]` and
+`lt --plain keep [PATH]` in the open chat.
+
 ### Agent tools
 
 Agent turns that run on this device use the same turn engine as the
@@ -571,7 +597,7 @@ The default keys (all can be rebound, see [Configure](#configure)):
 |---|---|
 | Anywhere | `q` / `ctrl-c` quit (while this device drives a run or an agent's turn it asks first; a second `ctrl-c` quits) · `:` / `ctrl-p` / `ctrl-k` command palette · `space` then pause: a sheet of the keys you can press here (any key then acts as usual) · `?` / `f1` help · `!` messages · `esc` back (to the view you came from) · `ctrl-o` / `alt-left` the previous view, `alt-right` forward again · `w` / `ctrl-w` workspaces · `+` add a workspace · `tab` / `shift-tab` next or previous pane · `ctrl-l` the chat list · `ctrl-f` focus mode (no top bar or key hints; one quiet `◆` badge while something needs you) · `ctrl-x` stop the agent's turn in this chat (when it runs on this device) |
 | Lists | `↑ ↓` or `j k` move · `pgup pgdn` (`ctrl-u ctrl-d`) · `g G` (`home end`) first and last · `enter` (`l`, `→`) the row's main action (open) · `.` / `shift-f10` the row menu (see below) · `/` find as you type (`↑ ↓` the previous or next match, `enter` keep, `esc` back to where you were) |
-| Chats | `D` the whole transcript in `$PAGER` (or left in your terminal's scrollback) · `i` write (lt starts with the cursor in the open chat's composer; `esc` leaves it) · `N` new chat · `o` show what tool calls returned · `L` lock the chat down · `U` clear the lockdown |
+| Chats | `D` the whole transcript in `$PAGER` (or left in your terminal's scrollback) · `i` write (lt starts with the cursor in the open chat's composer; `esc` leaves it) · `N` new chat · `r` the chat's repository (a new scratch repo first) · `K` keep its scratch repo as a repo · `o` show what tool calls returned · `L` lock the chat down · `U` clear the lockdown |
 | Composer | `enter` send · `alt-enter` / `ctrl-j` new line (`shift-enter` too, in terminals with the kitty keyboard protocol) · `@` mention, then `tab` or `enter` to accept · `↑` on an empty draft recalls what you sent (`↓` comes back) · `ctrl-r` search what you sent · `ctrl-g` write the draft in `$VISUAL` / `$EDITOR` · `esc` leave (the draft is kept) |
 | Workflows | `S` start a run (asks for its input) · `A` / `R` approve or reject the run's waiting gate (reject asks first) · `X` cancel the run (asks first) · `enter` on a run opens its chat |
 | Proposals | `A` approve · `R` reject (asks first) · `O` apply on a host · `W` withdraw the apply request |
