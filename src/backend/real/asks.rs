@@ -109,6 +109,7 @@ pub fn card(v: AskView, turn: Option<MessageId>, me: &str) -> Ask {
             too_large: e.too_large,
         }),
         origin,
+        posted_by: v.posted_by,
         status,
         at: v.at_ms,
         expires_at: v.expires_at_ms,
@@ -180,6 +181,10 @@ mod tests {
         let mut done = st(AskAudience::people(vec!["ada".into()]), None);
         done.answer = Some(HumanAnswered { option_index: Some(1), answer: "Hold".into(), ..Default::default() });
         done.answered_by = vec![AskVote { member_id: "ada".into(), name: "Not Ada".into(), at_ms: 5, ..Default::default() }];
+        // Someone else's ask under the agent's name names its poster.
+        let mut theirs = st(AskAudience::people(vec!["me".into()]), None);
+        theirs.posted_by = Some(ligus_core::flow::AskPoster { id: "lin".into(), name: "Agent".into() });
+        assert_eq!(of(&s, &theirs, "me", 0).posted_by.as_deref(), Some("Lin"));
         match of(&s, &done, "me", 0).status {
             AskStatus::Answered { by, answer, .. } => assert_eq!((by.as_str(), answer.as_str()), ("Ada", "Hold"), "roster names"),
             other => panic!("{other:?}"),

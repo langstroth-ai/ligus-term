@@ -1138,3 +1138,15 @@ async fn ask_cards() {
     let screen = h.screen(W, H);
     assert!(screen.contains("Mara answered Allow once"), "{screen}");
 }
+
+/// An ask someone else posted under an agent's name leads with its poster.
+#[tokio::test]
+async fn ask_card_posted_by_someone_else() {
+    let mut h = demo().await;
+    for a in h.state.asks.iter_mut().filter(|a| a.id.as_str() == "q-fixtures") {
+        a.posted_by = Some("Lin".into());
+    }
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Lin asks you:"), "{screen}");
+    assert!(screen.contains("not from coder."), "{screen}");
+}

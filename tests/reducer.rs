@@ -1936,6 +1936,7 @@ fn ask(id: &str, effect: Option<AskEffect>, can: Allowed) -> Ask {
         can_answer: can,
         effect,
         origin: None,
+        posted_by: None,
         status: AskStatus::Open,
         at: NOW,
         expires_at: NOW + 600_000,

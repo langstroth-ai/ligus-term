@@ -1166,6 +1166,10 @@ pub struct Ask {
     pub effect: Option<AskEffect>,
     /// "via sub-agent", "from <chat>", "outside Ligus".
     pub origin: Option<String>,
+    /// Posted by someone other than the agent or its host (a person, or
+    /// another device, under the agent's name): the card is theirs, never
+    /// a grant.
+    pub posted_by: Option<String>,
     pub status: AskStatus,
     pub at: Millis,
     pub expires_at: Millis,

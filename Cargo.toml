@@ -39,8 +39,8 @@ zeroize = "1.9.1"
 # The Ligus crates (Ligus is short for ligustica), pinned to a commit of the
 # ligus 0.4 agent-questions branch (feat/ask-tools-04, langstroth-ai/ligus
 # #255 and #257); re-pinned to the v0.4.0 release tag at release.
-ligus-core = { version = "0.3.0", git = "https://github.com/langstroth-ai/ligus", rev = "be81caef40f10c515b2e7a6ab4469b96a56b2530" }
-ligus-runtime = { version = "0.3.0", git = "https://github.com/langstroth-ai/ligus", rev = "be81caef40f10c515b2e7a6ab4469b96a56b2530", default-features = false }
+ligus-core = { version = "0.3.0", git = "https://github.com/langstroth-ai/ligus", rev = "d382ff902f2f27d396e55ed16ffc6ee0ce421feb" }
+ligus-runtime = { version = "0.3.0", git = "https://github.com/langstroth-ai/ligus", rev = "d382ff902f2f27d396e55ed16ffc6ee0ce421feb", default-features = false }
 
 # poll(2) on stdin for the terminal's background colour (OSC 11).
 [target.'cfg(unix)'.dependencies]
@@ -50,7 +50,7 @@ libc = "0.2.191"
 insta = "1.48.0"
 tempfile = "3.27.0"
 # The in-process mock relay two test devices sync through.
-ligus-runtime = { version = "0.3.0", git = "https://github.com/langstroth-ai/ligus", rev = "be81caef40f10c515b2e7a6ab4469b96a56b2530", default-features = false, features = ["test-relay"] }
+ligus-runtime = { version = "0.3.0", git = "https://github.com/langstroth-ai/ligus", rev = "d382ff902f2f27d396e55ed16ffc6ee0ce421feb", default-features = false, features = ["test-relay"] }
 axum = "0.8.9"
 
 [profile.release]

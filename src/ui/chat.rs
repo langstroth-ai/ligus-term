@@ -372,7 +372,12 @@ fn transcript_lines(s: &State, width: usize, t: &Theme) -> Vec<Line<'static>> {
 /// agent's words are quoted plain text; everything else is Ligus's, in
 /// muted chrome. Settled, declined and stopped cards are one line.
 fn ask_lines(s: &State, a: &Ask, width: usize, t: &Theme) -> Vec<Line<'static>> {
-    let agent = Span::styled(a.agent.clone(), t.fg(t.agent).add_modifier(Modifier::BOLD));
+    // Someone else's ask under the agent's name leads with who posted it,
+    // in a person's style, and says it isn't from the agent.
+    let (asker, agent) = match &a.posted_by {
+        Some(p) => (p.clone(), Span::styled(p.clone(), t.text().add_modifier(Modifier::BOLD))),
+        None => (a.agent.clone(), Span::styled(a.agent.clone(), t.fg(t.agent).add_modifier(Modifier::BOLD))),
+    };
     let origin = a.origin.as_ref().map(|o| format!(" · {o}")).unwrap_or_default();
     let quoted = |q: &str, room: usize| format!("\u{201c}{}\u{201d}", trunc(&q.replace('\n', " "), room.max(8)));
     match &a.status {
@@ -401,7 +406,7 @@ fn ask_lines(s: &State, a: &Ask, width: usize, t: &Theme) -> Vec<Line<'static>> 
     match &a.effect {
         None => {
             // `Builder asks you: "…"`, wrapped under the quote.
-            let lead = format!("{} asks {audience}: ", a.agent);
+            let lead = format!("{asker} asks {audience}: ");
             let text = format!("\u{201c}{}\u{201d}", a.question);
             let lines = wrap(&text, width.saturating_sub(lead.width() + 2).max(12));
             for (i, l) in lines.into_iter().enumerate() {
@@ -427,6 +432,9 @@ fn ask_lines(s: &State, a: &Ask, width: usize, t: &Theme) -> Vec<Line<'static>> 
                 Span::styled(origin.clone(), t.dim()),
             ]));
         }
+    }
+    if let Some(p) = &a.posted_by {
+        out.extend(chrome(&format!("Posted by {p} under {}'s name: not from {}.", a.agent, a.agent), width, t.dim()));
     }
     let ind = "    ";
     if let Some(e) = &a.effect {

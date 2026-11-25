@@ -805,6 +805,7 @@ fn demo_asks() -> Vec<Ask> {
         can_answer: Allowed::No("Waiting on Ada".into()),
         effect: None,
         origin: None,
+        posted_by: None,
         status: AskStatus::Answered { by: "Ada".into(), answer: "Fake clock".into(), text: None, at: DEMO_NOW - 37 * MIN },
         at: DEMO_NOW - 38 * MIN,
         expires_at: DEMO_NOW - 28 * MIN,
