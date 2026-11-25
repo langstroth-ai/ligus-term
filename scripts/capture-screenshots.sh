@@ -44,4 +44,4 @@ for mode in light dark; do
   done
 done
 pngquant --quality=65-90 --speed 1 --force --ext .png "$out"/png/*.png
-echo "$(ls "$out/png" | wc -l | tr -d ' ') PNGs in $out/png, WebP in $out/webp"
+echo "$(find "$out/png" -name "*.png" | wc -l | tr -d ' ') PNGs in $out/png, WebP in $out/webp"
