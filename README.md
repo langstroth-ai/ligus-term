@@ -615,7 +615,7 @@ The transcript renders the little Markdown agents write (bold, inline
 code, headings, lists, and fenced code in a box labelled with its
 language), shows each tool call on one line with how it ended and how long
 it took (`o` shows the first lines it returned), says where each agent's
-turn runs (`@coder  via claude-code · on sff`), adds a line for each
+turn runs (`@coder  via claude-code · on build-box`), adds a line for each
 proposal the chat produced (`◆` when it waits on your vote), and gives a
 reply that is still streaming one spinner cell and its elapsed time.
 
@@ -643,7 +643,7 @@ questions. A burst of notifications is one notice ("3 new notifications");
 the messages log (`!`) keeps each.
 
 Quitting says what is still going, in one dim line, when anything is:
-`lt: 1 run still going (driven by sff); 2 proposals waiting on your vote.`
+`lt: 1 run still going (driven by build-box); 2 proposals waiting on your vote.`
 
 The status bar has three parts: the keys for what has focus on the left
 (cut from the right, `? help` always stays), a notice in the centre when

@@ -9,7 +9,7 @@ expression: screen
 ┃Lin         contributor                                                       ┃
 ┃Sam         viewer                                                            ┃
 ┏ Admit a box ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃Sealed to the box (sff): check its fingerprint matches                        ┃
+┃Sealed to the box (build-box): check its fingerprint matches                  ┃
 ┃K3QF-7XMA-2DPL-90RW-ZT4E                                                      ┃
 ┃On the box: ligus admit redeem <code>, then start it again.                   ┃
 ┃                                                                              ┃

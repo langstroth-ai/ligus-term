@@ -12,7 +12,7 @@ expression: screen
 ┃                              ┃│▌src/export.rs +4 −0                          │
 ┃       ┏ Apply on… ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓       │
 ┃       ┃  Apply here (online)  this device                            ┃       │
-┃       ┃› Apply on sff (online)                                       ┃g {    │
+┃       ┃› Apply on build-box (online)                                 ┃g {    │
 ┃       ┃  Apply on ada-studio (offline)                               ┃llect:…│
 ┃       ┃                                                              ┃       │
 ┃       ┃enter choose · esc cancel                                     ┃       │

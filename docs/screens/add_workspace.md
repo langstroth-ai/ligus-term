@@ -9,7 +9,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃  ◆ Migrate auth to pas… 50m  ┃│  The checkout test fails about one run in ten. Can we stop it reading the  │
 ┃  Weekly release notes    1d  ┃│  wall clock?                                                               │
 ┃                              ┃│                                                                            │
-┃                              ┃│@coder  via claude-code · on sff  38m                                       │
+┃                              ┃│@coder  via claude-code · on build-box  38m                                 │
 ┃                  ┏ Add a workspace ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ a small change.  │
 ┃                  ┃› (•) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃                  │
 ┃                  ┃  ( ) Add to my devices                                               ┃2 · p to review   │

@@ -6,9 +6,9 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Agent ───────────────────────────────────────────────────╮
 ┃@ligus     idle                                 ┃│@ligus  idle                                              │
-┃@coder     busy · sff                           ┃│                                                          │
+┃@coder     busy · build-box                     ┃│                                                          │
 ┃@reviewer  idle                                 ┃│Runtime     claude-code                                   │
-┃@scout     idle · sff                           ┃│Runs on     This device                                   │
+┃@scout     idle · build-box                     ┃│Runs on     This device                                   │
 ┃                                                ┃│Who can use Everyone                                      │
 ┃                                                ┃│Doing       answers untagged messages                     │
 ┃                                                ┃│                                                          │

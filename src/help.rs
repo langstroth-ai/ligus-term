@@ -307,7 +307,7 @@ pub const COMMANDS: &[Cmd] = &[
         about: "Ask a host to apply an approved proposal in its checkout. HOST is a number, id or label from \
                 hosts; default the first online worker, else this device (which needs a checkout).",
         prints: "apply",
-        example: "lt --plain apply 3 sff",
+        example: "lt --plain apply 3 build-box",
     },
     Cmd {
         name: "agents",

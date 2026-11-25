@@ -799,7 +799,7 @@ fn seed_northwind(w: &mut World) {
         member("m-ada", "Ada", Role::Admin, false, false),
         member("m-lin", "Lin", Role::Contributor, false, false),
         member("m-sam", "Sam", Role::Viewer, false, false),
-        member("m-sff", "sff box", Role::Contributor, false, true),
+        member("m-build-box", "build box", Role::Contributor, false, true),
     ];
     ws.runtimes = vec![
         runtime("claude-code", RuntimeKind::ClaudeCode, Some("default"), true, true),
@@ -822,10 +822,10 @@ fn seed_northwind(w: &mut World) {
                     UsageRow { member: "Ben".into(), turns: 2, uncosted: 2, cost_micro_usd: None },
                 ],
             }),
-            ..agent("a-coder", "coder", "claude-code", Some("h-sff"), Some("implements proposals"))
+            ..agent("a-coder", "coder", "claude-code", Some("h-build-box"), Some("implements proposals"))
         },
         agent("a-reviewer", "reviewer", "codex", None, Some("reviews diffs")),
-        agent("a-scout", "scout", "ollama", Some("h-sff"), None),
+        agent("a-scout", "scout", "ollama", Some("h-build-box"), None),
     ];
     ws.hosts = vec![
         Host {
@@ -840,8 +840,8 @@ fn seed_northwind(w: &mut World) {
             repos: vec![],
         },
         Host {
-            id: HostId::new("h-sff"),
-            label: "sff".into(),
+            id: HostId::new("h-build-box"),
+            label: "build-box".into(),
             kind: HostKind::Worker,
             online: true,
             last_seen: Some(DEMO_NOW - MIN),
@@ -970,7 +970,7 @@ fn seed_northwind(w: &mut World) {
             votes: vec![],
             created_at: DEMO_NOW - 48 * 60 * MIN,
             needs_presence: false,
-            apply: ApplyState::Applied { host: "sff".into(), commit: "4be1c09a77d2".into() },
+            apply: ApplyState::Applied { host: "build-box".into(), commit: "4be1c09a77d2".into() },
             can_vote: Allowed::No("already applied".into()),
         },
     ];
@@ -1004,7 +1004,7 @@ fn seed_northwind(w: &mut World) {
 /// The demo's orchestration: hosts at work, workflows and their runs, a
 /// gate waiting, an agent-authored workflow, memory and task state.
 fn seed_orchestration(ws: &mut Ws) {
-    if let Some(h) = ws.hosts.iter_mut().find(|h| h.id.as_str() == "h-sff") {
+    if let Some(h) = ws.hosts.iter_mut().find(|h| h.id.as_str() == "h-build-box") {
         h.busy = true;
         h.agents = vec!["coder".into(), "scout".into()];
         h.repos = vec!["northwind-api".into()];
@@ -1953,7 +1953,7 @@ impl Backend for FakeBackend {
         if !join_request.trim().starts_with("ligusjoin1:") {
             return err("that isn't a box's join request (ligusjoin1:...)");
         }
-        Ok(JoinRequestCheck { fingerprint: "K3QF-7XMA-2DPL-90RW-ZT4E".into(), label: Some("sff".into()) })
+        Ok(JoinRequestCheck { fingerprint: "K3QF-7XMA-2DPL-90RW-ZT4E".into(), label: Some("build-box".into()) })
     }
 
     async fn admit_box(&self, workspace: &WorkspaceId, join_request: Option<&str>) -> Result<BoxAdmission> {
@@ -1976,7 +1976,7 @@ impl Backend for FakeBackend {
                 code: format!("ligusadmit1:sealed-for-{}", r.len()),
                 sealed: true,
                 fingerprint: Some("K3QF-7XMA-2DPL-90RW-ZT4E".into()),
-                label: Some("sff".into()),
+                label: Some("build-box".into()),
                 expires_at: at + 60 * MIN,
             },
             None => BoxAdmission {
@@ -2479,8 +2479,8 @@ mod tests {
         assert!(me.founder);
         let ada = ms.iter().find(|m| m.name == "Ada").unwrap();
         assert_eq!(ada.can_remove, Allowed::Yes);
-        let sff = ms.iter().find(|m| m.service).unwrap();
-        let admin = sff.can_set_role.iter().find(|(r, _)| *r == Role::Admin).unwrap();
+        let service = ms.iter().find(|m| m.service).unwrap();
+        let admin = service.can_set_role.iter().find(|(r, _)| *r == Role::Admin).unwrap();
         assert_eq!(admin.1, Allowed::No("a service member holds at most Contributor".into()));
         // In the other workspace I'm a Viewer.
         let ms = b.members(&WorkspaceId::new("ws-docs")).await.unwrap();
@@ -2538,11 +2538,11 @@ mod tests {
     #[tokio::test]
     async fn apply_on_host() {
         let b = FakeBackend::demo(FakeConfig::instant());
-        let p = b.request_apply(&ws(), &ProposalId::new("p-2"), &HostId::new("h-sff")).await.unwrap();
-        assert_eq!(p.apply, ApplyState::Waiting { host: "sff".into() });
-        assert!(b.request_apply(&ws(), &ProposalId::new("p-2"), &HostId::new("h-sff")).await.is_err());
+        let p = b.request_apply(&ws(), &ProposalId::new("p-2"), &HostId::new("h-build-box")).await.unwrap();
+        assert_eq!(p.apply, ApplyState::Waiting { host: "build-box".into() });
+        assert!(b.request_apply(&ws(), &ProposalId::new("p-2"), &HostId::new("h-build-box")).await.is_err());
         assert_eq!(
-            b.request_apply(&ws(), &ProposalId::new("p-1"), &HostId::new("h-sff")).await,
+            b.request_apply(&ws(), &ProposalId::new("p-1"), &HostId::new("h-build-box")).await,
             err("only an approved proposal can be applied")
         );
     }

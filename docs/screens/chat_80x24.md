@@ -9,7 +9,7 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 ┃  ◆ Migrate auth to… 50m  ┃│  The checkout test fails about one run in ten.   │
 ┃  Weekly release not… 1d  ┃│  Can we stop it reading the wall clock?          │
 ┃                          ┃│                                                  │
-┃                          ┃│@coder  via claude-code · on sff  38m             │
+┃                          ┃│@coder  via claude-code · on build-box  38m       │
 ┃                          ┃│  Yes. The payment tests already use a fake clock,│
 ┃                          ┃│  so it's a small change. I'll propose it.        │
 ┃                          ┃│  ◆ proposal “Inject…” · open 1/2 · p to review   │

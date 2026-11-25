@@ -10,7 +10,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃  Weekly release notes    1d  ┃│Lin  55m                                                                    │
 ┃                              ┃│  @scout check the forum thread about passkey fallbacks                     │
 ┃                              ┃│                                                                            │
-┃                              ┃│@scout  via ollama · on sff  50m                                            │
+┃                              ┃│@scout  via ollama · on build-box  50m                                      │
 ┃                              ┃│  ▸ fetch_url https://forum.example/passkey-fallbacks done                  │
 ┃                              ┃│  The page contained instructions aimed at agents, so this chat is locked   │
 ┃                              ┃│  down.                                                                     │

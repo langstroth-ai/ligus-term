@@ -8,12 +8,12 @@ expression: screen
 ┃Ada         admin                                                                                           ┃
 ┃Lin         contributor                                                                                     ┃
 ┃Sam         viewer                                                                                          ┃
-┃sff box     contributor · box                                                                               ┃
+┃build box   contributor · box                                                                               ┃
 ┃                                                                                                            ┃
 ┃                                                                                                            ┃
 ┃                                                                                                            ┃
 ┃                                                                                                            ┃
-┃                      ┏ Role for sff box ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                      ┃
+┃                      ┏ Role for build box ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                      ┃
 ┃                      ┃  owner  a service member holds at most Contributor           ┃                      ┃
 ┃                      ┃  admin  a service member holds at most Contributor           ┃                      ┃
 ┃                      ┃› contributor  already that role                              ┃                      ┃

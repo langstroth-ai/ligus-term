@@ -6,9 +6,9 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 [NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
 ┏ Agents ━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Agent ───────────────────────────────────╮
 ┃@ligus     idle                   ┃│@ligus  idle                              │
-┃@coder     busy · sff             ┃│                                          │
+┃@coder     busy · build-box       ┃│                                          │
 ┃@reviewer  idle                   ┃│Runtime     claude-code                   │
-┃@scout     idle · sff             ┃│Runs on     This device                   │
+┃@scout     idle · build-box       ┃│Runs on     This device                   │
 ┃                                  ┃│Who can use Everyone                      │
 ┃                                  ┃│Doing       answers untagged messages     │
 ┃                                  ┃│                                          │
