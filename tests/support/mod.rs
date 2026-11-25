@@ -153,18 +153,63 @@ impl Device {
     }
 }
 
+/// A progress line for a slow runner, written straight to stderr (not
+/// captured), so a hung test shows where it stopped.
+pub fn trace(what: &str) {
+    use std::io::Write;
+    let t = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs_f64()).unwrap_or_default();
+    let name = std::thread::current().name().unwrap_or("?").to_string();
+    let _ = writeln!(std::io::stderr(), "[{t:.1}] {name}: {what}");
+}
+
+/// Ends the test process with a message if `name` is still running after
+/// `secs`: a hang on CI fails fast and says which test, instead of holding
+/// the job for hours.
+pub fn watchdog(name: &'static str, secs: u64) -> WatchdogGuard {
+    let done = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let d = done.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_secs(secs));
+        if !d.load(std::sync::atomic::Ordering::SeqCst) {
+            use std::io::Write;
+            let _ = writeln!(std::io::stderr(), "WATCHDOG: {name} still running after {secs} s; exiting");
+            std::process::exit(101);
+        }
+    });
+    WatchdogGuard(done)
+}
+
+pub struct WatchdogGuard(Arc<std::sync::atomic::AtomicBool>);
+
+impl Drop for WatchdogGuard {
+    fn drop(&mut self) {
+        self.0.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
 /// Poll `f` until it returns `Some`, up to 60 s (only a hung test waits that long).
 pub async fn until<T, F, Fut>(what: &str, mut f: F) -> T
 where
     F: FnMut() -> Fut,
     Fut: std::future::Future<Output = Option<T>>,
 {
+    // A wall-clock bound too: on a slow runner each poll can take seconds.
+    let deadline = std::time::Instant::now() + Duration::from_secs(240);
     for _ in 0..600 {
-        if let Some(v) = f().await {
-            return v;
+        match tokio::time::timeout(Duration::from_secs(90), f()).await {
+            Ok(Some(v)) => return v,
+            Ok(None) => {}
+            Err(_) => {
+                trace(&format!("a call hung for 90 s while waiting for {what}"));
+                panic!("a call hung for 90 s while waiting for {what}")
+            }
+        }
+        if std::time::Instant::now() > deadline {
+            break;
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
+    trace(&format!("timed out waiting for {what}"));
     panic!("timed out waiting for {what}");
 }
 

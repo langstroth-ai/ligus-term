@@ -469,6 +469,14 @@ impl Inner {
         if core.retired.load(std::sync::atomic::Ordering::SeqCst) || self.stale(core) {
             return err(link::STALE);
         }
+        // While a link is redeemed here, the device key switches before the
+        // link is recorded: a write in between (an activation or heartbeat
+        // still in flight) would sign with the new key as this install's own
+        // member and certify it for the wrong account. Nothing but the
+        // linked identity signs until the redeem is done.
+        if self.is_linking() && core.person.is_none() {
+            return err(link::LINKING);
+        }
         if core.person.is_some() && link::link_state(&self.cfg.data_dir).ok().and_then(|s| s.linked_in(ws).cloned()).is_none() {
             return err(link::NOT_LINKED_HERE);
         }
@@ -1571,7 +1579,12 @@ impl Inner {
             notify_mentions: l.notify_mentions,
             agents_may_edit: l.agents_may_edit,
             relay_url: self.cfg.relay_url.clone(),
-            linked_to: self.linked_person().map(|p| ligus_runtime::display::shown(&p.display_name)),
+            // The person as the open core acts for them (their roster name),
+            // falling back to the link record's.
+            linked_to: match self.core() {
+                Ok(c) if c.person.is_some() => Some(ligus_runtime::display::shown(&c.author.display_name)),
+                _ => self.linked_person().map(|p| ligus_runtime::display::shown(&p.display_name)),
+            },
             link_pending: self.link_status().ok().and_then(|v| v.pending),
         }
     }
