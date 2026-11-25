@@ -53,7 +53,7 @@ async fn redeem(b: &Device, grant: &str) -> WorkspaceSummary {
             match b.b.redeem_link(grant).await {
                 Ok(w) => Some(w),
                 Err(e) if e.0.contains("hasn't reached this computer") => {
-                    eprintln!("redeem try {tries} at {:?}: {e}", start.elapsed());
+                    trace(&format!("redeem try {tries} at {:?}: {e}", start.elapsed()));
                     None
                 }
                 Err(e) => panic!("redeem failed: {e}"),
@@ -65,6 +65,7 @@ async fn redeem(b: &Device, grant: &str) -> WorkspaceSummary {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_fresh_install_links_as_the_persons_device() {
+    let _watchdog = watchdog("a_fresh_install_links_as_the_persons_device", 420);
     let tmp = tempfile::tempdir().unwrap();
     let relay = serve(ligus_runtime::test_relay::router()).await;
     let a = device(&tmp.path().join("ana"), "Ana's desktop", &relay);
@@ -123,32 +124,55 @@ async fn a_fresh_install_links_as_the_persons_device() {
 /// member; afterwards it acts as Ana and the desktop can remove the duplicate.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn an_existing_install_moves_from_its_own_member_to_the_person() {
+    let _watchdog = watchdog("an_existing_install_moves_from_its_own_member_to_the_person", 420);
     let tmp = tempfile::tempdir().unwrap();
+    trace("let tmp = tempfile::tempdir().unwrap();");
     let relay = serve(ligus_runtime::test_relay::router()).await;
+    trace("let relay = serve(ligus_runtime::test_relay::router()).await");
     let a = device(&tmp.path().join("ana"), "Ana's desktop", &relay);
+    trace("let a = device(&tmp.path().join('ana'), 'Ana's desktop', &re");
     let (ws, wsu, conn) = founded(&a, tmp.path()).await;
+    trace("let (ws, wsu, conn) = founded(&a, tmp.path()).await;");
     let invite = a.b.create_invite(&ws, Role::Contributor).await.unwrap();
+    trace("let invite = a.b.create_invite(&ws, Role::Contributor).await");
     let lt = device(&tmp.path().join("lt"), "lt", &relay);
+    trace("let lt = device(&tmp.path().join('lt'), 'lt', &relay);");
     lt.b.join_workspace("Ana (lt)", &invite).await.unwrap();
+    trace("lt.b.join_workspace('Ana (lt)', &invite).await.unwrap();");
     until("Ana to see the second Ana", || async { (a.b.members(&ws).await.unwrap().len() == 2).then_some(()) }).await;
+    trace("until('Ana to see the second Ana', || async ( (a.b.members(&");
     let old_device = lt.b.device_id().unwrap();
+    trace("let old_device = lt.b.device_id().unwrap();");
 
     let req = lt.b.link_request().await.unwrap();
+    trace("let req = lt.b.link_request().await.unwrap();");
     assert!(req.new_device, "an install in use asks with a new device key");
+    trace("assert!(req.new_device, 'an install in use asks with a new d");
     let decoded = LinkRequest::decode(&req.code).unwrap();
+    trace("let decoded = LinkRequest::decode(&req.code).unwrap();");
     assert_ne!(decoded.device_id, old_device);
+    trace("assert_ne!(decoded.device_id, old_device);");
     let svc = a.b.service().unwrap();
+    trace("let svc = a.b.service().unwrap();");
     let preview = {
         let d = decoded.clone();
         tokio::task::spawn_blocking(move || svc.lock().unwrap().preview_computer_link(wsu, &d)).await.unwrap().unwrap()
     };
+    trace(");");
     assert_eq!(preview.previous_member.map(|m| m.actor.display_name), Some("Ana (lt)".into()));
+    trace("assert_eq!(preview.previous_member.map(|m| m.actor.display_n");
     let grant = approve(&a, wsu, &req.code, &conn).await;
+    trace("let grant = approve(&a, wsu, &req.code, &conn).await;");
     redeem(&lt, &grant).await;
+    trace("redeem(&lt, &grant).await;");
     assert_ne!(lt.b.device_id().unwrap(), old_device, "switched to the new device key");
+    trace("assert_ne!(lt.b.device_id().unwrap(), old_device, 'switched ");
     assert_eq!(lt.b.linked_person().as_deref(), Some("Ana"));
+    trace("assert_eq!(lt.b.linked_person().as_deref(), Some('Ana'));");
     let me = lt.b.members(&ws).await.unwrap().into_iter().find(|m| m.you).unwrap();
+    trace("let me = lt.b.members(&ws).await.unwrap().into_iter().find(|");
     assert_eq!(me.name, "Ana");
+    trace("assert_eq!(me.name, 'Ana');");
 }
 
 /// The owner's 0.3.0 report: lt joined by invite as its own member (an
@@ -157,6 +181,7 @@ async fn an_existing_install_moves_from_its_own_member_to_the_person() {
 /// the desktop made and in one lt made as its old member.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_linked_install_posts_after_its_old_member_is_removed() {
+    let _watchdog = watchdog("a_linked_install_posts_after_its_old_member_is_removed", 420);
     let tmp = tempfile::tempdir().unwrap();
     let relay = serve(ligus_runtime::test_relay::router()).await;
     let a = device(&tmp.path().join("ana"), "Ana's desktop", &relay);
@@ -215,6 +240,7 @@ async fn a_linked_install_posts_after_its_old_member_is_removed() {
 /// member.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn an_open_lt_follows_a_link_redeemed_by_another_lt() {
+    let _watchdog = watchdog("an_open_lt_follows_a_link_redeemed_by_another_lt", 420);
     let tmp = tempfile::tempdir().unwrap();
     let relay = serve(ligus_runtime::test_relay::router()).await;
     let a = device(&tmp.path().join("ana"), "Ana's desktop", &relay);
@@ -262,6 +288,7 @@ async fn an_open_lt_follows_a_link_redeemed_by_another_lt() {
 /// and linking again (a new request, a new grant) heals it.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_broken_link_says_so_and_linking_again_heals_it() {
+    let _watchdog = watchdog("a_broken_link_says_so_and_linking_again_heals_it", 420);
     let tmp = tempfile::tempdir().unwrap();
     let relay = serve(ligus_runtime::test_relay::router()).await;
     let a = device(&tmp.path().join("ana"), "Ana's desktop", &relay);
@@ -311,6 +338,7 @@ async fn a_broken_link_says_so_and_linking_again_heals_it() {
 /// what to do, not "role Viewer cannot perform messageAppended".
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_removed_member_is_told_why_and_what_to_do() {
+    let _watchdog = watchdog("a_removed_member_is_told_why_and_what_to_do", 420);
     let tmp = tempfile::tempdir().unwrap();
     let relay = serve(ligus_runtime::test_relay::router()).await;
     let a = device(&tmp.path().join("ana"), "Ana's desktop", &relay);
