@@ -5,7 +5,7 @@ expression: screen
 [NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
 ╭ Fix flaky checkout test · 1/3 ───────────────────────────────────────────────╮
 │                                                                              │
-│@coder  via claude-code · on sff  now                                         │
+│@coder  via claude-code · on build-box  now                                   │
 │  ▸ read_file src/checkout.rs done 0.2s                                       │
 │  Here's what I found: the checkout test reads the wall clock, so it fails    │
 │  when CI is slow. Want me to propose a change?                               │

@@ -9,7 +9,7 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 │  The checkout test fails about one run in ten. Can we stop it reading the    │
 │  wall clock?                                                                 │
 │                                                                              │
-│@coder  via claude-code · on sff  38m                                         │
+│@coder  via claude-code · on build-box  38m                                   │
 │  Yes. The payment tests already use a fake clock, so it's a small change.    │
 │  I'll propose it.                                                            │
 │  ◆ proposal “Inject the clock into checkout tes…” · open 1/2 · p to review   │

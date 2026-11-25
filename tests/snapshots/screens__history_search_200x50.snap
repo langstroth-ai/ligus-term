@@ -7,7 +7,7 @@ expression: screen
 │  ◆ Fix flaky checkout … 12m  ││             Ada  40m                                                                                                         ││Proposals                             │
 │  ◆ Migrate auth to pas… 50m  ││               The checkout test fails about one run in ten. Can we stop it reading the wall clock?                           ││◆ Inject a clock into the session… 0/1│
 │  Weekly release notes    1d  ││                                                                                                                              ││◆ Inject the clock into checkout … 1/2│
-│                              ││             @coder  via claude-code · on sff  38m                                                                            ││◆ Sign-off: inject a fake clock 0/1   │
+│                              ││             @coder  via claude-code · on build-box  38m                                                                      ││◆ Sign-off: inject a fake clock 0/1   │
 │                              ││               Yes. The payment tests already use a fake clock, so it's a small change. I'll propose it.                      ││                                      │
 │                              ││               ◆ proposal “Inject the clock into checkout tests” · open 1/2 · p to review                                     ││Runs                                  │
 │                              ││                                                                                                                              ││· Implement, review, sh… awaiting-gate│
@@ -18,7 +18,7 @@ expression: screen
 │                              ││             Mara  now                                                                                                        ││                                      │
 │                              ││               @coder can you rerun the flaky test?                                                                           ││                                      │
 │                              ││                                                                                                                              ││                                      │
-│                              ││             @coder  via claude-code · on sff  now                                                                            ││                                      │
+│                              ││             @coder  via claude-code · on build-box  now                                                                      ││                                      │
 │                              ││               ▸ read_file src/checkout.rs done 0.2s                                                                          ││                                      │
 │                              ││               Here's what I found: the checkout test reads the wall clock, so it fails when CI is slow. Want me              ││                                      │
 │                              ││               to propose a change?                                                                                           ││                                      │

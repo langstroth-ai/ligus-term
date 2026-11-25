@@ -10,7 +10,7 @@ expression: screen
 ┃                          ┃│  @scout check the forum thread about passkey     │
 ┃                          ┃│  fallbacks                                       │
 ┃                          ┃│                                                  │
-┃                          ┃│@scout  via ollama · on sff  50m                  │
+┃                          ┃│@scout  via ollama · on build-box  50m            │
 ┃                          ┃│  ▸ fetch_url https://forum.example/passk… done   │
 ┃                          ┃│  The page contained instructions aimed at agents,│
 ┃                          ┃│  so this chat is locked down.                    │

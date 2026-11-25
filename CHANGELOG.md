@@ -4,6 +4,14 @@ All notable changes to `lt`, the Ligus terminal app (Ligus is short for
 ligustica). Versions follow [semver](https://semver.org); releases are on
 [GitHub](https://github.com/langstroth-ai/ligus-term/releases).
 
+## Unreleased
+
+### Changed
+
+- `lt --demo`: the demo's always-on host is called `build-box`.
+- `scripts/capture-screenshots.sh` captures every view and the guided
+  setup flows in light and dark for the README, langstroth.ai and the docs.
+
 ## v0.3.0
 
 ### Added

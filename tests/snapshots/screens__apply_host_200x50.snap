@@ -25,7 +25,7 @@ expression: screen
 ┃                                                  ┃│                                                                                                                                                  │
 ┃                                                  ┃│               ┏ Apply on… ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                                                                   │
 ┃                                                  ┃│               ┃  Apply here (online)  this device                            ┃                                                                   │
-┃                                                  ┃│               ┃› Apply on sff (online)                                       ┃                                                                   │
+┃                                                  ┃│               ┃› Apply on build-box (online)                                 ┃                                                                   │
 ┃                                                  ┃│               ┃  Apply on ada-studio (offline)                               ┃                                                                   │
 ┃                                                  ┃│               ┃                                                              ┃                                                                   │
 ┃                                                  ┃│               ┃enter choose · esc cancel                                     ┃                                                                   │

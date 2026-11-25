@@ -8,7 +8,7 @@ expression: screen
 ┃Ada         admin                                                             ┃
 ┃Lin ┏ Confirm with passkey ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓    ┃
 ┃Sam ┃Remove Lin from the workspace                                       ┃    ┃
-┃sff ┃                                                                    ┃    ┃
+┃buil┃                                                                    ┃    ┃
 ┃    ┃Event   memberRemoved                                               ┃    ┃
 ┃    ┃Digest  405d68465fd0fa10                                            ┃    ┃
 ┃    ┃                                                                    ┃    ┃

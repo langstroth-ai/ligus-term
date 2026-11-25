@@ -1597,7 +1597,7 @@ mod tests {
         assert_eq!(code, 0);
         assert!(out.starts_with("run\t1\trun-7\tawaiting-gate\tImplement, review, ship\t2/3\tThis device\tinject a fake clock\n"), "{out}");
         let (_, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "hosts").await;
-        assert!(out.contains("host\t2\th-sff\tsff\tworker\tonline\t\tbusy\t@coder @scout\tnorthwind-api\n"), "{out}");
+        assert!(out.contains("host\t2\th-build-box\tbuild-box\tworker\tonline\t\tbusy\t@coder @scout\tnorthwind-api\n"), "{out}");
         let (_, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "proposals").await;
         assert!(out.lines().any(|l| l.starts_with("proposal\t") && l.ends_with("\tgate")), "{out}");
         let (_, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "tasks").await;
@@ -1800,7 +1800,7 @@ mod tests {
     async fn admitting_prints_the_fingerprint_before_the_passkey_prompt() {
         let (code, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "admit ligusjoin1:abc").await;
         assert_eq!(code, 0, "{out}");
-        let fp = out.find("joinrequest\tK3QF-7XMA-2DPL-90RW-ZT4E\tsff").expect(&out);
+        let fp = out.find("joinrequest\tK3QF-7XMA-2DPL-90RW-ZT4E\tbuild-box").expect(&out);
         let prompt = out.find("presence\t").expect(&out);
         assert!(fp < prompt, "fingerprint after the passkey prompt: {out}");
         let (code, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "admit nonsense").await;

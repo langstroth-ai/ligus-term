@@ -350,12 +350,21 @@ async fn themes(dir: &Path) {
 const W: u16 = 104;
 const H: u16 = 26;
 
+/// The theme for `--gallery` and `--setup`: Pollen dark on a plain dark terminal, or
+/// Pollen light on white with `LT_SHOT_MODE=light`
+/// (scripts/capture-screenshots.sh takes both).
+fn shot_theme() -> Theme {
+    let light = std::env::var("LT_SHOT_MODE").as_deref() == Ok("light");
+    *WINDOW.lock().unwrap() = Some(if light { ("#ffffff", "#e8e8e8", "#6b6b6b") } else { ("#1e1e1e", "#2d2d2d", "#9a9a9a") });
+    ligus_term::theme::ThemeSet::builtin().theme("pollen", light).unwrap()
+}
+
 /// `--gallery DIR`: every view, its row menu and its add popup, at two
-/// sizes, into `DIR` (for reviewing a UI change side by side; nothing in
-/// the repo uses these).
+/// sizes, into `DIR` (for reviewing a UI change side by side, and for the
+/// website and docs screenshots: scripts/capture-screenshots.sh).
 async fn gallery(dir: &Path) {
     std::fs::create_dir_all(dir).unwrap();
-    let t = Theme::DARK;
+    let t = shot_theme();
     let shots: &[(&str, &[KeyCode])] = &[
         ("chats", &[]),
         ("workflows", &[KeyCode::Char('f')]),
@@ -382,7 +391,7 @@ async fn gallery(dir: &Path) {
             h.key(*k).await;
         }
         for (w, ht) in [(110, 32), (80, 24)] {
-            write(dir, &format!("{name}-{w}x{ht}"), &format!("lt: {name} ({w}×{ht})"), &buffer(&h, w, ht, &t));
+            write_in(dir, &format!("{name}-{w}x{ht}"), &format!("lt: {name} ({w}×{ht})"), &buffer(&h, w, ht, &t), &t);
         }
     }
 }
@@ -400,7 +409,7 @@ async fn setup_gallery(dir: &Path) {
     use In::{K, T};
     use KeyCode::{Down, Enter, Tab};
     std::fs::create_dir_all(dir).unwrap();
-    let t = Theme::DARK;
+    let t = shot_theme();
     let u = K(KeyCode::Char('u'));
     let shots: Vec<(&str, Vec<In>)> = vec![
         ("01-setup-list", vec![u]),
@@ -481,7 +490,7 @@ async fn setup_gallery(dir: &Path) {
             }
         }
         for (w, ht) in [(110, 32), (80, 24)] {
-            write(dir, &format!("{name}-{w}x{ht}"), &format!("lt: {name} ({w}×{ht})"), &buffer(&h, w, ht, &t));
+            write_in(dir, &format!("{name}-{w}x{ht}"), &format!("lt: {name} ({w}×{ht})"), &buffer(&h, w, ht, &t), &t);
         }
     }
 }

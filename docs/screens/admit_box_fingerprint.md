@@ -9,12 +9,12 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃Ada         admin                                                                                           ┃
 ┃Lin         contributor                                                                                     ┃
 ┃Sam         viewer                                                                                          ┃
-┃sff box     contributor · box                                                                               ┃
+┃build box   contributor · box                                                                               ┃
 ┃                                                                                                            ┃
 ┃                                                                                                            ┃
 ┃                                                                                                            ┃
 ┃            ┏ Admit a box ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓            ┃
-┃            ┃Check the box (sff) shows this fingerprint: K3QF-7XMA-2DPL-90RW-ZT4E              ┃            ┃
+┃            ┃Check the box (build-box) shows this fingerprint: K3QF-7XMA-2DPL-90RW-ZT4E        ┃            ┃
 ┃            ┃Its terminal printed it with the join request. A different one means the request  ┃            ┃
 ┃            ┃was swapped: don't admit it.                                                      ┃            ┃
 ┃            ┃                                                                                  ┃            ┃

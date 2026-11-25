@@ -8,7 +8,7 @@ expression: screen
 ┃Ada         admin                                                                                           ┃
 ┃Lin         contributor                                                                                     ┃
 ┃Sam         viewer                                                                                          ┃
-┃sff box     contributor · box                                                                               ┃
+┃build box   contributor · box                                                                               ┃
 ┃                                                                                                            ┃
 ┃                   ┏ Confirm with passkey ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                   ┃
 ┃                   ┃Remove Lin from the workspace                                       ┃                   ┃

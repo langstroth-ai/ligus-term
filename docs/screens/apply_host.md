@@ -17,7 +17,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                          ┃│+    rows.iter().map(Order::csv_row).collect::<Vec<_>>().join("…│
 ┃                      ┏ Apply on… ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                      │
 ┃                      ┃  Apply here (online)  this device                            ┃                      │
-┃                      ┃› Apply on sff (online)                                       ┃                      │
+┃                      ┃› Apply on build-box (online)                                 ┃                      │
 ┃                      ┃  Apply on ada-studio (offline)                               ┃                      │
 ┃                      ┃                                                              ┃                      │
 ┃                      ┃enter choose · esc cancel                                     ┃                      │

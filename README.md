@@ -7,9 +7,37 @@
 
 # lt: Ligus in the terminal
 
-`lt` is a terminal client for orchestrating Ligus agents. (Ligus is short
-for *ligustica*.) Point it at a local setup (`ligus-local`) or a Kubernetes
-deployment (`ligus-k8s` and the `ligus` Helm chart) and, from the terminal:
+`lt` is the terminal app for Ligus: talk to agents, review their proposals
+and run workflows from your shell. (Ligus is short for *ligustica*, the
+Italian honeybee.)
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/readme/lt-chats-dark.png">
+  <img alt="lt showing a chat: the chat list on the left; on the right Ada asks for a fix, the agent @coder replies and files a proposal, open with 1 of 2 approvals (demo data)" src="assets/readme/lt-chats-light.png" width="952">
+</picture>
+
+```sh
+brew install langstroth-ai/ligus/lt
+lt --demo        # the whole UI on sample data, nothing to set up
+```
+
+- **A Ligus device of its own.** It has its own keys, signs what it does
+  and syncs end-to-end encrypted through the workspace's relay.
+- **Agents propose, you decide.** Review, vote on and apply proposals from
+  one queue; approve workflow gates; see what every agent and host is doing.
+- **Scriptable.** A plain line mode with exit codes, for other agents and CI.
+
+[Docs](https://docs.langstroth.ai/ligus/) ·
+[Ligus desktop](https://github.com/langstroth-ai/ligus) ·
+[Relay](https://github.com/langstroth-ai/langstroth-relay) ·
+[Discussions](https://github.com/langstroth-ai/ligus/discussions) ·
+[Releases](https://github.com/langstroth-ai/ligus-term/releases)
+
+## About
+
+`lt` is a terminal client for orchestrating Ligus agents. Point it at a
+local setup (`ligus-local`) or a Kubernetes deployment (`ligus-k8s` and the
+`ligus` Helm chart) and, from the terminal:
 
 - found or join the workspace, and admit its `ligus serve` box and workers;
 - start and watch workflow runs, and approve or reject their gates;
@@ -17,16 +45,9 @@ deployment (`ligus-k8s` and the `ligus` Helm chart) and, from the terminal:
 - review, vote on and apply proposals from one queue;
 - talk to agents in chats, with their tool calls shown live.
 
-A plain line mode makes all of it scriptable for other agents and CI, with
-exit codes.
-
 ![lt --demo: starting a run of the "Implement, review, ship" workflow, its agent stages finishing one by one, then approving its sign-off gate](assets/lt-demo.gif)
 
-`lt` is a Ligus device in its own right: it has its own keys, signs its
-events like the desktop app does, and syncs end-to-end encrypted through
-the workspace's relay.
-
-> **Status: early (0.1.1).** `lt` runs on the Ligus crates, pinned to a
+> **Status: early (0.3.0).** `lt` runs on the Ligus crates, pinned to a
 > release tag of the [ligus](https://github.com/langstroth-ai/ligus) repo.
 > `lt --demo` runs the same UI on an in-memory sample. What isn't wired yet
 > is listed in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#what-is-wired).
@@ -35,6 +56,10 @@ the workspace's relay.
 typing indicators, adding another device of your own, and rotating the
 workspace key. Use the Ligus desktop or phone app for those. `lt` ignores
 DM invites and presence beats it receives from other devices.
+
+The screenshots here come from `lt --demo`;
+`scripts/capture-screenshots.sh` regenerates them (and the ones on
+langstroth.ai and docs.langstroth.ai) for a release.
 
 ## Install
 
@@ -59,7 +84,7 @@ one binary per target, `lt-<target>`, with a `lt-<target>.sha256` next to
 it. Check the checksum before you run it:
 
 ```sh
-version=v0.1.1
+version=v0.3.0
 target=aarch64-apple-darwin   # or x86_64-apple-darwin, aarch64-unknown-linux-musl, x86_64-unknown-linux-musl
 base=https://github.com/langstroth-ai/ligus-term/releases/download/$version
 curl -fLO "$base/lt-$target" -O "$base/lt-$target.sha256"
@@ -89,7 +114,7 @@ the secret store). `lt help completions` has the same.
 Rust 1.91 or newer:
 
 ```sh
-cargo install --locked --git https://github.com/langstroth-ai/ligus-term --tag v0.1.1
+cargo install --locked --git https://github.com/langstroth-ai/ligus-term --tag v0.3.0
 ```
 
 Or from a checkout:
@@ -590,7 +615,7 @@ The transcript renders the little Markdown agents write (bold, inline
 code, headings, lists, and fenced code in a box labelled with its
 language), shows each tool call on one line with how it ended and how long
 it took (`o` shows the first lines it returned), says where each agent's
-turn runs (`@coder  via claude-code · on sff`), adds a line for each
+turn runs (`@coder  via claude-code · on build-box`), adds a line for each
 proposal the chat produced (`◆` when it waits on your vote), and gives a
 reply that is still streaming one spinner cell and its elapsed time.
 
@@ -618,7 +643,7 @@ questions. A burst of notifications is one notice ("3 new notifications");
 the messages log (`!`) keeps each.
 
 Quitting says what is still going, in one dim line, when anything is:
-`lt: 1 run still going (driven by sff); 2 proposals waiting on your vote.`
+`lt: 1 run still going (driven by build-box); 2 proposals waiting on your vote.`
 
 The status bar has three parts: the keys for what has focus on the left
 (cut from the right, `? help` always stays), a notice in the centre when

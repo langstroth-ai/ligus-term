@@ -8,7 +8,7 @@ Rendered by `tests/screens.rs` (200×50, the in-memory demo backend).
 │  ◆ Fix flaky checkout … 12m  ││             Ada  40m                                                                                                         ││Proposals                             │
 │  ◆ Migrate auth to pas… 50m  ││               The checkout test fails about one run in ten. Can we stop it reading the wall clock?                           ││◆ Inject the clock into checkout … 1/2│
 │  Weekly release notes    1d  ││                                                                                                                              ││◆ Sign-off: inject a fake clock 0/1   │
-│                              ││             @coder  via claude-code · on sff  38m                                                                            ││                                      │
+│                              ││             @coder  via claude-code · on build-box  38m                                                                      ││                                      │
 │                              ││               Yes. The payment tests already use a fake clock, so it's a small change. I'll propose it.                      ││Runs                                  │
 │                              ││               ◆ proposal “Inject the clock into checkout tests” · open 1/2 · p to review                                     ││· Implement, review, sh… awaiting-gate│
 │                              ││                                                                                                                              ││                                      │

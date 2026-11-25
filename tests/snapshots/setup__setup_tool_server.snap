@@ -8,7 +8,7 @@ expression: screen
 ┃  ◆ Migrate auth to pas… 50m  ┃│  The checkout test fails about one run in ten. Can we stop it reading the  │
 ┃  Weekly release notes    1d  ┃│  wall clock?                                                               │
 ┃                              ┃│                                                                            │
-┃                              ┃│@coder  via claude-code · on sff  38m                                       │
+┃                              ┃│@coder  via claude-code · on build-box  38m                                 │
 ┃                ┏ Connect a tool · 1 of 3 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ small change.  │
 ┃                ┃A tool is an MCP server: a command on this device or an https URL. Its    ┃                │
 ┃                ┃token stays in this device's secret store, and you choose which agents may┃· p to review   │

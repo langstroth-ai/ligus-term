@@ -435,7 +435,7 @@ fn proposals_vote_apply_and_hunk_navigation() {
         &mut s,
         Msg::Proposals(w.clone(), Ok(vec![proposal("p1", ProposalStatus::Open), proposal("p2", ProposalStatus::Approved), refused])),
     );
-    update(&mut s, Msg::Hosts(w.clone(), Ok(vec![host("here", false, true, true), host("sff", true, true, false)])));
+    update(&mut s, Msg::Hosts(w.clone(), Ok(vec![host("here", false, true, true), host("build-box", true, true, false)])));
     assert_eq!(key(&mut s, KeyCode::Char('A')), vec![Effect::Vote(w.clone(), ProposalId::new("p1"), VoteChoice::Approve)]);
     // Applying an open proposal is refused locally with the reason.
     assert!(key(&mut s, KeyCode::Char('O')).is_empty());
@@ -444,7 +444,7 @@ fn proposals_vote_apply_and_hunk_navigation() {
     key(&mut s, KeyCode::Down);
     key(&mut s, KeyCode::Char('O'));
     assert_eq!(s.overlay, Some(Overlay::HostPicker { proposal: ProposalId::new("p2"), sel: 1 }));
-    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::RequestApply(w.clone(), ProposalId::new("p2"), HostId::new("sff"))]);
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::RequestApply(w.clone(), ProposalId::new("p2"), HostId::new("build-box"))]);
     // A refused vote never reaches the backend.
     key(&mut s, KeyCode::Down);
     assert!(key(&mut s, KeyCode::Char('R')).is_empty());
@@ -792,7 +792,7 @@ fn admitting_a_box_asks_for_its_request() {
     update(&mut s, Msg::Paste(" ligusjoin1:abc ".into()));
     // Enter only reads the request: nothing that needs a passkey yet.
     assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::InspectJoinRequest("ligusjoin1:abc".into())]);
-    let check = JoinRequestCheck { fingerprint: "AAAA-BBBB".into(), label: Some("sff".into()) };
+    let check = JoinRequestCheck { fingerprint: "AAAA-BBBB".into(), label: Some("build-box".into()) };
     update(&mut s, Msg::JoinRequestChecked("ligusjoin1:abc".into(), Ok(check.clone())));
     assert!(matches!(&s.overlay, Some(Overlay::AdmitBox { checked: Some(c), busy: false, .. }) if *c == check));
     // Any other key (Enter included) doesn't admit; esc goes back to edit.
@@ -1666,12 +1666,12 @@ fn transcript_dump_and_exit_summary() {
     assert!(s.toasts.last().unwrap().text.contains("scrollback"));
     let mut r = run_waiting("r1");
     r.status = RunStatus::Running;
-    r.driver = Some("sff".into());
+    r.driver = Some("build-box".into());
     let mut done = run_waiting("r2");
     done.status = RunStatus::Completed;
     s.runs = vec![r, done];
     s.proposals = vec![proposal("p1", ProposalStatus::Open), proposal("p2", ProposalStatus::Approved)];
-    assert_eq!(s.exit_summary().as_deref(), Some("lt: 1 run still going (driven by sff); 1 proposal waiting on your vote."));
+    assert_eq!(s.exit_summary().as_deref(), Some("lt: 1 run still going (driven by build-box); 1 proposal waiting on your vote."));
 }
 
 fn mention(id: &str, chat: &str) -> Notification {

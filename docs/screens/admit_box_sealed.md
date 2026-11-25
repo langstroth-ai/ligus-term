@@ -9,18 +9,18 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃Ada         admin                                                                                           ┃
 ┃Lin         contributor                                                                                     ┃
 ┃Sam         viewer                                                                                          ┃
-┃sff box     contributor · box                                                                               ┃
+┃build box   contributor · box                                                                               ┃
 ┃                                                                                                            ┃
 ┃                                                                                                            ┃
 ┃                                                                                                            ┃
 ┃            ┏ Admit a box ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓            ┃
-┃            ┃Sealed to the box (sff): check its fingerprint matches K3QF-7XMA-2DPL-90RW-ZT4E   ┃            ┃
+┃            ┃Sealed to the box (build-box): check its fingerprint matches                      ┃            ┃
+┃            ┃K3QF-7XMA-2DPL-90RW-ZT4E                                                          ┃            ┃
 ┃            ┃On the box: ligus admit redeem <code>, then start it again.                       ┃            ┃
 ┃            ┃                                                                                  ┃            ┃
 ┃            ┃ligusadmit1:sealed-for-39                                                         ┃            ┃
 ┃            ┃                                                                                  ┃            ┃
 ┃            ┃any key closes                                                                    ┃            ┃
-┃            ┃                                                                                  ┃            ┃
 ┃            ┃                                                                                  ┃            ┃
 ┃            ┃                                                                                  ┃            ┃
 ┃            ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛            ┃

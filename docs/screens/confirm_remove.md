@@ -9,7 +9,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃Ada         admin                                                                                           ┃
 ┃Lin         contributor                                                                                     ┃
 ┃Sam         viewer                                                                                          ┃
-┃sff box     contributor · box                                                                               ┃
+┃build box   contributor · box                                                                               ┃
 ┃                                                                                                            ┃
 ┃                                                                                                            ┃
 ┃                                                                                                            ┃
