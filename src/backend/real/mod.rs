@@ -477,8 +477,26 @@ impl Inner {
         if self.is_linking() && core.person.is_none() {
             return err(link::LINKING);
         }
-        if core.person.is_some() && link::link_state(&self.cfg.data_dir).ok().and_then(|s| s.linked_in(ws).cloned()).is_none() {
-            return err(link::NOT_LINKED_HERE);
+        if core.person.is_some() {
+            let Ok(state) = link::link_state(&self.cfg.data_dir) else { return err(link::STALE) };
+            if state.linked_in(ws).is_none() {
+                return err(link::NOT_LINKED_HERE);
+            }
+            // Identity model v2 (7.2): which person this computer is here
+            // comes from the log, the link record only a cache. A pending
+            // certificate (not accepted yet) may still sign: accepting it is
+            // a write.
+            use ligus_runtime::device_binding::Binding;
+            let binding = {
+                let mut reader = lock(&core.reader);
+                reader.set_trusted_founder(self.founder(ws));
+                reader.binding(ws, &state, core.identity.account.id)
+            };
+            match binding {
+                Ok(Binding::Linked { .. } | Binding::Pending { .. }) | Err(_) => {}
+                Ok(Binding::NotLinkedHere) => return err(link::NOT_LINKED_HERE),
+                Ok(other) => return Err(BackendError(other.why_read_only().unwrap_or_default())),
+            }
         }
         Ok(())
     }
