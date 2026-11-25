@@ -202,24 +202,40 @@ pub const COMMANDS: &[Cmd] = &[
     },
     Cmd {
         name: "link-request",
-        usage: "link-request",
+        usage: "link-request [--copy] [--json]",
         about: "Ask to be added to your devices: you are already in the workspace on your desktop, and this \
-                computer should act as you, not as a second member. Prints this computer's request \
-                (liguslink1:..., no secret) and its fingerprint; on your desktop, Settings > Profile > My \
-                devices > Add a computer, paste it, compare the fingerprint and confirm with your passkey. \
-                An install already in use asks with a new device key. See lt help devices.",
+                computer should act as you, not as a second member. One-shot, stdout gets only this \
+                computer's request (liguslink1:..., no secret), so lt link-request | pbcopy copies exactly \
+                the code; the fingerprint and the next steps go to stderr. --copy copies it to the \
+                clipboard instead; --json prints {code, fingerprint, label, expiresAt, newDevice}. On your \
+                desktop, Settings > Profile > My devices > Add a computer, paste it, compare the \
+                fingerprint and confirm with your passkey within 15 minutes. An install already in use \
+                asks with a new device key. See lt help devices.",
         prints: "link-request, ok",
-        example: "lt --plain link-request",
+        example: "lt --plain link-request --copy",
     },
     Cmd {
         name: "link-redeem",
-        usage: "link-redeem CODE --approver-fingerprint FP",
+        usage: "link-redeem [CODE | -] [--approver-fingerprint FP]",
         about: "Link this computer with the code your desktop showed (ligusgrant1:..., sealed to this \
-                computer). Prints who approved it; links only when FP is the approving desktop's \
-                fingerprint (its sheet shows it as This desktop), else exits 4. From then on this computer \
-                acts as that person; it no longer creates workspaces or accepts invites.",
+                computer). With no CODE at a terminal, lt asks for it (a paste it doesn't echo) or, on a \
+                bare Enter, reads it from the clipboard (pbpaste, wl-paste, xclip, xsel, Get-Clipboard); - \
+                reads it from stdin. The code never needs to be on the command line. lt shows who \
+                approved it; at a terminal it asks \"Is that your desktop?\" (y links), otherwise \
+                --approver-fingerprint FP must match the approving desktop's fingerprint (its sheet shows \
+                it as This desktop), or it exits 4. From then on this computer acts as that person; it no \
+                longer creates workspaces or accepts invites.",
         prints: "link-grant, linked",
-        example: "lt --plain link-redeem ligusgrant1:... --approver-fingerprint 2C41-88E0-1B9D-04AF-6E73",
+        example: "lt --plain link-redeem --approver-fingerprint 2C41-88E0-1B9D-04AF-6E73",
+    },
+    Cmd {
+        name: "link-status",
+        usage: "link-status [--json]",
+        about: "Whether this computer is linked to your devices, or a link is waiting for your desktop's \
+                code: \"Linking waiting for your desktop's code (started HH:MM; expires HH:MM)\". Requests \
+                no code can answer any more are dropped as it reads them. --json adds the times (Unix ms).",
+        prints: "link-status",
+        example: "lt --plain link-status",
     },
     Cmd {
         name: "check",
@@ -537,6 +553,7 @@ pub const RECORDS: &[(&str, &[&[&str]])] = &[
     ("link-request", &[&["fingerprint", "label", "code"]]),
     ("link-grant", &[&["person", "workspace", "approver"]]),
     ("linked", &[&["id", "name", "person"]]),
+    ("link-status", &[&["state", "person", "started", "expires", "text"]]),
     ("workspace", &[&["n", "id", "name", "role", "sync"]]),
     ("using", &[&["id", "name"]]),
     ("invite-check", &[&["trust", "workspace", "founder", "safety_code", "relay", "note"]]),
@@ -673,9 +690,21 @@ devices instead; it then acts as you (your name, your role, your chats).
    the desktop's code); o shows it alone on the screen to select it.
 2. On your desktop: Settings > Profile > My devices > Add a computer. Paste the
    request, compare all five groups of the fingerprint, confirm with your passkey.
-3. Paste the code the desktop shows into lt (within 30 minutes). lt shows who
-   approved it and the desktop's fingerprint (the desktop shows it as This
-   desktop): check it is yours and confirm.
+3. On the desktop press Copy for lt, and paste into lt's Desktop's code field
+   (cmd-v, or ctrl-shift-v on Linux): lt goes straight to who approved it and
+   the desktop's fingerprint (the desktop shows it as This desktop). Check it is
+   yours and confirm. The code works for 30 minutes.
+
+From a shell: lt --plain link-request prints just the request on stdout (| pbcopy,
+or --copy); then lt --plain link-redeem reads the desktop's code from a hidden
+paste or, on Enter, the clipboard, and asks \"Is that your desktop?\". The
+desktop's Copy command button copies that command with its fingerprint filled in.
+In a script: lt --plain link-redeem - --approver-fingerprint FP < code-file.
+
+A link started and not finished shows in Settings and when lt starts:
+\"Linking waiting for your desktop's code (started HH:MM; expires HH:MM)\";
+lt --plain link-status says the same. Requests no code can answer any more are
+dropped on their own.
 
 A linked lt acts as you without your account key: a vote asks for your passkey
 in the browser, and account changes (devices, phones, passkeys, keys) stay on
@@ -1237,7 +1266,7 @@ pub fn topic(name: &str, flags: &[(String, Option<String>, String)]) -> Option<S
         }
         "devices" | "link" | "add-to-my-devices" => {
             let mut s = DEVICES.to_string();
-            for n in ["link-request", "link-redeem"] {
+            for n in ["link-request", "link-redeem", "link-status"] {
                 if let Some(c) = COMMANDS.iter().find(|c| c.name == n) {
                     s.push('\n');
                     s.push_str(&command_text(c));

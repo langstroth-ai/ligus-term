@@ -93,6 +93,49 @@ pub fn copy_native(text: &str) -> Option<&'static str> {
     None
 }
 
+/// The platform tools that read the clipboard, in order.
+fn paste_tools() -> Vec<(&'static str, &'static [&'static str])> {
+    let mut v: Vec<(&'static str, &'static [&'static str])> = vec![];
+    if cfg!(target_os = "macos") {
+        v.push(("pbpaste", &[]));
+    }
+    if cfg!(windows) {
+        v.push(("powershell.exe", &["-NoProfile", "-Command", "Get-Clipboard"]));
+    }
+    if cfg!(all(unix, not(target_os = "macos"))) {
+        if std::env::var_os("WAYLAND_DISPLAY").is_some() {
+            v.push(("wl-paste", &["--no-newline"]));
+        }
+        if std::env::var_os("DISPLAY").is_some() {
+            v.push(("xclip", &["-selection", "clipboard", "-o"]));
+            v.push(("xsel", &["--clipboard", "--output"]));
+        }
+        if std::env::var_os("WSL_DISTRO_NAME").is_some() {
+            v.push(("powershell.exe", &["-NoProfile", "-Command", "Get-Clipboard"]));
+        }
+    }
+    v
+}
+
+/// Read the clipboard with the platform's tool (at most `limit` bytes), only
+/// when the person asked for it. `None` when no tool worked. The text is
+/// never logged.
+pub fn paste_native(limit: usize) -> Option<String> {
+    use std::io::Read;
+    for (tool, args) in paste_tools() {
+        let Ok(mut child) = Command::new(tool).args(args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::null()).spawn() else {
+            continue;
+        };
+        let mut buf = Vec::new();
+        let read = child.stdout.take().is_some_and(|o| o.take(limit as u64).read_to_end(&mut buf).is_ok());
+        let ok = child.wait().is_ok_and(|s| s.success());
+        if read && ok {
+            return String::from_utf8(buf).ok();
+        }
+    }
+    None
+}
+
 /// What the toast says: `Ok` when a copy reached a clipboard (or the
 /// terminal was asked to), else the one-line fallback.
 pub fn outcome(native: Option<&str>, sent_osc52: bool, fallback: &str) -> Result<String, String> {

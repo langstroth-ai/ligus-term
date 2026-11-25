@@ -27,7 +27,7 @@ use ligus_runtime::{EventStore, StoredIdentity};
 use uuid::Uuid;
 
 use super::{Inner, lock, one_line};
-use crate::backend::model::{LinkGrantView, LinkRequestView, WorkspaceSummary};
+use crate::backend::model::{LinkGrantView, LinkPending, LinkRequestView, LinkStatusView, WorkspaceSummary};
 use crate::backend::{BackendError, Result, err};
 
 fn now_ms() -> i64 {
@@ -103,6 +103,24 @@ pub(crate) fn explain(svc: &ligus_runtime::ChatService, ws: Uuid, e: BackendErro
     }
 }
 
+/// Drop the requests no grant can answer any more; whether any went.
+pub(crate) fn prune(state: &mut LinkState, now: i64) -> bool {
+    let before = state.pending.len();
+    state.pending.retain(|p| now.saturating_sub(p.created_at) <= LinkState::PENDING_TTL_MS);
+    state.pending.len() != before
+}
+
+/// The newest pending request, as Settings and `link-status` show it.
+pub(crate) fn pending_of(state: &LinkState) -> Option<LinkPending> {
+    let p = state.pending.iter().max_by_key(|p| p.created_at)?;
+    Some(LinkPending {
+        started_ms: p.created_at,
+        approve_by_ms: p.created_at.saturating_add(ligus_runtime::computer_link::REQUEST_TTL_MS),
+        expires_ms: p.created_at.saturating_add(LinkState::PENDING_TTL_MS),
+        count: state.pending.len(),
+    })
+}
+
 /// What a linked install says when asked to found or join a workspace.
 pub(crate) fn refusal(person: &str) -> String {
     crate::backend::fake::linked_refusal(&shown(person))
@@ -120,6 +138,17 @@ impl Inner {
             Some(p) => err(refusal(&p.display_name)),
             None => Ok(()),
         }
+    }
+
+    /// Where linking stands. Requests past [`LinkState::PENDING_TTL_MS`]
+    /// (no grant for them can still open) are dropped and the file saved.
+    pub(crate) fn link_status(&self) -> Result<LinkStatusView> {
+        let mut state = link_state(&self.cfg.data_dir)?;
+        let now = now_ms();
+        if prune(&mut state, now) {
+            state.save(&self.cfg.data_dir).map_err(one_line)?;
+        }
+        Ok(LinkStatusView { linked_to: self.linked_person().map(|p| shown(&p.display_name)), pending: pending_of(&state) })
     }
 
     pub(crate) fn link_request(self: &Arc<Self>) -> Result<LinkRequestView> {
