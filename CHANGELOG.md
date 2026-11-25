@@ -8,6 +8,23 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Added
 
+- **Add to my devices with a code match.** Paste the approval address your
+  desktop shows (My devices > Add a computer > Copy, `ligusaddr1:`) and the
+  request reaches the desktop by itself. Both screens show the same
+  8-symbol code; `lt` frames it with "Check your desktop shows the same
+  code." and **Yes, they match** / **No**. This replaces the second paste
+  and the approving desktop's fingerprint. `lt` acknowledges the desktop's
+  offer only after Yes, checks the approval on the workspace log (retrying
+  for up to 2 minutes while it syncs), then asks **Link this computer as
+  Ana (verified on the workspace log)?**. No at either step grants or links
+  nothing, said in words. The request and its fingerprint stay on the
+  screen for an older desktop, and a relay without an approval mailbox
+  falls back to them. Plain mode: `link-to ADDRESS`, `match yes|no`,
+  `link-as yes|no`, `link-cancel`.
+- **Approval requests** (palette, People's row menu, plain `approvals`):
+  the requests waiting in the workspace's approval mailbox, with their
+  kind, label, age and who is checking each, read only ("Approve on your
+  desktop or phone").
 - Link to my devices is easy to find: while this terminal is its own member,
   Settings says so on one line, and so does People when another member there
   looks like you (the same name, or a shorter one: "zaz" and "zazulam"). `D`
@@ -22,6 +39,8 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Changed
 
+- The Ligus crates are pinned to a commit of the ligus repo's code-match
+  approval branch until its 0.4.0 release tag.
 - The key hints always end with `: commands  ? help`, and the first run
   says that `:` opens every command.
 

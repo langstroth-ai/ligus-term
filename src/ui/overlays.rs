@@ -263,6 +263,7 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             };
             message(f, area, "Invite", lines, t);
         }
+        Some(Overlay::Approvals { list }) => approvals(f, area, s, list.as_ref(), t),
         Some(Overlay::Code { title, code, fingerprint, .. }) => {
             // Alone on the screen, no border in the code's lines: a mouse
             // selection takes only the code (a paste ignores the breaks).
@@ -286,6 +287,45 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     if let Some(p) = s.presence.front() {
         presence(f, area, p, s.presence.len(), t);
     }
+}
+
+/// The workspace's live approval requests, read only: kind, label, age and
+/// who says they are checking it. No code: only the requester and its
+/// approver can compute one.
+fn approvals(
+    f: &mut Frame,
+    area: Rect,
+    s: &State,
+    list: Option<&std::result::Result<Vec<crate::backend::model::ApprovalRequest>, String>>,
+    t: &Theme,
+) {
+    let mut lines = vec![Line::styled("Approve on your desktop or phone.", t.text()), Line::raw("")];
+    match list {
+        None => lines.push(Line::styled("Reading the approval mailbox…", t.dim())),
+        Some(Err(e)) => lines.push(Line::styled(format!("✗ Couldn't read them: {e}"), t.fg(t.bad))),
+        Some(Ok(l)) if l.is_empty() => lines.push(Line::styled("No requests waiting.", t.dim())),
+        Some(Ok(l)) => {
+            for r in l {
+                let who = if r.contested {
+                    "opened by a device that didn't claim it (it may be an attempt to intercept it)".to_string()
+                } else {
+                    match &r.checking {
+                        Some(n) => format!("{n} is checking it"),
+                        None => "waiting".into(),
+                    }
+                };
+                lines.push(Line::from(vec![
+                    Span::styled(format!("{:<9}", r.kind.label()), t.dim()),
+                    Span::styled(format!("{:<18}", super::trunc(&r.label, 17)), t.text()),
+                    Span::styled(format!("{:>4}  ", crate::app::state::ago(s.now, r.at)), t.dim()),
+                    Span::styled(who, if r.contested { t.fg(t.warn) } else { t.dim() }),
+                ]));
+            }
+        }
+    }
+    lines.push(Line::raw(""));
+    lines.push(Line::styled("r refresh · esc close", t.dim()));
+    message(f, area, "Approval requests", lines, t);
 }
 
 fn message(f: &mut Frame, area: Rect, title: &str, lines: Vec<Line>, t: &Theme) {
