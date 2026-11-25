@@ -68,6 +68,10 @@ struct Ws {
     tasks: Vec<TaskState>,
     handoffs: Vec<Handoff>,
     checkout: Option<String>,
+    /// Set up: the relay it syncs through, tools (MCP servers) and repos.
+    relay: Option<String>,
+    tools: Vec<ligus_runtime::setup::McpFact>,
+    repos: Vec<ligus_runtime::setup::RepoFact>,
 }
 
 #[derive(Clone)]
@@ -176,6 +180,9 @@ impl FakeBackend {
             w.settings.your_name = "Mara".into();
             seed_northwind(&mut w);
             seed_docs(&mut w);
+            for ws in w.ws.values_mut() {
+                ws.relay = Some(ligus_core::COMMUNITY_RELAY_URL.to_string());
+            }
             w.notifications.push(Notification {
                 id: NotificationId::new("n1"),
                 workspace: WorkspaceId::new("ws-northwind"),
@@ -2090,12 +2097,321 @@ impl Backend for FakeBackend {
         Ok(self.lock().ws(workspace)?.tasks.clone())
     }
 
+    async fn setup_status(&self, workspace: Option<&WorkspaceId>) -> Result<Vec<crate::setup::FlowRow>> {
+        let ops = FakeOps::new(self, workspace);
+        Ok(crate::setup::rows(&ops, Some(crate::setup::device_row(self.linked_person()))))
+    }
+
+    async fn setup_form(
+        &self,
+        workspace: Option<&WorkspaceId>,
+        flow: crate::setup::LtFlow,
+        inputs: crate::setup::SetupInputs,
+    ) -> Result<crate::setup::SetupForm> {
+        let crate::setup::LtFlow::Engine(f) = flow else { return Ok(crate::setup::device_form()) };
+        Ok(crate::setup::form(f, &FakeOps::new(self, workspace), &inputs))
+    }
+
+    async fn setup_run(
+        &self,
+        workspace: Option<&WorkspaceId>,
+        flow: crate::setup::LtFlow,
+        inputs: crate::setup::SetupInputs,
+        secrets: crate::setup::SetupSecrets,
+        dry_run: bool,
+        cancel: crate::setup::CancelFlag,
+    ) -> Result<crate::setup::SetupOutcome> {
+        let crate::setup::LtFlow::Engine(f) = flow else { return Ok(crate::setup::device_run(self.linked_person())) };
+        let mut ops = FakeOps::new(self, workspace);
+        Ok(crate::setup::run(f, &mut ops, &inputs, secrets, dry_run, &cancel))
+    }
+
     async fn answer_presence(&self, id: PresenceId, answer: PresenceAnswer) -> Result<()> {
         let tx = self.lock().presence.get(&id).cloned();
         match tx {
             Some(tx) => tx.send(answer).map_err(|_| super::BackendError("that prompt has ended".into())),
             None => err("that prompt has ended"),
         }
+    }
+}
+
+// ── Guided setup on the demo ────────────────────────────────────────────────
+
+/// The engine's side on the demo: the demo workspace in memory, a fixed
+/// device (Claude Code and Antigravity signed in, Codex installed but not
+/// signed in, Seatbelt), so every render is the same. A demo folder is
+/// `~/code/northwind` (a checkout) or `~/notes` (not one). It keeps no
+/// secret: a token "saved" here is only marked as present.
+struct FakeOps {
+    b: FakeBackend,
+    ws: Option<WorkspaceId>,
+    /// Runtimes defined during this run: engine id → `local:` id.
+    defined: HashMap<String, String>,
+}
+
+/// A demo agent's id as the engine's (a stable UUID from its id).
+fn agent_uuid(id: &str) -> uuid::Uuid {
+    uuid::Uuid::from_u128((fnv(id) as u128) << 64 | fnv(&format!("{id}/agent")) as u128)
+}
+
+impl FakeOps {
+    fn new(b: &FakeBackend, ws: Option<&WorkspaceId>) -> Self {
+        FakeOps { b: b.clone(), ws: ws.cloned(), defined: HashMap::new() }
+    }
+    fn with<T>(&self, f: impl FnOnce(&mut Ws) -> T) -> Option<T> {
+        let mut w = self.b.lock();
+        let id = self.ws.clone()?;
+        w.ws.get_mut(&id).map(f)
+    }
+    fn changed(&self, e: impl FnOnce(WorkspaceId) -> Event) {
+        if let Some(w) = &self.ws {
+            self.b.emit(e(w.clone()));
+        }
+    }
+}
+
+use ligus_runtime::setup::{
+    AgentFact, FolderFact, HarnessFact, McpFact, OpsError, OpsResult, ProbeFact, RepoFact, RuntimeFact, RuntimeSpec, SandboxFact, SetupOps,
+    Surface, TestTurn,
+};
+
+impl SetupOps for FakeOps {
+    fn surface(&self) -> Surface {
+        Surface::Term
+    }
+    fn my_role(&self) -> Option<ligus_core::WorkspaceRole> {
+        let ws = self.ws.clone()?;
+        let mut w = self.b.lock();
+        let r = self.b.your_role(&mut w, &ws).ok()?;
+        Some(match r {
+            Role::Owner => ligus_core::WorkspaceRole::Owner,
+            Role::Admin => ligus_core::WorkspaceRole::Admin,
+            Role::Contributor => ligus_core::WorkspaceRole::Contributor,
+            Role::Viewer => ligus_core::WorkspaceRole::Viewer,
+        })
+    }
+    fn sandbox(&self) -> SandboxFact {
+        SandboxFact { tier: "seatbelt".into(), summary: "macOS Seatbelt (demo)".into() }
+    }
+    fn relay_url(&self) -> Option<String> {
+        self.with(|w| w.relay.clone()).flatten()
+    }
+    fn harnesses(&self) -> Vec<HarnessFact> {
+        use ligus_runtime::cli_detect::LoginState;
+        let h = |id: &str, label: &str, installed: bool, login: LoginState, cmd: &str, install: &str, v: Option<&str>| HarnessFact {
+            id: id.into(),
+            label: label.into(),
+            installed,
+            login,
+            login_detail: match login {
+                LoginState::LoggedIn => "signed in (credentials found)".into(),
+                _ => "no sign-in found".into(),
+            },
+            login_command: cmd.into(),
+            install_command: install.into(),
+            version: v.map(Into::into),
+        };
+        vec![
+            h(
+                "claude-code",
+                "Claude Code",
+                true,
+                LoginState::LoggedIn,
+                "claude",
+                "npm install -g @anthropic-ai/claude-code",
+                Some("2.1.3"),
+            ),
+            h("codex", "Codex", true, LoginState::NotLoggedIn, "codex login", "npm install -g @openai/codex", Some("0.98.0")),
+            h("copilot", "GitHub Copilot CLI", false, LoginState::Unknown, "copilot login", "npm install -g @github/copilot", None),
+            h("antigravity", "Google Antigravity CLI", true, LoginState::LoggedIn, "agy login", "", Some("1.4.0")),
+            h("aider", "Aider", false, LoginState::Unknown, "", "pipx install aider-chat", None),
+            h("pi", "Pi", false, LoginState::Unknown, "", "npm install -g @mariozechner/pi-coding-agent", None),
+        ]
+    }
+    fn models(&self, harness: &str, _endpoint: &str) -> ligus_runtime::model_catalog::ModelList {
+        use ligus_runtime::model_catalog::{ModelList, ModelOption, ModelSource};
+        let list = |ids: &[&str], source, complete| ModelList {
+            models: ids.iter().map(|m| ModelOption::new(*m, None)).collect(),
+            source,
+            complete,
+            note: None,
+            error: None,
+        };
+        match harness {
+            "claude-code" => list(&["sonnet", "opus", "haiku"], ModelSource::Aliases, false),
+            "codex" => list(&["gpt-5-codex", "o4-mini"], ModelSource::Catalog, false),
+            "antigravity" => list(&["gemini-3-pro", "gemini-3-flash"], ModelSource::Catalog, false),
+            "local" => list(&["qwen3:8b"], ModelSource::Live, true),
+            _ => ModelList::none("type a model name"),
+        }
+    }
+    fn runtimes(&self) -> Vec<RuntimeFact> {
+        self.with(|w| {
+            w.runtimes
+                .iter()
+                .filter_map(|r| {
+                    let (p, model) = crate::backend::real::detect::parse_local_id(r.id.as_str())?;
+                    let h = ligus_runtime::setup::service::harness_of(p, false)?;
+                    let endpoint = if h == "local" { "http://localhost:11434".to_string() } else { String::new() };
+                    Some(RuntimeFact { id: r.id.0.clone(), harness: h.into(), model, endpoint })
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+    }
+    fn add_runtime(&mut self, spec: &RuntimeSpec) -> OpsResult<()> {
+        let p = ligus_runtime::setup::service::provider_of(&spec.harness)
+            .ok_or_else(|| OpsError::Failed(format!("lt doesn't run {} agents", spec.harness)))?;
+        self.defined.insert(spec.id.clone(), crate::backend::real::detect::local_id(p, Some(&spec.model)));
+        Ok(())
+    }
+    fn remove_runtime(&mut self, id: &str) -> OpsResult<()> {
+        self.defined.remove(id);
+        Ok(())
+    }
+    fn agents(&self) -> Vec<AgentFact> {
+        self.with(|w| {
+            w.agents
+                .iter()
+                .map(|a| AgentFact { id: agent_uuid(a.id.as_str()), name: a.handle.clone(), runtime_id: a.runtime.0.clone() })
+                .collect()
+        })
+        .unwrap_or_default()
+    }
+    fn member_names(&self) -> Vec<String> {
+        self.with(|w| w.members.iter().map(|m| m.name.clone()).collect()).unwrap_or_default()
+    }
+    fn add_agent(&mut self, name: &str, runtime_id: &str) -> OpsResult<uuid::Uuid> {
+        let local = self.defined.get(runtime_id).cloned().unwrap_or_else(|| runtime_id.to_string());
+        let id = {
+            let mut w = self.b.lock();
+            let id = w.next("a-");
+            let Some(ws) = self.ws.clone() else { return Err(OpsError::Failed("create or join a workspace first".into())) };
+            let ws = w.ws(&ws).map_err(|e| OpsError::Failed(e.0))?;
+            let kind = crate::backend::real::detect::parse_local_id(&local)
+                .map(|(p, _)| crate::backend::real::views::runtime_kind(p))
+                .unwrap_or(RuntimeKind::Custom);
+            let model = crate::backend::real::detect::parse_local_id(&local).map(|(_, m)| m).filter(|m| !m.is_empty());
+            if !ws.runtimes.iter().any(|r| r.id.as_str() == local) {
+                ws.runtimes.push(Runtime {
+                    id: RuntimeId::new(&local),
+                    label: format!("{} (this device)", kind.label()),
+                    kind,
+                    model,
+                    configured: true,
+                    active: false,
+                });
+            }
+            ws.agents.push(Agent { access: "owner".into(), shared: false, can_manage: true, ..agent(&id, name, &local, None, None) });
+            id
+        };
+        self.changed(|workspace| Event::AgentsChanged { workspace });
+        Ok(agent_uuid(&id))
+    }
+    fn test_turn(&mut self, _runtime_id: &str) -> OpsResult<TestTurn> {
+        Ok(TestTurn { ok: true, latency_ms: 840, detail: "PINGOK".into() })
+    }
+    fn mcp_servers(&self) -> Vec<McpFact> {
+        self.with(|w| w.tools.clone()).unwrap_or_default()
+    }
+    fn mcp_handshake(
+        &mut self,
+        spec: &ligus_runtime::mcp::McpServerSpec,
+        _token: Option<&zeroize::Zeroizing<String>>,
+    ) -> OpsResult<Vec<String>> {
+        use ligus_runtime::mcp::McpTransport;
+        match &spec.transport {
+            McpTransport::Http { url } if url.contains("unreachable") => Err(OpsError::Offline("connection refused".into())),
+            McpTransport::Http { .. } => Ok(vec!["search_issues".into(), "create_issue".into()]),
+            // A hostile server: a shell tool whose name carries an escape
+            // sequence (tests check it never reaches a terminal raw).
+            McpTransport::Stdio { command, .. } if command == "evil-mcp" => Ok(vec!["bash\x1b]0;pwned\x07".into()]),
+            McpTransport::Stdio { command, .. } if command == "npx" || command.ends_with("-mcp") => {
+                Ok(vec!["read_file".into(), "search".into()])
+            }
+            McpTransport::Stdio { command, .. } => Err(OpsError::Failed(format!("{command}: not found on this device"))),
+        }
+    }
+    fn put_mcp_secret(&mut self, _id: &str, _url: &str, _secret: &zeroize::Zeroizing<String>) -> OpsResult<()> {
+        Ok(())
+    }
+    fn delete_mcp_secret(&mut self, _id: &str, _url: &str) -> OpsResult<()> {
+        Ok(())
+    }
+    fn add_mcp_server(&mut self, spec: &ligus_runtime::mcp::McpServerSpec, reach: &[uuid::Uuid]) -> OpsResult<()> {
+        use ligus_runtime::mcp::McpTransport;
+        let (transport, target, has_secret) = match &spec.transport {
+            McpTransport::Stdio { command, args } => {
+                ("stdio", std::iter::once(command.clone()).chain(args.clone()).collect::<Vec<_>>().join(" "), false)
+            }
+            McpTransport::Http { url } => ("http", ligus_runtime::setup::validate::origin(url), true),
+        };
+        let fact = McpFact { id: spec.id.clone(), transport: transport.into(), target, enabled: true, has_secret, agents: reach.to_vec() };
+        self.with(|w| w.tools.push(fact)).ok_or_else(|| OpsError::Failed("create or join a workspace first".into()))
+    }
+    fn remove_mcp_server(&mut self, id: &str) -> OpsResult<()> {
+        self.with(|w| w.tools.retain(|t| t.id != id));
+        Ok(())
+    }
+    fn box_state(&self) -> OpsResult<ligus_runtime::setup::BoxFact> {
+        // lt is a person's device: a box joins from the box itself.
+        Err(OpsError::Failed("lt is a person's device; a box joins from the box".into()))
+    }
+    fn repos(&self) -> Vec<RepoFact> {
+        self.with(|w| w.repos.clone()).unwrap_or_default()
+    }
+    fn inspect_folder(&self, path: &str) -> FolderFact {
+        let p = path.trim().trim_end_matches('/');
+        let bound_to = self.with(|w| w.repos.iter().find(|r| r.bound_here.as_deref() == Some(p)).map(|r| r.id.clone())).flatten();
+        if p.ends_with("code/northwind") {
+            FolderFact {
+                path: p.into(),
+                exists: true,
+                is_checkout: true,
+                canonical: Some("github.com/northwind/web".into()),
+                remote: Some("https://github.com/northwind/web".into()),
+                default_branch: Some("main".into()),
+                root_commit: Some("4f1c2a9".into()),
+                bound_to,
+                ..FolderFact::default()
+            }
+        } else if p.ends_with("notes") {
+            FolderFact { path: p.into(), exists: true, ..FolderFact::default() }
+        } else {
+            FolderFact { path: p.into(), ..FolderFact::default() }
+        }
+    }
+    fn add_repo(&mut self, folder: &FolderFact, display_name: &str, default_branch: &str) -> OpsResult<String> {
+        let canonical = folder.canonical.clone().unwrap_or_default();
+        let name =
+            if display_name.is_empty() { canonical.rsplit('/').next().unwrap_or("repo").to_string() } else { display_name.to_string() };
+        let id = format!("r-{}", self.b.lock().next(""));
+        let repo = RepoFact { id: id.clone(), canonical, display_name: name, default_branch: default_branch.into(), bound_here: None };
+        self.with(|w| w.repos.push(repo));
+        Ok(id)
+    }
+    fn bind_folder(&mut self, repo_id: &str, path: &str) -> OpsResult<()> {
+        let p = path.trim().trim_end_matches('/').to_string();
+        self.with(|w| {
+            if let Some(r) = w.repos.iter_mut().find(|r| r.id == repo_id) {
+                r.bound_here = Some(p.clone());
+            }
+            w.checkout.get_or_insert(p);
+        });
+        self.changed(|workspace| Event::HostsChanged { workspace });
+        Ok(())
+    }
+    fn probe_relay(&self, url: &str, token: Option<&zeroize::Zeroizing<String>>) -> ProbeFact {
+        if url.contains("localhost") || url.contains("127.0.0.1") {
+            ProbeFact::Unreachable("connection refused".into())
+        } else if url.contains("private") && token.is_none() {
+            ProbeFact::Unauthorized
+        } else {
+            ProbeFact::Ok
+        }
+    }
+    fn switch_relay(&mut self, url: &str, _token: Option<&zeroize::Zeroizing<String>>) -> OpsResult<()> {
+        self.with(|w| w.relay = Some(url.to_string())).ok_or_else(|| OpsError::Failed("create or join a workspace first".into()))
     }
 }
 

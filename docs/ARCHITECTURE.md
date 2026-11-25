@@ -69,6 +69,14 @@ both and checks).
 - **`config`**, **`theme`**, **`paths`**: the TOML config, the palettes,
   appearance and mono, and where the data dir and config file are.
 - **`plain`**: the line-oriented client over the same `Backend`.
+- **`setup`**: the guided setup flows on the shared engine
+  (`ligus_runtime::setup`): lt's flow ids (the engine's seven, and a
+  `device` hook listed only when `Backend::links_devices`), the view models
+  both backends return, the secret and cancel types the reducer carries
+  (`SetupSecrets`/`SecretBuf`: zeroized, redacted `Debug`, never
+  serialized), folder completion, and `lt setup` (`setup::cli`).
+  `app::setup` is the popup's pure state and keys; `ui::setup` draws it.
+  Every run is a person's (`Driver::Person`); the engine refuses agents.
 
 ## The Backend contract
 
@@ -430,6 +438,8 @@ queue behind it: serve list and transcript reads from a second read-only
 | `watch.rs` | The change-feed translator, the sync loop per workspace (`ligus_runtime::sync_service::SyncLoop`), the presence loop (host and lease beats), and the host loop (durable heartbeat, apply on host) |
 | `views.rs` | Projections to view models; member refusals from `authz::member_action_refusal` |
 | `local.rs` | Device-local state: read markers, notifications, settings, checkouts |
+| `setup_ops.rs` | The guided setup engine's `SetupOps` (`ligus_runtime::setup`, `Surface::Term`): agents on lt's `local:` runtimes (a new runtime is only its id), tools, folders (`repos::bind`, and lt's checkout when none is set), the relay (the saved workspace, then its sync loop restarted); a box, a phone and an invite hand off to a person |
+| `mcp.rs` | This device's MCP servers per workspace (`mcp-servers.json`, `mcp-reach.json`, tokens in the secret store bound to their origin) and the ones a turn may reach (`TermHost::mcp_servers`) |
 
 Working for real, and covered by `tests/real_backend.rs` and
 `tests/orchestration.rs`: first run, create, invites, join by invite with
@@ -446,8 +456,9 @@ from disk.
 Not wired yet:
 
 - **Peer-to-peer sync** (iroh): relay only.
-- **MCP servers for agents.** Turns get Ligus's built-in and folded tools
-  through the shared engine, but `lt` has no MCP server catalog yet.
+- **MCP servers for coding CLIs.** This device's tools (Connect a tool,
+  `real/mcp.rs`) reach turns that run the tool loop; Claude Code and the
+  other CLIs aren't handed them on their command line (the desktop does).
 - **Cascades.** A reply that hands off to another agent isn't run here
   (the desktop's cascade loop); a worker hosting that agent answers it.
 - **Run takeover.** `lt` drives the runs it starts; it doesn't take over a

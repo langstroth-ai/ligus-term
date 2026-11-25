@@ -315,7 +315,7 @@ fn base_runtime(
 
 /// The runtime a turn runs on: the workspace runtime it names, else (when
 /// allowed) the keyless Claude Code CLI, as the desktop falls back.
-fn runtime_for(i: &Inner, ws: Uuid, runtime_id: &str) -> Result<(ResolvedRuntime, String)> {
+pub(crate) fn runtime_for(i: &Inner, ws: Uuid, runtime_id: &str) -> Result<(ResolvedRuntime, String)> {
     let rts = i.read(ws, |svc| svc.list_workspace_runtimes(ws))?;
     // A runtime of this device (`local:…`, an agent added from "Available on
     // this device"), unless a workspace runtime has that id.
@@ -666,6 +666,16 @@ impl TurnHost for TermHost {
     }
     fn ligus(&self) -> Option<Arc<LigusMcp>> {
         self.ligus.clone()
+    }
+    fn mcp_servers(
+        &self,
+        egress: &ligus_core::sandbox::EgressPolicy,
+        _shell: bool,
+    ) -> impl Future<Output = Vec<ligus_runtime::McpServerSpec>> + Send {
+        // This device's tools (Connect a tool), narrowed by the chat's
+        // envelope and each tool's reach; none when a file can't be read.
+        let servers = super::mcp::for_turn(&self.inner.cfg.data_dir, self.inner.secrets.as_ref(), self.ws, egress);
+        async move { servers }
     }
     fn checkout(&self, _session: &ChatSession, _message_id: Uuid) -> impl Future<Output = std::result::Result<Checkout, String>> + Send {
         // The repo gate ran before the turn started.

@@ -10,7 +10,7 @@ and empty screens, which mono draws as a silhouette.
 Regenerate after a UI change:
 
 ```sh
-INSTA_UPDATE=always LT_WRITE_SCREENS=1 cargo test --test screens
+INSTA_UPDATE=always LT_WRITE_SCREENS=1 cargo test --test screens --test setup
 ```
 
 | Screen | File |
@@ -107,3 +107,17 @@ views off; the status bar keeps the help key and drops hints from the right.
 | Notifications | [notifications_80x24.md](notifications_80x24.md) |
 | Settings | [settings_80x24.md](settings_80x24.md) |
 | Help (scrollable) | [help_80x24.md](help_80x24.md) |
+| Set up: the guided flows and what is done (`tests/setup.rs`) | [setup_list.md](setup_list.md) |
+| Set up an agent: the harness (`tests/setup.rs`) | [setup_agent_harness.md](setup_agent_harness.md) |
+| Set up an agent: its name (`tests/setup.rs`) | [setup_agent_name.md](setup_agent_name.md) |
+| Set up an agent: a model (suggestions) (`tests/setup.rs`) | [setup_agent_model.md](setup_agent_model.md) |
+| Set up an agent: a test turn (a toggle) (`tests/setup.rs`) | [setup_agent_test.md](setup_agent_test.md) |
+| Set up an agent: ready to run (`tests/setup.rs`) | [setup_agent_review.md](setup_agent_review.md) |
+| Set up an agent: done (`tests/setup.rs`) | [setup_agent_done.md](setup_agent_done.md) |
+| Set up an agent: a failed check and its fix (`tests/setup.rs`) | [setup_agent_failed.md](setup_agent_failed.md) |
+| Connect a tool: the server (`tests/setup.rs`) | [setup_tool_server.md](setup_tool_server.md) |
+| Connect a tool: the token, masked (`tests/setup.rs`) | [setup_tool_token.md](setup_tool_token.md) |
+| Connect a tool: which agents may use it (`tests/setup.rs`) | [setup_tool_reach.md](setup_tool_reach.md) |
+| Add a code folder: the folder (`tests/setup.rs`) | [setup_folder_path.md](setup_folder_path.md) |
+| Invite a person: the hand-off (`tests/setup.rs`) | [setup_invite_handoff.md](setup_invite_handoff.md) |
+| Add a phone: pairing in your own terminal (`tests/setup.rs`) | [setup_phone_handoff.md](setup_phone_handoff.md) |

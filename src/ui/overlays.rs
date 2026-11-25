@@ -19,6 +19,8 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     match &s.overlay {
         None => {}
         Some(Overlay::Help { scroll, .. }) => help(f, area, s, *scroll, t),
+        Some(Overlay::Setup { sel }) => super::setup::list(f, area, s, *sel, t),
+        Some(Overlay::SetupFlow(w)) => super::setup::flow(f, area, s, w, t),
         Some(Overlay::Messages { scroll }) => messages(f, area, s, *scroll, t),
         Some(Overlay::Palette { query, sel }) => super::palette::draw(f, area, s, query, *sel, t),
         Some(Overlay::History { query, sel }) => history(f, area, s, query, *sel, t),

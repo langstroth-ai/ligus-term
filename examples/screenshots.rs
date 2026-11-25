@@ -4,6 +4,8 @@
 //!
 //! ```sh
 //! cargo run --example screenshots
+//! cargo run --example screenshots -- --gallery DIR   # every view, its menu and popups
+//! cargo run --example screenshots -- --setup DIR     # the guided setup flows
 //! ```
 //!
 //! Each buffer becomes a monospace grid in the dark theme's colours on the
@@ -385,6 +387,105 @@ async fn gallery(dir: &Path) {
     }
 }
 
+/// One input of a scripted shot.
+enum In {
+    K(KeyCode),
+    T(&'static str),
+}
+
+/// `--setup DIR`: the guided setup flows (the list, an agent's steps, a
+/// tool with its token masked, a failed check, the person's hand-offs),
+/// at two sizes, into `DIR`.
+async fn setup_gallery(dir: &Path) {
+    use In::{K, T};
+    use KeyCode::{Down, Enter, Tab};
+    std::fs::create_dir_all(dir).unwrap();
+    let t = Theme::DARK;
+    let u = K(KeyCode::Char('u'));
+    let shots: Vec<(&str, Vec<In>)> = vec![
+        ("01-setup-list", vec![u]),
+        ("02-agent-harness", vec![K(KeyCode::Char('u')), K(Enter)]),
+        ("03-agent-name", vec![K(KeyCode::Char('u')), K(Enter), K(Enter), T("helper")]),
+        ("04-agent-model", vec![K(KeyCode::Char('u')), K(Enter), K(Enter), T("helper"), K(Enter), K(Down)]),
+        (
+            "05-agent-review",
+            vec![K(KeyCode::Char('u')), K(Enter), K(Enter), T("helper"), K(Enter), K(Down), K(Enter), K(KeyCode::Char(' ')), K(Enter)],
+        ),
+        (
+            "06-agent-done",
+            vec![
+                K(KeyCode::Char('u')),
+                K(Enter),
+                K(Enter),
+                T("helper"),
+                K(Enter),
+                K(Down),
+                K(Enter),
+                K(KeyCode::Char(' ')),
+                K(Enter),
+                K(Enter),
+            ],
+        ),
+        (
+            "07-tool-server",
+            vec![K(KeyCode::Char('u')), K(Down), K(Enter), T("issues"), K(Tab), K(Down), K(Tab), T("https://mcp.example.com/v1")],
+        ),
+        (
+            "08-tool-token-masked",
+            vec![
+                K(KeyCode::Char('u')),
+                K(Down),
+                K(Enter),
+                T("issues"),
+                K(Tab),
+                K(Down),
+                K(Tab),
+                T("https://mcp.example.com/v1"),
+                K(Enter),
+                T("example-token-123"),
+            ],
+        ),
+        (
+            "09-tool-review",
+            vec![
+                K(KeyCode::Char('u')),
+                K(Down),
+                K(Enter),
+                T("issues"),
+                K(Tab),
+                K(Down),
+                K(Tab),
+                T("https://mcp.example.com/v1"),
+                K(Enter),
+                T("example-token-123"),
+                K(Enter),
+                K(Enter),
+            ],
+        ),
+        (
+            "10-agent-failed-check",
+            vec![K(KeyCode::Char('u')), K(Enter), K(Down), K(Enter), T("coder2"), K(Enter), K(Enter), K(Enter), K(Enter)],
+        ),
+        ("11-invite-handoff", vec![K(KeyCode::Char('u')), K(Down), K(Down), K(Down), K(Down), K(Down), K(Enter), K(Enter), K(Enter)]),
+        ("12-phone-handoff", vec![K(KeyCode::Char('u')), K(Down), K(Down), K(Down), K(Down), K(Enter), K(Enter), K(Enter)]),
+        ("13-box-from-here", vec![K(KeyCode::Char('u')), K(Down), K(Down), K(Down), K(Enter)]),
+        ("14-folder", vec![K(KeyCode::Char('u')), K(Down), K(Down), K(Enter), T("~/code/northwind")]),
+    ];
+    for (name, ins) in shots {
+        let mut h = Harness::new(true).await;
+        h.key(KeyCode::Esc).await; // the cursor starts in the composer
+        for i in ins {
+            match i {
+                In::K(k) => h.key(k).await,
+                In::T(s) => h.chars(s).await,
+            }
+        }
+        for (w, ht) in [(110, 32), (80, 24)] {
+            write(dir, &format!("{name}-{w}x{ht}"), &format!("lt: {name} ({w}×{ht})"), &buffer(&h, w, ht, &t));
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -397,6 +498,11 @@ async fn main() {
         && flag == "--gallery"
     {
         return gallery(Path::new(dir)).await;
+    }
+    if let [_, flag, dir] = args.as_slice()
+        && flag == "--setup"
+    {
+        return setup_gallery(Path::new(dir)).await;
     }
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/screens");
     std::fs::create_dir_all(&dir).unwrap();

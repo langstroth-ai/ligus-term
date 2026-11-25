@@ -486,6 +486,17 @@ pub const COMMANDS: &[Cmd] = &[
         example: "lt --plain checkout ~/src/northwind-api",
     },
     Cmd {
+        name: "setup",
+        usage: "setup [FLOW [--FIELD VALUE ...]]",
+        about: "The guided setup flows, as ligus setup: with no flow, each flow (agent, tool, folder, box, phone, \
+                invite, relay) and what is done here; with one, run it. Flags are the flow's field ids (lt help setup \
+                lists them); --dry-run checks and writes nothing. In interactive plain mode a secret takes only \
+                @FILE (owner-only); one-shot (lt setup ...) it also takes - for stdin and prints one ligus.checks.v1 \
+                document with --json. A step only a person can do ends the run with exit 4 and says where.",
+        prints: "setup, check, next, setup-done",
+        example: "lt setup agent --harness claude-code --name helper --test-turn",
+    },
+    Cmd {
         name: "wait",
         usage: "wait [SECS]",
         about: "Interactive only: wait for running actions, then until events go quiet (default up to 30 s).",
@@ -535,6 +546,10 @@ pub const RECORDS: &[(&str, &[&[&str]])] = &[
     ("memory-proposals", &[&["open"]]),
     ("handoff", &[&["chat", "from", "to", "task"]]),
     ("checkout", &[&["path"]]),
+    ("setup", &[&["flow"], &["progress"], &["title"], &["detail"]]),
+    ("check", &[&["id"], &["status"], &["title"], &["detail"], &["fix"]]),
+    ("next", &[&["command"]]),
+    ("setup-done", &[&["flow"], &["exit"], &["state"]]),
     ("chat", &[&["n", "id", "title", "flags"]]),
     ("opened", &[&["id", "title"]]),
     ("lockdown", &[&["reasons", "clear"]]),
@@ -675,6 +690,7 @@ pub const TOPICS: &[(&str, &str)] = &[
     ("env", "every environment variable lt reads"),
     ("completions", "tab completion for bash, zsh and fish, and the man page"),
     ("doctor", "lt doctor: what lt sees of this machine and device, as a ligus.checks.v1 report"),
+    ("setup", "the guided setup flows: an agent, a tool, a folder, a box, a phone, an invite, a relay"),
     ("themes", "the palettes, light and dark, and your own theme files (lt themes list, lt themes check)"),
 ];
 
@@ -1223,6 +1239,14 @@ pub fn topic(name: &str, flags: &[(String, Option<String>, String)]) -> Option<S
         "env" | "environment" => format!("Environment variables lt reads\n\n{}", env_text()),
         "completions" | "man" => COMPLETIONS.to_string(),
         "doctor" | "checks" => DOCTOR.to_string(),
+        "setup" | "set-up" => {
+            let mut s = crate::setup::cli::all_help();
+            if let Some(c) = COMMANDS.iter().find(|c| c.name == "setup") {
+                s.push('\n');
+                s.push_str(&command_text(c));
+            }
+            s
+        }
         "themes" | "theme" | "colours" | "colors" | "appearance" => THEMES.to_string(),
         "exit" | "exit-codes" => format!("Exit codes\n{EXIT_CODES}\n"),
         _ => String::new(),

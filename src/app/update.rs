@@ -9,6 +9,8 @@ use crate::app::state::*;
 use crate::backend::model::*;
 use crate::backend::{Event, Result};
 use crate::keymap::Action;
+use crate::setup::LtFlow;
+use ligus_runtime::setup::FlowId;
 
 /// Something that happened: a key, a paste, a tick, a backend event, or the
 /// answer to an [`Effect`].
@@ -77,6 +79,14 @@ pub enum Msg {
     AppearanceChanged,
     /// The draft came back from the external editor.
     Edited(Result<String>),
+    /// The Set up list's rows.
+    SetupRows(Result<Vec<crate::setup::FlowRow>>),
+    /// A flow's form.
+    SetupForm(crate::setup::LtFlow, Result<crate::setup::SetupForm>),
+    /// A flow's run finished.
+    SetupRan(crate::setup::LtFlow, Result<crate::setup::SetupOutcome>),
+    /// A path field's completion: the field and what matched.
+    PathCompleted(String, crate::setup::complete::Completion),
     /// A fire-and-report action finished; `ok` is the toast on success.
     Done {
         ok: String,
@@ -168,6 +178,23 @@ pub enum Effect {
     /// Suspend the screen and edit this draft in `$VISUAL`/`$EDITOR`; the
     /// runtime answers [`Msg::Edited`].
     EditDraft(String),
+    /// The Set up list for the workspace (or before there is one).
+    LoadSetup(Option<WorkspaceId>),
+    /// A flow's form for the values so far.
+    SetupForm(Option<WorkspaceId>, crate::setup::LtFlow, crate::setup::SetupInputs),
+    /// Run a flow (as a person). The secrets go to the engine only.
+    SetupRun {
+        workspace: Option<WorkspaceId>,
+        flow: crate::setup::LtFlow,
+        inputs: crate::setup::SetupInputs,
+        secrets: crate::setup::SetupSecrets,
+        dry_run: bool,
+        cancel: crate::setup::CancelFlag,
+    },
+    /// Stop a run between steps.
+    CancelSetup(crate::setup::CancelFlag),
+    /// Complete a path field's folder (lists one directory).
+    CompletePath(String, String),
 }
 
 /// How long the proposal selection rests before its diff loads.
@@ -588,6 +615,26 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
         Msg::AppearanceChanged => {
             let a = s.appearance.name();
             s.toast(ToastKind::Ok, format!("Appearance: {a}, for this session (appearance = \"{a}\" in the config file keeps it)"));
+            vec![]
+        }
+        Msg::SetupRows(Ok(rows)) => {
+            s.setup_rows = Some(rows);
+            if let Some(Overlay::Setup { sel }) = &mut s.overlay {
+                *sel = (*sel).min(s.setup_rows.as_ref().map_or(0, |r| r.len().saturating_sub(1)));
+            }
+            vec![]
+        }
+        Msg::SetupRows(Err(e)) => {
+            s.toast(ToastKind::Error, format!("Couldn't list the setup flows: {e}"));
+            vec![]
+        }
+        Msg::SetupForm(flow, r) => {
+            crate::app::setup::formed(s, flow, r);
+            vec![]
+        }
+        Msg::SetupRan(flow, r) => crate::app::setup::ran(s, flow, r),
+        Msg::PathCompleted(field, c) => {
+            crate::app::setup::completed(s, &field, c);
             vec![]
         }
         Msg::Edited(Ok(text)) => {
@@ -1039,6 +1086,7 @@ fn paste(s: &mut State, text: &str) -> Vec<Effect> {
             b.insert_str(text.trim())
         }
         (Some(Overlay::StartRun { input, .. }), _) => input.insert_str(text),
+        (Some(Overlay::SetupFlow(w)), _) => crate::app::setup::paste(w, text),
         (Some(Overlay::AdmitBox { request, checked: None, result: None, .. }), _) => request.insert_str(text.trim()),
         (None, Phase::Main) if s.view == View::Chats && s.open_chat.is_some() => {
             s.focus = Focus::Composer;
@@ -1323,6 +1371,11 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
         if matches!(s.overlay, Some(Overlay::AddAgentPicker { .. })) { s.available_local().into_iter().cloned().collect() } else { vec![] };
     let Some(overlay) = s.overlay.as_mut() else { return vec![] };
     match overlay {
+        Overlay::Setup { sel } => {
+            let sel = *sel;
+            crate::app::setup::list_key(s, &k, sel)
+        }
+        Overlay::SetupFlow(_) => crate::app::setup::flow_key(s, &k),
         Overlay::Help { scroll, query, searching } => {
             let page = (s.term.1 as usize).saturating_sub(6).max(1);
             // Typing the search: arrows still scroll, enter keeps the
@@ -2505,6 +2558,7 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             s.overlay = Some(Overlay::BindCheckout(buf));
             vec![]
         }
+        Setup => crate::app::setup::open_list(s),
         AdmitBox => {
             if s.active_workspace().is_some_and(|w| w.your_role < Role::Admin) {
                 s.toast(ToastKind::Error, "Can't admit a box: only an Admin or Owner admits one");
@@ -2531,6 +2585,7 @@ fn run_palette(s: &mut State, target: crate::app::palette::Target) -> Vec<Effect
             vec![]
         }
         Target::SwitchWorkspace(id) => switch_workspace(s, id),
+        Target::Setup(flow) => crate::app::setup::open_flow(s, flow, false),
         Target::OpenChat(id) => {
             let mut fx = go(s, View::Chats);
             if let Some(i) = s.chats.iter().position(|c| c.id == id) {
@@ -2746,6 +2801,10 @@ fn select(s: &mut State) -> Vec<Effect> {
                 None => vec![],
             }
         }
+        // An empty view offers its setup flow as its one action.
+        View::Agents if s.agents.is_empty() => crate::app::setup::open_flow(s, LtFlow::Engine(FlowId::Agent), false),
+        View::Hosts if s.hosts.is_empty() => crate::app::setup::open_flow(s, LtFlow::Engine(FlowId::Box), false),
+        View::People if s.members.len() <= 1 => crate::app::setup::open_flow(s, LtFlow::Engine(FlowId::Invite), false),
         View::People | View::Agents | View::Hosts | View::Memory => vec![],
     }
 }

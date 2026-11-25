@@ -5,6 +5,7 @@ pub mod input;
 pub mod menu;
 pub mod palette;
 pub mod runtime;
+pub mod setup;
 pub mod state;
 pub mod update;
 

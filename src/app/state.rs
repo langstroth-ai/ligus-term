@@ -297,6 +297,12 @@ pub enum Overlay {
         checked: Option<JoinRequestCheck>,
         result: Option<BoxAdmission>,
     },
+    /// The Set up list (`u`): each guided flow and what is done.
+    Setup {
+        sel: usize,
+    },
+    /// One flow, one step per screen (`crate::app::setup`).
+    SetupFlow(Box<crate::app::setup::Wizard>),
     /// `.` on a row: the row's actions, then the view's, the destructive
     /// ones last.
     RowMenu {
@@ -542,6 +548,8 @@ pub struct State {
     pub handoffs: Vec<Handoff>,
     /// This device's checkout for the active workspace (apply on host).
     pub checkout: Option<String>,
+    /// The Set up list's rows; `None` while loading.
+    pub setup_rows: Option<Vec<crate::setup::FlowRow>>,
 
     /// The toast on screen: at most one, in the status bar's centre.
     pub toasts: Vec<Toast>,
@@ -661,6 +669,7 @@ impl State {
             memory_sel: Sel::default(),
             handoffs: vec![],
             checkout: None,
+            setup_rows: None,
             toasts: vec![],
             log: vec![],
             sync_status: HashMap::new(),
@@ -806,6 +815,7 @@ impl State {
             Some(Overlay::NewChat(_)) | Some(Overlay::StartRun { .. }) | Some(Overlay::BindCheckout(_)) => true,
             Some(Overlay::Help { searching, .. }) => *searching,
             Some(Overlay::Palette { .. }) | Some(Overlay::History { .. }) => true,
+            Some(Overlay::SetupFlow(w)) => w.typing(),
             Some(Overlay::AdmitBox { result: None, checked: None, .. }) => true,
             Some(_) => false,
             None => match &self.phase {
@@ -855,6 +865,14 @@ impl State {
     /// Why quitting now would stop work on this device: a run it drives, or
     /// an agent's turn running here. `None` when nothing would stop.
     pub fn quit_guard(&self) -> Option<String> {
+        if let Some(Overlay::SetupFlow(w)) = &self.overlay
+            && w.stage == crate::app::setup::Stage::Running
+        {
+            return Some(format!(
+                "\u{201c}{}\u{201d} is running. Quitting now could leave it half done: esc stops it cleanly first.",
+                w.flow.title()
+            ));
+        }
         let runs: Vec<&Run> = self.runs.iter().filter(|r| !r.status.is_terminal() && self.drives_here(r)).collect();
         if let Some(r) = runs.first() {
             let more = if runs.len() > 1 { format!(" and {} more", runs.len() - 1) } else { String::new() };

@@ -15,6 +15,7 @@ pub mod help;
 pub mod keymap;
 pub mod paths;
 pub mod plain;
+pub mod setup;
 pub mod termprobe;
 pub mod theme;
 pub mod theme_file;
