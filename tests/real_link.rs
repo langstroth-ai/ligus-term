@@ -126,53 +126,31 @@ async fn a_fresh_install_links_as_the_persons_device() {
 async fn an_existing_install_moves_from_its_own_member_to_the_person() {
     let _watchdog = watchdog("an_existing_install_moves_from_its_own_member_to_the_person", 420);
     let tmp = tempfile::tempdir().unwrap();
-    trace("let tmp = tempfile::tempdir().unwrap();");
     let relay = serve(ligus_runtime::test_relay::router()).await;
-    trace("let relay = serve(ligus_runtime::test_relay::router()).await");
     let a = device(&tmp.path().join("ana"), "Ana's desktop", &relay);
-    trace("let a = device(&tmp.path().join('ana'), 'Ana's desktop', &re");
     let (ws, wsu, conn) = founded(&a, tmp.path()).await;
-    trace("let (ws, wsu, conn) = founded(&a, tmp.path()).await;");
     let invite = a.b.create_invite(&ws, Role::Contributor).await.unwrap();
-    trace("let invite = a.b.create_invite(&ws, Role::Contributor).await");
     let lt = device(&tmp.path().join("lt"), "lt", &relay);
-    trace("let lt = device(&tmp.path().join('lt'), 'lt', &relay);");
     lt.b.join_workspace("Ana (lt)", &invite).await.unwrap();
-    trace("lt.b.join_workspace('Ana (lt)', &invite).await.unwrap();");
     until("Ana to see the second Ana", || async { (a.b.members(&ws).await.unwrap().len() == 2).then_some(()) }).await;
-    trace("until('Ana to see the second Ana', || async ( (a.b.members(&");
     let old_device = lt.b.device_id().unwrap();
-    trace("let old_device = lt.b.device_id().unwrap();");
 
     let req = lt.b.link_request().await.unwrap();
-    trace("let req = lt.b.link_request().await.unwrap();");
     assert!(req.new_device, "an install in use asks with a new device key");
-    trace("assert!(req.new_device, 'an install in use asks with a new d");
     let decoded = LinkRequest::decode(&req.code).unwrap();
-    trace("let decoded = LinkRequest::decode(&req.code).unwrap();");
     assert_ne!(decoded.device_id, old_device);
-    trace("assert_ne!(decoded.device_id, old_device);");
     let svc = a.b.service().unwrap();
-    trace("let svc = a.b.service().unwrap();");
     let preview = {
         let d = decoded.clone();
         tokio::task::spawn_blocking(move || svc.lock().unwrap().preview_computer_link(wsu, &d)).await.unwrap().unwrap()
     };
-    trace(");");
     assert_eq!(preview.previous_member.map(|m| m.actor.display_name), Some("Ana (lt)".into()));
-    trace("assert_eq!(preview.previous_member.map(|m| m.actor.display_n");
     let grant = approve(&a, wsu, &req.code, &conn).await;
-    trace("let grant = approve(&a, wsu, &req.code, &conn).await;");
     redeem(&lt, &grant).await;
-    trace("redeem(&lt, &grant).await;");
     assert_ne!(lt.b.device_id().unwrap(), old_device, "switched to the new device key");
-    trace("assert_ne!(lt.b.device_id().unwrap(), old_device, 'switched ");
     assert_eq!(lt.b.linked_person().as_deref(), Some("Ana"));
-    trace("assert_eq!(lt.b.linked_person().as_deref(), Some('Ana'));");
     let me = lt.b.members(&ws).await.unwrap().into_iter().find(|m| m.you).unwrap();
-    trace("let me = lt.b.members(&ws).await.unwrap().into_iter().find(|");
     assert_eq!(me.name, "Ana");
-    trace("assert_eq!(me.name, 'Ana');");
 }
 
 /// The owner's 0.3.0 report: lt joined by invite as its own member (an

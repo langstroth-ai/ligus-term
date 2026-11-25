@@ -469,6 +469,14 @@ impl Inner {
         if core.retired.load(std::sync::atomic::Ordering::SeqCst) || self.stale(core) {
             return err(link::STALE);
         }
+        // While a link is redeemed here, the device key switches before the
+        // link is recorded: a write in between (an activation or heartbeat
+        // still in flight) would sign with the new key as this install's own
+        // member and certify it for the wrong account. Nothing but the
+        // linked identity signs until the redeem is done.
+        if self.is_linking() && core.person.is_none() {
+            return err(link::LINKING);
+        }
         if core.person.is_some() && link::link_state(&self.cfg.data_dir).ok().and_then(|s| s.linked_in(ws).cloned()).is_none() {
             return err(link::NOT_LINKED_HERE);
         }

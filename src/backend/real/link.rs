@@ -46,6 +46,9 @@ pub(crate) fn link_state(data_dir: &std::path::Path) -> Result<LinkState> {
 pub(crate) const STALE: &str = "this lt is out of date: another lt on this data dir linked this computer to your devices since it opened. \
      Quit this lt and start it again (it then acts as the person it was linked to)";
 
+/// What a write says while a link is being redeemed on this install.
+pub(crate) const LINKING: &str = "this computer is being linked to your devices: try again in a moment";
+
 /// What a write says in a workspace a linked install wasn't linked into.
 pub(crate) const NOT_LINKED_HERE: &str = "this computer is linked to someone's devices in another workspace, not this one: \
      add it to this workspace from the desktop (My devices > Add a computer), or use another LT_DATA_DIR";
