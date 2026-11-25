@@ -173,6 +173,9 @@ pub(crate) struct Core {
     author: ligus_core::ActorIdentity,
     /// Linked: the account of the person this device acts for.
     person: Option<Uuid>,
+    /// Replaced by [`Inner::follow_disk`]: whoever still holds it signs
+    /// nothing more with it.
+    retired: std::sync::atomic::AtomicBool,
     svc: Arc<Mutex<ChatService>>,
     reader: Mutex<ChatService>,
     /// The write service's change feed, kept here so nothing has to lock the
@@ -406,6 +409,7 @@ impl Inner {
             identity: stored,
             author,
             person,
+            retired: std::sync::atomic::AtomicBool::new(false),
             svc: Arc::new(Mutex::new(svc)),
             reader: Mutex::new(reader),
             feed: feed.clone(),
@@ -462,7 +466,7 @@ impl Inner {
     /// wasn't linked into (its own account there is a phantom). Every write
     /// path checks it: [`Inner::write`], setup, the MCP host, apply.
     pub(crate) fn may_sign(&self, core: &Core, ws: Uuid) -> Result<()> {
-        if self.stale(core) {
+        if core.retired.load(std::sync::atomic::Ordering::SeqCst) || self.stale(core) {
             return err(link::STALE);
         }
         if core.person.is_some() && link::link_state(&self.cfg.data_dir).ok().and_then(|s| s.linked_in(ws).cloned()).is_none() {
@@ -528,9 +532,13 @@ impl Inner {
             let _ = stop.send(true);
         }
         // Whatever still holds the old service (a turn running, an MCP
-        // tool) signs nothing more with it.
-        lock(&core.svc).set_write_block(Some(link::STALE.into()));
-        lock(&core.reader).set_write_block(Some(link::STALE.into()));
+        // tool) signs nothing more with it. Never waited on here: a write
+        // holding it may be waiting on a passkey.
+        core.retired.store(true, std::sync::atomic::Ordering::SeqCst);
+        {
+            let old = core.clone();
+            std::thread::spawn(move || lock(&old.svc).set_write_block(Some(link::STALE.into())));
+        }
         // The list first: the new core reads its founders and rosters.
         *lock(&self.list) = WorkspaceList::load(&self.cfg.data_dir, self.secrets.as_ref(), SECRET_SCOPE);
         *self.core.write().unwrap_or_else(|e| e.into_inner()) = None;
