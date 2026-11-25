@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Screenshots of lt for the website, the docs and the READMEs, from the demo
-# backend (no device, no network): every gallery view in Pollen light and
-# dark, at 110x32.
+# backend (no device, no network): every gallery view and the guided setup
+# flows (lt-setup-*) in Pollen light and dark, at 110x32.
 #
 #   scripts/capture-screenshots.sh [OUT_DIR]     (default: screenshots-out)
 #
@@ -31,8 +31,10 @@ trap 'rm -rf "$tmp"' EXIT
 
 for mode in light dark; do
   LT_SHOT_MODE=$mode cargo run --quiet --example screenshots -- --gallery "$tmp/$mode" >/dev/null
-  for svg in "$tmp/$mode"/*-110x32.svg; do
+  LT_SHOT_MODE=$mode cargo run --quiet --example screenshots -- --setup "$tmp/$mode/setup" >/dev/null
+  for svg in "$tmp/$mode"/*-110x32.svg "$tmp/$mode"/setup/*-110x32.svg; do
     view=$(basename "$svg" -110x32.svg)
+    case $svg in */setup/*) view="setup-${view#[0-9][0-9]-}"; view=${view/setup-setup-/setup-} ;; esac
     name="lt-$view-$mode"
     cp "$svg" "$out/svg/$name.svg"
     rsvg-convert -z 2 "$svg" -o "$out/png/$name.png"

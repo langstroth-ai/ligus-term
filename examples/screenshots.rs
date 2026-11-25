@@ -350,7 +350,7 @@ async fn themes(dir: &Path) {
 const W: u16 = 104;
 const H: u16 = 26;
 
-/// The theme for `--gallery`: Pollen dark on a plain dark terminal, or
+/// The theme for `--gallery` and `--setup`: Pollen dark on a plain dark terminal, or
 /// Pollen light on white with `LT_SHOT_MODE=light`
 /// (scripts/capture-screenshots.sh takes both).
 fn shot_theme() -> Theme {
@@ -409,7 +409,7 @@ async fn setup_gallery(dir: &Path) {
     use In::{K, T};
     use KeyCode::{Down, Enter, Tab};
     std::fs::create_dir_all(dir).unwrap();
-    let t = Theme::DARK;
+    let t = shot_theme();
     let u = K(KeyCode::Char('u'));
     let shots: Vec<(&str, Vec<In>)> = vec![
         ("01-setup-list", vec![u]),
@@ -490,7 +490,7 @@ async fn setup_gallery(dir: &Path) {
             }
         }
         for (w, ht) in [(110, 32), (80, 24)] {
-            write(dir, &format!("{name}-{w}x{ht}"), &format!("lt: {name} ({w}×{ht})"), &buffer(&h, w, ht, &t));
+            write_in(dir, &format!("{name}-{w}x{ht}"), &format!("lt: {name} ({w}×{ht})"), &buffer(&h, w, ht, &t), &t);
         }
     }
 }
