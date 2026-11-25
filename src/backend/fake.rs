@@ -56,6 +56,8 @@ struct Ws {
     summary: Option<WorkspaceSummary>,
     chats: Vec<ChatSummary>,
     messages: HashMap<ChatId, Vec<Message>>,
+    /// Agents' questions per chat, oldest first.
+    asks: HashMap<ChatId, Vec<Ask>>,
     proposals: Vec<Proposal>,
     diffs: HashMap<ProposalId, Diff>,
     members: Vec<MemberRec>,
@@ -709,6 +711,7 @@ fn chat(id: &str, title: &str, channel: Option<&str>, at: Millis, unread: bool, 
         unread,
         mentioned,
         lockdown: None,
+        asks_for_you: 0,
     }
 }
 
@@ -780,6 +783,73 @@ fn clock_diff() -> Diff {
             },
         ],
     }
+}
+
+/// The demo's decision cards in "Fix flaky checkout test": one settled
+/// earlier, a question from coder to you, and a grant card from coder on
+/// build-box.
+fn demo_asks() -> Vec<Ask> {
+    let base = Ask {
+        id: AskId::new("q-clock"),
+        chat: ChatId::new("c-checkout"),
+        turn: Some(MessageId::new("m2")),
+        agent: "coder".into(),
+        kind: AskKind::Question,
+        v2: true,
+        question: "Fake clock or freeze time in the test harness?".into(),
+        options: vec!["Fake clock".into(), "Freeze time".into()],
+        allow_text: false,
+        audience: "Ada".into(),
+        quorum: 1,
+        tally: vec![1, 0],
+        can_answer: Allowed::No("Waiting on Ada".into()),
+        effect: None,
+        origin: None,
+        status: AskStatus::Answered { by: "Ada".into(), answer: "Fake clock".into(), text: None, at: DEMO_NOW - 37 * MIN },
+        at: DEMO_NOW - 38 * MIN,
+        expires_at: DEMO_NOW - 28 * MIN,
+    };
+    vec![
+        base.clone(),
+        Ask {
+            id: AskId::new("q-fixtures"),
+            turn: Some(MessageId::new("m3")),
+            question: "Use Postgres or SQLite for the test fixtures?".into(),
+            options: vec!["Postgres".into(), "SQLite".into()],
+            allow_text: true,
+            audience: "you".into(),
+            tally: vec![0, 0],
+            can_answer: Allowed::Yes,
+            status: AskStatus::Open,
+            at: DEMO_NOW - 11 * MIN,
+            expires_at: DEMO_NOW + 9 * MIN,
+            ..base.clone()
+        },
+        Ask {
+            id: AskId::new("q-run"),
+            turn: Some(MessageId::new("m3")),
+            kind: AskKind::Permission,
+            question: "coder asks permission to run this once.".into(),
+            options: vec!["Allow once".into(), "Deny".into()],
+            audience: "you".into(),
+            tally: vec![0, 0],
+            can_answer: Allowed::Yes,
+            effect: Some(AskEffect {
+                tool: "execute".into(),
+                title: "Run the checkout tests".into(),
+                detail: "cargo test -p checkout --features fake-clock".into(),
+                cwd: "/srv/northwind".into(),
+                host: "build-box".into(),
+                presence_required: false,
+                standing: false,
+                too_large: false,
+            }),
+            status: AskStatus::Open,
+            at: DEMO_NOW - 10 * MIN,
+            expires_at: DEMO_NOW + 10 * MIN,
+            ..base
+        },
+    ]
 }
 
 fn seed_northwind(w: &mut World) {
@@ -896,6 +966,7 @@ fn seed_northwind(w: &mut World) {
             ),
         ],
     );
+    ws.asks.insert(ChatId::new("c-checkout"), demo_asks());
     ws.messages.insert(
         ChatId::new("c-auth"),
         vec![
@@ -1438,7 +1509,20 @@ impl Backend for FakeBackend {
 
     async fn chats(&self, workspace: &WorkspaceId) -> Result<Vec<ChatSummary>> {
         let mut w = self.lock();
-        let mut c = w.ws(workspace)?.chats.clone();
+        let now = w.clock;
+        let ws = w.ws(workspace)?;
+        let mut c = ws.chats.clone();
+        for x in &mut c {
+            x.asks_for_you = ws
+                .asks
+                .get(&x.id)
+                .map(|l| {
+                    l.iter()
+                        .filter(|a| a.status == AskStatus::Open && a.can_answer.is_yes() && (a.expires_at == 0 || now < a.expires_at))
+                        .count()
+                })
+                .unwrap_or(0);
+        }
         c.sort_by_key(|x| std::cmp::Reverse(x.updated_at));
         Ok(c)
     }
@@ -1549,6 +1633,61 @@ impl Backend for FakeBackend {
             w.stopping.insert(chat.clone());
         }
         Ok(n)
+    }
+
+    async fn asks(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<Vec<Ask>> {
+        let mut w = self.lock();
+        let now = w.clock;
+        let ws = w.ws(workspace)?;
+        let mut out = ws.asks.get(chat).cloned().unwrap_or_default();
+        for a in &mut out {
+            if a.status == AskStatus::Open && a.expires_at > 0 && now >= a.expires_at {
+                a.status = AskStatus::Stopped;
+            }
+        }
+        Ok(out)
+    }
+
+    async fn answer_ask(&self, workspace: &WorkspaceId, chat: &ChatId, ask: &AskId, reply: AskReply) -> Result<()> {
+        let needs = {
+            let mut w = self.lock();
+            let ws = w.ws(workspace)?;
+            let Some(a) = ws.asks.get(chat).and_then(|l| l.iter().find(|a| &a.id == ask)) else { return err("no such question") };
+            if a.status != AskStatus::Open {
+                return err("that question is already answered or closed");
+            }
+            if let Allowed::No(r) = &a.can_answer {
+                return err(r.clone());
+            }
+            match &reply {
+                AskReply::NotNow if !a.v2 => return err("an older question can't be declined; leave it unanswered"),
+                AskReply::Text(_) if !a.allow_text => return err("this question takes no free text"),
+                AskReply::Option(i) if *i as usize >= a.options.len() => return err("no such option"),
+                _ => {}
+            }
+            a.effect.as_ref().is_some_and(|e| e.presence_required) && matches!(reply, AskReply::Option(_))
+        };
+        if needs {
+            self.presence("flowRecorded", "Allow an agent to run a call once".into(), PresenceOp::Get).await?;
+        }
+        {
+            let mut w = self.lock();
+            let name = w.your_name.clone().unwrap_or_default();
+            let now = w.tick();
+            let ws = w.ws(workspace)?;
+            let Some(a) = ws.asks.get_mut(chat).and_then(|l| l.iter_mut().find(|a| &a.id == ask)) else { return err("no such question") };
+            match reply {
+                AskReply::Option(i) => {
+                    let answer = a.options[i as usize].clone();
+                    a.status = AskStatus::Answered { by: name, answer, text: None, at: now };
+                }
+                AskReply::Text(t) => a.status = AskStatus::Answered { by: name, answer: String::new(), text: Some(t), at: now },
+                AskReply::NotNow if a.audience == "you" => a.status = AskStatus::Declined { by: name },
+                AskReply::NotNow => a.can_answer = Allowed::No("You said Not now".into()),
+            }
+        }
+        self.emit(Event::AsksChanged { workspace: workspace.clone(), chat: chat.clone() });
+        Ok(())
     }
 
     async fn lock_chat(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<()> {

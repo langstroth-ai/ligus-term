@@ -5,30 +5,30 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Chats ━━━━━┏ Messages · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────╮
-┃  ◆ Fix flak┃No messages yet                                                                   ┃            │
-┃  ◆ Migrate ┃                                                                                  ┃eading the  │
+┃  ◆ Fix flak┃No messages yet                                                                   ┃eading the  │
+┃  ◆ Migrate ┃                                                                                  ┃            │
 ┃  Weekly rel┃                                                                                  ┃            │
 ┃            ┃                                                                                  ┃            │
-┃            ┃                                                                                  ┃            │
 ┃            ┃                                                                                  ┃ll change.  │
+┃            ┃                                                                                  ┃            │
+┃            ┃                                                                                  ┃            │
 ┃            ┃                                                                                  ┃            │
 ┃            ┃                                                                                  ┃to review   │
 ┃            ┃                                                                                  ┃            │
 ┃            ┃                                                                                  ┃            │
 ┃            ┃                                                                                  ┃der uses.   │
+┃            ┃                                                                                  ┃            │
+┃            ┃                                                                                  ┃”           │
+┃            ┃                                                                                  ┃at first)   │
+┃            ┃                                                                                  ┃            │
+┃            ┃                                                                                  ┃            │
+┃            ┃                                                                                  ┃            │
+┃            ┃                                                                                  ┃            │
+┃            ┃                                                                                  ┃            │
+┃            ┃                                                                                  ┃            │
+┃            ┃                                                                                  ┃            │
+┃            ┃                                                                                  ┃            │
 ┃            ┃                                                                                  ┃eview       │
-┃            ┃                                                                                  ┃            │
-┃            ┃                                                                                  ┃            │
-┃            ┃                                                                                  ┃            │
-┃            ┃                                                                                  ┃            │
-┃            ┃                                                                                  ┃            │
-┃            ┃                                                                                  ┃            │
-┃            ┃                                                                                  ┃            │
-┃            ┃                                                                                  ┃            │
-┃            ┃                                                                                  ┃            │
-┃            ┃                                                                                  ┃            │
-┃            ┃                                                                                  ┃            │
-┃            ┃                                                                                  ┃            │
 ┃            ┃                                                                                  ┃────────────╯
 ┃            ┃                                                                                  ┃
 ┃            ┃                                                                                  ┃────────────╮

@@ -28,6 +28,8 @@ pub async fn run_effect(b: Arc<dyn Backend>, fx: Effect) -> Msg {
         LoadWorkspaces => Msg::Workspaces(b.workspaces().await),
         LoadChats(w) => Msg::Chats(w.clone(), b.chats(&w).await),
         LoadTranscript(w, c) => Msg::Transcript(w.clone(), c.clone(), b.transcript(&w, &c).await),
+        LoadAsks(w, c) => Msg::Asks(w.clone(), c.clone(), b.asks(&w, &c).await),
+        AnswerAsk(w, c, a, reply) => done("Answer sent", b.answer_ask(&w, &c, &a, reply).await),
         LoadMentionables(w) => Msg::Mentionables(w.clone(), b.mentionables(&w).await),
         LoadProposals(w) => Msg::Proposals(w.clone(), b.proposals(&w).await),
         LoadDiff(w, p) => Msg::Diff(w.clone(), p.clone(), b.proposal_diff(&w, &p).await),

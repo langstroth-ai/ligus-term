@@ -12,21 +12,21 @@ expression: screen
 ┃                              ┃│  Yes. The payment tests already use a fake clock, so it's a small change.  │
 ┃                              ┃│  I'll propose it.                                                          │
 ┃                              ┃│                                                                            │
+┃                              ┃│  ✓ Ada answered Fake clock · 37m                                           │
+┃                              ┃│                                                                            │
 ┃                              ┃│Ada  12m                                                                    │
 ┃                              ┃│  @Mara can you review the timeout? 30 seconds is what the provider uses.   │
 ┃                              ┃│                                                                            │
+┃                              ┃│▸ coder asks you: “Use Postgres or SQLite for the test fixtures?”           │
+┃                              ┃│    1 Postgres   2 SQLite   r reply   n not now   (tab to the chat first)   │
+┃                              ┃│    coder decides what to do next. No new permission.                       │
 ┃                              ┃│                                                                            │
-┃                              ┃│                                                                            │
-┃                              ┃│                                                                            │
-┃                              ┃│                                                                            │
-┃                              ┃│                                                                            │
-┃                              ┃│                                                                            │
-┃                              ┃│                                                                            │
-┃                              ┃│                                                                            │
-┃                              ┃│                                                                            │
-┃                              ┃│                                                                            │
-┃                              ┃│                                                                            │
-┃                              ┃│                                                                            │
+┃                              ┃│  coder asks you to run something                                           │
+┃                              ┃│    Allow once lets coder run this once on build-box:                       │
+┃                              ┃│    │ cargo test -p checkout --features fake-clock                          │
+┃                              ┃│    in /srv/northwind                                                       │
+┃                              ┃│    coder describes it as: Run the checkout tests                           │
+┃                              ┃│    Next, after the question above                                          │
 ┃                              ┃│                                                                            │
 ┃                              ┃╰────────────────────────────────────────────────────────────────────────────╯
 ┃                              ┃

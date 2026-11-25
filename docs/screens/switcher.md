@@ -5,30 +5,30 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test · 1/3 ─────────────────────────────────────────────╮
-┃  ◆ Fix flaky checkout … 12m  ┃│Ada  40m                                                                    │
-┃  ◆ Migrate auth to pas… 50m  ┃│  The checkout test fails about one run in ten. Can we stop it reading the  │
-┃  Weekly release notes    1d  ┃│  wall clock?                                                               │
-┃                              ┃│                                                                            │
+┃  ◆ Fix flaky checkout … 12m  ┃│  The checkout test fails about one run in ten. Can we stop it reading the  │
+┃  ◆ Migrate auth to pas… 50m  ┃│  wall clock?                                                               │
+┃  Weekly release notes    1d  ┃│                                                                            │
 ┃                              ┃│@coder  via claude-code · on build-box  38m                                 │
 ┃                              ┃│  Yes. The payment tests already use a fake clock, so it's a small change.  │
 ┃                              ┃│  I'll propose it.                                                          │
+┃                              ┃│                                                                            │
+┃                              ┃│  ✓ Ada answered Fake clock · 37m                                           │
 ┃                              ┃│  ◆ proposal “Inject the clock into checkout t…” · open 1/2 · p to review   │
 ┃                              ┃│                                                                            │
-┃                              ┃│Ada  12m                                                                    │
-┃                  ┏ Workspaces ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ provider uses.   │
-┃                  ┃1 [NA] Northwind API  owner · peer to peer                            ┃p to review       │
+┃                  ┏ Workspaces ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                  │
+┃                  ┃1 [NA] Northwind API  owner · peer to peer                            ┃ provider uses.   │
 ┃                  ┃2 [DS] docs-site  viewer · relay https://relay.example.org  • mentione┃                  │
-┃                  ┃                                                                      ┃                  │
-┃                  ┃                                                                      ┃                  │
+┃                  ┃                                                                      ┃tures?”           │
+┃                  ┃                                                                      ┃the chat first)   │
 ┃                  ┃enter switch · 1-9 jump · + create or join · esc close                ┃                  │
 ┃                  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                  │
-┃                              ┃│                                                                            │
-┃                              ┃│                                                                            │
-┃                              ┃│                                                                            │
-┃                              ┃│                                                                            │
-┃                              ┃│                                                                            │
-┃                              ┃│                                                                            │
-┃                              ┃│                                                                            │
+┃                              ┃│  coder asks you to run something                                           │
+┃                              ┃│    Allow once lets coder run this once on build-box:                       │
+┃                              ┃│    │ cargo test -p checkout --features fake-clock                          │
+┃                              ┃│    in /srv/northwind                                                       │
+┃                              ┃│    coder describes it as: Run the checkout tests                           │
+┃                              ┃│    Next, after the question above                                          │
+┃                              ┃│  ◆ proposal “Sign-off: inject a fake clock” · open 0/1 · p to review       │
 ┃                              ┃╰────────────────────────────────────────────────────────────────────────────╯
 ┃                              ┃
 ┃                              ┃╭ Message the room ──────────────────────────────────────────────────────────╮

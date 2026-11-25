@@ -9,24 +9,24 @@ expression: screen
 ┃  Weekly release notes    1d  ┃│                         ┃                                                                                  ┃                 ││◆ Sign-off: inject a fake clock 0/1   │
 ┃                              ┃│             @coder  via ┃                                                                                  ┃                 ││                                      │
 ┃                              ┃│               Yes. The p┃                                                                                  ┃                 ││Runs                                  │
-┃                              ┃│               ◆ proposal┃                                                                                  ┃                 ││· Implement, review, sh… awaiting-gate│
+┃                              ┃│                         ┃                                                                                  ┃                 ││· Implement, review, sh… awaiting-gate│
+┃                              ┃│               ✓ Ada answ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│               ◆ proposal┃                                                                                  ┃                 ││                                      │
 ┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
 ┃                              ┃│             Ada  12m    ┃                                                                                  ┃                 ││                                      │
 ┃                              ┃│               @Mara can ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│             ▸ coder asks┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                 1 Postgr┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                 coder de┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│               coder asks┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                 Allow on┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                 │ cargo ┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                 in /srv/┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                 coder de┃                                                                                  ┃                 ││                                      │
+┃                              ┃│                 Next, af┃                                                                                  ┃                 ││                                      │
 ┃                              ┃│               ◆ proposal┃                                                                                  ┃                 ││                                      │
-┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
-┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
-┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
-┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
-┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
-┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
-┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
-┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
-┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
-┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
-┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
-┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
-┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
 ┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
 ┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │
 ┃                              ┃│                         ┃                                                                                  ┃                 ││                                      │

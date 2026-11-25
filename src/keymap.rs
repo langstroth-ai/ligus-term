@@ -36,10 +36,12 @@ pub enum Context {
     Notifications,
     Workflows,
     Hosts,
+    /// A decision card waits on you in the open chat.
+    Ask,
 }
 
 impl Context {
-    pub const ALL: [Context; 12] = [
+    pub const ALL: [Context; 13] = [
         Context::Global,
         Context::Nav,
         Context::Chat,
@@ -52,6 +54,7 @@ impl Context {
         Context::Notifications,
         Context::Workflows,
         Context::Hosts,
+        Context::Ask,
     ];
     pub fn name(self) -> &'static str {
         match self {
@@ -67,6 +70,7 @@ impl Context {
             Context::Notifications => "notifications",
             Context::Workflows => "workflows",
             Context::Hosts => "hosts",
+            Context::Ask => "ask",
         }
     }
     pub fn title(self) -> &'static str {
@@ -83,6 +87,7 @@ impl Context {
             Context::Notifications => "Notifications",
             Context::Workflows => "Workflows",
             Context::Hosts => "Hosts",
+            Context::Ask => "A question for you (in the open chat)",
         }
     }
     pub fn from_name(s: &str) -> Option<Context> {
@@ -164,6 +169,15 @@ pub enum Action {
     AdmitBox,
     Setup,
     CopySafetyCode,
+    AskOption1,
+    AskOption2,
+    AskOption3,
+    AskOption4,
+    AskOption5,
+    AskReply,
+    AskNotNow,
+    AskAllow,
+    AskDeny,
 }
 
 /// One row of the binding table: the single source for defaults, config
@@ -257,6 +271,15 @@ pub const BINDINGS: &[Binding] = &[
     b!(Workflows, RejectGate, "reject_gate", "Reject the run's waiting gate (asks first)", ["R"]),
     b!(Workflows, CancelRun, "cancel_run", "Cancel the run (asks first)", ["X"]),
     b!(Hosts, BindCheckout, "bind_checkout", "Set this device's checkout for apply", ["b"]),
+    b!(Ask, AskOption1, "ask_option_1", "Answer with the first option", ["1"]),
+    b!(Ask, AskOption2, "ask_option_2", "Answer with the second option", ["2"]),
+    b!(Ask, AskOption3, "ask_option_3", "Answer with the third option", ["3"]),
+    b!(Ask, AskOption4, "ask_option_4", "Answer with the fourth option", ["4"]),
+    b!(Ask, AskOption5, "ask_option_5", "Answer with the fifth option", ["5"]),
+    b!(Ask, AskReply, "ask_reply", "Reply in your own words (when the question takes a reply)", ["r"]),
+    b!(Ask, AskNotNow, "ask_not_now", "Not now: put the question aside (it stays open for others in a room)", ["n"]),
+    b!(Ask, AskAllow, "ask_allow", "Allow the call once (asks first; a passkey when it needs one)", ["a"]),
+    b!(Ask, AskDeny, "ask_deny", "Deny the call", ["d"]),
 ];
 
 /// A key with modifiers, as written in config (`ctrl-c`, `alt-enter`, `G`).

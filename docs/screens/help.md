@@ -4,7 +4,7 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
-┏ Chats ━━━━━━━━━┏ Help · 1-40 of 107 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
+┏ Chats ━━━━━━━━━┏ Help · 1-40 of 118 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
 ┃  ◆ Fix flaky ch┃Each chat is a room with people and agents. @ mentions an agent or a      ┃                │
 ┃  ◆ Migrate auth┃person; enter on a chat opens it and puts you in the composer.            ┃it reading the  │
 ┃  Weekly release┃                                                                          ┃                │
@@ -12,15 +12,15 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 ┃                ┃                                                                          ┃                │
 ┃                ┃Chats  here                                                               ┃ small change.  │
 ┃                ┃  i                        Write a message                                ┃                │
-┃                ┃  N                        New chat                                       ┃· p to review   │
+┃                ┃  N                        New chat                                       ┃                │
 ┃                ┃  D                        The whole transcript in $PAGER (or your termina┃                │
-┃                ┃  o                        Show or hide what tool calls returned          ┃                │
-┃                ┃  L                        Lock this chat down                            ┃rovider uses.   │
-┃                ┃  U                        Clear the lockdown                             ┃to review       │
-┃                ┃                                                                          ┃                │
+┃                ┃  o                        Show or hide what tool calls returned          ┃· p to review   │
+┃                ┃  L                        Lock this chat down                            ┃                │
+┃                ┃  U                        Clear the lockdown                             ┃                │
+┃                ┃                                                                          ┃rovider uses.   │
 ┃                ┃Lists  here                                                               ┃                │
-┃                ┃  ↑, k                     Up                                             ┃                │
-┃                ┃  ↓, j                     Down                                           ┃                │
+┃                ┃  ↑, k                     Up                                             ┃res?”           │
+┃                ┃  ↓, j                     Down                                           ┃e chat first)   │
 ┃                ┃  pgup, ctrl-u             Page up                                        ┃                │
 ┃                ┃  pgdn, ctrl-d             Page down                                      ┃                │
 ┃                ┃  home, g                  First                                          ┃                │
@@ -29,7 +29,7 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 ┃                ┃  ., shift-f10             Actions for this row and this view (destructive┃                │
 ┃                ┃  /                        Find in this list (as you type; ↑↓ next match) ┃                │
 ┃                ┃                                                                          ┃                │
-┃                ┃Anywhere                                                                  ┃                │
+┃                ┃Anywhere                                                                  ┃to review       │
 ┃                ┃  ctrl-c, q                Quit (asks first while work runs here)         ┃                │
 ┃                ┃  ?, f1                    Show or hide this help                         ┃                │
 ┃                ┃  :, ctrl-p, ctrl-k        Command palette: every action, view, chat, prop┃                │

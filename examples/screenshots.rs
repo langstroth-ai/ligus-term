@@ -387,6 +387,11 @@ async fn gallery(dir: &Path) {
         ("people-own-member", &[KeyCode::Char('m')]),
         ("help-people", &[KeyCode::Char('m'), KeyCode::Char('?')]),
         ("messages-empty", &[KeyCode::Char('!')]),
+        // Agents' questions: a question and a grant card waiting on you,
+        // then the grant once the question is answered, then its confirm.
+        ("ask", &[KeyCode::Tab]),
+        ("ask-grant", &[KeyCode::Tab, KeyCode::Char('2')]),
+        ("ask-allow", &[KeyCode::Tab, KeyCode::Char('2'), KeyCode::Char('a')]),
     ];
     for (name, keys) in shots {
         let mut h = Harness::new(true).await;

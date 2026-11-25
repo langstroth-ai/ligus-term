@@ -8,6 +8,17 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Added
 
+- Agents' questions (Ligus 0.4 decision cards): a card in the transcript
+  where the agent asked, with the agent's words quoted as plain text and
+  what the answer does in Ligus's words. `1`-`5` answer, `r` replies, `n`
+  says Not now; a grant card shows the exact call and its host, `a` allows
+  once after a confirm (and a passkey where the card needs one), `d` denies,
+  and a call too large to review offers only Deny. Cards you can't answer
+  say who they wait on; settled ones are one line; a chat with a card
+  waiting on you shows "needs you". Plain mode's `asks` lists them
+  (read-only). Built against the ligus 0.4 agent-questions branch; re-pinned
+  to the ligus v0.4.0 tag at release.
+
 - Link to my devices is easy to find: while this terminal is its own member,
   Settings says so on one line, and so does People when another member there
   looks like you (the same name, or a shorter one: "zaz" and "zazulam"). `D`
