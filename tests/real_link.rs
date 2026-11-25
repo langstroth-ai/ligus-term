@@ -262,7 +262,7 @@ mod live {
         );
         let (mut session, _, req) = open(d, &laptop, &rid).await;
         let listed = a.b.approvals(&ws).await.unwrap();
-        assert_eq!(listed[0].checking.as_deref(), Some("Ana's desktop"), "{listed:?}");
+        assert_eq!((listed[0].checking.as_deref(), listed[0].contested), (Some("This device"), false), "{listed:?}");
 
         // Nothing is acknowledged before the person says the codes match.
         let svc = a.b.service().unwrap();
@@ -366,7 +366,7 @@ mod live {
         let tmp = tempfile::tempdir().unwrap();
         let relay = serve(ligus_runtime::test_relay::router()).await;
         let a = device(&tmp.path().join("ana"), "Ana's desktop", &relay);
-        let (_ws, wsu, conn) = founded(&a, tmp.path()).await;
+        let (ws, wsu, conn) = founded(&a, tmp.path()).await;
         let laptop = device(&tmp.path().join("laptop"), "lt on laptop", &relay);
 
         let bare = serve(axum::Router::new()).await;
@@ -375,9 +375,27 @@ mod live {
         let start = laptop.b.link_live(&no_routes).await.unwrap();
         assert!(matches!(start, LiveLinkStart::NoMailbox { ref request } if request.code.starts_with("liguslink1:")), "{start:?}");
 
-        let address = desk(&a, &tmp.path().join("ana"), &relay, wsu, &conn).await.address;
-        for _ in 0..3 {
+        let d = desk(&a, &tmp.path().join("ana"), &relay, wsu, &conn).await;
+        let address = d.address.clone();
+        for i in 0..3 {
             let LiveLinkStart::Posted { rid, .. } = laptop.b.link_live(&address).await.unwrap() else { panic!() };
+            if i == 0 {
+                // A device that isn't in the workspace races a claim and an
+                // open: Ana's lt lists it as contested.
+                let l = until("the request in the mailbox", || async {
+                    list_live(&d.client, std::slice::from_ref(&d.ek)).await.unwrap().live.into_iter().find(|l| l.rid_hex() == rid)
+                })
+                .await;
+                let stranger = ApproverIdentity {
+                    signer: Signer::Ed25519(ligus_core::crypto::SigningKeypair::generate().unwrap()),
+                    device_name: "Ben's desktop".into(),
+                    person: ApproverPerson { account_id: Uuid::new_v4(), name: "Ben".into() },
+                };
+                ApproverSession::begin(d.client.clone(), &d.ek, &l.request, stranger, &mut SeenSet::in_memory()).await.unwrap();
+                let listed =
+                    until("the contested request", || async { a.b.approvals(&ws).await.unwrap().into_iter().find(|r| r.contested) }).await;
+                assert_eq!(listed.checking.as_deref(), Some("Ben's desktop"));
+            }
             laptop.b.link_live_cancel(&rid).await.unwrap();
             update_where(&laptop, &rid, "cancelled", |u| *u == LiveLinkUpdate::Ended(LiveLinkEnd::Cancelled)).await;
         }

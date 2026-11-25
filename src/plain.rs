@@ -913,7 +913,7 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                     let now = ligus_core::flow::now_ms();
                     for (i, r) in list.iter().enumerate() {
                         let who = if r.contested {
-                            "opened by a device that didn't claim it (it may be an attempt to intercept it)".to_string()
+                            CONTESTED.to_string()
                         } else {
                             r.checking.clone().map(|n| format!("{n} is checking it")).unwrap_or_else(|| "waiting".into())
                         };

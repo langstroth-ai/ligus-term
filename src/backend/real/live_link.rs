@@ -22,11 +22,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use ligus_core::match_code::MatchKind;
-use ligus_runtime::EventStore;
 use ligus_runtime::approval_mailbox::{
-    AbortReason, ApprovalAddress, CheckedGrant, EpochKey, GrantError, GrantTarget, LOG_CHECK_RETRY_MS, LogApprovalCheck, LogVerdict,
-    MailboxClient, MailboxError, Outcome, RequestSpec, Requester, RequesterError, RequesterEvent, ResultBody, Signer, list_live,
-    retry_log_check,
+    AbortReason, ApprovalAddress, CheckedGrant, ClaimView, GrantError, GrantTarget, LOG_CHECK_RETRY_MS, LogApprovalCheck, LogVerdict,
+    MailboxClient, MailboxError, Outcome, RequestSpec, Requester, RequesterError, RequesterEvent, ResultBody, Signer, claim_view,
+    list_live, retry_log_check,
 };
 use ligus_runtime::computer_link::LinkRequest;
 use ligus_runtime::display::shown;
@@ -148,20 +147,16 @@ impl Inner {
     }
 
     /// The live requests in `ws`'s approval mailboxes (the newest three key
-    /// epochs this device holds), read only.
+    /// epochs this device holds), read only, each claim classified against
+    /// the folded workspace (design note 6.4: a claim by a device that can't
+    /// approve that kind, or an open without a claim, is contested).
     pub(crate) async fn approvals(self: &Arc<Self>, ws: Uuid) -> Result<Vec<ApprovalRequest>> {
         let saved = self.saved(ws)?;
         let Some(relay) = saved.relay().map(str::to_string) else { return Ok(Vec::new()) };
         let src = self.key_source(&saved)?;
-        let epochs: Vec<EpochKey> = {
-            let store = EventStore::open(self.db()).map_err(one_line)?;
-            let ring = ligus_runtime::keyring::KeyringEngine::from_store(&store, ws, &src);
-            ring.readable()
-                .into_iter()
-                .filter(|(v, kid)| ring.park_priority(*v, Some(kid)) == 2)
-                .filter_map(|(v, kid)| ring.keys_for(v, Some(&kid)).first().map(|k| EpochKey { epoch: v, key: **k }))
-                .collect()
-        };
+        let epochs = self.read(ws, move |svc| svc.approval_epoch_keys(ws, &src))?;
+        let classifier = self.read(ws, |svc| svc.approval_classifier(ws))?;
+        let me = self.core()?.identity.device.id;
         let client = MailboxClient::new(&relay).with_auth(saved.secrets.token.clone());
         let listing = match list_live(&client, &epochs).await {
             Ok(l) => l,
@@ -173,16 +168,24 @@ impl Inner {
             .live
             .iter()
             .filter(|l| l.ended.is_none())
-            .map(|l| ApprovalRequest {
-                kind: match l.kind() {
-                    MatchKind::Box => ApprovalKind::Box,
-                    MatchKind::Computer => ApprovalKind::Computer,
-                    MatchKind::Phone => ApprovalKind::Phone,
-                },
-                label: shown(&l.label()),
-                at: l.put_at,
-                checking: l.claims.first().map(|c| shown(&c.approver_name)),
-                contested: l.opened_without_claim,
+            .map(|l| {
+                let (checking, contested) = match claim_view(l, me, &classifier) {
+                    ClaimView::Unclaimed => (None, false),
+                    ClaimView::Mine => (Some("This device".to_string()), false),
+                    ClaimView::ClaimedBy { name, .. } => (Some(shown(&name)), false),
+                    ClaimView::Contested { by } => (by.map(|(n, _)| shown(&n)), true),
+                };
+                ApprovalRequest {
+                    kind: match l.kind() {
+                        MatchKind::Box => ApprovalKind::Box,
+                        MatchKind::Computer => ApprovalKind::Computer,
+                        MatchKind::Phone => ApprovalKind::Phone,
+                    },
+                    label: shown(&l.label()),
+                    at: l.put_at,
+                    checking,
+                    contested,
+                }
             })
             .collect())
     }

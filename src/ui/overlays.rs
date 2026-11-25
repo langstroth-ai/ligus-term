@@ -11,7 +11,7 @@ use super::{center, onboarding, pane};
 use unicode_width::UnicodeWidthStr;
 
 use crate::app::state::{MenuItem, MenuSection, Overlay, PresenceSheet, PresenceStage, State, View};
-use crate::backend::model::{Allowed, PresenceOp, Role, initials};
+use crate::backend::model::{Allowed, CONTESTED, PresenceOp, Role, initials};
 use crate::keymap::{BINDINGS, Context};
 use crate::theme::Theme;
 
@@ -307,7 +307,7 @@ fn approvals(
         Some(Ok(l)) => {
             for r in l {
                 let who = if r.contested {
-                    "opened by a device that didn't claim it (it may be an attempt to intercept it)".to_string()
+                    CONTESTED.to_string()
                 } else {
                     match &r.checking {
                         Some(n) => format!("{n} is checking it"),

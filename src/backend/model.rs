@@ -774,10 +774,13 @@ pub struct ApprovalRequest {
     pub at: Millis,
     /// Who says they are checking it ("Ben's desktop"), as its claim says.
     pub checking: Option<String>,
-    /// Opened by a device that posted no claim first: it may be an attempt
-    /// to intercept it.
+    /// Opened or claimed by a device that can't approve this kind (or
+    /// opened with no claim): it may be an attempt to intercept it.
     pub contested: bool,
 }
+
+/// What a contested approval request says (design note 6.4).
+pub const CONTESTED: &str = "Opened by a device that can't approve this. It may be an attempt to intercept it.";
 
 /// What an invite says about who sent it, checked before joining.
 #[derive(Debug, Clone, PartialEq, Eq)]
