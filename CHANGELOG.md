@@ -6,6 +6,25 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ## Unreleased
 
+### Fixed
+
+- A linked computer kept posting as its old member when the link was
+  redeemed by another `lt` on the same data dir (`lt --plain link-redeem`
+  while `lt` was open): once the desktop removed that member, sending failed
+  with "role Viewer cannot perform messageAppended". An open `lt` now follows
+  a link recorded on disk (the new device key, acting as the person) and
+  never signs with the identity the data dir left behind.
+- A linked `lt` signs only in the workspaces it was linked into, on every
+  write path (posts, agent turns, MCP tools, apply, setup). A refusal where
+  the workspace certifies this device for the person but `lt` isn't acting
+  as them (a missing `computer-link.json`) says so and how to fix it
+  (re-link this computer).
+- A linked `lt` shows the person as the workspace's roster has them now, not
+  the name the grant carried on the day it was redeemed.
+- What this install wrote as its own member and hadn't pushed is pushed
+  before it switches to the person's device.
+- "role X cannot perform Y" reads as what was refused, why, and the fix.
+
 ### Changed
 
 - `lt --demo`: the demo's always-on host is called `build-box`.

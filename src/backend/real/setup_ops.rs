@@ -71,6 +71,7 @@ impl RealOps {
     fn write<T>(&self, f: impl FnOnce(&mut ligus_runtime::ChatService, Uuid) -> OpsResult<T>) -> OpsResult<T> {
         let ws = self.ws()?;
         let core = self.inner.core().map_err(|e| OpsError::Failed(e.0))?;
+        self.inner.may_sign(&core, ws).map_err(|e| OpsError::Failed(e.0))?;
         let mut svc = lock(&core.svc);
         svc.set_trusted_founder(self.inner.founder(ws));
         f(&mut svc, ws)
