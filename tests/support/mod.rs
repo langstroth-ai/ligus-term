@@ -159,9 +159,16 @@ where
     F: FnMut() -> Fut,
     Fut: std::future::Future<Output = Option<T>>,
 {
+    // A wall-clock bound too: on a slow runner each poll can take seconds.
+    let deadline = std::time::Instant::now() + Duration::from_secs(240);
     for _ in 0..600 {
-        if let Some(v) = f().await {
-            return v;
+        match tokio::time::timeout(Duration::from_secs(90), f()).await {
+            Ok(Some(v)) => return v,
+            Ok(None) => {}
+            Err(_) => panic!("a call hung for 90 s while waiting for {what}"),
+        }
+        if std::time::Instant::now() > deadline {
+            break;
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
     }

@@ -45,11 +45,19 @@ async fn approve(a: &Device, ws: Uuid, request: &str, conn: &str) -> String {
 
 /// Redeem, retrying while Ana's certificate is still on its way to the relay.
 async fn redeem(b: &Device, grant: &str) -> WorkspaceSummary {
-    until("the link to be redeemed", || async {
-        match b.b.redeem_link(grant).await {
-            Ok(w) => Some(w),
-            Err(e) if e.0.contains("hasn't reached this computer") => None,
-            Err(e) => panic!("redeem failed: {e}"),
+    let start = std::time::Instant::now();
+    let mut tries = 0;
+    until("the link to be redeemed", || {
+        tries += 1;
+        async move {
+            match b.b.redeem_link(grant).await {
+                Ok(w) => Some(w),
+                Err(e) if e.0.contains("hasn't reached this computer") => {
+                    eprintln!("redeem try {tries} at {:?}: {e}", start.elapsed());
+                    None
+                }
+                Err(e) => panic!("redeem failed: {e}"),
+            }
         }
     })
     .await
