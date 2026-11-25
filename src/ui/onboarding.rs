@@ -70,10 +70,10 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
     let connect = form.mode == FormMode::Connect;
     let link = form.mode == FormMode::Link;
     let h = match (first_run, connect, link) {
-        (true, _, true) => 25 + link_extra(form),
+        (true, _, true) => 26 + link_extra(form),
         (false, _, true) => 21 + link_extra(form),
-        (true, true, _) => 25,
-        (true, false, _) => 23,
+        (true, true, _) => 26,
+        (true, false, _) => 24,
         (false, true, _) => 19,
         (false, false, _) => 17,
     };
@@ -92,6 +92,13 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
             Span::styled("Safety code    ", t.dim()),
             Span::styled(s.device.safety_code.clone(), t.accent()),
             Span::styled("  (compare it with people you invite)", t.dim()),
+        ]));
+        lines.push(Line::from(vec![
+            Span::styled("Once in: ", t.dim()),
+            Span::styled(s.keymap.hint(crate::keymap::Context::Global, crate::keymap::Action::Palette), t.accent()),
+            Span::styled(" opens every command, ", t.dim()),
+            Span::styled(s.keymap.hint(crate::keymap::Context::Global, crate::keymap::Action::Help), t.accent()),
+            Span::styled(" shows every key.", t.dim()),
         ]));
         lines.push(Line::raw(""));
         if !link {
@@ -215,8 +222,8 @@ fn draw_link<'a>(lines: &mut Vec<Line<'a>>, form: &'a WorkspaceForm, focused: bo
             }
             lines.push(Line::raw(""));
             for (n, l) in [
-                ("1", "Desktop: My devices > Add a computer"),
-                ("2", "Paste this code, compare, confirm with your passkey"),
+                ("1", "Desktop: My devices > Add a computer (palette: link)"),
+                ("2", "Paste this code (c copies it), compare, confirm"),
                 ("3", "Paste the code it shows here"),
             ] {
                 lines.push(Line::from(vec![Span::styled(format!("  {n} "), t.accent()), Span::styled(l, t.text())]));
@@ -227,7 +234,8 @@ fn draw_link<'a>(lines: &mut Vec<Line<'a>>, form: &'a WorkspaceForm, focused: bo
                 Span::styled(r.fingerprint.clone(), t.accent().add_modifier(Modifier::BOLD)),
             ]));
             // The code in pieces (the desktop ignores the breaks when it is
-            // selected and pasted).
+            // pasted). Selecting it here takes the border too: c copies it,
+            // o shows it alone on the screen.
             let chars: Vec<char> = r.code.chars().collect();
             for piece in chars.chunks(w.saturating_add(16).clamp(20, 66)) {
                 lines.push(Line::styled(format!("  {}", piece.iter().collect::<String>()), t.dim()));
@@ -255,7 +263,15 @@ fn link_extra(form: &WorkspaceForm) -> u16 {
 /// The key hints under Add to my devices.
 fn link_hints(form: &WorkspaceForm, esc: &str) -> String {
     let checked = form.link_checked.as_ref().is_some_and(|(g, _)| *g == form.grant.text.trim());
-    if checked { "enter link · esc no".into() } else { format!("enter check · ? more · esc {esc}") }
+    if checked {
+        "enter link · esc no".into()
+    } else if form.link.is_some() && form.grant.text.is_empty() {
+        format!("c copy · o full screen · enter check · ? more · esc {esc}")
+    } else if form.link.is_some() {
+        format!("ctrl-y copy · enter check · ? more · esc {esc}")
+    } else {
+        format!("enter check · ? more · esc {esc}")
+    }
 }
 
 pub fn draw_recovery(f: &mut Frame, area: Rect, c: &Created, t: &Theme) {

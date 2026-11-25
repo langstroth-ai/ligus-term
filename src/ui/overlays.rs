@@ -79,7 +79,7 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
                     if *busy {
                         lines.push(Line::styled("Admitting… confirm the passkey prompt", t.fg(t.warn)));
                     } else {
-                        lines.push(Line::styled("y it matches, admit (needs your passkey) · esc back", t.dim()));
+                        lines.push(Line::styled("y it matches, admit (needs your passkey) · c copy · esc back", t.dim()));
                     }
                 }
                 (None, None) => {
@@ -122,7 +122,7 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
                     lines.push(Line::raw(""));
                     lines.push(Line::styled(a.code.clone(), t.text()));
                     lines.push(Line::raw(""));
-                    lines.push(Line::styled("any key closes", t.dim()));
+                    lines.push(Line::styled("c copy · o full screen (to select it) · any other key closes", t.dim()));
                 }
             }
             f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
@@ -258,17 +258,29 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
                     Line::raw(""),
                     Line::styled(c.clone(), t.accent()),
                     Line::raw(""),
-                    Line::styled(
-                        if s.mouse {
-                            "Shift-drag selects it to copy (lt has the mouse). Any key closes."
-                        } else {
-                            "Select it with your terminal to copy. Any key closes."
-                        },
-                        t.dim(),
-                    ),
+                    Line::styled("c copy · o full screen (to select it) · any other key closes", t.dim()),
                 ],
             };
             message(f, area, "Invite", lines, t);
+        }
+        Some(Overlay::Code { title, code, fingerprint, .. }) => {
+            // Alone on the screen, no border in the code's lines: a mouse
+            // selection takes only the code (a paste ignores the breaks).
+            f.render_widget(Clear, area);
+            let w = (area.width as usize).max(8);
+            let mut lines = vec![Line::styled(title.clone(), t.accent()), Line::raw("")];
+            let chars: Vec<char> = code.chars().collect();
+            for piece in chars.chunks(w) {
+                lines.push(Line::styled(piece.iter().collect::<String>(), t.text()));
+            }
+            lines.push(Line::raw(""));
+            if let Some(fp) = fingerprint {
+                lines.push(Line::from(vec![Span::styled("Fingerprint ", t.dim()), Span::styled(fp.clone(), t.accent())]));
+                lines.push(Line::raw(""));
+            }
+            let select = if s.mouse { "shift-drag selects (lt has the mouse)" } else { "select it with the mouse" };
+            lines.push(Line::styled(format!("c copy · {select} · any other key back"), t.dim()));
+            f.render_widget(Paragraph::new(lines), area);
         }
     }
     if let Some(p) = s.presence.front() {

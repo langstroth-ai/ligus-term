@@ -26,5 +26,5 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 ┃                                                                              ┃
 ┃                                                                              ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-I invite  . actions  ? help                      peer to peer · 1 running · demo
+I invite  . actions  : commands  ? help          peer to peer · 1 running · demo
 ```

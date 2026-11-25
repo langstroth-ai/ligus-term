@@ -21,4 +21,4 @@ expression: screen
 │                            │┃@@ -40,9 +42,13 @@ impl Che…┃
 │                            │┃     pub fn is_expired(&sel…┃
 ╰────────────────────────────╯┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-] next hunk  [ prev hunk  A approve  . actions  ? help
+] next hunk  [ prev hunk  A approve  …  : commands  ? help

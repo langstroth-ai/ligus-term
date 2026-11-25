@@ -13,12 +13,12 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                                                                                            ┃
 ┃                                                                                                            ┃
 ┃                                                                                                            ┃
-┃                                                                                                            ┃
 ┃                        ┏ Lin ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                        ┃
 ┃                        ┃› r  Change role…                                         ┃                        ┃
 ┃                        ┃──────────────────────────────────────────────────────────┃                        ┃
 ┃                        ┃  I  Create an invite                                     ┃                        ┃
 ┃                        ┃  B  Admit a box…                                         ┃                        ┃
+┃                        ┃  D  Link to my devices…                                  ┃                        ┃
 ┃                        ┃──────────────────────────────────────────────────────────┃                        ┃
 ┃                        ┃  X  Remove from the workspace…                           ┃                        ┃
 ┃                        ┃                                                          ┃                        ┃

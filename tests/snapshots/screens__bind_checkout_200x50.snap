@@ -51,4 +51,4 @@ expression: screen
 ┃                                                                                                                                                                                                      ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
  No checkout bound: this device can't apply proposals · b bind
-b bind checkout  f1 help                                                                                                                                                 peer to peer · 1 running · demo
+b bind checkout  ctrl-p commands  f1 help                                                                                                                                peer to peer · 1 running · demo

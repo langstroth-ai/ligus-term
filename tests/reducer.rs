@@ -385,6 +385,7 @@ fn notifications_ring_the_bell_unless_turned_off() {
             notify_mentions: false,
             agents_may_edit: false,
             relay_url: None,
+            linked_to: None,
         })),
     );
     update(&mut s, Msg::Event(Event::Notification(n)));
@@ -1398,6 +1399,7 @@ fn theme_switches_in_the_app() {
             notify_mentions: true,
             agents_may_edit: false,
             relay_url: None,
+            linked_to: None,
         })),
     );
     key(&mut s, KeyCode::Char('s'));
@@ -1751,4 +1753,155 @@ fn add_to_my_devices_checks_the_grant_before_linking() {
     // Editing the code checks it again.
     key(&mut s, KeyCode::Char('x'));
     assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::InspectLink("ligusgrant1:abcx".into())]);
+}
+
+fn settings(linked_to: Option<&str>) -> Settings {
+    Settings {
+        your_name: "zaz".into(),
+        device_name: "lt".into(),
+        notify_mentions: true,
+        agents_may_edit: false,
+        relay_url: None,
+        linked_to: linked_to.map(Into::into),
+    }
+}
+
+fn people(you: &str, other: &str) -> Vec<Member> {
+    let mut me = member("m-you", Role::Owner, Allowed::No("that's you".into()), Allowed::Yes);
+    me.name = you.into();
+    me.you = true;
+    let mut desk = member("m-desk", Role::Owner, Allowed::Yes, Allowed::Yes);
+    desk.name = other.into();
+    desk.founder = true;
+    vec![desk, me]
+}
+
+/// This terminal as its own member next to the person's desktop: People and
+/// Settings say so, D links (in both views), and a linked install isn't
+/// asked again.
+#[test]
+fn an_own_member_terminal_is_offered_link_to_my_devices() {
+    let mut s = main_state();
+    update(&mut s, Msg::Settings(Ok(settings(None))));
+    update(&mut s, Msg::Members(WorkspaceId::new("a"), Ok(people("zaz", "zazulam"))));
+    assert!(s.own_member_unlinked());
+    assert_eq!(s.likely_me_elsewhere().map(|m| m.name.as_str()), Some("zazulam"));
+    // A teammate with another name isn't taken for you (Settings still
+    // says this terminal is its own member).
+    update(&mut s, Msg::Members(WorkspaceId::new("a"), Ok(people("zaz", "Taylor"))));
+    assert!(s.own_member_unlinked());
+    assert!(s.likely_me_elsewhere().is_none());
+    // Two letters aren't enough to call it a match.
+    update(&mut s, Msg::Members(WorkspaceId::new("a"), Ok(people("Al", "Alex"))));
+    assert!(s.likely_me_elsewhere().is_none());
+    update(&mut s, Msg::Members(WorkspaceId::new("a"), Ok(people("zaz", "zazulam"))));
+
+    key(&mut s, KeyCode::Char('m'));
+    assert_eq!(key(&mut s, KeyCode::Char('D')), vec![Effect::LinkRequest]);
+    assert!(matches!(&s.overlay, Some(Overlay::AddWorkspace(f)) if f.mode == FormMode::Link));
+    key(&mut s, KeyCode::Esc);
+    key(&mut s, KeyCode::Char('s'));
+    assert_eq!(key(&mut s, KeyCode::Char('D')), vec![Effect::LinkRequest]);
+    key(&mut s, KeyCode::Esc);
+    // The row menus offer it too.
+    key(&mut s, KeyCode::Char('.'));
+    let Some(Overlay::RowMenu { items, .. }) = &s.overlay else { panic!("menu") };
+    assert!(items.iter().any(|i| i.label == "Link to my devices…"));
+    assert!(items.iter().any(|i| i.label == "Copy your safety code"));
+    key(&mut s, KeyCode::Esc);
+    key(&mut s, KeyCode::Char('m'));
+    key(&mut s, KeyCode::Char('.'));
+    let Some(Overlay::RowMenu { items, .. }) = &s.overlay else { panic!("menu") };
+    assert!(items.iter().any(|i| i.label == "Link to my devices…"));
+    key(&mut s, KeyCode::Esc);
+
+    // Linked: nothing to offer, and D says whose device it is.
+    update(&mut s, Msg::Settings(Ok(settings(Some("zazulam")))));
+    assert!(!s.own_member_unlinked());
+    assert!(s.likely_me_elsewhere().is_none());
+    assert!(key(&mut s, KeyCode::Char('D')).is_empty());
+    assert!(s.toasts.iter().any(|t| t.text == "Already one of zazulam's devices"));
+}
+
+/// The palette finds Link this computer to my devices by "link", "computer"
+/// and "add a computer", once.
+#[test]
+fn the_palette_finds_linking_by_its_synonyms() {
+    let mut s = main_state();
+    key(&mut s, KeyCode::Char('s'));
+    for q in ["link", "computer", "add a computer", "devices"] {
+        let hits = ligus_term::app::palette::filtered(&s, q);
+        let n =
+            hits.iter().filter(|i| i.target == ligus_term::app::palette::Target::Action(ligus_term::keymap::Action::LinkDevice)).count();
+        assert_eq!(n, 1, "{q}: {:?}", hits.iter().take(3).map(|i| &i.label).collect::<Vec<_>>());
+    }
+}
+
+fn link_view() -> LinkRequestView {
+    LinkRequestView { code: "liguslink1:AAAABBBBCCCC".into(), fingerprint: "7F3A-91C0".into(), label: "lt on mbp".into(), new_device: true }
+}
+
+/// The link request is copied only on c (or ctrl-y), shown alone with o,
+/// and c types once the desktop's code is being pasted.
+#[test]
+fn the_link_request_copies_on_c_and_shows_full_screen_on_o() {
+    let mut s = main_state();
+    key(&mut s, KeyCode::Char('s'));
+    key(&mut s, KeyCode::Char('D'));
+    update(&mut s, Msg::LinkRequested(Ok(link_view())));
+    let copy = Effect::Copy(ligus_term::clipboard::Clip::new("liguslink1:AAAABBBBCCCC", "run lt --plain link-request"));
+    assert_eq!(key(&mut s, KeyCode::Char('c')), vec![copy.clone()]);
+    assert_eq!(mods(&mut s, KeyCode::Char('y'), KeyModifiers::CONTROL), vec![copy.clone()]);
+    assert!(key(&mut s, KeyCode::Char('o')).is_empty());
+    assert!(
+        matches!(&s.overlay, Some(Overlay::Code { code, fingerprint: Some(fp), .. }) if code == "liguslink1:AAAABBBBCCCC" && fp == "7F3A-91C0")
+    );
+    assert_eq!(key(&mut s, KeyCode::Char('c')), vec![copy.clone()]);
+    // Any other key goes back to the form, as it was.
+    key(&mut s, KeyCode::Esc);
+    assert!(matches!(&s.overlay, Some(Overlay::AddWorkspace(f)) if f.link.is_some()));
+    // Pasting the desktop's code: now c types, ctrl-y still copies.
+    update(&mut s, Msg::Paste("ligusgrant1:x".into()));
+    key(&mut s, KeyCode::Char('c'));
+    assert!(matches!(&s.overlay, Some(Overlay::AddWorkspace(f)) if f.grant.text == "ligusgrant1:xc"));
+    assert_eq!(mods(&mut s, KeyCode::Char('y'), KeyModifiers::CONTROL), vec![copy]);
+    // The toast.
+    update(&mut s, Msg::Copied(Ok("Copied".into())));
+    assert!(s.toasts.iter().any(|t| t.text == "Copied"));
+    update(&mut s, Msg::Copied(Err("Couldn't reach the clipboard — run lt --plain link-request".into())));
+    assert!(s.toasts.iter().any(|t| t.text.contains("lt --plain link-request")));
+}
+
+/// An invite and a box's admission copy only on c; o shows them alone;
+/// the copied code never shows in an effect's Debug.
+#[test]
+fn invites_and_admissions_copy_on_c_and_never_print_the_code() {
+    let mut s = main_state();
+    s.overlay = Some(Overlay::Invite { code: Some("hivews1:SECRET".into()) });
+    let fx = key(&mut s, KeyCode::Char('c'));
+    assert!(matches!(&fx[..], [Effect::Copy(c)] if c.text == "hivews1:SECRET"));
+    assert!(!format!("{fx:?}").contains("SECRET"));
+    key(&mut s, KeyCode::Char('o'));
+    assert!(matches!(&s.overlay, Some(Overlay::Code { code, .. }) if code == "hivews1:SECRET"));
+    key(&mut s, KeyCode::Esc);
+    assert!(matches!(&s.overlay, Some(Overlay::Invite { .. })));
+    key(&mut s, KeyCode::Char('x'));
+    assert!(s.overlay.is_none());
+
+    s.overlay = Some(Overlay::AdmitBox {
+        request: ligus_term::app::input::TextBuf::single(),
+        busy: false,
+        checked: None,
+        result: Some(BoxAdmission {
+            code: "ligusadmit1:z".into(),
+            sealed: true,
+            fingerprint: Some("AAAA".into()),
+            label: None,
+            expires_at: NOW,
+        }),
+    });
+    let fx = key(&mut s, KeyCode::Char('c'));
+    assert!(matches!(&fx[..], [Effect::Copy(c)] if c.text == "ligusadmit1:z"));
+    key(&mut s, KeyCode::Char('o'));
+    assert!(matches!(&s.overlay, Some(Overlay::Code { fingerprint: Some(f), .. }) if f == "AAAA"));
 }

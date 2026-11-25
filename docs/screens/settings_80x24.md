@@ -8,6 +8,7 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 ┃You                                                                           ┃
 ┃  Name            Mara                                                        ┃
 ┃  Safety code     4821 0937 5512                                              ┃
+┃  This terminal is its own member · D link to my devices                      ┃
 ┃                                                                              ┃
 ┃Notifications and agents                                                      ┃
 ┃ [x] Notify me when I'm @mentioned or needed                                  ┃
@@ -24,7 +25,6 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 ┃ Theme       Pollen   this session                                            ┃
 ┃ Appearance  auto (dark)                                                      ┃
 ┃  Config file     ~/.config/ligus-term/config.toml                            ┃
-┃                                                                              ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-enter toggle  ? help                             peer to peer · 1 running · demo
+enter toggle  : commands  ? help                 peer to peer · 1 running · demo
 ```

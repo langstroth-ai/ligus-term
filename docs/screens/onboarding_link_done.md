@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                              ┃╭ Message the room ──────────────────────────────────────────────────────────╮
 ┃                              ┃│                                                                            │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────────────────╯
-i write  N new chat  …  ? help  ✓ Linked: one of Alex's devices in “Northwind API”         peer to peer · demo
+i write  …  : commands  ? help  ✓ Linked: one of Alex's devices in “Northwind API”         peer to peer · demo
 ```

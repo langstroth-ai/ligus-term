@@ -6,7 +6,24 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ## Unreleased
 
+### Added
+
+- Link to my devices is easy to find: while this terminal is its own member,
+  Settings says so on one line, and so does People when another member there
+  looks like you (the same name, or a shorter one: "zaz" and "zazulam"). `D`
+  in Settings and People links it, both row menus offer it, and the palette
+  finds it by "link", "computer", "devices" or "add a computer".
+- `c` copies a code meant for pasting elsewhere (the link request, an
+  invite, a box's admission or its fingerprint) through the terminal's
+  OSC 52 and `pbcopy`, `wl-copy`, `xclip`, `xsel` or `clip.exe`, only when
+  pressed; `o` shows the code alone on the screen, with no border in its
+  lines, to select it with the mouse. On the link form `ctrl-y` copies while
+  you paste the desktop's code. Settings' row menu copies your safety code.
+
 ### Changed
+
+- The key hints always end with `: commands  ? help`, and the first run
+  says that `:` opens every command.
 
 - `lt --demo`: the demo's always-on host is called `build-box`.
 - `scripts/capture-screenshots.sh` captures every view and the guided

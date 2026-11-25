@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃┃          n notifications   s settings                                                                    ┃│
 ┃┃Anywhere  q quit   ? help   : palette   ! messages   w switch workspace   + add workspace   u setup       ┃│
 ┗┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╯
-enter diff  A approve  . actions  ? help                                       peer to peer · 1 running · demo
+enter diff  A approve  . actions  : commands  ? help                           peer to peer · 1 running · demo
 ```

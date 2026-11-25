@@ -26,5 +26,5 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 ┃                                                                              ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
  No checkout bound: this device can't apply proposals · b bind
-b bind checkout  ? help                          peer to peer · 1 running · demo
+b bind checkout  : commands  ? help              peer to peer · 1 running · demo
 ```

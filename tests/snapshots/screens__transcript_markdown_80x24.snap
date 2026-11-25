@@ -25,4 +25,4 @@ expression: "h.screen(w, ht)"
 ┃                          ┃╭ Message the room ────────────────────────────────╮
 ┃                          ┃│i to write · @ mentions an agent or a person      │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────╯
-i write  N new chat  tab pane  . actions  ? help        peer to peer · 1 running
+i write  N new chat  tab pane  . actions  : commands  ? help        peer to peer

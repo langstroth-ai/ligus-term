@@ -21,4 +21,4 @@ expression: screen
 ┃                          ┃╭ Message the room ────────────╮
 ┃                          ┃│i to write                    │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────╯
-i write  N new chat  tab pane  . actions  ? help
+i write  N new chat  tab pane  . actions  : commands  ? help

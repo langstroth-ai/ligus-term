@@ -514,13 +514,18 @@ fn status_hints(s: &State) -> (Vec<String>, String) {
         },
         (View::Memory, _) => vec!["↑↓ select".into()],
     };
-    // While a text field has the keyboard only a command chord (f1) helps.
-    let help = if s.typing_text() {
-        k.keys(C::Global, Help).iter().find(|c| c.is_command()).map(|c| format!("{c} help"))
-    } else {
-        Some(h(C::Global, Help, "help"))
+    // The palette and the help are always on the line (they hold every
+    // other key). While a text field has the keyboard only command chords
+    // (ctrl-p, f1) work.
+    let always = |a: Action, label: &str| {
+        if s.typing_text() {
+            k.keys(C::Global, a).iter().find(|c| c.is_command()).map(|c| format!("{c} {label}"))
+        } else {
+            Some(h(C::Global, a, label))
+        }
     };
-    (hints, help.unwrap_or_default())
+    let help = [always(Palette, "commands"), always(Help, "help")].into_iter().flatten().collect::<Vec<_>>().join("  ");
+    (hints, help)
 }
 
 /// Three zones: key hints on the left, cut from the right (the help key

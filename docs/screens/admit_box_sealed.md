@@ -20,7 +20,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃            ┃                                                                                  ┃            ┃
 ┃            ┃ligusadmit1:sealed-for-39                                                         ┃            ┃
 ┃            ┃                                                                                  ┃            ┃
-┃            ┃any key closes                                                                    ┃            ┃
+┃            ┃c copy · o full screen (to select it) · any other key closes                      ┃            ┃
 ┃            ┃                                                                                  ┃            ┃
 ┃            ┃                                                                                  ┃            ┃
 ┃            ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛            ┃
@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                                                                                            ┃
 ┃                                                                                                            ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-I invite  . actions  ? help  ✓ Confirmed with your passkey                     peer to peer · 1 running · demo
+I invite  . actions  : commands  ? help  ✓ Confirmed with your passkey         peer to peer · 1 running · demo
 ```

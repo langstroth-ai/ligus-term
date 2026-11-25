@@ -21,4 +21,4 @@ expression: screen
 ┃                            ┃│@@ -40,9 +42,13 @@ impl Che…│
 ┃                            ┃│     pub fn is_expired(&sel…│
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────╯
-enter diff  A approve  . actions  ? help        peer to peer
+enter diff  A approve  . actions  : commands  ? help

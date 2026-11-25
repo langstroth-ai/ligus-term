@@ -34,5 +34,5 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 │                                          │┃                                                                ┃
 │                                          │┃                                                                ┃
 ╰──────────────────────────────────────────╯┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-] next hunk  [ prev hunk  A approve  . actions  ? help                         peer to peer · 1 running · demo
+] next hunk  [ prev hunk  A approve  . actions  : commands  ? help             peer to peer · 1 running · demo
 ```

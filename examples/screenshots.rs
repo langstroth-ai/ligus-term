@@ -381,6 +381,10 @@ async fn gallery(dir: &Path) {
         ("people-menu", &[KeyCode::Char('m'), KeyCode::Down, KeyCode::Down, KeyCode::Char('.')]),
         ("notifications", &[KeyCode::Char('n')]),
         ("settings", &[KeyCode::Char('s')]),
+        ("settings-menu", &[KeyCode::Char('s'), KeyCode::Char('.')]),
+        ("settings-link", &[KeyCode::Char('s'), KeyCode::Char('D')]),
+        ("link-request-full-screen", &[KeyCode::Char('s'), KeyCode::Char('D'), KeyCode::Char('o')]),
+        ("people-own-member", &[KeyCode::Char('m')]),
         ("help-people", &[KeyCode::Char('m'), KeyCode::Char('?')]),
         ("messages-empty", &[KeyCode::Char('!')]),
     ];
@@ -389,6 +393,18 @@ async fn gallery(dir: &Path) {
         h.key(KeyCode::Esc).await; // the cursor starts in the composer
         for k in *keys {
             h.key(*k).await;
+        }
+        // This terminal as its own member next to you on your desktop (it
+        // joined with an invite): People says so.
+        if *name == "people-own-member" {
+            for m in h.state.members.iter_mut().filter(|m| m.you) {
+                m.name = "Mike (lt)".into();
+                m.founder = false;
+            }
+            if let Some(m) = h.state.members.iter_mut().find(|m| !m.you && !m.service) {
+                m.name = "Mike".into();
+                m.founder = true;
+            }
         }
         for (w, ht) in [(110, 32), (80, 24)] {
             write_in(dir, &format!("{name}-{w}x{ht}"), &format!("lt: {name} ({w}×{ht})"), &buffer(&h, w, ht, &t), &t);
