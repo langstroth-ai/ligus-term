@@ -35,6 +35,7 @@ commands (N is a number from the last list, or an id):
   link-redeem CODE --approver-fingerprint FP  link with the code your desktop shows, after
                        checking the approving desktop's fingerprint (FP) is your desktop's
   link-status          whether this computer is linked, or a link is waiting for the desktop's code
+  device-rename NAME   name this computer, as every member sees it
   workspaces           list workspaces          use N        switch workspace
   chats                list chats               open N       open a chat and print it
   new TITLE            start a chat             say TEXT     post to the open chat
@@ -223,6 +224,7 @@ pub const COMMANDS: &[&str] = &[
     "link-request",
     "link-redeem",
     "link-status",
+    "device-rename",
     "check",
     "connect",
     "workspaces",
@@ -801,6 +803,10 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                 Err(e) => fail(e.0).await,
             }
         }
+        "device-rename" => match b.rename_this_device(arg).await {
+            Ok(name) => say(format!("device-name\t{}", esc(&name))).await,
+            Err(e) => fail(e.0).await,
+        },
         "link-status" => match b.link_status().await {
             Ok(v) => {
                 let now = crate::app::runtime::now_ms();

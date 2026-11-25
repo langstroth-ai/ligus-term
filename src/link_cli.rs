@@ -17,7 +17,7 @@ use crate::backend::model::{LinkPending, LinkStatusView};
 use crate::link_code::{MAX_PASTE, Pasted, grant_in, hh_mm, not_a_grant};
 
 /// The commands this module runs.
-pub const COMMANDS: &[&str] = &["link-request", "link-redeem", "link-status"];
+pub const COMMANDS: &[&str] = &["link-request", "link-redeem", "link-status", "device-rename"];
 
 /// How long the desktop may approve a request (ligus `REQUEST_TTL_MS`).
 pub const REQUEST_TTL_MS: i64 = 15 * 60 * 1000;
@@ -89,6 +89,7 @@ pub async fn run(b: &dyn Backend, args: &[String], io: &mut Io<'_>) -> i32 {
         "link-request" => request(b, rest, io).await,
         "link-redeem" => redeem(b, rest, io).await,
         "link-status" => status(b, rest, io).await,
+        "device-rename" => rename(b, rest, io).await,
         other => fail(format!("unknown command {other}: lt help lists them"), 2),
     };
     match r {
@@ -341,6 +342,24 @@ async fn status(b: &dyn Backend, rest: &[String], io: &mut Io<'_>) -> Result<(),
         );
     } else {
         let _ = writeln!(io.out, "{}", status_line(&v, io.now_ms, io.utc_offset));
+    }
+    Ok(())
+}
+
+async fn rename(b: &dyn Backend, rest: &[String], io: &mut Io<'_>) -> Result<(), Failure> {
+    let usage = "usage: device-rename NAME [--json]";
+    unknown_flags(rest, &[], usage)?;
+    let name = rest.iter().filter(|a| !a.starts_with("--")).cloned().collect::<Vec<_>>().join(" ");
+    let shown = match b.rename_this_device(&name).await {
+        Ok(s) => s,
+        Err(e) => return backend_fail(e.0),
+    };
+    if io.json {
+        let _ = writeln!(io.out, "{{\"record\":\"device-name\",\"name\":{}}}", q(&shown));
+    } else if shown.is_empty() {
+        let _ = writeln!(io.out, "This computer's name is cleared.");
+    } else {
+        let _ = writeln!(io.out, "This computer is now called {} (every member sees it).", one_line(&shown));
     }
     Ok(())
 }

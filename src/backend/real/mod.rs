@@ -594,7 +594,7 @@ impl Inner {
                 let _ = svc.store().set_workspace_pin(ws, f, fk);
             }
             // A linked computer whose device was revoked stops writing.
-            if linked.is_some() && svc.device_standing(ws, None)? == ligus_runtime::device_enroll::Standing::Revoked {
+            if linked.is_some() && svc.device_standing(ws)? == ligus_runtime::device_enroll::Standing::Revoked {
                 svc.set_write_block(Some("this computer was removed from your devices in this workspace (revoked)".into()));
                 revoked = true;
                 return Ok(());
@@ -602,6 +602,10 @@ impl Inner {
             let config = workspace_config_session_id(ws);
             if svc.load_in(ws, config)?.is_none() && svc.store().join_invite(ws)?.is_some() {
                 return Ok(());
+            }
+            // A link whose acceptance was cut off (rules 3) finishes now.
+            if linked.is_some() {
+                let _ = svc.accept_device_certificate(ws);
             }
             svc.ensure_self_member(config, ws)?;
             if let Some(ka) = &ka {
@@ -885,6 +889,11 @@ impl Backend for RealBackend {
 
     async fn link_request(&self) -> Result<LinkRequestView> {
         self.call(|i| i.link_request()).await
+    }
+
+    async fn rename_this_device(&self, name: &str) -> Result<String> {
+        let name = name.to_string();
+        self.call(move |i| i.rename_this_device(&name)).await
     }
 
     async fn link_status(&self) -> Result<LinkStatusView> {
