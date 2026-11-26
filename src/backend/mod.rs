@@ -280,6 +280,22 @@ pub trait Backend: Send + Sync {
     /// Bind (or with `None`, unbind) that checkout.
     async fn set_checkout(&self, workspace: &WorkspaceId, path: Option<&str>) -> Result<Option<String>>;
 
+    // ── A chat's repository ────────────────────────────────────────────
+    /// What a chat's repository can be: the workspace's repositories, and
+    /// whether this device may make a new scratch repo.
+    async fn repo_choices(&self, workspace: &WorkspaceId) -> Result<RepoChoices>;
+    /// Set the chat's repository (`None`: no repository).
+    async fn set_chat_repo(&self, workspace: &WorkspaceId, chat: &ChatId, repo: Option<&str>) -> Result<()>;
+    /// Make a scratch repo on this device and set it as the chat's: an
+    /// empty repository (one empty commit on `main`) under this device's
+    /// scratch folder, added to the workspace as scratch (an Admin's) and
+    /// checked out here, named after the chat.
+    async fn new_scratch_repo(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<ChatRepo>;
+    /// Keep the chat's scratch repo as an ordinary repository: move it to
+    /// `dest` (a new folder; `~` allowed), check it out there, and drop the
+    /// scratch tag. Returns where it is now.
+    async fn keep_scratch_repo(&self, workspace: &WorkspaceId, chat: &ChatId, dest: &str) -> Result<String>;
+
     // ── Workflows ──────────────────────────────────────────────────────
     async fn workflows(&self, workspace: &WorkspaceId) -> Result<Vec<Workflow>>;
     /// Runs, newest first.

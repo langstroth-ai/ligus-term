@@ -37,6 +37,8 @@ pub struct Snap {
     messages: Vec<(Uuid, usize, bool)>,
     proposals: HashMap<Uuid, String>,
     lockdowns: usize,
+    /// The chat's repository (the chat list shows it).
+    repo: Option<Uuid>,
     /// For the config log: members, agents, hosts.
     config: (String, String, String),
     /// Workflow runs: id to (status, stages, epoch).
@@ -59,6 +61,7 @@ fn snap_of(s: &ChatSession) -> Snap {
         messages: s.messages.iter().map(|m| (m.id, m.body.len(), m.is_streaming)).collect(),
         proposals: s.proposals.iter().map(|p| (p.id, proposal_key(s, p))).collect(),
         lockdowns: s.guards.lockdowns_of(s.id).len(),
+        repo: s.repo.as_ref().and_then(|r| r.repo_id),
         config: (
             format!("{:?}", s.members.iter().map(|m| (&m.id, m.role)).collect::<Vec<_>>()),
             format!("{:?}", s.workspace_agents.iter().map(|a| (a.id, &a.runtime_id, &a.host_id, &a.name)).collect::<Vec<_>>()),
@@ -197,7 +200,7 @@ fn diff(inner: &Inner, batch: HashMap<Uuid, (Uuid, bool)>) -> Vec<(Uuid, Uuid, U
         }
         let old = old.unwrap_or_default();
         let fresh = old.messages.is_empty() && old.title.is_empty();
-        if fresh || old.title != new.title || old.channel != new.channel || old.lockdowns != new.lockdowns {
+        if fresh || old.title != new.title || old.channel != new.channel || old.lockdowns != new.lockdowns || old.repo != new.repo {
             inner.emit(Event::ChatsChanged { workspace: wsid.clone() });
         }
         let before: HashMap<Uuid, (usize, bool)> = old.messages.iter().map(|(id, len, st)| (*id, (*len, *st))).collect();
@@ -411,6 +414,8 @@ impl Inner {
         let mut stop = stop_rx;
         tokio::spawn(async move {
             let mut last_touch = std::time::Instant::now();
+            // The scratch cleanup: on the first tick, then hourly.
+            let mut last_sweep: Option<std::time::Instant> = None;
             loop {
                 tokio::select! {
                     _ = stop.changed() => return,
@@ -424,7 +429,17 @@ impl Inner {
                 if touch {
                     last_touch = std::time::Instant::now();
                 }
-                let _ = tokio::task::spawn_blocking(move || host_tick(&i, ws, touch)).await;
+                let sweep = last_sweep.is_none_or(|t| t.elapsed() >= super::scratch::SWEEP_EVERY);
+                if sweep {
+                    last_sweep = Some(std::time::Instant::now());
+                }
+                let _ = tokio::task::spawn_blocking(move || {
+                    host_tick(&i, ws, touch);
+                    if sweep {
+                        scratch_tick(&i, ws);
+                    }
+                })
+                .await;
             }
         });
     }
@@ -534,14 +549,39 @@ fn host_tick(inner: &Inner, ws: Uuid, touch: bool) {
     if touch {
         let _ = inner.write(ws, |svc| svc.touch_host(ws, &device, 60));
     }
-    let checkout = lock(&inner.local).checkouts.get(&ws.to_string()).cloned();
-    let Some(repo) = checkout else { return };
-    let repo = std::path::PathBuf::from(repo);
+    // A proposal with a repository applies in this device's checkout of it
+    // (a scratch repo's, say); one without, in lt's checkout for the
+    // workspace. Nothing to do with neither.
+    let legacy = lock(&inner.local).checkouts.get(&ws.to_string()).cloned().map(std::path::PathBuf::from);
+    if legacy.is_none() && inner.read(ws, |svc| Ok(svc.store().repo_mappings(ws).unwrap_or_default().is_empty())).unwrap_or(true) {
+        return;
+    }
     // The tick pins `ws`'s founder under the same lock as each decision:
     // another workspace's write may re-pin the shared service in between.
     let founder = inner.founder(ws);
-    let tick = ligus_runtime::sync_service::apply_tick(&core.svc, ws, founder.as_deref(), &|_| Some(repo.clone()));
+    let tick = ligus_runtime::sync_service::apply_tick(&core.svc, ws, founder.as_deref(), &|_| legacy.clone());
     if let Some(e) = tick.listing_error {
         inner.emit(Event::Sync { workspace: WorkspaceId::new(ws.to_string()), status: format!("apply: {e}") });
+    }
+}
+
+/// One scratch cleanup pass: notices two days before, then removal of the
+/// scratch repositories this device made that nobody kept or worked in.
+fn scratch_tick(inner: &Inner, ws: Uuid) {
+    let Ok(core) = inner.core() else { return };
+    if inner.may_sign(&core, ws).is_err() {
+        return;
+    }
+    let wsid = WorkspaceId::new(ws.to_string());
+    match super::scratch::sweep(inner, ws) {
+        Ok(r) => {
+            if !r.noticed.is_empty() || !r.removed.is_empty() {
+                inner.emit(Event::ChatsChanged { workspace: wsid.clone() });
+            }
+            if let Some((_, e)) = r.failed.first() {
+                inner.emit(Event::Sync { workspace: wsid, status: format!("scratch cleanup: {e}") });
+            }
+        }
+        Err(e) => inner.emit(Event::Sync { workspace: wsid, status: format!("scratch cleanup: {}", e.0) }),
     }
 }

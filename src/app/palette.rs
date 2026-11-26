@@ -76,7 +76,8 @@ fn subject(s: &State, a: Action) -> Option<Option<String>> {
             WorkflowItem::Run(r) => Some(r.name.clone()),
             WorkflowItem::Def(_) => return None,
         },
-        LockChat | ClearLockdown | Compose => Some(s.open_chat_summary()?.title.clone()),
+        LockChat | ClearLockdown | Compose | ChatRepo => Some(s.open_chat_summary()?.title.clone()),
+        KeepScratch => Some(s.open_chat_summary()?.repo.as_ref().filter(|r| r.mine)?.name.clone()),
         _ => None,
     })
 }
@@ -98,6 +99,8 @@ fn synonyms(a: Action) -> &'static str {
         Action::AdmitBox => "box serve worker admission",
         Action::Approvals => "approve approval requests join box computer phone code match waiting",
         Action::Invite => "invite person people",
+        Action::ChatRepo => "repo repository scratch folder code checkout new scratch repo",
+        Action::KeepScratch => "keep scratch repo repository move save publish",
         Action::CopySafetyCode => "copy fingerprint safety code clipboard",
         _ => "",
     }

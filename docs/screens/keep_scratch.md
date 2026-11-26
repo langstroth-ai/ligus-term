@@ -1,0 +1,38 @@
+# Keep a scratch repo as a repo: the folder to move it to
+
+Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
+
+```text
+[NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
+┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓ This scratch repo will be removed on 2026-11-20 · K keep it
+┃  ◆ Fix flaky checkout … 12m  ┃╭ Weekly release notes · 3/3 ───────────────────────── release-notes scratch ╮
+┃  ◆ Migrate auth to pas… 50m  ┃│Mara  1d                                                                    │
+┃  Weekly release notes    1d  ┃│  Draft notes for 0.4: order history, export to CSV.                        │
+┃                              ┃│  → proposal “Bump the order schema version” · applied 2/2                  │
+┃                              ┃│  → proposal “Export orders to CSV” · approved 2/2                          │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                  ┏ Keep it as a repo ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                  │
+┃                  ┃Moves release-notes out of the scratch folder; it stays in the        ┃                  │
+┃                  ┃workspace as an ordinary repo.                                        ┃                  │
+┃                  ┃~/projects/release-notes                                              ┃                  │
+┃                  ┃                                                                      ┃                  │
+┃                  ┃enter keep · esc cancel                                               ┃                  │
+┃                  ┃To publish it to GitHub (private), use the desktop or the phone.      ┃                  │
+┃                  ┃                                                                      ┃                  │
+┃                  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                  │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃│                                                                            │
+┃                              ┃╰────────────────────────────────────────────────────────────────────────────╯
+┃                              ┃
+┃                              ┃╭ Message the room ──────────────────────────────────────────────────────────╮
+┃                              ┃│i to write · @ mentions an agent or a person                                │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────────────────╯
+i write  N new chat  tab pane  . actions  ctrl-p commands  f1 help             peer to peer · 1 running · demo
+```

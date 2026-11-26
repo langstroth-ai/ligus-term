@@ -55,6 +55,28 @@ async fn open(h: &mut Harness, row: usize) {
         h.key(KeyCode::Down).await;
     }
     h.key(KeyCode::Enter).await;
+    formed(h).await;
+}
+
+/// Wait for the flow's form (a slow machine answers after the harness's
+/// quiet spell).
+async fn formed(h: &mut Harness) {
+    for _ in 0..100 {
+        if matches!(&h.state.overlay, Some(Overlay::SetupFlow(w)) if w.form.is_some()) {
+            return;
+        }
+        h.settle().await;
+    }
+}
+
+/// Wait for a run to finish.
+async fn finished(h: &mut Harness) {
+    for _ in 0..100 {
+        if !matches!(&h.state.overlay, Some(Overlay::SetupFlow(w)) if matches!(w.stage, Stage::Running)) {
+            return;
+        }
+        h.settle().await;
+    }
 }
 
 #[tokio::test]
@@ -220,15 +242,43 @@ async fn a_phone_pairs_in_your_own_terminal() {
 async fn a_folder_completes_and_binds() {
     let mut h = demo().await;
     open(&mut h, 2).await;
+    // "Start with a scratch repo" comes first; the folder is next.
+    h.key(KeyCode::Down).await;
     let fx = update(&mut h.state, Msg::Key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE)));
     assert!(matches!(fx.as_slice(), [Effect::CompletePath(f, _)] if f == "path"), "{fx:?}");
     h.chars("~/code/northwind").await;
     snap(&h, "setup_folder_path", "Add a code folder: the folder");
     h.key(KeyCode::Enter).await;
+    formed(&mut h).await;
     h.key(KeyCode::Enter).await;
     h.key(KeyCode::Enter).await;
+    finished(&mut h).await;
     let Stage::Done(o) = &wizard(&h).stage else { panic!("{:?}", wizard(&h).stage) };
     assert_eq!(o.exit, 0, "{o:?}");
+}
+
+/// "Start with a scratch repo": no folder needed; the device makes an
+/// empty repository, adds it to the workspace as scratch and binds it.
+#[tokio::test]
+async fn a_folder_can_start_with_a_scratch_repo() {
+    let mut h = demo().await;
+    open(&mut h, 2).await;
+    assert!(h.screen(W, H).contains("Start with a scratch repo"));
+    h.key(KeyCode::Char(' ')).await;
+    h.settle().await;
+    snap(&h, "setup_folder_scratch", "Add a code folder: start with a scratch repo");
+    h.key(KeyCode::Enter).await;
+    formed(&mut h).await;
+    h.key(KeyCode::Enter).await;
+    h.key(KeyCode::Enter).await;
+    finished(&mut h).await;
+    let Stage::Done(o) = &wizard(&h).stage else { panic!("{:?}\n{}", wizard(&h).stage, h.screen(W, H)) };
+    assert_eq!(o.exit, 0, "{o:?}");
+    assert_eq!(o.results.get("scratch").map(String::as_str), Some("true"), "{o:?}");
+    // It is in the workspace now, tagged scratch, and checked out here.
+    let ws = h.state.active.clone().unwrap();
+    let c = h.backend.repo_choices(&ws).await.unwrap();
+    assert!(c.repos.iter().any(|r| r.scratch && r.here && r.id == o.results["repoId"]), "{:?}", c.repos);
 }
 
 /// Esc before the run closes with nothing written; esc during it asks the

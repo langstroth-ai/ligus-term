@@ -11,7 +11,7 @@ use super::{center, onboarding, pane};
 use unicode_width::UnicodeWidthStr;
 
 use crate::app::state::{MenuItem, MenuSection, Overlay, PresenceSheet, PresenceStage, State, View};
-use crate::backend::model::{Allowed, PresenceOp, Role, initials};
+use crate::backend::model::{Allowed, PresenceOp, RepoChoices, Role, initials};
 use crate::keymap::{BINDINGS, Context};
 use crate::theme::Theme;
 
@@ -77,6 +77,28 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             ];
             f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
             f.set_cursor_position(Position::new(inner.x + buf.cursor_pos().1 as u16, inner.y + 1));
+        }
+        Some(Overlay::RepoPicker { chat, sel, choices }) => repo_picker(f, area, s, chat, *sel, choices.as_ref(), t),
+        Some(Overlay::KeepScratch { name, path, .. }) => {
+            let r = center(area, 72, 9);
+            f.render_widget(Clear, r);
+            let block = pane("Keep it as a repo", true, t);
+            let inner = block.inner(r);
+            f.render_widget(block, r);
+            let lines = vec![
+                Line::styled(format!("Moves {name} out of the scratch folder; it stays in the workspace as an ordinary repo."), t.dim()),
+                Line::styled(path.text.clone(), t.text()),
+                Line::raw(""),
+                Line::styled("enter keep · esc cancel", t.dim()),
+                Line::styled("To publish it to GitHub (private), use the desktop or the phone.", t.dim()),
+            ];
+            f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
+            let row = inner.y
+                + wrapped_rows(
+                    &format!("Moves {name} out of the scratch folder; it stays in the workspace as an ordinary repo."),
+                    inner.width,
+                );
+            f.set_cursor_position(Position::new(inner.x + path.cursor_pos().1 as u16, row));
         }
         Some(Overlay::AdmitBox { request, busy, checked, result }) => {
             let r = center(area, 84, 11);
@@ -353,6 +375,54 @@ fn message(f: &mut Frame, area: Rect, title: &str, lines: Vec<Line>, t: &Theme) 
     f.render_widget(Clear, r);
     let block = pane(title, true, t);
     f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }).block(block), r);
+}
+
+/// Rows a line of `text` takes wrapped at `width` (at least one).
+fn wrapped_rows(text: &str, width: u16) -> u16 {
+    super::wrap(text, width as usize).len().max(1) as u16
+}
+
+/// The small "scratch" tag after a repository's name.
+pub(crate) fn scratch_tag(t: &Theme) -> Span<'static> {
+    Span::styled(" scratch", t.fg(t.accent))
+}
+
+/// The chat repo picker: "New scratch repo" first, then the workspace's
+/// repositories (scratch ones tagged), then "No repository".
+fn repo_picker(
+    f: &mut Frame,
+    area: Rect,
+    s: &State,
+    chat: &crate::backend::model::ChatId,
+    sel: usize,
+    choices: Option<&RepoChoices>,
+    t: &Theme,
+) {
+    let current = s.chats.iter().find(|c| &c.id == chat).and_then(|c| c.repo.as_ref()).map(|r| r.id.clone());
+    let now = |on: bool| Span::styled(if on { "  current" } else { "" }, t.dim());
+    let mut items = vec![match choices.map(|c| &c.new_scratch) {
+        Some(Allowed::No(why)) => {
+            ListItem::new(Line::from(vec![Span::styled("New scratch repo", t.disabled()), Span::styled(format!("  {why}"), t.dim())]))
+        }
+        _ => ListItem::new(Line::from(vec![
+            Span::styled("New scratch repo", t.text()),
+            Span::styled("  an empty repo on this device", t.dim()),
+        ])),
+    }];
+    for r in choices.map(|c| c.repos.as_slice()).unwrap_or_default() {
+        let mut spans = vec![Span::styled(r.name.clone(), t.text())];
+        if r.scratch {
+            spans.push(scratch_tag(t));
+        }
+        if !r.here {
+            spans.push(Span::styled("  not on this device", t.dim()));
+        }
+        spans.push(now(current.as_deref() == Some(r.id.as_str())));
+        items.push(ListItem::new(Line::from(spans)));
+    }
+    items.push(ListItem::new(Line::from(vec![Span::styled("No repository", t.text()), now(current.is_none())])));
+    let note = if choices.is_none() { "Loading the workspace's repositories…" } else { "This chat's agents work in it on this device." };
+    picker(f, area, "Repository for this chat", items, sel, note, t);
 }
 
 fn picker(f: &mut Frame, area: Rect, title: &str, items: Vec<ListItem>, sel: usize, note: &str, t: &Theme) {

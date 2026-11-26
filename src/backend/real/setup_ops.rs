@@ -265,6 +265,16 @@ impl SetupOps for RealOps {
         self.inner.emit(Event::HostsChanged { workspace: ws });
         Ok(())
     }
+    fn create_scratch(&mut self, name: &str) -> OpsResult<(String, String)> {
+        let label = self.inner.cfg.device_name.clone();
+        let root = self.inner.scratch_root();
+        let made = self.write(|svc, ws| service::create_scratch(svc, ws, &label, &root, &super::scratch::forbidden(), name))?;
+        if let Some(ws) = self.ws {
+            self.inner.emit(Event::ChatsChanged { workspace: WorkspaceId::new(ws.to_string()) });
+            self.inner.emit(Event::HostsChanged { workspace: WorkspaceId::new(ws.to_string()) });
+        }
+        Ok(made)
+    }
     fn box_state(&self) -> OpsResult<ligus_runtime::setup::BoxFact> {
         // lt is a person's device: a box joins from the box itself.
         Err(OpsError::Failed("lt is a person's device; a box joins from the box".into()))

@@ -571,3 +571,54 @@ async fn setup_flows_run_on_a_real_device() {
     assert!(o.exit == 0 && o.dry_run, "{o:?}");
     d.b.shutdown();
 }
+
+/// A chat's scratch repo on a real device: an empty repository made under
+/// lt's data dir (one empty commit on main), in the workspace as scratch,
+/// checked out here and set as the chat's repo; the agent sandbox may read
+/// it (it denies the rest of the data dir). Kept, it moves out to the
+/// folder chosen and is an ordinary repository.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_chat_works_in_a_scratch_repo_and_keeps_it() {
+    let tmp = tempfile::tempdir().unwrap();
+    let relay = serve(ligus_runtime::test_relay::router()).await;
+    let dir = tmp.path().join("ana");
+    let d = device(&dir, "lt Ana", &relay);
+    let ws = d.b.create_workspace("Ana", "Acme Web").await.unwrap().workspace.id;
+    let chat = d.b.create_chat(&ws, "CSV export").await.unwrap();
+    assert!(chat.repo.is_none());
+
+    let r = d.b.new_scratch_repo(&ws, &chat.id).await.unwrap();
+    assert!(r.scratch && r.mine && r.removes_on.is_some() && !r.notice, "{r:?}");
+    assert!(r.keep_to.as_deref().is_some_and(|k| k.ends_with("/csv-export")), "{r:?}");
+    let listed = d.b.chats(&ws).await.unwrap().into_iter().find(|c| c.id == chat.id).unwrap();
+    assert_eq!(listed.repo.as_ref(), Some(&r));
+    let c = d.b.repo_choices(&ws).await.unwrap();
+    assert!(c.new_scratch.is_yes());
+    assert!(c.repos.iter().any(|x| x.id == r.id && x.scratch && x.here), "{:?}", c.repos);
+
+    // The folder: under <data dir>/scratch, one empty commit on main.
+    let root = dir.join("scratch");
+    let made: Vec<_> = std::fs::read_dir(&root).unwrap().flatten().map(|e| e.path()).collect();
+    assert_eq!(made.len(), 1, "{made:?}");
+    let log = std::process::Command::new("git").args(["log", "--format=%s", "main"]).current_dir(&made[0]).output().unwrap();
+    assert_eq!(String::from_utf8_lossy(&log.stdout).lines().count(), 1);
+    assert!(ligus_runtime::executor::host_paths().allow_read.iter().any(|p| p == &root), "agents may work in it");
+
+    // No repository, then the scratch repo again.
+    d.b.set_chat_repo(&ws, &chat.id, None).await.unwrap();
+    assert!(d.b.chats(&ws).await.unwrap().iter().find(|c| c.id == chat.id).unwrap().repo.is_none());
+    d.b.set_chat_repo(&ws, &chat.id, Some(&r.id)).await.unwrap();
+    assert_eq!(d.b.chats(&ws).await.unwrap().iter().find(|c| c.id == chat.id).unwrap().repo.as_ref().map(|x| &x.id), Some(&r.id));
+
+    // Kept: moved out, no longer scratch, still the chat's repo.
+    let dest = tmp.path().join("kept-csv");
+    let path = d.b.keep_scratch_repo(&ws, &chat.id, &dest.display().to_string()).await.unwrap();
+    assert!(std::path::Path::new(&path).join(".git").exists(), "{path}");
+    assert!(!made[0].exists());
+    let kept = d.b.chats(&ws).await.unwrap().into_iter().find(|c| c.id == chat.id).unwrap().repo.unwrap();
+    assert!(kept.id == r.id && !kept.scratch && !kept.mine && kept.removes_on.is_none(), "{kept:?}");
+    // Only a scratch repo this device made can be kept.
+    let e = d.b.keep_scratch_repo(&ws, &chat.id, &tmp.path().join("again").display().to_string()).await.unwrap_err();
+    assert!(e.0.contains("isn't a scratch repo this device made"), "{e}");
+    d.b.shutdown();
+}

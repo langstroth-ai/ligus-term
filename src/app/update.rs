@@ -83,6 +83,12 @@ pub enum Msg {
     Tasks(WorkspaceId, Result<Vec<TaskState>>),
     Handoffs(WorkspaceId, Result<Vec<Handoff>>),
     Checkout(WorkspaceId, Result<Option<String>>),
+    /// What the chat repo picker offers.
+    RepoChoices(WorkspaceId, Result<RepoChoices>),
+    /// A scratch repo made for a chat.
+    ScratchMade(WorkspaceId, Result<ChatRepo>),
+    /// A scratch repo kept: where it is now.
+    ScratchKept(WorkspaceId, Result<String>),
     /// A stop was asked for: how many turns stopped here.
     Stopped(WorkspaceId, ChatId, Result<usize>),
     /// The text went to the pager (`true`) or the scrollback.
@@ -201,6 +207,13 @@ pub enum Effect {
     LoadHandoffs(WorkspaceId),
     LoadCheckout(WorkspaceId),
     SetCheckout(WorkspaceId, Option<String>),
+    LoadRepoChoices(WorkspaceId),
+    /// Set a chat's repository (`None`: no repository).
+    SetChatRepo(WorkspaceId, ChatId, Option<String>),
+    /// Make a scratch repo on this device for a chat.
+    NewScratchRepo(WorkspaceId, ChatId),
+    /// Keep a chat's scratch repo at this folder.
+    KeepScratch(WorkspaceId, ChatId, String),
     /// Stop the turns running on this device in a chat.
     StopTurn(WorkspaceId, ChatId),
     /// Show this text in `$PAGER`, or leave it in the terminal's
@@ -701,6 +714,38 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
             s.checkout = c;
             vec![]
         }
+        Msg::RepoChoices(ws, Ok(c)) if is_active(s, &ws) => {
+            let current = s.open_chat_summary().and_then(|c| c.repo.as_ref()).map(|r| r.id.clone());
+            if let Some(Overlay::RepoPicker { sel, choices, .. }) = &mut s.overlay {
+                // On the chat's repository, else on "New scratch repo".
+                *sel = current.and_then(|id| c.repos.iter().position(|r| r.id == id)).map_or(0, |i| i + 1);
+                *choices = Some(c);
+            }
+            vec![]
+        }
+        Msg::RepoChoices(_, Err(e)) => {
+            if matches!(s.overlay, Some(Overlay::RepoPicker { .. })) {
+                s.overlay = None;
+            }
+            s.toast(ToastKind::Error, format!("Couldn't list the repositories: {e}"));
+            vec![]
+        }
+        Msg::ScratchMade(ws, Ok(r)) => {
+            s.toast(ToastKind::Ok, format!("Scratch repo {} made on this device: this chat's agents work in it", r.name));
+            if is_active(s, &ws) { vec![Effect::LoadChats(ws)] } else { vec![] }
+        }
+        Msg::ScratchMade(_, Err(e)) => {
+            s.toast(ToastKind::Error, format!("Couldn't make a scratch repo: {e}"));
+            vec![]
+        }
+        Msg::ScratchKept(ws, Ok(path)) => {
+            s.toast(ToastKind::Ok, format!("Kept at {path}: an ordinary repository now"));
+            if is_active(s, &ws) { vec![Effect::LoadChats(ws)] } else { vec![] }
+        }
+        Msg::ScratchKept(_, Err(e)) => {
+            s.toast(ToastKind::Error, format!("Couldn't keep the scratch repo: {e}"));
+            vec![]
+        }
         Msg::Stopped(_, _, Ok(0)) => {
             s.toast(ToastKind::Info, "Nothing runs on this device in this chat: the turn's host stops it");
             vec![]
@@ -827,6 +872,7 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
         | Msg::Tasks(..)
         | Msg::Handoffs(..)
         | Msg::Checkout(..)
+        | Msg::RepoChoices(..)
         | Msg::ChatCreated(..) => vec![],
     }
 }
@@ -1266,9 +1312,10 @@ fn paste(s: &mut State, text: &str) -> Vec<Effect> {
             b.insert_str(text.trim());
             *sel = 0;
         }
-        (Some(Overlay::NewChat(b)), _) | (Some(Overlay::BindCheckout(b)), _) | (Some(Overlay::AddAgent { name: b, .. }), _) => {
-            b.insert_str(text.trim())
-        }
+        (Some(Overlay::NewChat(b)), _)
+        | (Some(Overlay::BindCheckout(b)), _)
+        | (Some(Overlay::AddAgent { name: b, .. }), _)
+        | (Some(Overlay::KeepScratch { path: b, .. }), _) => b.insert_str(text.trim()),
         (Some(Overlay::AskReply { text: b, .. }), _) => b.insert_str(&text.replace(['\n', '\r'], " ")),
         (Some(Overlay::StartRun { input, .. }), _) => input.insert_str(text),
         (Some(Overlay::SetupFlow(w)), _) => crate::app::setup::paste(w, text),
@@ -2292,6 +2339,64 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
                 vec![]
             }
         },
+        Overlay::RepoPicker { chat, sel, choices } => {
+            let rows = choices.as_ref().map_or(0, |c| c.repos.len()) + 2;
+            let mut i = Sel { index: *sel };
+            if let Some(a) = nav
+                && a != Action::Select
+                && list_nav(&mut i, rows, a)
+            {
+                *sel = i.index;
+                return vec![];
+            }
+            if k.code == KeyCode::Esc {
+                s.overlay = None;
+                return vec![];
+            }
+            if k.code != KeyCode::Enter {
+                return vec![];
+            }
+            // Still loading: only "New scratch repo" and "No repository".
+            let (chat, sel, choices) = (chat.clone(), *sel, choices.clone());
+            let Some(w) = ws else { return vec![] };
+            let n = choices.as_ref().map_or(0, |c| c.repos.len());
+            if sel == 0 {
+                if let Some(Allowed::No(r)) = choices.as_ref().map(|c| &c.new_scratch) {
+                    s.toast(ToastKind::Error, format!("Can't make a scratch repo: {r}"));
+                    return vec![];
+                }
+                s.overlay = None;
+                s.toast(ToastKind::Info, "Making a scratch repo on this device…");
+                return vec![Effect::NewScratchRepo(w, chat)];
+            }
+            if sel == n + 1 {
+                s.overlay = None;
+                return vec![Effect::SetChatRepo(w, chat, None)];
+            }
+            let Some(r) = choices.and_then(|c| c.repos.get(sel - 1).cloned()) else { return vec![] };
+            s.overlay = None;
+            vec![Effect::SetChatRepo(w, chat, Some(r.id))]
+        }
+        Overlay::KeepScratch { chat, path, .. } => match k.code {
+            KeyCode::Esc => {
+                s.overlay = None;
+                vec![]
+            }
+            KeyCode::Enter => {
+                let dest = path.text.trim().to_string();
+                if dest.is_empty() {
+                    s.toast(ToastKind::Error, "Pick a folder to keep it in");
+                    return vec![];
+                }
+                let chat = chat.clone();
+                s.overlay = None;
+                ws.map(|w| vec![Effect::KeepScratch(w, chat, dest)]).unwrap_or_default()
+            }
+            _ => {
+                path.handle(&k);
+                vec![]
+            }
+        },
         Overlay::AskReply { chat, ask, text, .. } => match k.code {
             KeyCode::Esc => {
                 s.overlay = None;
@@ -2847,6 +2952,25 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
         }
         NewChat => {
             s.overlay = Some(Overlay::NewChat(TextBuf::single()));
+            vec![]
+        }
+        ChatRepo => {
+            let (Some(w), Some(c)) = (ws, s.open_chat.clone()) else {
+                s.toast(ToastKind::Info, "Open a chat to choose its repository");
+                return vec![];
+            };
+            s.overlay = Some(Overlay::RepoPicker { chat: c, sel: 0, choices: None });
+            vec![Effect::LoadRepoChoices(w)]
+        }
+        KeepScratch => {
+            let Some(c) = s.open_chat_summary() else { return vec![] };
+            let Some(r) = c.repo.as_ref().filter(|r| r.mine) else {
+                s.toast(ToastKind::Info, "This chat's repository isn't a scratch repo this device made");
+                return vec![];
+            };
+            let mut path = TextBuf::single();
+            path.set(r.keep_to.as_deref().unwrap_or_default());
+            s.overlay = Some(Overlay::KeepScratch { chat: c.id.clone(), name: r.name.clone(), path });
             vec![]
         }
         LockChat => match (ws, s.open_chat.clone()) {

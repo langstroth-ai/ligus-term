@@ -539,11 +539,20 @@ fn fill_key(w: &mut Wizard, k: &KeyEvent, ctrl: bool, wsid: Option<crate::backen
             }
             _ => {}
         },
-        FieldType::Toggle => {
-            if matches!(k.code, KeyCode::Char(' ') | KeyCode::Char('t')) && !w.toggles.remove(&f.id) {
-                w.toggles.insert(f.id.clone());
+        FieldType::Toggle => match k.code {
+            KeyCode::Up if w.field > 0 => w.field -= 1,
+            KeyCode::Down => w.field = (w.field + 1).min(n_fields.saturating_sub(1)),
+            KeyCode::Char(' ') | KeyCode::Char('t') => {
+                if !w.toggles.remove(&f.id) {
+                    w.toggles.insert(f.id.clone());
+                }
+                // What else is needed may follow it ("Start with a scratch
+                // repo" needs no folder): the form again, values kept.
+                w.error = None;
+                return vec![Effect::SetupForm(wsid, w.flow, w.inputs())];
             }
-        }
+            _ => {}
+        },
         FieldType::Secret => {
             let dest = w.destination();
             let buf = w.secrets.entry(f.id.clone()).or_default();

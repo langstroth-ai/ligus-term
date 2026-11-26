@@ -24,6 +24,7 @@ mod link;
 mod live_link;
 mod local;
 mod mcp;
+mod scratch;
 mod setup_ops;
 mod term_presence;
 mod turns;
@@ -225,7 +226,9 @@ impl RealBackend {
         // No agent child (the keyless Claude Code fallback, any CLI runtime)
         // may read this device's keys, database or secrets: deny the data
         // dir in the agent sandbox, as the desktop and the CLI do theirs.
-        ligus_runtime::executor::configure_host(&cfg.data_dir, &[], &[]);
+        // Its scratch repositories (`<data dir>/scratch`) are checkouts
+        // agents work in, like any other: readable, as the CLI's repos dir.
+        ligus_runtime::executor::configure_host(&cfg.data_dir, &[], &[cfg.data_dir.join("scratch")]);
         let secrets = ligus_runtime::secret_store::init_for_data_dir(&cfg.data_dir, None);
         let rt = tokio::runtime::Handle::try_current().map_err(|e| e.to_string())?;
         let (tx, _) = broadcast::channel(4096);
@@ -1545,6 +1548,34 @@ impl Backend for RealBackend {
         self.call(move |i| Ok(lock(&i.local).checkouts.get(&id).cloned())).await
     }
 
+    async fn repo_choices(&self, workspace: &WorkspaceId) -> Result<RepoChoices> {
+        let ws = ws_uuid(workspace)?;
+        self.call(move |i| scratch::choices(i, ws)).await
+    }
+
+    async fn set_chat_repo(&self, workspace: &WorkspaceId, chat: &ChatId, repo: Option<&str>) -> Result<()> {
+        let (ws, sid) = (ws_uuid(workspace)?, uuid_of(chat.as_str(), "chat")?);
+        let repo = repo.map(str::to_string);
+        self.call(move |i| scratch::set_chat_repo(i, ws, sid, repo.as_deref())).await?;
+        self.inner.emit(Event::ChatsChanged { workspace: workspace.clone() });
+        Ok(())
+    }
+
+    async fn new_scratch_repo(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<ChatRepo> {
+        let (ws, sid) = (ws_uuid(workspace)?, uuid_of(chat.as_str(), "chat")?);
+        let repo = self.call(move |i| scratch::create(i, ws, sid)).await?;
+        self.inner.emit(Event::ChatsChanged { workspace: workspace.clone() });
+        Ok(repo)
+    }
+
+    async fn keep_scratch_repo(&self, workspace: &WorkspaceId, chat: &ChatId, dest: &str) -> Result<String> {
+        let (ws, sid) = (ws_uuid(workspace)?, uuid_of(chat.as_str(), "chat")?);
+        let dest = dest.to_string();
+        let path = self.call(move |i| scratch::keep(i, ws, sid, &dest)).await?;
+        self.inner.emit(Event::ChatsChanged { workspace: workspace.clone() });
+        Ok(path)
+    }
+
     async fn set_checkout(&self, workspace: &WorkspaceId, path: Option<&str>) -> Result<Option<String>> {
         ws_uuid(workspace)?;
         let (workspace, path) = (workspace.clone(), path.map(str::to_string));
@@ -1717,6 +1748,7 @@ impl Inner {
             let l = lock(&self.local);
             (l.read.clone(), l.notifications.clone())
         };
+        let repos = self.read(ws, |svc| Ok(scratch::repo_views(self, svc, ws))).unwrap_or_default();
         let mut out: Vec<ChatSummary> = self
             .chat_sessions(ws)?
             .iter()
@@ -1745,6 +1777,7 @@ impl Inner {
                             Allowed::No("only a human Contributor or above clears a lockdown".into())
                         },
                     }),
+                    repo: s.repo.as_ref().and_then(|r| r.repo_id).and_then(|r| repos.get(&r).cloned()),
                 }
             })
             .collect();

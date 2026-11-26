@@ -4,7 +4,7 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
-┏ Chats ━━━━━━━━━┏ Help · 1-40 of 122 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
+┏ Chats ━━━━━━━━━┏ Help · 1-40 of 124 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
 ┃  ◆ Fix flaky ch┃Each chat is a room with people and agents. @ mentions an agent or a      ┃                │
 ┃  ◆ Migrate auth┃person; enter on a chat opens it and puts you in the composer.            ┃it reading the  │
 ┃  Weekly release┃                                                                          ┃                │
@@ -15,21 +15,23 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 ┃                ┃  N                        New chat                                       ┃                │
 ┃                ┃  D                        The whole transcript in $PAGER (or your termina┃                │
 ┃                ┃  o                        Show or hide what tool calls returned          ┃· p to review   │
-┃                ┃  L                        Lock this chat down                            ┃                │
+┃                ┃  r                        Choose this chat's repo (or a new scratch repo)┃                │
+┃                ┃  K                        Keep this chat's scratch repo as a repo        ┃                │
+┃                ┃  L                        Lock this chat down                            ┃rovider uses.   │
 ┃                ┃  U                        Clear the lockdown                             ┃                │
-┃                ┃                                                                          ┃rovider uses.   │
-┃                ┃Lists  here                                                               ┃                │
-┃                ┃  ↑, k                     Up                                             ┃res?”           │
-┃                ┃  ↓, j                     Down                                           ┃e chat first)   │
+┃                ┃                                                                          ┃res?”           │
+┃                ┃Lists  here                                                               ┃e chat first)   │
+┃                ┃  ↑, k                     Up                                             ┃                │
+┃                ┃  ↓, j                     Down                                           ┃                │
 ┃                ┃  pgup, ctrl-u             Page up                                        ┃                │
 ┃                ┃  pgdn, ctrl-d             Page down                                      ┃                │
 ┃                ┃  home, g                  First                                          ┃                │
 ┃                ┃  end, G                   Last                                           ┃                │
 ┃                ┃  enter, l, →              Open (the row's main action)                   ┃                │
 ┃                ┃  ., shift-f10             Actions for this row and this view (destructive┃                │
-┃                ┃  /                        Find in this list (as you type; ↑↓ next match) ┃                │
+┃                ┃  /                        Find in this list (as you type; ↑↓ next match) ┃to review       │
 ┃                ┃                                                                          ┃                │
-┃                ┃Anywhere                                                                  ┃to review       │
+┃                ┃Anywhere                                                                  ┃                │
 ┃                ┃  ctrl-c, q                Quit (asks first while work runs here)         ┃                │
 ┃                ┃  ?, f1                    Show or hide this help                         ┃                │
 ┃                ┃  :, ctrl-p, ctrl-k        Command palette: every action, view, chat, prop┃                │
@@ -39,12 +41,10 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 ┃                ┃  !                        This session's notices and errors, in full     ┃                │
 ┃                ┃  esc                      Back (to the view you came from) / close       ┃                │
 ┃                ┃  w, ctrl-w                Switch workspace                               ┃                │
-┃                ┃  +                        Create or join a workspace                     ┃                │
-┃                ┃  u                        Set up: an agent, a tool, a folder, a box, a ph┃                │
-┃                ┃  unbound                  Link this computer to my devices               ┃────────────────╯
-┃                ┃  unbound                  Approval requests waiting in this workspace (re┃
-┃                ┃  c, 1                     Chats                                          ┃────────────────╮
-┃                ┃  f, 2                     Workflows and runs                             ┃                │
+┃                ┃  +                        Create or join a workspace                     ┃────────────────╯
+┃                ┃  u                        Set up: an agent, a tool, a folder, a box, a ph┃
+┃                ┃  unbound                  Link this computer to my devices               ┃────────────────╮
+┃                ┃  unbound                  Approval requests waiting in this workspace (re┃                │
 ┗━━━━━━━━━━━━━━━━┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛────────────────╯
 / search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                    peer to peer · 1 running · demo
 ```

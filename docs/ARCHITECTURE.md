@@ -101,6 +101,7 @@ pub trait Backend: Send + Sync {
     //   archive_proposal, hide_proposal,
     //   agents, handoffs, runtimes, local_runtimes, add_local_agent,
     //   hosts, checkout, set_checkout,
+    //   repo_choices, set_chat_repo, new_scratch_repo, keep_scratch_repo,
     //   memory, task_state, members, set_role, remove_member,
     //   lock_chat, clear_lockdown, notifications, settings …
     async fn answer_presence(&self, id: PresenceId, answer: PresenceAnswer) -> Result<()>;

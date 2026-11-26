@@ -8,6 +8,18 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Added
 
+- Scratch repos. `r` in a chat picks its repository: **New scratch repo**
+  first (an empty repository, one empty commit on `main`, made in this
+  device's scratch folder, added to the workspace as scratch and checked out
+  here; an Admin's, as adding any repository), then the workspace's
+  repositories (scratch ones tagged), then **No repository**. A chat in a
+  scratch repo shows a small `scratch` tag by its repository, and two days
+  before the cleanup (14 days without activity) a calm line: "This scratch
+  repo will be removed on ‹date› · K keep it". `K` keeps it as a repo in a
+  folder you pick. While `lt` runs it checks hourly for scratch repos it made
+  that are due a notice or removal. Set up's "Add a code folder" offers
+  "Start with a scratch repo". Plain mode: `repo [scratch|none|N]` and
+  `keep [PATH]`.
 - Archiving proposals. Archive (`e`, or the row menu) takes a settled
   proposal off the Proposals list for everyone; one settled for the
   workspace's auto-archive days leaves on its own. Hide for me (`H`) takes a
@@ -53,8 +65,12 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 ### Changed
 
 - The Ligus crates are pinned to a commit of the ligus repo's main branch
-  (code-match approval, identity model v2, agents' questions and proposal
-  archiving) until its 0.4.0 release tag.
+  (code-match approval, identity model v2, agents' questions, proposal
+  archiving and scratch repositories) until its 0.4.0 release tag.
+- This device applies an approved proposal in its checkout of the
+  proposal's repository (a scratch repo's, say) even when no checkout is
+  bound for the workspace (Hosts, `b`); that binding is still where
+  proposals without a repository are applied.
 
 ## v0.3.1
 

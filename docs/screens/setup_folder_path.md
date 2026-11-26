@@ -12,20 +12,20 @@ Rendered by `tests/setup.rs` (110×32, the in-memory demo backend).
 ┃                              ┃│  Yes. The payment tests already use a fake clock, so it's a small change.  │
 ┃                              ┃│  I'll propose it.                                                          │
 ┃                              ┃│                                                                            │
-┃                              ┃│  ✓ Ada answered Fake clock · 37m                                           │
-┃                ┏ Add a code folder · 1 of 2 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓· p to review   │
-┃                ┃Agents work on a repository in its own worktree per chat. Binding tells   ┃                │
+┃                ┏ Add a code folder · 1 of 2 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                │
+┃                ┃Agents work on a repository in its own worktree per chat. Binding tells   ┃· p to review   │
 ┃                ┃this device which folder holds the workspace's repository.                ┃                │
-┃                ┃                                                                          ┃rovider uses.   │
-┃                ┃Folder                                                                    ┃                │
-┃                ┃› ~/code/northwind                                                        ┃res?”           │
-┃                ┃  A git checkout on this device (its main checkout, not a linked          ┃e chat first)   │
+┃                ┃                                                                          ┃                │
+┃                ┃Folder                                                                    ┃rovider uses.   │
+┃                ┃Start with a scratch repo                                                 ┃                │
+┃                ┃  [ ] space switches                                                      ┃res?”           │
+┃                ┃Folder                                                                    ┃e chat first)   │
+┃                ┃› ~/code/northwind                                                        ┃                │
+┃                ┃  A git checkout on this device (its main checkout, not a linked          ┃                │
 ┃                ┃  worktree).                                                              ┃                │
 ┃                ┃                                                                          ┃                │
 ┃                ┃enter next · tab complete · shift-tab back · esc cancel                   ┃                │
 ┃                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                │
-┃                              ┃│    │ cargo test -p checkout --features fake-clock                          │
-┃                              ┃│    in /srv/northwind                                                       │
 ┃                              ┃│    coder describes it as: Run the checkout tests                           │
 ┃                              ┃│    Next, after the question above                                          │
 ┃                              ┃│  ◆ proposal “Sign-off: inject a fake clock” · open 0/1 · p to review       │

@@ -616,6 +616,26 @@ pub const COMMANDS: &[Cmd] = &[
         example: "lt --plain checkout ~/src/northwind-api",
     },
     Cmd {
+        name: "repo",
+        usage: "repo [scratch|none|N|ID|NAME]",
+        about: "The open chat's repository, where its agents work on this device. With no argument, it and the \
+                choices: a new scratch repo, then the workspace's repositories. scratch makes an empty repository \
+                (one empty commit on main) in this device's scratch folder, adds it to the workspace as scratch (an \
+                Admin's, as any repository) and sets it; none leaves the chat with no repository. A scratch repo \
+                nobody keeps is removed after 14 days without activity, with a notice in its chats 2 days before.",
+        prints: "chatrepo, repo",
+        example: "lt --plain repo scratch",
+    },
+    Cmd {
+        name: "keep",
+        usage: "keep [PATH]",
+        about: "Keep the open chat's scratch repo as an ordinary repository: move it to PATH (a new folder on \
+                the same disk; default the suggested one, ~/projects/NAME) and drop the scratch tag. Only the \
+                device that made it can. Publish it to GitHub (private) from the desktop or the phone.",
+        prints: "kept",
+        example: "lt --plain keep ~/projects/release-notes",
+    },
+    Cmd {
         name: "setup",
         usage: "setup [FLOW [--FIELD VALUE ...]]",
         about: "The guided setup flows, as ligus setup: with no flow, each flow (agent, tool, folder, box, phone, \
@@ -685,6 +705,9 @@ pub const RECORDS: &[(&str, &[&[&str]])] = &[
     ("memory-proposals", &[&["open"]]),
     ("handoff", &[&["chat", "from", "to", "task"]]),
     ("checkout", &[&["path"]]),
+    ("chatrepo", &[&["chat", "id", "name", "flags", "removes_on"]]),
+    ("repo", &[&["n", "id", "name", "flags", "note"]]),
+    ("kept", &[&["chat", "path"]]),
     ("setup", &[&["flow"], &["progress"], &["title"], &["detail"]]),
     ("check", &[&["id"], &["status"], &["title"], &["detail"], &["fix"]]),
     ("next", &[&["command"]]),

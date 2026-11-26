@@ -33,6 +33,9 @@ INSTA_UPDATE=always LT_WRITE_SCREENS=1 cargo test --test screens --test setup
 | Composer with the @mention popup | [chat_mentions.md](chat_mentions.md) |
 | Multi-line composer | [chat_multiline.md](chat_multiline.md) |
 | A locked-down chat | [chat_lockdown.md](chat_lockdown.md) |
+| A chat in a scratch repo: the tag, and the notice before the cleanup | [chat_scratch.md](chat_scratch.md) |
+| The chat's repository: a new scratch repo first | [repo_picker.md](repo_picker.md) |
+| Keep a scratch repo as a repo | [keep_scratch.md](keep_scratch.md) |
 | Workspace switcher | [switcher.md](switcher.md) |
 | Create or join another workspace | [add_workspace.md](add_workspace.md) |
 | Workflows: definitions and runs | [workflows.md](workflows.md) |
@@ -129,5 +132,6 @@ views off; the status bar keeps the help key and drops hints from the right.
 | Connect a tool: the token, masked (`tests/setup.rs`) | [setup_tool_token.md](setup_tool_token.md) |
 | Connect a tool: which agents may use it (`tests/setup.rs`) | [setup_tool_reach.md](setup_tool_reach.md) |
 | Add a code folder: the folder (`tests/setup.rs`) | [setup_folder_path.md](setup_folder_path.md) |
+| Add a code folder: start with a scratch repo (`tests/setup.rs`) | [setup_folder_scratch.md](setup_folder_scratch.md) |
 | Invite a person: the hand-off (`tests/setup.rs`) | [setup_invite_handoff.md](setup_invite_handoff.md) |
 | Add a phone: pairing in your own terminal (`tests/setup.rs`) | [setup_phone_handoff.md](setup_phone_handoff.md) |
