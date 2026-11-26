@@ -594,7 +594,7 @@ impl Inner {
                 let _ = svc.store().set_workspace_pin(ws, f, fk);
             }
             // A linked computer whose device was revoked stops writing.
-            if linked.is_some() && svc.device_standing(ws, None)? == ligus_runtime::device_enroll::Standing::Revoked {
+            if linked.is_some() && svc.device_standing(ws)? == ligus_runtime::device_enroll::Standing::Revoked {
                 svc.set_write_block(Some("this computer was removed from your devices in this workspace (revoked)".into()));
                 revoked = true;
                 return Ok(());

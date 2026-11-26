@@ -4,7 +4,7 @@ All notable changes to `lt`, the Ligus terminal app (Ligus is short for
 ligustica). Versions follow [semver](https://semver.org); releases are on
 [GitHub](https://github.com/langstroth-ai/ligus-term/releases).
 
-## Unreleased
+## v0.3.1
 
 ### Added
 
@@ -56,11 +56,20 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   before it switches to the person's device.
 - "role X cannot perform Y" reads as what was refused, why, and the fix.
 
+### Dependencies
+
+- Built on the Ligus 0.3.1 crates (`ligus-core` and `ligus-runtime` at tag
+  v0.3.1, previously 0.3.0), a security release: "Allow" on an agent's
+  permission request always means once; only the device running an agent's
+  turn can ask for a permission, and only the asker closes a question; a
+  device acts only for the account it chose; and model API keys are never
+  stored in the workspace. Refusals of the role gate now read the same in
+  lt and the other Ligus apps.
+
 ### Changed
 
 - The key hints always end with `: commands  ? help`, and the first run
   says that `:` opens every command.
-
 - `lt --demo`: the demo's always-on host is called `build-box`.
 - `scripts/capture-screenshots.sh` captures every view and the guided
   setup flows in light and dark for the README, langstroth.ai and the docs.
