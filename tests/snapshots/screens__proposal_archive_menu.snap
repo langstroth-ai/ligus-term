@@ -1,0 +1,36 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
+┏ Proposals ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Bump the order schema version ─────────────────────────────────╮
+┃Inject the clock into c…  open 1/2 · 37m  ┃│applied  by @reviewer · 1 file changed · 2/2 approvals          │
+┃Export orders to CSV   approved 2/2 · 1d  ┃│Applied on build-box (4be1c09a77d2)                             │
+┃Bump the order schema…  applied 2/2 · 2d  ┃╰────────────────────────────────────────────────────────────────╯
+┃Sign-off: inject a fake …  open 0/1 · 4m  ┃╭ Diff · 0 files · hunk 1/0 ─────────────────────────────────────╮
+┃Workflow: Dependency au…  open 0/1 · 20m  ┃│No file changes.                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                        ┏ Bump the order schema version ━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                        │
+┃                        ┃› enter  View the diff                                    ┃                        │
+┃                        ┃  A      Approve  already applied                         ┃                        │
+┃                        ┃  O      Apply on build-box…  already applied             ┃                        │
+┃                        ┃  e      Archive                                          ┃                        │
+┃                        ┃  H      Hide for me                                      ┃                        │
+┃                        ┃──────────────────────────────────────────────────────────┃                        │
+┃                        ┃  v      Archived proposals                               ┃                        │
+┃                        ┃──────────────────────────────────────────────────────────┃                        │
+┃                        ┃  R      Reject…  already applied                         ┃                        │
+┃                        ┃                                                          ┃                        │
+┃                        ┃enter choose · or its key · esc close                     ┃                        │
+┃                        ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                        │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┃                                          ┃│                                                                │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────╯
+↑↓ select  enter choose  esc close                                             peer to peer · 1 running · demo

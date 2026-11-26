@@ -27,9 +27,9 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                          ┃│+        self.clock.now() - self.started_at >= Self::SESSION_TI…│
 ┃                                          ┃│+    }                                                          │
 ┃                                          ┃│+                                                               │
-┃                                          ┃│+    pub const SESSION_TIMEOUT_MS: Millis = 30_000;             │
 ┃┏ space … press a key · esc ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓│
-┃┃Proposals A approve   R reject   O apply on host   W withdraw apply                                       ┃│
+┃┃Proposals A approve   R reject   O apply on host   W withdraw apply   e archive   H hide                  ┃│
+┃┃          v show archived                                                                                 ┃│
 ┃┃Go to     c chats   f workflows   p proposals   a agents   h hosts   y memory   m people                  ┃│
 ┃┃          n notifications   s settings                                                                    ┃│
 ┃┃Anywhere  q quit   ? help   : palette   ! messages   w switch workspace   + add workspace   u setup       ┃│

@@ -5,21 +5,21 @@ Rendered by `tests/setup.rs` (110×32, the in-memory demo backend).
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test · 1/3 ─────────────────────────────────────────────╮
-┃  ◆ Fix flaky checkout … 12m  ┃│Ada  40m                                                                    │
-┃  ◆ Migrate auth to pas… 50m  ┃│  The checkout test fails about one run in ten. Can we stop it reading the  │
-┃  Weekly release notes    1d  ┃│  wall clock?                                                               │
-┃                              ┃│                                                                            │
+┃  ◆ Fix flaky checkout … 12m  ┃│  The checkout test fails about one run in ten. Can we stop it reading the  │
+┃  ◆ Migrate auth to pas… 50m  ┃│  wall clock?                                                               │
+┃  Weekly release notes    1d  ┃│                                                                            │
 ┃                              ┃│@coder  via claude-code · on build-box  38m                                 │
 ┃                              ┃│  Yes. The payment tests already use a fake clock, so it's a small change.  │
+┃                              ┃│  I'll propose it.                                                          │
 ┃                ┏ Add a code folder · 1 of 2 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                │
-┃                ┃Agents work on a repository in its own worktree per chat. Binding tells   ┃· p to review   │
-┃                ┃this device which folder holds the workspace's repository.                ┃                │
+┃                ┃Agents work on a repository in its own worktree per chat. Binding tells   ┃                │
+┃                ┃this device which folder holds the workspace's repository.                ┃· p to review   │
 ┃                ┃                                                                          ┃                │
-┃                ┃Folder                                                                    ┃rovider uses.   │
-┃                ┃Start with a scratch repo                                                 ┃to review       │
+┃                ┃Folder                                                                    ┃                │
+┃                ┃Start with a scratch repo                                                 ┃rovider uses.   │
 ┃                ┃› [x] space switches                                                      ┃                │
-┃                ┃  No code yet? This host creates an empty repository (one empty commit on ┃                │
-┃                ┃  main) in its scratch folder, adds it to the workspace as scratch, and   ┃                │
+┃                ┃  No code yet? This host creates an empty repository (one empty commit on ┃res?”           │
+┃                ┃  main) in its scratch folder, adds it to the workspace as scratch, and   ┃e chat first)   │
 ┃                ┃  binds it here. Unkept scratch repos are removed after 14 days without   ┃                │
 ┃                ┃  activity.                                                               ┃                │
 ┃                ┃Folder                                                                    ┃                │
@@ -27,8 +27,8 @@ Rendered by `tests/setup.rs` (110×32, the in-memory demo backend).
 ┃                ┃                                                                          ┃                │
 ┃                ┃enter next · tab next field · shift-tab back · esc cancel                 ┃                │
 ┃                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                │
-┃                              ┃│                                                                            │
-┃                              ┃│                                                                            │
+┃                              ┃│    Next, after the question above                                          │
+┃                              ┃│  ◆ proposal “Sign-off: inject a fake clock” · open 0/1 · p to review       │
 ┃                              ┃╰────────────────────────────────────────────────────────────────────────────╯
 ┃                              ┃
 ┃                              ┃╭ Message the room ──────────────────────────────────────────────────────────╮

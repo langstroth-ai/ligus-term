@@ -1,0 +1,28 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
+┏ Fix flaky checkout test · 1/3 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                                                                              ┃
+┃  ✓ Ada answered Fake clock · 37m                                             ┃
+┃  ◆ proposal “Inject the clock into checkout tes…” · open 1/2 · p to review   ┃
+┃                                                                              ┃
+┃Ada  12m                                                                      ┃
+┃  @Mara can you review the timeout? 30 seconds is what the provider uses.     ┃
+┃                                                                              ┃
+┃  ✓ Mar┏ Allow ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓       ┃
+┃       ┃Let coder run this once on build-box?                         ┃       ┃
+┃▸ coder┃                                                              ┃       ┃
+┃    All┃y allow · any other key backs out                             ┃       ┃
+┃    │ c┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛       ┃
+┃    in /srv/northwind                                                         ┃
+┃    coder describes it as: Run the checkout tests                             ┃
+┃    a allow once   d deny   n not now                                         ┃
+┃  ◆ proposal “Sign-off: inject a fake clock” · open 0/1 · p to review         ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+╭ Message the room ────────────────────────────────────────────────────────────╮
+│i to write · @ mentions an agent or a person                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+…  : commands  ? help  • A permission: a to allow once (asks first), d to deny

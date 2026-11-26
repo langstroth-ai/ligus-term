@@ -47,6 +47,8 @@ pub struct Snap {
     workflows: String,
     /// Memory (config log) and task state and hand-offs (chats).
     flow: String,
+    /// Agents' questions: id, open, answers kept.
+    asks: String,
 }
 
 #[derive(Default)]
@@ -81,6 +83,14 @@ fn snap_of(s: &ChatSession) -> Snap {
             })
             .collect(),
         workflows: format!("{:?}", s.workflow_definitions.iter().map(|d| (d.id, d.disabled, d.nodes.len())).collect::<Vec<_>>()),
+        asks: format!(
+            "{:?}",
+            s.flow
+                .asks
+                .values()
+                .map(|a| (a.ask.ask_id, a.is_open(), a.counted.len(), a.uncounted.len(), a.answered_by.len()))
+                .collect::<Vec<_>>()
+        ),
         flow: format!(
             "{}/{:?}/{}/{}",
             s.flow.memory.entries.len(),
@@ -94,7 +104,7 @@ fn snap_of(s: &ChatSession) -> Snap {
 fn proposal_key(s: &ChatSession, p: &ligus_core::ActionProposal) -> String {
     let requests = s.apply_requests.values().filter(|r| r.proposal_id == p.id).count();
     let outcomes = s.apply_requests.values().filter(|r| r.proposal_id == p.id && s.apply_outcomes.contains_key(&r.id)).count();
-    format!("{:?}/{}/{}/{}/{}", p.status, p.approvals.len(), requests, outcomes, p.dismissed)
+    format!("{:?}/{}/{}/{}/{}/{:?}", p.status, p.approvals.len(), requests, outcomes, p.dismissed, p.archive_mark)
 }
 
 /// Remember every session as it is now, so only later changes are events.
@@ -257,6 +267,9 @@ fn diff(inner: &Inner, batch: HashMap<Uuid, (Uuid, bool)>) -> Vec<(Uuid, Uuid, U
         if any_new && !fresh {
             inner.emit(Event::ChatsChanged { workspace: wsid.clone() });
         }
+        if old.asks != new.asks {
+            inner.emit(Event::AsksChanged { workspace: wsid.clone(), chat: ChatId::new(sid.to_string()) });
+        }
         if old.workflows != new.workflows {
             inner.emit(Event::WorkflowsChanged { workspace: wsid.clone() });
         }
@@ -274,9 +287,10 @@ fn diff(inner: &Inner, batch: HashMap<Uuid, (Uuid, bool)>) -> Vec<(Uuid, Uuid, U
             inner.emit(Event::AgentsChanged { workspace: wsid.clone() });
         }
         let hosts = inner.host_labels(ws);
+        let hidden = inner.hidden_proposals(ws);
         for p in &s.proposals {
             if old.proposals.get(&p.id) != new.proposals.get(&p.id) {
-                inner.emit(Event::ProposalChanged { workspace: wsid.clone(), proposal: views::proposal(&s, p, &me, &hosts) });
+                inner.emit(Event::ProposalChanged { workspace: wsid.clone(), proposal: views::proposal(&s, p, &me, &hosts, &hidden) });
             }
         }
     }

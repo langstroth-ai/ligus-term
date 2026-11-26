@@ -48,7 +48,8 @@ local setup (`ligus-local`) or a Kubernetes deployment (`ligus-k8s` and the
 ![lt --demo: starting a run of the "Implement, review, ship" workflow, its agent stages finishing one by one, then approving its sign-off gate](assets/lt-demo.gif)
 
 > **Status: early (0.3.0).** `lt` runs on the Ligus crates, pinned to a
-> release tag of the [ligus](https://github.com/langstroth-ai/ligus) repo.
+> release tag of the [ligus](https://github.com/langstroth-ai/ligus) repo
+> (until 0.4.0 is cut, a commit of its code-match approval branch).
 > `lt --demo` runs the same UI on an in-memory sample. What isn't wired yet
 > is listed in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#what-is-wired).
 
@@ -153,16 +154,34 @@ name, your role, your chats):
 
 1. First run: choose **Add to my devices**. In an install you already use,
    press **D** in Settings or People (they say **This terminal is its own
-   member** while it is), or type **link** in the palette (`:`). `lt` shows a
-   request (no secret in it) and a fingerprint. **c** copies the request; **o**
-   shows it alone on the screen, with nothing around it, to select with the
-   mouse.
-2. On your desktop: **Settings > Profile > My devices > Add a computer**. Paste
-   the request, compare all five groups of the fingerprint, confirm with your
-   passkey.
-3. Paste the code the desktop shows into `lt` within 30 minutes. `lt` shows who
-   approved it and the desktop's fingerprint (the desktop shows it as **This
-   desktop**): check it is yours and confirm.
+   member** while it is), or type **link** in the palette (`:`).
+2. On your desktop: **Settings > Profile > My devices > Add a computer**, and
+   **Copy** its approval address (`ligusaddr1:…`, not a secret). Paste it into
+   `lt` and press **enter**: the request shows up on the desktop by itself.
+3. When the desktop opens it, both screens show the same 8-symbol code, framed
+   in `lt` (`K7Q4 M9X2`). **Check your desktop shows the same code**, then
+   choose **Yes, they match** in `lt` and confirm on the desktop with your
+   passkey. A code that differs: choose **No**; the request ends and nothing is
+   granted (someone may have tried to intercept it: start again on a trusted
+   network). The code is valid for 5 minutes.
+4. `lt` checks the desktop's approval on the workspace log (it can take up to 2
+   minutes to arrive), then asks **Link this computer as Ana (verified on the
+   workspace log)?**. **Yes, link** links it; **No** links nothing.
+
+An older desktop, or a relay without an approval mailbox, takes the request
+the old way: `lt` shows it (no secret in it) and its fingerprint the whole
+time. **c** copies the request; **o** shows it alone on the screen, with
+nothing around it, to select with the mouse. Paste it on the desktop, compare
+all five groups of the fingerprint, confirm with your passkey, then press
+**Copy for lt** on the desktop and paste into `lt` (⌘V, or ctrl-shift-v on
+Linux) within 30 minutes. `lt` goes straight to who approved it and the
+desktop's fingerprint (the desktop shows it as **This desktop**): check it is
+yours and confirm.
+
+After 3 requests end without an approval in 15 minutes, `lt` stops and says
+why. **Approval requests** (palette: **approvals**, or People's row menu)
+lists the requests waiting in the workspace (a box asking to join, a computer
+or a phone) read only: approve them on your desktop or phone.
 
 A linked `lt` acts as you without your account key: a vote asks for your
 passkey in the browser, and account changes (devices, phones, passkeys, keys)
@@ -171,9 +190,24 @@ Revoke it from **My devices** on the desktop. An install that was already in
 the workspace as its own member asks with a new device key, and the desktop
 then offers to remove the old member (their messages keep their name).
 
-Scripted: `lt --plain link-request`, then
-`lt --plain link-redeem CODE --approver-fingerprint FP` (without the
-fingerprint it exits 4: a person compares it). `lt help devices` has it all.
+Scripted, in line mode (a person compares the code, so a one-shot
+`link-to` exits 4): `link-to ADDRESS`, then `match yes` (or `match no`), then
+`link-as yes`. The old way, from a shell:
+
+```sh
+lt --plain link-request --copy   # or | pbcopy: stdout has only the request
+lt --plain link-redeem           # Enter reads the desktop's code from the clipboard
+```
+
+`link-redeem` with no code asks for a paste it doesn't echo, or reads the
+clipboard on a bare Enter, then asks **Is that your desktop?** The desktop's
+**Copy command** button copies that command with its fingerprint filled in
+(`--approver-fingerprint FP`). The code never goes on the command line; in a
+script, pipe it in: `lt --plain link-redeem - --approver-fingerprint FP <
+code-file` (without a terminal the fingerprint is required, else exit 4).
+A link started and not finished shows in Settings and when `lt` starts
+("Linking waiting for your desktop's code (started 14:02; expires 14:17)");
+`lt --plain link-status` says the same. `lt help devices` has it all.
 
 ## Help in the terminal
 
@@ -379,6 +413,15 @@ device to apply one, bind the workspace's checkout: Hosts, then `b`, and
 the path to a git checkout (or `lt --plain checkout PATH`). The binding is
 kept in this device's data dir and never synced.
 
+Old proposals leave the queue without being deleted. Archive (`e`) takes a
+settled one (applied, rejected or replaced) off the list for everyone, and
+one that has been settled for the workspace's auto-archive days (7 unless
+an Admin changed it on the desktop) leaves on its own. A proposal that
+still waits on a decision can't be archived: reject it, or Hide for me
+(`H`), which takes it off this device's list only and is never synced. `v`
+lists the archived and hidden ones, where Restore and Show again bring them
+back. Neither kind is counted in what needs you.
+
 ![The proposals queue in lt: open, approved and applied proposals on the left; on the right a proposal's votes and actions above a diff of src/checkout.rs](assets/screens/proposals.svg)
 
 ### A chat's repository and scratch repos
@@ -406,6 +449,40 @@ is suggested) and stays in the workspace as an ordinary repository.
 Publishing it to GitHub (a private repository) is done from the desktop
 or the phone. Plain mode: `lt --plain repo [scratch|none|N]` and
 `lt --plain keep [PATH]` in the open chat.
+
+### Agents' questions
+
+When an agent needs one word from you ("Postgres or SQLite?"), it asks
+with a decision card, and `lt` shows it in the transcript where the agent
+asked:
+
+```
+▸ coder asks you: “Use Postgres or SQLite for the test fixtures?”
+    1 Postgres   2 SQLite   r reply   n not now
+    coder decides what to do next. No new permission.
+```
+
+- With the transcript focused (`tab`), the oldest card waiting on you takes
+  its keys: `1` to `5` answer with an option at once (a question grants the
+  agent nothing), `r` replies in your own words when the question takes a
+  reply, and `n` says Not now. Not now closes a question put to you alone;
+  in a room it is only your abstention, and on an older question it only
+  puts it aside on this terminal. Elsewhere the number keys still switch
+  views.
+- A **grant card** asks to run something: the exact call (the command and
+  its folder, or the file and its content), the host it runs on, and the
+  agent's own description, labelled as its words. `a` allows it once and
+  asks first (and asks for your passkey when the card needs one); `d`
+  denies. A number never allows. A call too large to review here offers
+  only Deny, and `D` shows every call in full.
+- A card you can't answer is read-only: "Waiting on Ada", or "Waiting on
+  Admins · 1 of 2" for a quorum. A settled card is one line ("Ada answered
+  Postgres · 9m"), and one whose agent gave up says it stopped waiting.
+- A chat with a card waiting on you gets the `◆` "needs you" chip.
+- The agent's words are plain text: no Markdown, no links, nothing that
+  looks like one of `lt`'s own controls.
+- In plain mode, `asks` lists the open chat's cards; answering is a person's
+  step, in the full-screen app.
 
 ### Agent tools
 
@@ -465,8 +542,8 @@ everywhere.
 - An empty Agents or Hosts view, and People with only you in it, offer the
   matching flow on `enter`.
 - The list's last row, **Add a computer**, says whether this computer is
-  one of your devices; `enter` opens Add to my devices (the link request,
-  your desktop's approval, the code back). `lt setup device` says the same
+  one of your devices; `enter` opens Add to my devices (your desktop's
+  approval address, the code to compare, the person to confirm). `lt setup device` says the same
   and hands the steps to those screens (exit 4 until it is linked).
 - Agents run on Claude Code, Codex, the Copilot CLI, the Antigravity CLI or
   a local model; Aider, Pi and model gateways are shown but are set up from
@@ -557,6 +634,8 @@ lt --plain available                   # available  N  ID  KIND  MODEL  VERSION 
 lt --plain add-agent 2 coder           # add runtime 2 from available as @coder: yours, only you, this device
 lt --plain proposals                   # proposal  N  ID  STATUS  VOTES/QUORUM  TITLE  APPLY  change|decision|workflow|gate
 lt --plain apply 3                     # apply proposal 3 on a host (default: the first online worker)
+lt --plain archived                    # archived  N  ID  archived|auto-archived|hidden  STATUS  TITLE
+lt --plain archive 3                   # archive proposal 3 for everyone (hide 3: this device only; restore N / show N from archived)
 lt --plain tasks                       # task  CHAT  @AGENT  STATUS  PROGRESS  active|inactive  SUMMARY
 ```
 
@@ -597,10 +676,11 @@ The default keys (all can be rebound, see [Configure](#configure)):
 |---|---|
 | Anywhere | `q` / `ctrl-c` quit (while this device drives a run or an agent's turn it asks first; a second `ctrl-c` quits) · `:` / `ctrl-p` / `ctrl-k` command palette · `space` then pause: a sheet of the keys you can press here (any key then acts as usual) · `?` / `f1` help · `!` messages · `esc` back (to the view you came from) · `ctrl-o` / `alt-left` the previous view, `alt-right` forward again · `w` / `ctrl-w` workspaces · `+` add a workspace · `tab` / `shift-tab` next or previous pane · `ctrl-l` the chat list · `ctrl-f` focus mode (no top bar or key hints; one quiet `◆` badge while something needs you) · `ctrl-x` stop the agent's turn in this chat (when it runs on this device) |
 | Lists | `↑ ↓` or `j k` move · `pgup pgdn` (`ctrl-u ctrl-d`) · `g G` (`home end`) first and last · `enter` (`l`, `→`) the row's main action (open) · `.` / `shift-f10` the row menu (see below) · `/` find as you type (`↑ ↓` the previous or next match, `enter` keep, `esc` back to where you were) |
+| A question for you (transcript focused) | `1`-`5` answer with that option · `r` reply in your own words · `n` not now · on a grant card: `a` allow once (asks first; a passkey when it needs one) · `d` deny |
 | Chats | `D` the whole transcript in `$PAGER` (or left in your terminal's scrollback) · `i` write (lt starts with the cursor in the open chat's composer; `esc` leaves it) · `N` new chat · `r` the chat's repository (a new scratch repo first) · `K` keep its scratch repo as a repo · `o` show what tool calls returned · `L` lock the chat down · `U` clear the lockdown |
 | Composer | `enter` send · `alt-enter` / `ctrl-j` new line (`shift-enter` too, in terminals with the kitty keyboard protocol) · `@` mention, then `tab` or `enter` to accept · `↑` on an empty draft recalls what you sent (`↓` comes back) · `ctrl-r` search what you sent · `ctrl-g` write the draft in `$VISUAL` / `$EDITOR` · `esc` leave (the draft is kept) |
 | Workflows | `S` start a run (asks for its input) · `A` / `R` approve or reject the run's waiting gate (reject asks first) · `X` cancel the run (asks first) · `enter` on a run opens its chat |
-| Proposals | `A` approve · `R` reject (asks first) · `O` apply on a host · `W` withdraw the apply request |
+| Proposals | `A` approve · `R` reject (asks first) · `O` apply on a host · `W` withdraw the apply request · `e` archive or restore · `H` hide for me or show again · `v` archived and hidden |
 | Diff viewer | `]` / `[` next and previous hunk · `}` / `{` next and previous file |
 | People | `r` change role · `X` remove · `I` invite · `B` admit a box · `D` link to my devices (while this terminal is its own member) |
 | Agents | `r` change runtime · `E` who can use it · `N` add an agent (a popup of what this device has) |

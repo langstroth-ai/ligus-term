@@ -157,6 +157,49 @@ pub struct WorkspaceForm {
     pub link_checked: Option<(String, LinkGrantView)>,
     /// Add to my devices: the longer explanation, shown with `?`.
     pub link_about: bool,
+    /// Add to my devices, live (code match through the approval address):
+    /// the request in flight, or how it ended.
+    pub live: Option<LiveLink>,
+    /// The relay has no approval mailbox: the request is pasted instead.
+    pub live_unavailable: bool,
+}
+
+/// A live link request, as the form shows it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LiveLink {
+    /// The request's id once posted (a stale event names another).
+    pub rid: Option<String>,
+    pub stage: LiveStage,
+}
+
+/// Where a live link request is. `yes` is which of the two answers is
+/// selected (No first: nothing happens on a stray Enter).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LiveStage {
+    /// Posting the request.
+    Sending,
+    /// Posted: waiting for the desktop to open it.
+    Waiting,
+    /// The code to compare: Yes, they match / No.
+    Code {
+        code: MatchCodeView,
+        yes: bool,
+    },
+    /// The person said they match: the desktop asks for its passkey.
+    Matched {
+        code: MatchCodeView,
+        acknowledged: bool,
+    },
+    /// The approval arrived: checking it on the workspace log.
+    Checking,
+    /// Check 6: link as the verified person? Yes, link / No.
+    Confirm {
+        person: String,
+        workspace: String,
+        yes: bool,
+        busy: bool,
+    },
+    Ended(LiveLinkEnd),
 }
 
 impl WorkspaceForm {
@@ -180,6 +223,8 @@ impl WorkspaceForm {
             link_asked: false,
             link_checked: None,
             link_about: false,
+            live: None,
+            live_unavailable: false,
         }
     }
 
@@ -309,6 +354,11 @@ pub enum Overlay {
         checked: Option<JoinRequestCheck>,
         result: Option<BoxAdmission>,
     },
+    /// The live approval requests in the workspace's approval mailbox, read
+    /// only (`None` while they load; the error when they can't be read).
+    Approvals {
+        list: Option<std::result::Result<Vec<ApprovalRequest>, String>>,
+    },
     /// The Set up list (`u`): each guided flow and what is done.
     Setup {
         sel: usize,
@@ -354,6 +404,13 @@ pub enum Overlay {
         chat: ChatId,
         name: String,
         path: TextBuf,
+    },
+    /// A one-line reply to an agent's question.
+    AskReply {
+        chat: ChatId,
+        ask: AskId,
+        agent: String,
+        text: TextBuf,
     },
     /// This session's notices and errors, newest first, in full.
     Messages {
@@ -408,7 +465,15 @@ pub enum ConfirmAction {
     Quit,
     CancelRun(RunId),
     Reject(ProposalId),
-    RejectGate { run: RunId, stage: String },
+    RejectGate {
+        run: RunId,
+        stage: String,
+    },
+    /// Allow an agent's call once (a grant card).
+    AllowAsk {
+        chat: ChatId,
+        ask: AskId,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -523,6 +588,11 @@ pub struct State {
     pub chat_sel: Sel,
     pub open_chat: Option<ChatId>,
     pub transcript: Vec<Message>,
+    /// The open chat's decision cards, oldest first.
+    pub asks: Vec<Ask>,
+    /// Older questions put aside here with Not now (they settle on their
+    /// first answer for everyone, so nothing is recorded).
+    pub asks_hidden: BTreeSet<AskId>,
     /// Rows scrolled up from the bottom of the transcript.
     pub transcript_scroll: usize,
     /// Tool calls show what they returned (`o`), not just one line each.
@@ -545,7 +615,14 @@ pub struct State {
     /// The composer text at which the popup was dismissed with Esc.
     pub mention_dismissed: Option<String>,
 
+    /// The inbox: proposals neither archived nor hidden on this device
+    /// (the only ones the counts and the chat views see).
     pub proposals: Vec<Proposal>,
+    /// Archived (for everyone, or by the workspace's auto-archive rule)
+    /// and hidden here ("Hide for me").
+    pub archived_proposals: Vec<Proposal>,
+    /// The Proposals view lists the archived and hidden ones instead.
+    pub show_archived: bool,
     pub proposal_sel: Sel,
     pub diff: Option<DiffState>,
 
@@ -622,6 +699,11 @@ pub struct State {
     pub focus_mode: bool,
     /// Spinners stand still (`--reduce-motion`, `LT_REDUCE_MOTION`).
     pub reduce_motion: bool,
+    /// The person's offset from UTC (seconds), for the times lt shows
+    /// (0 in tests: UTC).
+    pub utc_offset: i32,
+    /// The "Linking waiting…" notice was shown once this run.
+    pub link_notice_shown: bool,
     pub quit: bool,
     /// Quitting to look around in the demo: `lt --demo` runs next.
     pub exec_demo: bool,
@@ -662,6 +744,8 @@ impl State {
             chat_sel: Sel::default(),
             open_chat: None,
             transcript: vec![],
+            asks: vec![],
+            asks_hidden: BTreeSet::new(),
             transcript_scroll: 0,
             tools_expanded: false,
             thinking: HashMap::new(),
@@ -674,6 +758,8 @@ impl State {
             mention_sel: 0,
             mention_dismissed: None,
             proposals: vec![],
+            archived_proposals: vec![],
+            show_archived: false,
             proposal_sel: Sel::default(),
             diff: None,
             agents: vec![],
@@ -720,6 +806,8 @@ impl State {
             loaded: Default::default(),
             my_chats: Default::default(),
             reduce_motion: false,
+            utc_offset: 0,
+            link_notice_shown: false,
             notice_burst: 0,
             focus_mode: false,
             quit: false,
@@ -753,7 +841,8 @@ impl State {
             live: self.thinking.get(chat).is_some_and(|t| !t.is_empty()) || streaming_here,
             failed: outcome == Some(SessionState::Failed),
             finished_unseen: outcome == Some(SessionState::Done),
-            open_asks: self.tasks.iter().filter(|t| &t.chat == chat && t.active && !t.open_questions.is_empty()).count(),
+            open_asks: self.tasks.iter().filter(|t| &t.chat == chat && t.active && !t.open_questions.is_empty()).count()
+                + summary.map(|c| c.asks_for_you).unwrap_or(0),
             proposals_needing_me: self
                 .proposals
                 .iter()
@@ -769,8 +858,20 @@ impl State {
         self.session_signals(chat).state()
     }
 
+    /// What the Proposals view lists: the inbox, or the archived and
+    /// hidden ones.
+    pub fn shown_proposals(&self) -> &[Proposal] {
+        if self.show_archived { &self.archived_proposals } else { &self.proposals }
+    }
+
+    /// The card the ask keys answer: the oldest open card in the open chat
+    /// that you may answer (and haven't put aside here).
+    pub fn ask_target(&self) -> Option<&Ask> {
+        self.asks.iter().find(|a| a.status == AskStatus::Open && a.can_answer.is_yes() && !self.asks_hidden.contains(&a.id))
+    }
+
     pub fn selected_proposal(&self) -> Option<&Proposal> {
-        self.proposals.get(self.proposal_sel.index)
+        self.shown_proposals().get(self.proposal_sel.index)
     }
 
     pub fn selected_member(&self) -> Option<&Member> {
@@ -786,6 +887,17 @@ impl State {
             && self.active_workspace().is_some()
             && self.members.iter().any(|m| m.you && !m.service)
             && self.members.iter().any(|m| !m.you && !m.service)
+    }
+
+    /// "Linking waiting for your desktop's code (started HH:MM; expires
+    /// HH:MM)" while a link request waits, as this person's clock shows it.
+    pub fn link_pending_line(&self) -> Option<String> {
+        let st = self.settings.as_ref()?;
+        if st.linked_to.is_some() {
+            return None;
+        }
+        let p = st.link_pending.as_ref()?;
+        Some(crate::link_cli::pending_line(p, self.now, self.utc_offset))
     }
 
     /// Another member that very likely is the person at this terminal on
@@ -902,6 +1014,9 @@ impl State {
             return vec![Composer, Global];
         }
         match self.view {
+            // Its keys answer only with the transcript focused, so the
+            // global keys (1-9, a, n, r) keep their meaning elsewhere.
+            View::Chats if self.focus == Focus::Detail && self.ask_target().is_some() => vec![Ask, Chat, Nav, Global],
             View::Chats => vec![Chat, Nav, Global],
             View::Proposals if self.focus == Focus::Detail => vec![Diff, Review, Nav, Global],
             View::Proposals => vec![Review, Nav, Global],
@@ -1000,9 +1115,10 @@ impl State {
             View::Chats => {
                 (self.chats.iter().map(|c| format!("{} {}", c.title, c.channel.as_deref().unwrap_or(""))).collect(), self.chat_sel.index)
             }
-            View::Proposals => {
-                (self.proposals.iter().map(|p| format!("{} {} {}", p.title, p.author, p.status.label())).collect(), self.proposal_sel.index)
-            }
+            View::Proposals => (
+                self.shown_proposals().iter().map(|p| format!("{} {} {}", p.title, p.author, p.status.label())).collect(),
+                self.proposal_sel.index,
+            ),
             View::Agents => (self.agents.iter().map(|a| format!("@{} {}", a.handle, a.runtime)).collect(), self.agent_sel.index),
             View::Hosts => (self.hosts.iter().map(|h| h.label.clone()).collect(), self.host_sel.index),
             View::People => (self.members.iter().map(|m| format!("{} {}", m.name, m.role.label())).collect(), self.member_sel.index),
@@ -1044,6 +1160,21 @@ impl State {
             }
             for l in clean(&m.text).lines() {
                 out.push_str(&format!("  {l}\n"));
+            }
+            out.push('\n');
+        }
+        // Agents' questions and grant cards, the call in full.
+        for a in &self.asks {
+            out.push_str(&format!("{} asks {}: \u{201c}{}\u{201d}\n", clean(&a.agent), clean(&a.audience), clean(&a.question)));
+            if let Some(e) = &a.effect {
+                for l in clean(&e.detail).lines() {
+                    out.push_str(&format!("  | {l}\n"));
+                }
+                if !e.cwd.is_empty() {
+                    out.push_str(&format!("  in {}\n", clean(&e.cwd)));
+                }
+            } else if !a.options.is_empty() {
+                out.push_str(&format!("  options: {}\n", clean(&a.options.join(" | "))));
             }
             out.push('\n');
         }

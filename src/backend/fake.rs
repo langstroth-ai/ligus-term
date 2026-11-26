@@ -56,7 +56,12 @@ struct Ws {
     summary: Option<WorkspaceSummary>,
     chats: Vec<ChatSummary>,
     messages: HashMap<ChatId, Vec<Message>>,
+    /// Agents' questions per chat, oldest first.
+    asks: HashMap<ChatId, Vec<Ask>>,
     proposals: Vec<Proposal>,
+    /// Proposals hidden on this device ("Hide for me"); their `shelf` keeps
+    /// where they'd be otherwise.
+    hidden: std::collections::HashSet<ProposalId>,
     diffs: HashMap<ProposalId, Diff>,
     members: Vec<MemberRec>,
     agents: Vec<Agent>,
@@ -145,6 +150,28 @@ struct World {
     stopping: std::collections::HashSet<ChatId>,
     /// The person this demo device was linked to (Add to my devices).
     linked: Option<String>,
+    /// The live link request in flight (its rid), and how many ended
+    /// without a link (the demo stops at 3, as the real requester does).
+    live: Option<String>,
+    dead: usize,
+    /// Link requests made and not redeemed: (when the first was made, how many).
+    link_pending: Option<(Millis, usize)>,
+    /// This demo device's synced name (device-rename).
+    device_label: Option<String>,
+}
+
+impl Ws {
+    /// A proposal as this device shows it: hidden here, or on its shelf,
+    /// with whether you may archive it.
+    fn shown(&self, p: &Proposal) -> Proposal {
+        let mut p = p.clone();
+        if self.hidden.contains(&p.id) {
+            p.shelf = Shelf::Hidden;
+        }
+        let role = self.summary.as_ref().map(|s| s.your_role).unwrap_or(Role::Viewer);
+        p.can_archive = if role >= Role::Contributor { Allowed::Yes } else { Allowed::No("only a Contributor or above".into()) };
+        p
+    }
 }
 
 impl World {
@@ -168,6 +195,19 @@ impl World {
 pub const DEMO_LINK_REQUEST: &str = "liguslink1:eyJ2IjoxLCJkZXZpY2VJZCI6ImRlbW8iLCJsYWJlbCI6Imx0IG9uIHRoaXMgbWFjaGluZSJ9";
 /// The demo's approving desktop.
 pub const DEMO_APPROVER: &str = "2C41-88E0-1B9D-04AF-6E73";
+
+/// The demo's approval address (what a desktop's My devices > Add a
+/// computer copies). The demo answers any `ligusaddr1:` text; one that
+/// holds `no-mailbox` behaves like a relay without an approval mailbox.
+pub const DEMO_ADDRESS: &str = "ligusaddr1:eyJ2IjoxLCJyZWxheSI6Imh0dHBzOi8vcmVsYXkuZXhhbXBsZSJ9";
+/// The code both screens show in the demo.
+pub const DEMO_MATCH_CODE: &str = "K7Q4 M9X2";
+/// The demo's pending link, with the real lifetimes (15 minutes to
+/// approve, then 30 for the code).
+fn fake_pending(p: Option<(Millis, usize)>) -> Option<LinkPending> {
+    let (at, count) = p?;
+    Some(LinkPending { started_ms: at, approve_by_ms: at + 15 * 60_000, expires_ms: at + 45 * 60_000, count })
+}
 
 /// What a linked computer says when asked to found or join a workspace.
 pub fn linked_refusal(person: &str) -> String {
@@ -198,6 +238,7 @@ impl FakeBackend {
                 agents_may_edit: false,
                 relay_url: None,
                 linked_to: None,
+                link_pending: None,
             },
             seq: 100,
             clock: DEMO_NOW,
@@ -206,6 +247,10 @@ impl FakeBackend {
             replying: HashMap::new(),
             stopping: Default::default(),
             linked: None,
+            live: None,
+            dead: 0,
+            link_pending: None,
+            device_label: None,
         };
         Self { world: Arc::new(Mutex::new(world)), tx, cfg }
     }
@@ -371,6 +416,9 @@ impl FakeBackend {
                             needs_presence: false,
                             apply: ApplyState::NotRequested,
                             can_vote: Allowed::Yes,
+                            shelf: Shelf::Inbox,
+                            waiting: true,
+                            can_archive: Allowed::Yes,
                         });
                     } else if st.status == StageStatus::Running {
                         st.status = StageStatus::Succeeded;
@@ -566,6 +614,9 @@ impl FakeBackend {
                         needs_presence: false,
                         apply: ApplyState::NotRequested,
                         can_vote: Allowed::Yes,
+                        shelf: Shelf::Inbox,
+                        waiting: true,
+                        can_archive: Allowed::Yes,
                     };
                     if let Ok(wsd) = w.ws(&ws) {
                         wsd.proposals.insert(0, p.clone());
@@ -755,6 +806,7 @@ fn chat(id: &str, title: &str, channel: Option<&str>, at: Millis, unread: bool, 
         mentioned,
         lockdown: None,
         repo: None,
+        asks_for_you: 0,
     }
 }
 
@@ -826,6 +878,74 @@ fn clock_diff() -> Diff {
             },
         ],
     }
+}
+
+/// The demo's decision cards in "Fix flaky checkout test": one settled
+/// earlier, a question from coder to you, and a grant card from coder on
+/// build-box.
+fn demo_asks() -> Vec<Ask> {
+    let base = Ask {
+        id: AskId::new("q-clock"),
+        chat: ChatId::new("c-checkout"),
+        turn: Some(MessageId::new("m2")),
+        agent: "coder".into(),
+        kind: AskKind::Question,
+        v2: true,
+        question: "Fake clock or freeze time in the test harness?".into(),
+        options: vec!["Fake clock".into(), "Freeze time".into()],
+        allow_text: false,
+        audience: "Ada".into(),
+        quorum: 1,
+        tally: vec![1, 0],
+        can_answer: Allowed::No("Waiting on Ada".into()),
+        effect: None,
+        origin: None,
+        posted_by: None,
+        status: AskStatus::Answered { by: "Ada".into(), answer: "Fake clock".into(), text: None, at: DEMO_NOW - 37 * MIN },
+        at: DEMO_NOW - 38 * MIN,
+        expires_at: DEMO_NOW - 28 * MIN,
+    };
+    vec![
+        base.clone(),
+        Ask {
+            id: AskId::new("q-fixtures"),
+            turn: Some(MessageId::new("m3")),
+            question: "Use Postgres or SQLite for the test fixtures?".into(),
+            options: vec!["Postgres".into(), "SQLite".into()],
+            allow_text: true,
+            audience: "you".into(),
+            tally: vec![0, 0],
+            can_answer: Allowed::Yes,
+            status: AskStatus::Open,
+            at: DEMO_NOW - 11 * MIN,
+            expires_at: DEMO_NOW + 9 * MIN,
+            ..base.clone()
+        },
+        Ask {
+            id: AskId::new("q-run"),
+            turn: Some(MessageId::new("m3")),
+            kind: AskKind::Permission,
+            question: "coder asks permission to run this once.".into(),
+            options: vec!["Allow once".into(), "Deny".into()],
+            audience: "you".into(),
+            tally: vec![0, 0],
+            can_answer: Allowed::Yes,
+            effect: Some(AskEffect {
+                tool: "execute".into(),
+                title: "Run the checkout tests".into(),
+                detail: "cargo test -p checkout --features fake-clock".into(),
+                cwd: "/srv/northwind".into(),
+                host: "build-box".into(),
+                presence_required: false,
+                standing: false,
+                too_large: false,
+            }),
+            status: AskStatus::Open,
+            at: DEMO_NOW - 10 * MIN,
+            expires_at: DEMO_NOW + 10 * MIN,
+            ..base
+        },
+    ]
 }
 
 fn seed_northwind(w: &mut World) {
@@ -971,6 +1091,7 @@ fn seed_northwind(w: &mut World) {
             ),
         ],
     );
+    ws.asks.insert(ChatId::new("c-checkout"), demo_asks());
     ws.messages.insert(
         ChatId::new("c-auth"),
         vec![
@@ -1013,6 +1134,9 @@ fn seed_northwind(w: &mut World) {
             needs_presence: false,
             apply: ApplyState::NotRequested,
             can_vote: Allowed::Yes,
+            shelf: Shelf::Inbox,
+            waiting: true,
+            can_archive: Allowed::Yes,
         },
         Proposal {
             id: ProposalId::new("p-2"),
@@ -1032,6 +1156,9 @@ fn seed_northwind(w: &mut World) {
             needs_presence: false,
             apply: ApplyState::NotRequested,
             can_vote: Allowed::No("you already voted".into()),
+            shelf: Shelf::Inbox,
+            waiting: true,
+            can_archive: Allowed::Yes,
         },
         Proposal {
             id: ProposalId::new("p-3"),
@@ -1048,6 +1175,9 @@ fn seed_northwind(w: &mut World) {
             needs_presence: false,
             apply: ApplyState::Applied { host: "build-box".into(), commit: "4be1c09a77d2".into() },
             can_vote: Allowed::No("already applied".into()),
+            shelf: Shelf::Inbox,
+            waiting: false,
+            can_archive: Allowed::Yes,
         },
     ];
     ws.diffs.insert(p1, clock_diff());
@@ -1072,6 +1202,36 @@ fn seed_northwind(w: &mut World) {
         },
     );
     ws.diffs.insert(ProposalId::new("p-3"), Diff { files: vec![] });
+    // Off the list: one archived by a person, one settled long enough to
+    // auto-archive, and one hidden on this device.
+    let settled = |id: &str, chat: &str, title: &str, status: ProposalStatus, ago: Millis, shelf: Shelf| Proposal {
+        id: ProposalId::new(id),
+        chat: Some(ChatId::new(chat)),
+        title: title.into(),
+        author: "@coder".into(),
+        kind: ProposalKind::Change,
+        status,
+        files_changed: 1,
+        approvals: 1,
+        quorum: 2,
+        votes: vec![],
+        created_at: DEMO_NOW - ago,
+        needs_presence: false,
+        apply: ApplyState::NotRequested,
+        can_vote: Allowed::No(format!("already {}", status.label())),
+        shelf,
+        waiting: false,
+        can_archive: Allowed::Yes,
+    };
+    ws.proposals.extend([
+        settled("p-4", "c-notes", "Rename the cart module to basket", ProposalStatus::Applied, 3 * 24 * 60 * MIN, Shelf::Archived),
+        settled("p-5", "c-checkout", "Retry payment webhooks forever", ProposalStatus::Rejected, 10 * 24 * 60 * MIN, Shelf::AutoArchived),
+        settled("p-6", "c-notes", "Try a second CSV library", ProposalStatus::Rejected, 2 * 24 * 60 * MIN, Shelf::Inbox),
+    ]);
+    ws.hidden.insert(ProposalId::new("p-6"));
+    for id in ["p-4", "p-5", "p-6"] {
+        ws.diffs.insert(ProposalId::new(id), Diff { files: vec![] });
+    }
     seed_orchestration(&mut ws);
     w.order.push(id.clone());
     w.ws.insert(id, ws);
@@ -1165,6 +1325,9 @@ fn seed_orchestration(ws: &mut Ws) {
         needs_presence: false,
         apply: ApplyState::NotRequested,
         can_vote: Allowed::Yes,
+        shelf: Shelf::Inbox,
+        waiting: true,
+        can_archive: Allowed::Yes,
     });
     ws.proposals.push(Proposal {
         id: ProposalId::new("p-wf-1"),
@@ -1181,6 +1344,9 @@ fn seed_orchestration(ws: &mut Ws) {
         needs_presence: true,
         apply: ApplyState::NotRequested,
         can_vote: Allowed::Yes,
+        shelf: Shelf::Inbox,
+        waiting: true,
+        can_archive: Allowed::Yes,
     });
     ws.diffs.insert(ProposalId::new("p-gate-7"), Diff { files: vec![] });
     ws.diffs.insert(ProposalId::new("p-wf-1"), Diff { files: vec![] });
@@ -1460,6 +1626,12 @@ impl Backend for FakeBackend {
     }
 
     async fn link_request(&self) -> Result<LinkRequestView> {
+        {
+            let mut w = self.lock();
+            let at = w.clock;
+            let (first, n) = w.link_pending.unwrap_or((at, 0));
+            w.link_pending = Some((first.max(at), n + 1));
+        }
         Ok(LinkRequestView {
             code: DEMO_LINK_REQUEST.into(),
             fingerprint: "7F3A-91C0-77DE-0B14-5E62".into(),
@@ -1482,12 +1654,153 @@ impl Backend for FakeBackend {
             return err("this computer is already someone else's device");
         }
         let ws = self.join_workspace(&check.person_name, "fake-invite:Northwind-API").await?;
-        self.lock().linked = Some(check.person_name);
+        let mut w = self.lock();
+        w.linked = Some(check.person_name);
+        w.link_pending = None;
         Ok(ws)
+    }
+
+    async fn link_live(&self, address: &str) -> Result<LiveLinkStart> {
+        let address = address.trim();
+        if !address.starts_with("ligusaddr1:") || address.len() < 16 {
+            return err("not a Ligus approval address (expected ligusaddr1:...)");
+        }
+        let request = self.link_request().await?;
+        if address.contains("no-mailbox") {
+            return Ok(LiveLinkStart::NoMailbox { request });
+        }
+        let rid = {
+            let mut w = self.lock();
+            if w.dead >= 3 {
+                return err(TOO_MANY_DEAD);
+            }
+            let rid = w.next("rid-");
+            w.live = Some(rid.clone());
+            rid
+        };
+        // The desktop opens it a moment later.
+        let me = self.clone();
+        let r = rid.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(me.cfg.browser_delay).await;
+            let expires_at = me.lock().clock + 5 * MIN;
+            if me.lock().live.as_deref() != Some(r.as_str()) {
+                return;
+            }
+            let code = MatchCodeView {
+                shown: DEMO_MATCH_CODE.into(),
+                spelled: "K, 7, Q, 4. M, 9, X, 2.".into(),
+                claimed: "Alex's desktop".into(),
+                expires_at,
+            };
+            me.emit(Event::LiveLink { rid: r, update: LiveLinkUpdate::Opened(code) });
+        });
+        Ok(LiveLinkStart::Posted { rid, request })
+    }
+
+    async fn link_live_code(&self, rid: &str, matches: bool) -> Result<()> {
+        if self.lock().live.as_deref() != Some(rid) {
+            return err("that request has ended: start again");
+        }
+        let rid = rid.to_string();
+        if !matches {
+            {
+                let mut w = self.lock();
+                w.live = None;
+                w.dead += 1;
+            }
+            self.emit(Event::LiveLink { rid, update: LiveLinkUpdate::Ended(LiveLinkEnd::Mismatch) });
+            return Ok(());
+        }
+        // The desktop confirms too and asks for its passkey; the approval is
+        // then checked on the workspace log.
+        let me = self.clone();
+        tokio::spawn(async move {
+            me.emit(Event::LiveLink { rid: rid.clone(), update: LiveLinkUpdate::Acknowledged });
+            tokio::time::sleep(me.cfg.browser_delay).await;
+            me.emit(Event::LiveLink { rid: rid.clone(), update: LiveLinkUpdate::Checking });
+            tokio::time::sleep(me.cfg.browser_delay / 2).await;
+            let update = LiveLinkUpdate::Verified { person: "Alex".into(), workspace: "Northwind API".into() };
+            me.emit(Event::LiveLink { rid, update });
+        });
+        Ok(())
+    }
+
+    async fn link_live_person(&self, rid: &str, link: bool) -> Result<Option<WorkspaceSummary>> {
+        if self.lock().live.as_deref() != Some(rid) {
+            return err("that request has ended: start again");
+        }
+        self.lock().live = None;
+        if !link {
+            let update = LiveLinkUpdate::Ended(LiveLinkEnd::NotLinked { person: "Alex".into() });
+            self.emit(Event::LiveLink { rid: rid.to_string(), update });
+            return Ok(None);
+        }
+        if self.lock().linked.as_deref().is_some_and(|p| p != "Alex") {
+            return err("this computer is already someone else's device");
+        }
+        let ws = self.join_workspace("Alex", "fake-invite:Northwind-API").await?;
+        self.lock().linked = Some("Alex".into());
+        Ok(Some(ws))
+    }
+
+    async fn link_live_cancel(&self, rid: &str) -> Result<()> {
+        let mut w = self.lock();
+        if w.live.as_deref() == Some(rid) {
+            w.live = None;
+        }
+        Ok(())
+    }
+
+    async fn approvals(&self, workspace: &WorkspaceId) -> Result<Vec<ApprovalRequest>> {
+        let mut w = self.lock();
+        let now = w.clock;
+        w.ws(workspace)?;
+        if workspace.as_str() != "ws-northwind" {
+            return Ok(vec![]);
+        }
+        Ok(vec![
+            ApprovalRequest {
+                kind: ApprovalKind::Box,
+                label: "build-2".into(),
+                at: now - 3 * MIN,
+                checking: Some("Ada's desktop".into()),
+                mine: false,
+                contested: false,
+            },
+            ApprovalRequest {
+                kind: ApprovalKind::Computer,
+                label: "lt on ada-mbp".into(),
+                at: now - MIN,
+                checking: None,
+                mine: false,
+                contested: false,
+            },
+            // A claim by a device that can't approve it.
+            ApprovalRequest {
+                kind: ApprovalKind::Phone,
+                label: "Mara's iPhone".into(),
+                at: now - 2 * MIN,
+                checking: Some("Ben's desktop".into()),
+                mine: false,
+                contested: true,
+            },
+        ])
     }
 
     fn linked_person(&self) -> Option<String> {
         self.lock().linked.clone()
+    }
+
+    async fn link_status(&self) -> Result<LinkStatusView> {
+        let w = self.lock();
+        Ok(LinkStatusView { linked_to: w.linked.clone(), pending: fake_pending(w.link_pending) })
+    }
+
+    async fn rename_this_device(&self, name: &str) -> Result<String> {
+        let shown = ligus_runtime::display::shown(name.trim());
+        self.lock().device_label = Some(shown.clone());
+        Ok(shown)
     }
 
     async fn confirm_recovery_saved(&self, workspace: &WorkspaceId) -> Result<()> {
@@ -1513,10 +1826,20 @@ impl Backend for FakeBackend {
 
     async fn chats(&self, workspace: &WorkspaceId) -> Result<Vec<ChatSummary>> {
         let mut w = self.lock();
+        let now = w.clock;
         let ws = w.ws(workspace)?;
         let mut c = ws.chats.clone();
-        for chat in &mut c {
-            chat.repo = ws.chat_repo.get(&chat.id).and_then(|r| ws.repo_view(r));
+        for x in &mut c {
+            x.repo = ws.chat_repo.get(&x.id).and_then(|r| ws.repo_view(r));
+            x.asks_for_you = ws
+                .asks
+                .get(&x.id)
+                .map(|l| {
+                    l.iter()
+                        .filter(|a| a.status == AskStatus::Open && a.can_answer.is_yes() && (a.expires_at == 0 || now < a.expires_at))
+                        .count()
+                })
+                .unwrap_or(0);
         }
         c.sort_by_key(|x| std::cmp::Reverse(x.updated_at));
         Ok(c)
@@ -1630,6 +1953,61 @@ impl Backend for FakeBackend {
         Ok(n)
     }
 
+    async fn asks(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<Vec<Ask>> {
+        let mut w = self.lock();
+        let now = w.clock;
+        let ws = w.ws(workspace)?;
+        let mut out = ws.asks.get(chat).cloned().unwrap_or_default();
+        for a in &mut out {
+            if a.status == AskStatus::Open && a.expires_at > 0 && now >= a.expires_at {
+                a.status = AskStatus::Stopped;
+            }
+        }
+        Ok(out)
+    }
+
+    async fn answer_ask(&self, workspace: &WorkspaceId, chat: &ChatId, ask: &AskId, reply: AskReply) -> Result<()> {
+        let needs = {
+            let mut w = self.lock();
+            let ws = w.ws(workspace)?;
+            let Some(a) = ws.asks.get(chat).and_then(|l| l.iter().find(|a| &a.id == ask)) else { return err("no such question") };
+            if a.status != AskStatus::Open {
+                return err("that question is already answered or closed");
+            }
+            if let Allowed::No(r) = &a.can_answer {
+                return err(r.clone());
+            }
+            match &reply {
+                AskReply::NotNow if !a.v2 => return err("an older question can't be declined; leave it unanswered"),
+                AskReply::Text(_) if !a.allow_text => return err("this question takes no free text"),
+                AskReply::Option(i) if *i as usize >= a.options.len() => return err("no such option"),
+                _ => {}
+            }
+            a.effect.as_ref().is_some_and(|e| e.presence_required) && matches!(reply, AskReply::Option(_))
+        };
+        if needs {
+            self.presence("flowRecorded", "Allow an agent to run a call once".into(), PresenceOp::Get).await?;
+        }
+        {
+            let mut w = self.lock();
+            let name = w.your_name.clone().unwrap_or_default();
+            let now = w.tick();
+            let ws = w.ws(workspace)?;
+            let Some(a) = ws.asks.get_mut(chat).and_then(|l| l.iter_mut().find(|a| &a.id == ask)) else { return err("no such question") };
+            match reply {
+                AskReply::Option(i) => {
+                    let answer = a.options[i as usize].clone();
+                    a.status = AskStatus::Answered { by: name, answer, text: None, at: now };
+                }
+                AskReply::Text(t) => a.status = AskStatus::Answered { by: name, answer: String::new(), text: Some(t), at: now },
+                AskReply::NotNow if a.audience == "you" => a.status = AskStatus::Declined { by: name },
+                AskReply::NotNow => a.can_answer = Allowed::No("You said Not now".into()),
+            }
+        }
+        self.emit(Event::AsksChanged { workspace: workspace.clone(), chat: chat.clone() });
+        Ok(())
+    }
+
     async fn lock_chat(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<()> {
         {
             let mut w = self.lock();
@@ -1672,7 +2050,9 @@ impl Backend for FakeBackend {
     }
 
     async fn proposals(&self, workspace: &WorkspaceId) -> Result<Vec<Proposal>> {
-        Ok(self.lock().ws(workspace)?.proposals.clone())
+        let mut w = self.lock();
+        let ws = w.ws(workspace)?;
+        Ok(ws.proposals.iter().map(|p| ws.shown(p)).collect())
     }
 
     async fn proposal_diff(&self, workspace: &WorkspaceId, proposal: &ProposalId) -> Result<Diff> {
@@ -1717,7 +2097,9 @@ impl Backend for FakeBackend {
                 p.status = ProposalStatus::Rejected;
             }
             p.can_vote = Allowed::No("you already voted".into());
+            p.waiting = matches!(p.status, ProposalStatus::Open | ProposalStatus::Approved);
             let p = p.clone();
+            let p = ws.shown(&p);
             if p.kind == ProposalKind::Workflow && p.status == ProposalStatus::Approved {
                 let name = p.title.trim_start_matches("Workflow: ").to_string();
                 let def = workflow_def(
@@ -1759,7 +2141,8 @@ impl Backend for FakeBackend {
                 return err(format!("{} is offline; the request waits until it reconnects", h.label));
             }
             p.apply = ApplyState::Waiting { host: h.label.clone() };
-            (p.clone(), h.label)
+            let p = p.clone();
+            (ws.shown(&p), h.label)
         };
         self.emit(Event::ProposalChanged { workspace: workspace.clone(), proposal: p.clone() });
         let me = self.clone();
@@ -1775,7 +2158,9 @@ impl Backend for FakeBackend {
                 }
                 p.apply = ApplyState::Applied { host: label, commit: format!("{:012x}", fnv(id.as_str()) & 0xffff_ffff_ffff) };
                 p.status = ProposalStatus::Applied;
-                p.clone()
+                p.waiting = false;
+                let p = p.clone();
+                wsd.shown(&p)
             };
             me.emit(Event::ProposalChanged { workspace: ws, proposal: p });
         });
@@ -1785,12 +2170,53 @@ impl Backend for FakeBackend {
     async fn withdraw_apply(&self, workspace: &WorkspaceId, proposal: &ProposalId) -> Result<Proposal> {
         let p = {
             let mut w = self.lock();
-            let Some(p) = w.ws(workspace)?.proposals.iter_mut().find(|p| &p.id == proposal) else { return err("no such proposal") };
+            let ws = w.ws(workspace)?;
+            let Some(p) = ws.proposals.iter_mut().find(|p| &p.id == proposal) else { return err("no such proposal") };
             if !matches!(p.apply, ApplyState::Waiting { .. }) {
                 return err("there's no apply request to withdraw");
             }
             p.apply = ApplyState::Withdrawn;
-            p.clone()
+            let p = p.clone();
+            ws.shown(&p)
+        };
+        self.emit(Event::ProposalChanged { workspace: workspace.clone(), proposal: p.clone() });
+        Ok(p)
+    }
+
+    async fn archive_proposal(&self, workspace: &WorkspaceId, proposal: &ProposalId, archived: bool) -> Result<Proposal> {
+        let p = {
+            let mut w = self.lock();
+            let ws = w.ws(workspace)?;
+            let Some(i) = ws.proposals.iter().position(|p| &p.id == proposal) else { return err("no such proposal") };
+            if let Allowed::No(r) = ws.shown(&ws.proposals[i]).can_archive {
+                return err(r);
+            }
+            let p = &mut ws.proposals[i];
+            if archived && p.waiting {
+                return err(format!(
+                    "\u{201c}{}\u{201d} still waits on a decision, so it can't be archived: reject it first, or hide it for yourself",
+                    p.title
+                ));
+            }
+            p.shelf = if archived { Shelf::Archived } else { Shelf::Inbox };
+            let p = p.clone();
+            ws.shown(&p)
+        };
+        self.emit(Event::ProposalChanged { workspace: workspace.clone(), proposal: p.clone() });
+        Ok(p)
+    }
+
+    async fn hide_proposal(&self, workspace: &WorkspaceId, proposal: &ProposalId, hidden: bool) -> Result<Proposal> {
+        let p = {
+            let mut w = self.lock();
+            let ws = w.ws(workspace)?;
+            let Some(p) = ws.proposals.iter().find(|p| &p.id == proposal).cloned() else { return err("no such proposal") };
+            if hidden {
+                ws.hidden.insert(p.id.clone());
+            } else {
+                ws.hidden.remove(&p.id);
+            }
+            ws.shown(&p)
         };
         self.emit(Event::ProposalChanged { workspace: workspace.clone(), proposal: p.clone() });
         Ok(p)
@@ -1966,7 +2392,7 @@ impl Backend for FakeBackend {
 
     async fn settings(&self) -> Result<Settings> {
         let w = self.lock();
-        Ok(Settings { linked_to: w.linked.clone(), ..w.settings.clone() })
+        Ok(Settings { linked_to: w.linked.clone(), link_pending: fake_pending(w.link_pending), ..w.settings.clone() })
     }
 
     async fn set_setting(&self, key: SettingKey, on: bool) -> Result<Settings> {
@@ -1975,7 +2401,7 @@ impl Backend for FakeBackend {
             SettingKey::NotifyMentions => w.settings.notify_mentions = on,
             SettingKey::AgentsMayEdit => w.settings.agents_may_edit = on,
         }
-        Ok(Settings { linked_to: w.linked.clone(), ..w.settings.clone() })
+        Ok(Settings { linked_to: w.linked.clone(), link_pending: fake_pending(w.link_pending), ..w.settings.clone() })
     }
 
     async fn inspect_invite(&self, invite: &str) -> Result<InviteCheck> {

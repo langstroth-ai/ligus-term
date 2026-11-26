@@ -5,23 +5,23 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Proposals ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Inject the clock into checkout tests ──────────────────────────╮
-┃Inject the clock┏ Commands · 61 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓s               │
+┃Inject the clock┏ Commands · 65 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓s               │
 ┃Export orders to┃›                                                                         ┃                │
 ┃Bump the order s┃──────────────────────────────────────────────────────────────────────────┃────────────────╯
 ┃Sign-off: inject┃▶ Approve “Inject the clock into checkout tests”       A         Proposals┃────────────────╮
 ┃Workflow: Depend┃  Reject “Inject the clock into checkout tests”        R         Proposals┃                │
 ┃                ┃  Apply on a host “Inject the clock into checkout te…  O         Proposals┃                │
 ┃                ┃  Withdraw the apply request “Inject the clock into …  W         Proposals┃                │
+┃                ┃  Archive a settled proposal for everyone, or restor…  e         Proposals┃                │
+┃                ┃  Hide for me (this device only), or show again “Inj…  H         Proposals┃                │
+┃                ┃  Archived and hidden proposals                        v         Proposals┃ of reading the…│
 ┃                ┃  Quit                                                 ctrl-c q   Anywhere┃                │
 ┃                ┃  Show or hide this help                               ? f1       Anywhere┃                │
-┃                ┃  Switch the theme                                                Anywhere┃ of reading the…│
+┃                ┃  Switch the theme                                                Anywhere┃                │
 ┃                ┃  Switch light or dark                                            Anywhere┃                │
 ┃                ┃  Show the keys you can press here                     space      Anywhere┃                │
 ┃                ┃  This session's notices and errors, in full           !          Anywhere┃                │
 ┃                ┃  Switch workspace                                     w ctrl-w   Anywhere┃                │
-┃                ┃  Create or join a workspace                           +          Anywhere┃                │
-┃                ┃  Set up: an agent, a tool, a folder, a box, a phone…  u          Anywhere┃                │
-┃                ┃  Link this computer to my devices                                Anywhere┃                │
 ┃                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                │
 ┃                                          ┃│+        // 30 seconds matches the payment provider's session t…│
 ┃                                          ┃│+        self.clock.now() - self.started_at >= Self::SESSION_TI…│

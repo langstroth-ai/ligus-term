@@ -247,11 +247,31 @@ async fn two_devices_work_together_through_a_relay() {
         b.b.proposals(&ws).await.unwrap().into_iter().find(|p| p.id == pid && matches!(p.apply, ApplyState::Applied { .. }))
     })
     .await;
-    let ApplyState::Applied { host, commit } = applied.apply else { unreachable!() };
+    let ApplyState::Applied { host, commit } = applied.apply.clone() else { unreachable!() };
     assert_eq!(host, "lt Ana");
     assert_eq!(commit.len(), 40);
     assert_eq!(applied.status, ProposalStatus::Applied);
     assert!(b.saw(|e| matches!(e, Event::ProposalChanged { proposal, .. } if proposal.id == pid)));
+
+    // ── Archive: Ben archives the applied proposal for everyone; Ana sees
+    // it archived. Hide for me stays on Ana's device; Restore brings it back.
+    assert!(applied.in_inbox() && !applied.waiting && applied.can_archive.is_yes(), "{applied:?}");
+    let archived = b.b.archive_proposal(&ws, &pid, true).await.unwrap();
+    assert_eq!(archived.shelf, Shelf::Archived);
+    until("Ana to see it archived", || async {
+        a.b.proposals(&ws).await.unwrap().into_iter().find(|p| p.id == pid && p.shelf == Shelf::Archived)
+    })
+    .await;
+    let hidden = a.b.hide_proposal(&ws, &pid, true).await.unwrap();
+    assert_eq!(hidden.shelf, Shelf::Hidden);
+    let restored = b.b.archive_proposal(&ws, &pid, false).await.unwrap();
+    assert!(restored.in_inbox(), "{restored:?}");
+    assert_eq!(a.b.proposals(&ws).await.unwrap().into_iter().find(|p| p.id == pid).unwrap().shelf, Shelf::Hidden, "hidden wins");
+    a.b.hide_proposal(&ws, &pid, false).await.unwrap();
+    until("Ana to see it restored once she shows it again", || async {
+        a.b.proposals(&ws).await.unwrap().into_iter().find(|p| p.id == pid && p.in_inbox())
+    })
+    .await;
 
     // ── Roles: Ana makes Ben an Admin (her passkey confirms it).
     a.b.set_role(&ws, &ben.id, Role::Admin).await.unwrap();

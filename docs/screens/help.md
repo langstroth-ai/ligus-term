@@ -4,7 +4,7 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
-┏ Chats ━━━━━━━━━┏ Help · 1-40 of 109 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
+┏ Chats ━━━━━━━━━┏ Help · 1-40 of 124 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
 ┃  ◆ Fix flaky ch┃Each chat is a room with people and agents. @ mentions an agent or a      ┃                │
 ┃  ◆ Migrate auth┃person; enter on a chat opens it and puts you in the composer.            ┃it reading the  │
 ┃  Weekly release┃                                                                          ┃                │
@@ -12,15 +12,15 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 ┃                ┃                                                                          ┃                │
 ┃                ┃Chats  here                                                               ┃ small change.  │
 ┃                ┃  i                        Write a message                                ┃                │
-┃                ┃  N                        New chat                                       ┃· p to review   │
+┃                ┃  N                        New chat                                       ┃                │
 ┃                ┃  D                        The whole transcript in $PAGER (or your termina┃                │
-┃                ┃  o                        Show or hide what tool calls returned          ┃                │
-┃                ┃  r                        Choose this chat's repo (or a new scratch repo)┃rovider uses.   │
-┃                ┃  K                        Keep this chat's scratch repo as a repo        ┃to review       │
-┃                ┃  L                        Lock this chat down                            ┃                │
+┃                ┃  o                        Show or hide what tool calls returned          ┃· p to review   │
+┃                ┃  r                        Choose this chat's repo (or a new scratch repo)┃                │
+┃                ┃  K                        Keep this chat's scratch repo as a repo        ┃                │
+┃                ┃  L                        Lock this chat down                            ┃rovider uses.   │
 ┃                ┃  U                        Clear the lockdown                             ┃                │
-┃                ┃                                                                          ┃                │
-┃                ┃Lists  here                                                               ┃                │
+┃                ┃                                                                          ┃res?”           │
+┃                ┃Lists  here                                                               ┃e chat first)   │
 ┃                ┃  ↑, k                     Up                                             ┃                │
 ┃                ┃  ↓, j                     Down                                           ┃                │
 ┃                ┃  pgup, ctrl-u             Page up                                        ┃                │
@@ -29,7 +29,7 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 ┃                ┃  end, G                   Last                                           ┃                │
 ┃                ┃  enter, l, →              Open (the row's main action)                   ┃                │
 ┃                ┃  ., shift-f10             Actions for this row and this view (destructive┃                │
-┃                ┃  /                        Find in this list (as you type; ↑↓ next match) ┃                │
+┃                ┃  /                        Find in this list (as you type; ↑↓ next match) ┃to review       │
 ┃                ┃                                                                          ┃                │
 ┃                ┃Anywhere                                                                  ┃                │
 ┃                ┃  ctrl-c, q                Quit (asks first while work runs here)         ┃                │
@@ -44,7 +44,7 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 ┃                ┃  +                        Create or join a workspace                     ┃────────────────╯
 ┃                ┃  u                        Set up: an agent, a tool, a folder, a box, a ph┃
 ┃                ┃  unbound                  Link this computer to my devices               ┃────────────────╮
-┃                ┃  c, 1                     Chats                                          ┃                │
+┃                ┃  unbound                  Approval requests waiting in this workspace (re┃                │
 ┗━━━━━━━━━━━━━━━━┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛────────────────╯
 / search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                    peer to peer · 1 running · demo
 ```

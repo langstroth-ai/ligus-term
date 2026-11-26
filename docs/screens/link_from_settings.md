@@ -15,21 +15,21 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃ [ ] Let agents ed┃  Make this computer one of your devices.                             ┃                  ┃
 ┃                  ┃                                                                      ┃                  ┃
 ┃This device       ┃  1 Desktop: My devices > Add a computer (palette: link)              ┃                  ┃
-┃  Device          ┃  2 Paste this code (c copies it), compare, confirm                   ┃                  ┃
-┃  Data dir        ┃  3 Paste the code it shows here                                      ┃                  ┃
+┃  Device          ┃  2 Copy its approval address and paste it below                      ┃                  ┃
+┃  Data dir        ┃  3 Check both screens show the same code                             ┃                  ┃
 ┃  Secret store    ┃                                                                      ┃                  ┃
-┃  Backend         ┃  Fingerprint    7F3A-91C0-77DE-0B14-5E62                             ┃                  ┃
-┃  Sync            ┃  liguslink1:eyJ2IjoxLCJkZXZpY2VJZCI6ImRlbW8iLCJsYWJlbCI6Imx0IG9uIHR  ┃                  ┃
-┃                  ┃  oaXMgbWFjaGluZSJ9                                                   ┃                  ┃
-┃Appearance and key┃                                                                      ┃                  ┃
-┃ Theme       Polle┃› Desktop's code ▏                                                    ┃                  ┃
-┃ Appearance  auto ┃                                                                      ┃                  ┃
+┃  Backend         ┃  Older desktop? Paste this request there (c copies it):              ┃                  ┃
+┃  Sync            ┃  Fingerprint    7F3A-91C0-77DE-0B14-5E62                             ┃                  ┃
+┃                  ┃  liguslink1:eyJ2IjoxLCJkZXZpY2VJZCI6ImRlbW8iLCJsYWJlbCI6Imx0IG9uIHR  ┃                  ┃
+┃Appearance and key┃  oaXMgbWFjaGluZSJ9                                                   ┃                  ┃
+┃ Theme       Polle┃                                                                      ┃                  ┃
+┃ Appearance  auto ┃› From desktop   ▏                                                    ┃                  ┃
 ┃  Config file     ┃                                                                      ┃                  ┃
 ┃                  ┃                                                                      ┃                  ┃
-┃                  ┃c copy · o full screen · enter check · ? more · esc close             ┃                  ┃
+┃                  ┃                                                                      ┃                  ┃
+┃                  ┃c copy · o full screen · enter continue · ? more · esc close          ┃                  ┃
 ┃                  ┃                                                                      ┃                  ┃
 ┃                  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                  ┃
-┃                                                                                                            ┃
 ┃                                                                                                            ┃
 ┃                                                                                                            ┃
 ┃                                                                                                            ┃

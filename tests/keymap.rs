@@ -159,7 +159,10 @@ fn no_default_shadows_a_global_key() {
     use ligus_term::keymap::{BINDINGS, Chord};
     let global: Vec<Chord> =
         BINDINGS.iter().filter(|b| b.context == Context::Global).flat_map(|b| b.keys.iter().map(|k| Chord::parse(k).unwrap())).collect();
-    for b in BINDINGS.iter().filter(|b| !matches!(b.context, Context::Global | Context::Composer)) {
+    // `ask` is the exception, on purpose: its keys (1-5, r, n, a) act only
+    // while the transcript has focus and a question waits on you, like an
+    // overlay's, and the card shows them.
+    for b in BINDINGS.iter().filter(|b| !matches!(b.context, Context::Global | Context::Composer | Context::Ask)) {
         for k in b.keys {
             let c = Chord::parse(k).unwrap();
             assert!(!global.contains(&c), "[keys.{}] {} = {k} hides a global key", b.context.name(), b.name);

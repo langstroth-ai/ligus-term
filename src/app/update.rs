@@ -33,6 +33,8 @@ pub enum Msg {
     Workspaces(Result<Vec<WorkspaceSummary>>),
     Chats(WorkspaceId, Result<Vec<ChatSummary>>),
     Transcript(WorkspaceId, ChatId, Result<Vec<Message>>),
+    /// A chat's decision cards.
+    Asks(WorkspaceId, ChatId, Result<Vec<Ask>>),
     Mentionables(WorkspaceId, Result<Vec<Mentionable>>),
     Proposals(WorkspaceId, Result<Vec<Proposal>>),
     Diff(WorkspaceId, ProposalId, Result<Diff>),
@@ -52,6 +54,8 @@ pub enum Msg {
     ChatCreated(WorkspaceId, Result<ChatSummary>),
     Sent(Result<Message>),
     ProposalUpdated(WorkspaceId, Result<Proposal>),
+    /// A proposal archived, restored, hidden here or shown again.
+    Shelved(WorkspaceId, Result<Proposal>),
     Invite(Result<String>),
     /// The invite (as typed) and what it says about its sender.
     InviteChecked(String, Result<InviteCheck>),
@@ -61,6 +65,14 @@ pub enum Msg {
     LinkChecked(String, Result<LinkGrantView>),
     /// The grant was redeemed: this computer is the person's device here.
     Linked(Result<WorkspaceSummary>),
+    /// A live link request was posted (or the relay can't carry one).
+    LiveStarted(Result<LiveLinkStart>),
+    /// The answer to the code went to the request.
+    LiveAnswered(Result<()>),
+    /// The answer to the verified person: linked (`Some`) or not.
+    LivePerson(Result<Option<WorkspaceSummary>>),
+    /// The workspace's live approval requests (read only).
+    Approvals(WorkspaceId, Result<Vec<ApprovalRequest>>),
     /// A join request read (no passkey yet): the request and its fingerprint.
     JoinRequestChecked(String, Result<JoinRequestCheck>),
     Admitted(Result<BoxAdmission>),
@@ -109,6 +121,9 @@ pub enum Effect {
     LoadWorkspaces,
     LoadChats(WorkspaceId),
     LoadTranscript(WorkspaceId, ChatId),
+    LoadAsks(WorkspaceId, ChatId),
+    /// Answer a decision card on its chat's log.
+    AnswerAsk(WorkspaceId, ChatId, AskId, AskReply),
     LoadMentionables(WorkspaceId),
     LoadProposals(WorkspaceId),
     LoadDiff(WorkspaceId, ProposalId),
@@ -146,6 +161,10 @@ pub enum Effect {
     Vote(WorkspaceId, ProposalId, VoteChoice),
     RequestApply(WorkspaceId, ProposalId, HostId),
     WithdrawApply(WorkspaceId, ProposalId),
+    /// Archive (`true`) or restore a proposal, for everyone.
+    ArchiveProposal(WorkspaceId, ProposalId, bool),
+    /// Hide (`true`) a proposal on this device, or show it again.
+    HideProposal(WorkspaceId, ProposalId, bool),
     SetAgentRuntime(WorkspaceId, AgentId, RuntimeId),
     /// Who may use an agent: everyone (`true`) or only its owner.
     SetAgentAccess(WorkspaceId, AgentId, bool),
@@ -162,6 +181,16 @@ pub enum Effect {
     InspectLink(String),
     /// Redeem it, after the person confirmed.
     RedeemLink(String),
+    /// Post this computer's link request to an approval address (live).
+    LinkLive(String),
+    /// The person's answer to the code of live request `rid`.
+    LinkLiveCode(String, bool),
+    /// The person's answer to "Link this computer as … (verified)?".
+    LinkLivePerson(String, bool),
+    /// End live request `rid` from this computer.
+    LinkLiveCancel(String),
+    /// The workspace's live approval requests.
+    LoadApprovals(WorkspaceId),
     ConnectDeployment {
         your_name: String,
         spec: DeploymentSpec,
@@ -293,7 +322,7 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
             s.now = now;
             s.toasts.iter_mut().for_each(|t| t.ttl = t.ttl.saturating_sub(1));
             s.toasts.retain(|t| t.ttl > 0);
-            vec![]
+            live_tick(s)
         }
         Msg::Resize(w, h) => {
             s.term = (w, h);
@@ -352,13 +381,19 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
             s.transcript = t;
             vec![]
         }
+        Msg::Asks(ws, chat, Ok(a)) if is_active(s, &ws) && s.open_chat.as_ref() == Some(&chat) => {
+            s.asks = a;
+            vec![]
+        }
         Msg::Mentionables(ws, Ok(m)) if is_active(s, &ws) => {
             s.mentionables = m;
             vec![]
         }
         Msg::Proposals(ws, Ok(p)) if is_active(s, &ws) => {
-            s.proposals = p;
-            s.proposal_sel.clamp(s.proposals.len());
+            let (inbox, off): (Vec<_>, Vec<_>) = p.into_iter().partition(|p| p.in_inbox());
+            s.proposals = inbox;
+            s.archived_proposals = off;
+            s.proposal_sel.clamp(s.shown_proposals().len());
             // The selected proposal's diff shows without asking.
             if s.view == View::Proposals { load_selected_diff(s) } else { vec![] }
         }
@@ -412,6 +447,13 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
         }
         Msg::Settings(Ok(st)) => {
             s.settings = Some(st);
+            // A link started and not finished: say so once, on start.
+            if !s.link_notice_shown
+                && let Some(line) = s.link_pending_line()
+            {
+                s.link_notice_shown = true;
+                s.toast(ToastKind::Info, line);
+            }
             vec![]
         }
         Msg::Copied(Ok(m)) => {
@@ -469,6 +511,17 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
             upsert_proposal(s, &ws, p);
             vec![]
         }
+        Msg::Shelved(ws, Ok(p)) => {
+            let what = match p.shelf {
+                Shelf::Inbox => "Back in Proposals",
+                Shelf::Archived | Shelf::AutoArchived => "Archived for everyone",
+                Shelf::Hidden => "Hidden on this device",
+            };
+            s.toast(ToastKind::Ok, format!("{what}: \u{201c}{}\u{201d}", p.title));
+            upsert_proposal(s, &ws, p);
+            // The selection moved onto another row: show its diff.
+            if is_active(s, &ws) && s.view == View::Proposals { preview_selected_diff(s) } else { vec![] }
+        }
         Msg::Invite(Ok(code)) => {
             s.overlay = Some(Overlay::Invite { code: Some(code) });
             vec![]
@@ -525,9 +578,10 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
         }
         Msg::Linked(Ok(ws)) => {
             let who = match (&s.overlay, &s.phase) {
-                (Some(Overlay::AddWorkspace(f)), _) | (_, Phase::Onboarding(f)) => {
-                    f.link_checked.as_ref().map(|(_, v)| v.person_name.clone())
-                }
+                (Some(Overlay::AddWorkspace(f)), _) | (_, Phase::Onboarding(f)) => match &f.live {
+                    Some(LiveLink { stage: LiveStage::Confirm { person, .. }, .. }) => Some(person.clone()),
+                    _ => f.link_checked.as_ref().map(|(_, v)| v.person_name.clone()),
+                },
                 _ => None,
             };
             s.overlay = None;
@@ -540,6 +594,57 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
             let mut fx = switch_workspace(s, ws.id);
             fx.push(Effect::LoadSettings);
             fx
+        }
+        Msg::LiveStarted(r) => {
+            let Some(form) = link_form(s) else { return vec![] };
+            form.busy = false;
+            match r {
+                Ok(LiveLinkStart::Posted { rid, request }) => {
+                    form.link = Some(request);
+                    form.live = Some(LiveLink { rid: Some(rid), stage: LiveStage::Waiting });
+                }
+                // No approval mailbox on that relay: paste the request on
+                // the desktop instead (the fingerprint compare, as before).
+                Ok(LiveLinkStart::NoMailbox { request }) => {
+                    form.link = Some(request);
+                    form.live = None;
+                    form.live_unavailable = true;
+                    form.grant.take();
+                }
+                Err(e) => {
+                    form.live = None;
+                    form.error = Some(e.0);
+                }
+            }
+            vec![]
+        }
+        Msg::LiveAnswered(Err(e)) => {
+            if let Some(f) = link_form(s)
+                && let Some(l) = &mut f.live
+                && !matches!(l.stage, LiveStage::Ended(_))
+            {
+                l.stage = LiveStage::Ended(LiveLinkEnd::Refused(e.0));
+            }
+            vec![]
+        }
+        Msg::LiveAnswered(Ok(())) => vec![],
+        Msg::LivePerson(Ok(Some(ws))) => update(s, Msg::Linked(Ok(ws))),
+        Msg::LivePerson(Ok(None)) => vec![],
+        Msg::LivePerson(Err(e)) => {
+            if let Some(f) = link_form(s)
+                && let Some(l) = &mut f.live
+            {
+                l.stage = LiveStage::Ended(LiveLinkEnd::Refused(e.0));
+            }
+            vec![]
+        }
+        Msg::Approvals(w, r) => {
+            if s.active.as_ref() == Some(&w)
+                && let Some(Overlay::Approvals { list }) = &mut s.overlay
+            {
+                *list = Some(r.map_err(|e| e.0));
+            }
+            vec![]
         }
         Msg::JoinRequestChecked(r, res) => {
             if let Some(Overlay::AdmitBox { request, busy, checked, result: None }) = &mut s.overlay
@@ -717,11 +822,13 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
         }
         Msg::Done { result: Err(e), .. }
         | Msg::ProposalUpdated(_, Err(e))
+        | Msg::Shelved(_, Err(e))
         | Msg::Invite(Err(e))
         | Msg::ChatCreated(_, Err(e))
         | Msg::Workspaces(Err(e))
         | Msg::Chats(_, Err(e))
         | Msg::Transcript(_, _, Err(e))
+        | Msg::Asks(_, _, Err(e))
         | Msg::Mentionables(_, Err(e))
         | Msg::Proposals(_, Err(e))
         | Msg::Diff(_, _, Err(e))
@@ -750,6 +857,7 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
         // Results for a workspace that is no longer active.
         Msg::Chats(..)
         | Msg::Transcript(..)
+        | Msg::Asks(..)
         | Msg::Mentionables(..)
         | Msg::Proposals(..)
         | Msg::Diff(..)
@@ -805,14 +913,21 @@ fn upsert_proposal(s: &mut State, ws: &WorkspaceId, p: Proposal) {
     if !is_active(s, ws) {
         return;
     }
-    match s.proposals.iter_mut().find(|x| x.id == p.id) {
+    // Each proposal is on one list: the inbox, or archived and hidden.
+    let (list, other) =
+        if p.in_inbox() { (&mut s.proposals, &mut s.archived_proposals) } else { (&mut s.archived_proposals, &mut s.proposals) };
+    other.retain(|x| x.id != p.id);
+    match list.iter_mut().find(|x| x.id == p.id) {
         Some(x) => *x = p,
-        None => s.proposals.insert(0, p),
+        None => list.insert(0, p),
     }
+    let n = s.shown_proposals().len();
+    s.proposal_sel.clamp(n);
 }
 
 fn event(s: &mut State, e: Event) -> Vec<Effect> {
     match e {
+        Event::LiveLink { rid, update } => live_event(s, &rid, update),
         Event::MessageAdded { workspace, message } => {
             let mut fx = vec![];
             if is_active(s, &workspace) {
@@ -886,6 +1001,16 @@ fn event(s: &mut State, e: Event) -> Vec<Effect> {
             vec![]
         }
         Event::ChatsChanged { workspace } if is_active(s, &workspace) => vec![Effect::LoadChats(workspace)],
+        // A card asked or answered: the open chat's cards, and the list's
+        // "needs you" counts.
+        Event::AsksChanged { workspace, chat } if is_active(s, &workspace) => {
+            let mut fx = vec![Effect::LoadChats(workspace.clone())];
+            if s.open_chat.as_ref() == Some(&chat) {
+                fx.push(Effect::LoadAsks(workspace, chat));
+            }
+            fx
+        }
+        Event::AsksChanged { .. } => vec![],
         Event::ProposalChanged { workspace, proposal } => {
             upsert_proposal(s, &workspace, proposal);
             vec![]
@@ -1098,6 +1223,15 @@ fn mouse(s: &mut State, m: crossterm::event::MouseEvent) -> Vec<Effect> {
     }
 }
 
+/// A message as a sentence: its first letter upper-case.
+fn sentence(m: &str) -> String {
+    let mut c = m.chars();
+    match c.next() {
+        Some(f) => f.to_uppercase().chain(c).collect(),
+        None => String::new(),
+    }
+}
+
 fn paste(s: &mut State, text: &str) -> Vec<Effect> {
     if let Some(p) = s.presence.front_mut() {
         if let PresenceStage::EnteringPath(b) = &mut p.stage {
@@ -1120,7 +1254,44 @@ fn paste(s: &mut State, text: &str) -> Vec<Effect> {
             query.insert_str(text.trim());
             *scroll = 0;
         }
+        (Some(Overlay::AddWorkspace(f)), _) | (None, Phase::Onboarding(f))
+            if f.mode == FormMode::Link && text.trim().starts_with("ligusaddr1:") =>
+        {
+            // A pasted address or code replaces what the field held.
+            f.grant.take();
+            f.grant.insert_str(text.trim());
+            f.field = FormField::Value;
+            f.link_checked = None;
+            f.error = None;
+        }
         (Some(Overlay::AddWorkspace(f)), _) | (None, Phase::Onboarding(f)) => {
+            // A desktop's code goes straight to who approved it, whatever
+            // came with it (whitespace, line breaks, a copied command).
+            let on_code = matches!(f.field, FormField::Value | FormField::Mode);
+            if on_code && !f.busy && (f.mode == FormMode::Link || text.contains(crate::link_code::GRANT_PREFIX)) {
+                match crate::link_code::grant_in(text) {
+                    crate::link_code::Pasted::Grant(g) => {
+                        f.mode = FormMode::Link;
+                        f.field = FormField::Value;
+                        f.grant.set(&g);
+                        f.error = None;
+                        f.checked = None;
+                        f.link_checked = None;
+                        f.busy = true;
+                        // An older desktop's code: the paste path, and any
+                        // live request ends.
+                        let mut fx: Vec<Effect> = live_in_flight(f).map(Effect::LinkLiveCancel).into_iter().collect();
+                        f.live = None;
+                        fx.push(Effect::InspectLink(g));
+                        return fx;
+                    }
+                    other if f.mode == FormMode::Link => {
+                        f.error = Some(sentence(&crate::link_code::not_a_grant(&other, false)));
+                        return vec![];
+                    }
+                    _ => {}
+                }
+            }
             match f.field {
                 FormField::Name => f.name.insert_str(text),
                 FormField::Value | FormField::Relay | FormField::Room | FormField::Key | FormField::Token => {
@@ -1145,6 +1316,7 @@ fn paste(s: &mut State, text: &str) -> Vec<Effect> {
         | (Some(Overlay::BindCheckout(b)), _)
         | (Some(Overlay::AddAgent { name: b, .. }), _)
         | (Some(Overlay::KeepScratch { path: b, .. }), _) => b.insert_str(text.trim()),
+        (Some(Overlay::AskReply { text: b, .. }), _) => b.insert_str(&text.replace(['\n', '\r'], " ")),
         (Some(Overlay::StartRun { input, .. }), _) => input.insert_str(text),
         (Some(Overlay::SetupFlow(w)), _) => crate::app::setup::paste(w, text),
         (Some(Overlay::AdmitBox { request, checked: None, result: None, .. }), _) => request.insert_str(text.trim()),
@@ -1182,6 +1354,7 @@ fn key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
             let your = f.name.text.trim().to_string();
             match form_key(f, &k) {
                 FormOutcome::Submit => submit_form(s, Some(your)),
+                FormOutcome::Cancel if live_in_flight(f).is_some() => live_stop(f),
                 FormOutcome::Cancel => {
                     s.quit = true;
                     vec![]
@@ -1212,6 +1385,8 @@ enum FormOutcome {
     CopyLink,
     /// Show the link request alone, full screen (`o`).
     ShowLink,
+    /// Answer a live request's question (the code, or the verified person).
+    LiveAnswer(bool),
 }
 
 /// The fallback when no clipboard is reachable for the link request.
@@ -1219,6 +1394,9 @@ const LINK_FALLBACK: &str = "run lt --plain link-request";
 
 /// Copy the link request, or open it full screen, for a form outcome.
 fn link_code_outcome(s: &mut State, out: FormOutcome) -> Vec<Effect> {
+    if let FormOutcome::LiveAnswer(yes) = out {
+        return link_form(s).map(|f| live_answer(f, yes)).unwrap_or_default();
+    }
     let form = match (&s.overlay, &s.phase) {
         (Some(Overlay::AddWorkspace(f)), _) | (None, Phase::Onboarding(f)) => f,
         _ => return vec![],
@@ -1250,9 +1428,137 @@ fn link_effects(f: &mut WorkspaceForm) -> Vec<Effect> {
     vec![]
 }
 
+/// The Add to my devices form, wherever it is open.
+fn link_form(s: &mut State) -> Option<&mut WorkspaceForm> {
+    match (&mut s.overlay, &mut s.phase) {
+        (Some(Overlay::AddWorkspace(f)), _) => Some(f),
+        (_, Phase::Onboarding(f)) => Some(f),
+        _ => None,
+    }
+    .filter(|f| f.mode == FormMode::Link)
+}
+
+/// A live request still in flight (not ended): its id.
+fn live_in_flight(f: &WorkspaceForm) -> Option<String> {
+    match &f.live {
+        Some(LiveLink { rid: Some(rid), stage }) if !matches!(stage, LiveStage::Ended(_)) => Some(rid.clone()),
+        _ => None,
+    }
+}
+
+/// Esc on a live request ends it (nothing is granted); a second Esc closes.
+fn live_stop(f: &mut WorkspaceForm) -> Vec<Effect> {
+    let Some(rid) = live_in_flight(f) else { return vec![] };
+    if let Some(l) = &mut f.live {
+        l.stage = LiveStage::Ended(LiveLinkEnd::Cancelled);
+    }
+    vec![Effect::LinkLiveCancel(rid)]
+}
+
+/// A live link request moved on. The first code is the one shown: a later
+/// `Opened` (a racing desktop) never replaces it.
+fn live_event(s: &mut State, rid: &str, update: LiveLinkUpdate) -> Vec<Effect> {
+    let Some(f) = link_form(s) else { return vec![] };
+    let Some(l) = f.live.as_mut().filter(|l| l.rid.as_deref() == Some(rid)) else { return vec![] };
+    if matches!(l.stage, LiveStage::Ended(_)) {
+        return vec![];
+    }
+    match update {
+        LiveLinkUpdate::Opened(code) => {
+            if matches!(l.stage, LiveStage::Sending | LiveStage::Waiting) {
+                l.stage = LiveStage::Code { code, yes: false };
+            }
+        }
+        LiveLinkUpdate::Acknowledged => {
+            if let LiveStage::Matched { acknowledged, .. } = &mut l.stage {
+                *acknowledged = true;
+            }
+        }
+        LiveLinkUpdate::Checking => l.stage = LiveStage::Checking,
+        LiveLinkUpdate::Verified { person, workspace } => l.stage = LiveStage::Confirm { person, workspace, yes: false, busy: false },
+        LiveLinkUpdate::Ended(e) => l.stage = LiveStage::Ended(e),
+    }
+    vec![]
+}
+
+/// At zero the code is dropped (the desktop drops it too).
+fn live_tick(s: &mut State) -> Vec<Effect> {
+    let now = s.now;
+    let Some(f) = link_form(s) else { return vec![] };
+    let Some(l) = f.live.as_mut() else { return vec![] };
+    match &l.stage {
+        LiveStage::Code { code, .. } if now > code.expires_at => {
+            l.stage = LiveStage::Ended(LiveLinkEnd::Expired);
+            l.rid.clone().map(Effect::LinkLiveCancel).into_iter().collect()
+        }
+        _ => vec![],
+    }
+}
+
+/// The person answered the code (`Some(yes)`) or the verified person.
+fn live_answer(f: &mut WorkspaceForm, yes: bool) -> Vec<Effect> {
+    let Some(l) = f.live.as_mut() else { return vec![] };
+    let Some(rid) = l.rid.clone() else { return vec![] };
+    match l.stage.clone() {
+        LiveStage::Code { code, .. } => {
+            if yes {
+                l.stage = LiveStage::Matched { code, acknowledged: false };
+            } else {
+                l.stage = LiveStage::Ended(LiveLinkEnd::Mismatch);
+            }
+            vec![Effect::LinkLiveCode(rid, yes)]
+        }
+        LiveStage::Confirm { person, workspace, busy: false, .. } => {
+            if yes {
+                l.stage = LiveStage::Confirm { person, workspace, yes: true, busy: true };
+            } else {
+                l.stage = LiveStage::Ended(LiveLinkEnd::NotLinked { person });
+            }
+            vec![Effect::LinkLivePerson(rid, yes)]
+        }
+        _ => vec![],
+    }
+}
+
+/// Keys while a live request is on the form; `None` lets the form have
+/// the key.
+fn live_key(f: &mut WorkspaceForm, k: &KeyEvent) -> Option<FormOutcome> {
+    let stage = &mut f.live.as_mut()?.stage;
+    match stage {
+        LiveStage::Code { yes, .. } | LiveStage::Confirm { yes, busy: false, .. } => Some(match k.code {
+            KeyCode::Left | KeyCode::Right | KeyCode::Tab | KeyCode::BackTab | KeyCode::Char('h') | KeyCode::Char('l') => {
+                *yes = !*yes;
+                FormOutcome::None
+            }
+            KeyCode::Char('y') => FormOutcome::LiveAnswer(true),
+            KeyCode::Char('n') => FormOutcome::LiveAnswer(false),
+            KeyCode::Enter => FormOutcome::LiveAnswer(*yes),
+            KeyCode::Esc => FormOutcome::Cancel,
+            _ => FormOutcome::None,
+        }),
+        LiveStage::Confirm { .. } => Some(FormOutcome::None),
+        // Waiting: the request can still be copied for an older desktop,
+        // and that desktop's code pasted into the field.
+        LiveStage::Sending | LiveStage::Waiting | LiveStage::Matched { .. } | LiveStage::Checking => Some(match k.code {
+            KeyCode::Esc => FormOutcome::Cancel,
+            KeyCode::Char('c') if k.modifiers.is_empty() && f.link.is_some() => FormOutcome::CopyLink,
+            KeyCode::Char('o') if k.modifiers.is_empty() && f.link.is_some() => FormOutcome::ShowLink,
+            KeyCode::Char('y') if k.modifiers.contains(KeyModifiers::CONTROL) && f.link.is_some() => FormOutcome::CopyLink,
+            KeyCode::Enter if f.grant.text.trim().starts_with(ligus_runtime::computer_link::GRANT_PREFIX) => FormOutcome::Submit,
+            _ => FormOutcome::None,
+        }),
+        LiveStage::Ended(_) => None,
+    }
+}
+
 fn form_key(f: &mut WorkspaceForm, k: &KeyEvent) -> FormOutcome {
     if f.busy {
         return FormOutcome::None;
+    }
+    if f.mode == FormMode::Link
+        && let Some(out) = live_key(f, k)
+    {
+        return out;
     }
     let fields = f.fields();
     let i = fields.iter().position(|x| *x == f.field).unwrap_or(0);
@@ -1333,18 +1639,41 @@ fn submit_form(s: &mut State, your_name: Option<String>) -> Vec<Effect> {
         return vec![];
     }
     if form.mode == FormMode::Link {
-        let grant = form.grant.text.trim().to_string();
-        if grant.is_empty() {
-            form.error = Some("Paste the code your desktop shows".into());
+        let typed = form.grant.text.trim().to_string();
+        if typed.is_empty() {
+            form.error = Some("Paste the approval address your desktop shows".into());
             return vec![];
         }
+        let compact: String = typed.split_whitespace().collect();
+        // The approval address: the live path (code match).
+        if compact.starts_with("ligusaddr1:") {
+            form.error = None;
+            if live_in_flight(form).is_some() {
+                return vec![];
+            }
+            form.live = Some(LiveLink { rid: None, stage: LiveStage::Sending });
+            form.live_unavailable = false;
+            form.link_checked = None;
+            return vec![Effect::LinkLive(compact)];
+        }
+        let grant = match crate::link_code::grant_in(&typed) {
+            crate::link_code::Pasted::Grant(g) => g,
+            other => {
+                form.error = Some(sentence(&crate::link_code::not_a_grant(&other, false)));
+                return vec![];
+            }
+        };
         form.error = None;
+        // An older desktop's code: the paste path, and any live request ends.
+        let mut fx: Vec<Effect> = live_in_flight(form).map(Effect::LinkLiveCancel).into_iter().collect();
+        form.live = None;
         form.busy = true;
         // First show who approved it; link on the second Enter.
-        return match &form.link_checked {
-            Some((checked, _)) if *checked == grant => vec![Effect::RedeemLink(grant)],
-            _ => vec![Effect::InspectLink(grant)],
-        };
+        fx.push(match &form.link_checked {
+            Some((checked, _)) if *checked == grant => Effect::RedeemLink(grant),
+            _ => Effect::InspectLink(grant),
+        });
+        return fx;
     }
     if form.ask_name && your_name.is_empty() {
         form.error = Some("Tell us your name first".into());
@@ -1679,12 +2008,25 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
         }
         Overlay::AddWorkspace(f) => match form_key(f, &k) {
             FormOutcome::Submit => submit_form(s, None),
+            FormOutcome::Cancel if live_in_flight(f).is_some() => live_stop(f),
             FormOutcome::Cancel => {
                 s.overlay = None;
                 vec![]
             }
             FormOutcome::None => link_effects(f),
             out => link_code_outcome(s, out),
+        },
+        Overlay::Approvals { .. } => match k.code {
+            KeyCode::Char('r') => {
+                let Some(w) = ws else { return vec![] };
+                s.overlay = Some(Overlay::Approvals { list: None });
+                vec![Effect::LoadApprovals(w)]
+            }
+            KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q') => {
+                s.overlay = None;
+                vec![]
+            }
+            _ => vec![],
         },
         Overlay::Code { code, fallback, back, .. } => match k.code {
             KeyCode::Char('c') => vec![Effect::Copy(crate::clipboard::Clip::new(code.clone(), fallback))],
@@ -1919,6 +2261,7 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
                 (ConfirmAction::CancelRun(r), Some(w)) => vec![Effect::CancelRun(w, r)],
                 (ConfirmAction::Reject(p), Some(w)) => vec![Effect::Vote(w, p, VoteChoice::Reject)],
                 (ConfirmAction::RejectGate { run, stage }, Some(w)) => vec![Effect::DecideGate(w, run, stage, false)],
+                (ConfirmAction::AllowAsk { chat, ask }, Some(w)) => vec![Effect::AnswerAsk(w, chat, ask, AskReply::Option(0))],
                 (_, None) => vec![],
             }
         }
@@ -2054,6 +2397,25 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
                 vec![]
             }
         },
+        Overlay::AskReply { chat, ask, text, .. } => match k.code {
+            KeyCode::Esc => {
+                s.overlay = None;
+                vec![]
+            }
+            KeyCode::Enter => {
+                let reply = text.text.trim().to_string();
+                if reply.is_empty() {
+                    return vec![];
+                }
+                let (chat, ask) = (chat.clone(), ask.clone());
+                s.overlay = None;
+                ws.map(|w| vec![Effect::AnswerAsk(w, chat, ask, AskReply::Text(reply))]).unwrap_or_default()
+            }
+            _ => {
+                text.handle(&k);
+                vec![]
+            }
+        },
         Overlay::BindCheckout(buf) => match k.code {
             KeyCode::Esc => {
                 s.overlay = None;
@@ -2082,8 +2444,11 @@ pub fn switch_workspace(s: &mut State, id: WorkspaceId) -> Vec<Effect> {
     s.chat_sel = Sel::default();
     s.open_chat = None;
     s.transcript.clear();
+    s.asks.clear();
     s.transcript_scroll = 0;
     s.proposals.clear();
+    s.archived_proposals.clear();
+    s.show_archived = false;
     s.proposal_sel = Sel::default();
     s.diff = None;
     s.agents.clear();
@@ -2124,6 +2489,7 @@ fn open_chat(s: &mut State, id: ChatId) -> Vec<Effect> {
     if s.open_chat.as_ref() != Some(&id) {
         save_draft(s);
         s.transcript.clear();
+        s.asks.clear();
         s.transcript_scroll = 0;
         if let Some(d) = s.drafts.remove(&id) {
             s.composer.set(&d);
@@ -2135,7 +2501,7 @@ fn open_chat(s: &mut State, id: ChatId) -> Vec<Effect> {
         c.unread = false;
         c.mentioned = false;
     }
-    vec![Effect::LoadTranscript(ws.clone(), id.clone()), Effect::MarkRead(ws, id)]
+    vec![Effect::LoadTranscript(ws.clone(), id.clone()), Effect::LoadAsks(ws.clone(), id.clone()), Effect::MarkRead(ws, id)]
 }
 
 /// Go to a view, remembering where you were (`ctrl-o`, `esc` go back).
@@ -2413,6 +2779,8 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
                 vec![]
             }
             (View::Chats, Focus::List) => vec![],
+            // From the archived proposals, back to the inbox.
+            (View::Proposals, Focus::List) if s.show_archived => toggle_archived(s),
             // Back to the view you came from, not always to Chats.
             _ if !s.back.is_empty() => view_history(s, true),
             _ => show(s, View::Chats),
@@ -2448,6 +2816,14 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             f.link_asked = true;
             s.overlay = Some(Overlay::AddWorkspace(f));
             vec![Effect::LinkRequest]
+        }
+        Approvals => {
+            let Some(w) = ws else {
+                s.toast(ToastKind::Info, "Open a workspace first");
+                return vec![];
+            };
+            s.overlay = Some(Overlay::Approvals { list: None });
+            vec![Effect::LoadApprovals(w)]
         }
         GoChats => go(s, View::Chats),
         GoProposals => go(s, View::Proposals),
@@ -2509,6 +2885,64 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
         ToggleTools => {
             s.tools_expanded = !s.tools_expanded;
             vec![]
+        }
+        AskOption1 | AskOption2 | AskOption3 | AskOption4 | AskOption5 => {
+            let i = match action {
+                AskOption1 => 0,
+                AskOption2 => 1,
+                AskOption3 => 2,
+                AskOption4 => 3,
+                _ => 4,
+            };
+            ask_pick(s, i)
+        }
+        AskReply => {
+            let Some(a) = s.ask_target() else { return vec![] };
+            if !a.allow_text {
+                s.toast(ToastKind::Info, "This question takes one of its options, not a reply");
+                return vec![];
+            }
+            let (chat, ask, agent) = (a.chat.clone(), a.id.clone(), a.agent.clone());
+            s.overlay = Some(Overlay::AskReply { chat, ask, agent, text: TextBuf::single() });
+            vec![]
+        }
+        AskNotNow => {
+            let Some(a) = s.ask_target() else { return vec![] };
+            let (chat, ask, v2) = (a.chat.clone(), a.id.clone(), a.v2);
+            if !v2 {
+                // An older question settles on its first answer for
+                // everyone: put it aside here only.
+                s.asks_hidden.insert(ask);
+                s.toast(ToastKind::Info, "Put aside here; it stays open for the others");
+                return vec![];
+            }
+            ws.map(|w| vec![Effect::AnswerAsk(w, chat, ask, crate::backend::model::AskReply::NotNow)]).unwrap_or_default()
+        }
+        AskAllow => {
+            let Some(a) = s.ask_target() else { return vec![] };
+            let Some(e) = a.effect.clone() else {
+                s.toast(ToastKind::Info, "This is a question: pick an option with its number");
+                return vec![];
+            };
+            if e.too_large {
+                s.toast(ToastKind::Error, "Too large to review here: only Deny is offered");
+                return vec![];
+            }
+            let (chat, ask, agent) = (a.chat.clone(), a.id.clone(), a.agent.clone());
+            let on = if e.host.is_empty() { String::new() } else { format!(" on {}", e.host) };
+            let how = if e.presence_required { " Your passkey confirms it." } else { "" };
+            let once = if e.standing { "for the rest of its session" } else { "once" };
+            confirm(s, "Allow", format!("Let {agent} run this {once}{on}?{how}"), "allow", ConfirmAction::AllowAsk { chat, ask });
+            vec![]
+        }
+        AskDeny => {
+            let Some(a) = s.ask_target() else { return vec![] };
+            if a.effect.is_none() {
+                s.toast(ToastKind::Info, "This is a question: pick an option with its number");
+                return vec![];
+            }
+            let (chat, ask) = (a.chat.clone(), a.id.clone());
+            ws.map(|w| vec![Effect::AnswerAsk(w, chat, ask, crate::backend::model::AskReply::Option(1))]).unwrap_or_default()
         }
         Compose => {
             if s.open_chat.is_some() {
@@ -2635,6 +3069,43 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             let Some(p) = s.selected_proposal() else { return vec![] };
             let id = p.id.clone();
             ws.map(|w| vec![Effect::WithdrawApply(w, id)]).unwrap_or_default()
+        }
+        ArchiveProposal => {
+            let Some(p) = s.selected_proposal() else { return vec![] };
+            let restore = match p.shelf {
+                Shelf::Hidden => {
+                    s.toast(ToastKind::Info, "Hidden on this device: show it again first");
+                    return vec![];
+                }
+                Shelf::Archived | Shelf::AutoArchived => true,
+                Shelf::Inbox => false,
+            };
+            if !restore && p.waiting {
+                s.toast(ToastKind::Error, "It still waits on a decision: reject it first, or hide it for yourself");
+                return vec![];
+            }
+            if let Allowed::No(r) = &p.can_archive {
+                let r = r.clone();
+                s.toast(ToastKind::Error, format!("Can't {}: {r}", if restore { "restore" } else { "archive" }));
+                return vec![];
+            }
+            let id = p.id.clone();
+            ws.map(|w| vec![Effect::ArchiveProposal(w, id, !restore)]).unwrap_or_default()
+        }
+        HideProposal => {
+            let Some(p) = s.selected_proposal() else { return vec![] };
+            let (id, hide) = (p.id.clone(), p.shelf != Shelf::Hidden);
+            ws.map(|w| vec![Effect::HideProposal(w, id, hide)]).unwrap_or_default()
+        }
+        ShowArchived => {
+            if s.view != View::Proposals {
+                let mut fx = go(s, View::Proposals);
+                if !s.show_archived {
+                    fx.extend(toggle_archived(s));
+                }
+                return fx;
+            }
+            toggle_archived(s)
         }
         NextHunk | PrevHunk | NextFile | PrevFile => {
             if let Some(d) = s.diff.as_mut() {
@@ -2817,7 +3288,8 @@ fn run_palette(s: &mut State, target: crate::app::palette::Target) -> Vec<Effect
         }
         Target::ShowProposal(id) => {
             let mut fx = go(s, View::Proposals);
-            if let Some(i) = s.proposals.iter().position(|p| p.id == id) {
+            s.show_archived = !s.proposals.iter().any(|p| p.id == id) && s.archived_proposals.iter().any(|p| p.id == id);
+            if let Some(i) = s.shown_proposals().iter().position(|p| p.id == id) {
                 s.proposal_sel.index = i;
             }
             // go() asked for the old selection's diff; ask for this one.
@@ -2840,6 +3312,21 @@ fn run_palette(s: &mut State, target: crate::app::palette::Target) -> Vec<Effect
             fx
         }
     }
+}
+
+/// A number key on the card the ask keys answer: its option, sent at once
+/// (a question grants nothing). A grant's Allow needs `a` and a confirm.
+fn ask_pick(s: &mut State, i: u32) -> Vec<Effect> {
+    let Some(a) = s.ask_target() else { return vec![] };
+    if a.effect.is_some() {
+        s.toast(ToastKind::Info, "A permission: a to allow once (asks first), d to deny");
+        return vec![];
+    }
+    if i as usize >= a.options.len() {
+        return vec![];
+    }
+    let (chat, ask) = (a.chat.clone(), a.id.clone());
+    s.active.clone().map(|w| vec![Effect::AnswerAsk(w, chat, ask, AskReply::Option(i))]).unwrap_or_default()
 }
 
 fn confirm(s: &mut State, title: &str, question: String, yes: &str, action: ConfirmAction) {
@@ -2903,7 +3390,8 @@ fn nav_action(s: &mut State, a: Action) -> Vec<Effect> {
                 return vec![];
             }
             let before = s.proposal_sel.index;
-            list_nav(&mut s.proposal_sel, s.proposals.len(), a);
+            let n = s.shown_proposals().len();
+            list_nav(&mut s.proposal_sel, n, a);
             if before != s.proposal_sel.index {
                 return preview_selected_diff(s);
             }
@@ -2941,6 +3429,16 @@ fn nav_action(s: &mut State, a: Action) -> Vec<Effect> {
             vec![]
         }
     }
+}
+
+/// Switch the Proposals view between the inbox and the archived and hidden
+/// proposals.
+fn toggle_archived(s: &mut State) -> Vec<Effect> {
+    s.show_archived = !s.show_archived;
+    s.proposal_sel = Sel::default();
+    s.focus = Focus::List;
+    s.diff = None;
+    load_selected_diff(s)
 }
 
 /// The selection moved: drop the old diff and preview the new one once the

@@ -46,6 +46,9 @@ INSTA_UPDATE=always LT_WRITE_SCREENS=1 cargo test --test screens --test setup
 | A run started here, live | [workflow_run_live.md](workflow_run_live.md) |
 | Proposals with the diff viewer | [proposals.md](proposals.md) |
 | Diff viewer: a later hunk | [proposals_hunk.md](proposals_hunk.md) |
+| A settled proposal's row menu: Archive, Hide for me | [proposal_archive_menu.md](proposal_archive_menu.md) |
+| Archived and hidden proposals | [archived_proposals.md](archived_proposals.md) |
+| An archived proposal's row menu: Restore | [archived_proposal_menu.md](archived_proposal_menu.md) |
 | Apply on ‹host› | [apply_host.md](apply_host.md) |
 | Agents (status, what they're doing), runtimes, hand-offs | [agents.md](agents.md) |
 | Agents: what this device could add, in a popup | [agents_add_pick.md](agents_add_pick.md) |
@@ -63,6 +66,13 @@ INSTA_UPDATE=always LT_WRITE_SCREENS=1 cargo test --test screens --test setup
 | Cancelling a run asks first | [confirm_cancel_run.md](confirm_cancel_run.md) |
 | Admit a box: its join request | [admit_box.md](admit_box.md) |
 | Admit a box: the sealed admission | [admit_box_sealed.md](admit_box_sealed.md) |
+| Add to my devices: the steps, and the request for an older desktop | [onboarding_link_request.md](onboarding_link_request.md) |
+| Add to my devices, live: waiting for your desktop | [onboarding_link_live_waiting.md](onboarding_link_live_waiting.md) |
+| Add to my devices, live: the code to compare, Yes, they match / No | [onboarding_link_live_code.md](onboarding_link_live_code.md) |
+| Add to my devices, live: link as the person the workspace log verified? | [onboarding_link_live_confirm.md](onboarding_link_live_confirm.md) |
+| Add to my devices, live: the codes didn't match, nothing was granted | [onboarding_link_live_mismatch.md](onboarding_link_live_mismatch.md) |
+| Add to my devices, older desktop: who approved its code | [onboarding_link_confirm.md](onboarding_link_confirm.md) |
+| Approval requests waiting in the workspace (read only) | [approvals.md](approvals.md) |
 | Passkey sheet | [presence.md](presence.md) |
 | Passkey sheet: recovery-words file | [presence_recovery.md](presence_recovery.md) |
 | Passkey sheet with no browser here: the address for another device | [presence_no_browser.md](presence_no_browser.md) |

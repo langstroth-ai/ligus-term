@@ -4,16 +4,16 @@ expression: screen
 ---
 [NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
 ┏ Proposals ━━━━━━━━━━━━━━━━━━━┓╭ Inject the clock into checkout tests ────────╮
-┃I┏ Commands · 4 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
+┃I┏ Commands · 6 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
 ┃E┃› appr                                                                    ┃ │
 ┃B┃──────────────────────────────────────────────────────────────────────────┃─╯
 ┃S┃▶ Approve “Inject the clock into checkout tests”              A  Proposals┃─╮
-┃W┃  Export orders to CSV (approved)                                 Proposal┃ │
+┃W┃  Approval requests waiting in this workspace                     Anywhere┃ │
+┃ ┃  Export orders to CSV (approved)                                 Proposal┃ │
 ┃ ┃  Withdraw the apply request “Inject the clock into checkou…  W  Proposals┃ │
 ┃ ┃  Set up: an agent, a tool, a folder, a box, a phone, an in…  u   Anywhere┃ │
-┃ ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ │
-┃                              ┃│-    pub started: Instant,                    │
-┃                              ┃│+    /// Injected, so tests set the time inst…│
+┃ ┃  Archive a settled proposal for everyone, or restore an ar…  e  Proposals┃ │
+┃ ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛…│
 ┃                              ┃│+    pub clock: Arc<dyn Clock>,               │
 ┃                              ┃│+    pub started_at: Millis,                  │
 ┃                              ┃│     pub paid: bool,                          │

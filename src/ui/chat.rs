@@ -10,7 +10,7 @@ use unicode_width::UnicodeWidthStr;
 
 use super::{pane, trunc, wrap};
 use crate::app::state::{Focus, State, ago};
-use crate::backend::model::{Allowed, Author, Message, SessionState};
+use crate::backend::model::{Allowed, Ask, AskKind, AskStatus, Author, Message, SessionState};
 use crate::keymap::{Action, Context};
 use crate::theme::Theme;
 
@@ -375,6 +375,10 @@ fn transcript_lines(s: &State, width: usize, t: &Theme) -> Vec<Line<'static>> {
         if !text.is_empty() {
             out.extend(markdown_lines(&text, body_w, t));
         }
+        for a in s.asks.iter().filter(|a| a.turn.as_ref() == Some(&m.id)) {
+            out.push(Line::raw(""));
+            out.extend(ask_lines(s, a, body_w, t));
+        }
         let next_at = s.transcript.get(i + 1).map(|n| n.at);
         while let Some(p) = props.get(next_prop) {
             if next_at.is_some_and(|at| p.created_at >= at) {
@@ -384,7 +388,177 @@ fn transcript_lines(s: &State, width: usize, t: &Theme) -> Vec<Line<'static>> {
             next_prop += 1;
         }
     }
+    // Cards whose asking turn isn't in the transcript go last.
+    for a in s.asks.iter().filter(|a| !a.turn.as_ref().is_some_and(|t| s.transcript.iter().any(|m| &m.id == t))) {
+        out.push(Line::raw(""));
+        out.extend(ask_lines(s, a, body_w, t));
+    }
     out
+}
+
+/// A decision card, inline where the agent asked (design 7.1, 7.3). The
+/// agent's words are quoted plain text; everything else is Ligus's, in
+/// muted chrome. Settled, declined and stopped cards are one line.
+fn ask_lines(s: &State, a: &Ask, width: usize, t: &Theme) -> Vec<Line<'static>> {
+    // Someone else's ask under the agent's name leads with who posted it,
+    // in a person's style, and says it isn't from the agent.
+    let (asker, agent) = match &a.posted_by {
+        Some(p) => (p.clone(), Span::styled(p.clone(), t.text().add_modifier(Modifier::BOLD))),
+        None => (a.agent.clone(), Span::styled(a.agent.clone(), t.fg(t.agent).add_modifier(Modifier::BOLD))),
+    };
+    let origin = a.origin.as_ref().map(|o| format!(" · {o}")).unwrap_or_default();
+    let quoted = |q: &str, room: usize| format!("\u{201c}{}\u{201d}", trunc(&q.replace('\n', " "), room.max(8)));
+    match &a.status {
+        AskStatus::Answered { by, answer, text, at } => {
+            let reply = text.as_ref().map(|r| format!(": \u{201c}{}\u{201d}", trunc(r, 60))).unwrap_or_default();
+            let what = if answer.is_empty() { String::new() } else { format!(" {answer}") };
+            return vec![Line::from(vec![
+                Span::styled("  ✓ ", t.fg(t.good)),
+                Span::styled(format!("{by} answered{what}{reply}"), t.text()),
+                Span::styled(format!(" · {}", ago(s.now, *at)), t.dim()),
+            ])];
+        }
+        AskStatus::Declined { by } => {
+            return vec![Line::styled(format!("  {by} said Not now to {}'s question", a.agent), t.dim())];
+        }
+        AskStatus::Stopped => {
+            let room = width.saturating_sub(a.agent.width() + 24);
+            return vec![Line::styled(format!("  {} stopped waiting: {}", a.agent, quoted(&a.question, room)), t.dim())];
+        }
+        AskStatus::Open => {}
+    }
+    let mut out = vec![];
+    let target = s.ask_target().is_some_and(|x| x.id == a.id);
+    let mark = if target { Span::styled("▸ ", t.accent()) } else { Span::raw("  ") };
+    let audience = if a.quorum > 1 { format!("{} · needs {} of you", a.audience, a.quorum) } else { a.audience.clone() };
+    match &a.effect {
+        None => {
+            // `Builder asks you: "…"`, wrapped under the quote.
+            let lead = format!("{asker} asks {audience}: ");
+            let text = format!("\u{201c}{}\u{201d}", a.question);
+            let lines = wrap(&text, width.saturating_sub(lead.width() + 2).max(12));
+            for (i, l) in lines.into_iter().enumerate() {
+                if i == 0 {
+                    out.push(Line::from(vec![
+                        mark.clone(),
+                        agent.clone(),
+                        Span::styled(format!(" asks {audience}: "), t.dim()),
+                        Span::styled(l, t.text()),
+                        Span::styled(origin.clone(), t.dim()),
+                    ]));
+                } else {
+                    out.push(Line::styled(format!("{}{l}", " ".repeat(lead.width() + 2)), t.text()));
+                }
+            }
+        }
+        Some(_) => {
+            let what = if a.kind == AskKind::Secret { "to see a secret" } else { "to run something" };
+            out.push(Line::from(vec![
+                mark.clone(),
+                agent.clone(),
+                Span::styled(format!(" asks {audience} {what}"), t.dim()),
+                Span::styled(origin.clone(), t.dim()),
+            ]));
+        }
+    }
+    if let Some(p) = &a.posted_by {
+        out.extend(chrome(&format!("Posted by {p} under {}'s name: not from {}.", a.agent, a.agent), width, t.dim()));
+    }
+    let ind = "    ";
+    if let Some(e) = &a.effect {
+        let on = if e.host.is_empty() { String::new() } else { format!(" on {}", e.host) };
+        let once = if e.standing { "for the rest of its session" } else { "once" };
+        let allow = if e.standing { "Allow for the rest of the session" } else { "Allow once" };
+        out.extend(chrome(&format!("{allow} lets {} run this {once}{on}:", a.agent), width, t.dim()));
+        // The exact call, never cut: long lines break at the pane's edge
+        // (what Allow covers must be readable in full).
+        let room = width.saturating_sub(6).max(8);
+        let mut rows = 0usize;
+        'detail: for l in e.detail.lines() {
+            let chars: Vec<char> = l.chars().collect();
+            let pieces: Vec<String> =
+                if chars.is_empty() { vec![String::new()] } else { chars.chunks(room).map(|c| c.iter().collect()).collect() };
+            for (j, p) in pieces.into_iter().enumerate() {
+                rows += 1;
+                if rows > MAX_DETAIL_ROWS {
+                    break 'detail;
+                }
+                let bar = if j == 0 { "│ " } else { "┆ " };
+                out.push(Line::from(vec![Span::styled(format!("{ind}{bar}"), t.dim()), Span::styled(p, t.fg(t.hunk))]));
+            }
+        }
+        if rows > MAX_DETAIL_ROWS {
+            let d = s.keymap.hint(Context::Chat, Action::DumpTranscript);
+            out.extend(chrome(&format!("It goes on past what fits here: {d} shows the whole call."), width, t.fg(t.bad)));
+        }
+        if !e.cwd.is_empty() {
+            out.push(Line::styled(format!("{ind}in {}", e.cwd), t.dim()));
+        }
+        if !e.title.is_empty() {
+            out.extend(chrome(&format!("{} describes it as: {}", a.agent, e.title), width, t.dim()));
+        }
+        if e.too_large {
+            out.push(Line::styled(format!("{ind}Too large to review here."), t.fg(t.bad)));
+        }
+    }
+    // The keys, or who it waits on.
+    match &a.can_answer {
+        Allowed::No(why) => out.extend(chrome(why, width, t.dim())),
+        Allowed::Yes if s.asks_hidden.contains(&a.id) => out.push(Line::styled(format!("{ind}Put aside here"), t.dim())),
+        // One card takes the keys at a time: the oldest waiting on you.
+        Allowed::Yes if !target => out.push(Line::styled(format!("{ind}Next, after the question above"), t.dim())),
+        Allowed::Yes => {
+            let k = |act: Action| s.keymap.hint(Context::Ask, act);
+            let mut spans = vec![Span::raw(ind.to_string())];
+            let key = |key: String, label: String, spans: &mut Vec<Span<'static>>| {
+                spans.push(Span::styled(key, t.accent()));
+                spans.push(Span::styled(format!(" {label}   "), t.text()));
+            };
+            match &a.effect {
+                Some(e) => {
+                    if !e.too_large {
+                        let allow = if e.standing { "allow for the session" } else { "allow once" };
+                        let pass = if e.presence_required { " (passkey)" } else { "" };
+                        key(k(Action::AskAllow), format!("{allow}{pass}"), &mut spans);
+                    }
+                    key(k(Action::AskDeny), "deny".into(), &mut spans);
+                }
+                None => {
+                    let acts = [Action::AskOption1, Action::AskOption2, Action::AskOption3, Action::AskOption4, Action::AskOption5];
+                    for (i, o) in a.options.iter().enumerate().take(5) {
+                        key(k(acts[i]), o.clone(), &mut spans);
+                    }
+                    if a.allow_text {
+                        key(k(Action::AskReply), "reply".into(), &mut spans);
+                    }
+                }
+            }
+            key(k(Action::AskNotNow), "not now".into(), &mut spans);
+            if target && s.focus != Focus::Detail {
+                let tab = s.keymap.hint(Context::Global, Action::FocusNext);
+                spans.push(Span::styled(format!("({tab} to the chat first)"), t.dim()));
+            }
+            out.push(Line::from(spans));
+        }
+    }
+    // What the answer does, in Ligus's words, always shown.
+    let effect = match &a.effect {
+        None => Some(format!("{} decides what to do next. No new permission.", a.agent)),
+        Some(e) if e.presence_required && !e.too_large => Some("Allowing needs your passkey.".to_string()),
+        Some(_) => None,
+    };
+    if let Some(effect) = effect {
+        out.extend(chrome(&effect, width, t.dim().add_modifier(Modifier::ITALIC)));
+    }
+    out
+}
+
+/// Rows of a grant's call shown on its card before `D` is needed.
+const MAX_DETAIL_ROWS: usize = 40;
+
+/// A card's chrome (Ligus's words), wrapped under the card's indent.
+fn chrome(text: &str, width: usize, style: ratatui::style::Style) -> Vec<Line<'static>> {
+    wrap(text, width.saturating_sub(4).max(12)).into_iter().map(|l| Line::styled(format!("    {l}"), style)).collect()
 }
 
 /// One step of a new workspace's getting-started list.

@@ -65,7 +65,7 @@ fn hidden(a: Action) -> bool {
 fn subject(s: &State, a: Action) -> Option<Option<String>> {
     use Action::*;
     Some(match a {
-        Approve | Reject | ApplyOnHost | WithdrawApply => Some(s.selected_proposal()?.title.clone()),
+        Approve | Reject | ApplyOnHost | WithdrawApply | ArchiveProposal | HideProposal => Some(s.selected_proposal()?.title.clone()),
         ChangeRole | RemoveMember => Some(s.selected_member()?.name.clone()),
         ChangeRuntime | ToggleAccess => Some(format!("@{}", s.agents.get(s.agent_sel.index)?.handle)),
         StartRun => match s.selected_workflow_item()? {
@@ -97,6 +97,7 @@ fn synonyms(a: Action) -> &'static str {
     match a {
         Action::LinkDevice => "link add a computer device devices my devices desktop terminal lt same person second member invited myself",
         Action::AdmitBox => "box serve worker admission",
+        Action::Approvals => "approve approval requests join box computer phone code match waiting",
         Action::Invite => "invite person people",
         Action::ChatRepo => "repo repository scratch folder code checkout new scratch repo",
         Action::KeepScratch => "keep scratch repo repository move save publish",

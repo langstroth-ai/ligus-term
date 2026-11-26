@@ -106,6 +106,11 @@ pub enum Event {
         workspace: WorkspaceId,
         run: Run,
     },
+    /// A chat's decision cards changed (asked, answered, closed).
+    AsksChanged {
+        workspace: WorkspaceId,
+        chat: ChatId,
+    },
     /// Workspace memory or an agent's task state changed.
     MemoryChanged {
         workspace: WorkspaceId,
@@ -132,6 +137,11 @@ pub enum Event {
         id: PresenceId,
         url: String,
         port: u16,
+    },
+    /// A live link request moved on (`rid` names it; a stale one is ignored).
+    LiveLink {
+        rid: String,
+        update: LiveLinkUpdate,
     },
     /// Sync status, shown in the status bar.
     Sync {
@@ -174,8 +184,32 @@ pub trait Backend: Send + Sync {
     /// pull, check the desktop's certificate for this computer, and act as
     /// that person from then on.
     async fn redeem_link(&self, grant: &str) -> Result<WorkspaceSummary>;
+    /// Code-match approval: post this computer's link request to the
+    /// approval address its desktop shows (`ligusaddr1:`, My devices > Add a
+    /// computer). Progress arrives as [`Event::LiveLink`]. A relay without
+    /// an approval mailbox is [`LiveLinkStart::NoMailbox`] (paste instead).
+    async fn link_live(&self, address: &str) -> Result<LiveLinkStart>;
+    /// The person's answer to "Check your desktop shows the same code.":
+    /// Yes acknowledges the desktop's offer (once it comes); No ends the
+    /// request (nothing is granted).
+    async fn link_live_code(&self, rid: &str, matches: bool) -> Result<()>;
+    /// Link as the person the workspace log verified (`true`), or link
+    /// nothing (`false`, `None`).
+    async fn link_live_person(&self, rid: &str, link: bool) -> Result<Option<WorkspaceSummary>>;
+    /// End a live request from this computer (nothing is granted).
+    async fn link_live_cancel(&self, rid: &str) -> Result<()>;
+    /// The live approval requests in the workspace's approval mailbox, read
+    /// only: they are approved on a desktop or a phone.
+    async fn approvals(&self, workspace: &WorkspaceId) -> Result<Vec<ApprovalRequest>>;
     /// The person this computer is a device of, once linked.
     fn linked_person(&self) -> Option<String>;
+    /// Where linking stands: linked, or a request waiting for the
+    /// desktop's code (expired requests are dropped as it reads them).
+    async fn link_status(&self) -> Result<LinkStatusView>;
+    /// Name this computer, as every member sees it, in every workspace it
+    /// acts in (identity model v2, 6): its synced device name. Empty clears
+    /// it. Returns the name as shown.
+    async fn rename_this_device(&self, name: &str) -> Result<String>;
     /// The person confirmed they wrote the recovery words down.
     async fn confirm_recovery_saved(&self, workspace: &WorkspaceId) -> Result<()>;
 
@@ -199,6 +233,11 @@ pub trait Backend: Send + Sync {
     /// Stop the agents' turns running on this device in a chat; how many
     /// were stopped (0: none runs here, so its host has to stop it).
     async fn stop_turn(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<usize>;
+    /// The decision cards to show in a chat, oldest first.
+    async fn asks(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<Vec<Ask>>;
+    /// Answer an ask on the log of `chat` (the ask's own chat). A grant
+    /// that needs a passkey asks for one ([`Event::PresencePrompt`]).
+    async fn answer_ask(&self, workspace: &WorkspaceId, chat: &ChatId, ask: &AskId, reply: AskReply) -> Result<()>;
     async fn lock_chat(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<()>;
     /// A human Contributor or above clears it, with a passkey.
     async fn clear_lockdown(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<()>;
@@ -210,6 +249,12 @@ pub trait Backend: Send + Sync {
     /// Ask one host to apply an approved proposal on its checkout.
     async fn request_apply(&self, workspace: &WorkspaceId, proposal: &ProposalId, host: &HostId) -> Result<Proposal>;
     async fn withdraw_apply(&self, workspace: &WorkspaceId, proposal: &ProposalId) -> Result<Proposal>;
+    /// Archive a settled proposal for everyone, or restore an archived one
+    /// (a Contributor's; one that still waits on someone is refused).
+    async fn archive_proposal(&self, workspace: &WorkspaceId, proposal: &ProposalId, archived: bool) -> Result<Proposal>;
+    /// Hide a proposal on this device only ("Hide for me"), or show it
+    /// again. Never synced.
+    async fn hide_proposal(&self, workspace: &WorkspaceId, proposal: &ProposalId, hidden: bool) -> Result<Proposal>;
 
     // ── Agents, runtimes, hosts ────────────────────────────────────────
     async fn agents(&self, workspace: &WorkspaceId) -> Result<Vec<Agent>>;

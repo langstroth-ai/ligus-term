@@ -1,0 +1,28 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
+┏ Proposals ━━━━━━━━━━━━━━━━━━━┓╭ Bump the order schema version ───────────────╮
+┃Inject the …  open 1/2 · 37m  ┃│applied  by @reviewer · 1 file changed · 2/2  │
+┃Export o…  approved 2/2 · 1d  ┃│approvals                                     │
+┃Bump the …  applied 2/2 · 2d  ┃╰──────────────────────────────────────────────╯
+┃Sign-off:┏ Bump the order schema version ━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────╮
+┃Workflow:┃› enter  View the diff                                    ┃         │
+┃         ┃  A      Approve  already applied                         ┃         │
+┃         ┃  O      Apply on build-box…  already applied             ┃         │
+┃         ┃  e      Archive                                          ┃         │
+┃         ┃  H      Hide for me                                      ┃         │
+┃         ┃──────────────────────────────────────────────────────────┃         │
+┃         ┃  v      Archived proposals                               ┃         │
+┃         ┃──────────────────────────────────────────────────────────┃         │
+┃         ┃  R      Reject…  already applied                         ┃         │
+┃         ┃                                                          ┃         │
+┃         ┃enter choose · or its key · esc close                     ┃         │
+┃         ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛         │
+┃                              ┃│                                              │
+┃                              ┃│                                              │
+┃                              ┃│                                              │
+┃                              ┃│                                              │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────╯
+↑↓ select  enter choose  esc close               peer to peer · 1 running · demo
