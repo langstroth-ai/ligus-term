@@ -4,6 +4,33 @@ All notable changes to `lt`, the Ligus terminal app (Ligus is short for
 ligustica). Versions follow [semver](https://semver.org); releases are on
 [GitHub](https://github.com/langstroth-ai/ligus-term/releases).
 
+## Unreleased
+
+### Added
+
+- **Add to my devices with a code match.** Paste the approval address your
+  desktop shows (My devices > Add a computer > Copy, `ligusaddr1:`) and the
+  request reaches the desktop by itself. Both screens show the same
+  8-symbol code; `lt` frames it with "Check your desktop shows the same
+  code." and **Yes, they match** / **No**. This replaces the second paste
+  and the approving desktop's fingerprint. `lt` acknowledges the desktop's
+  offer only after Yes, checks the approval on the workspace log (retrying
+  for up to 2 minutes while it syncs), then asks **Link this computer as
+  Ana (verified on the workspace log)?**. No at either step grants or links
+  nothing, said in words. The request and its fingerprint stay on the
+  screen for an older desktop, and a relay without an approval mailbox
+  falls back to them. Plain mode: `link-to ADDRESS`, `match yes|no`,
+  `link-as yes|no`, `link-cancel`.
+- **Approval requests** (palette, People's row menu, plain `approvals`):
+  the requests waiting in the workspace's approval mailbox, with their
+  kind, label, age and who is checking each, read only ("Approve on your
+  desktop or phone").
+
+### Changed
+
+- The Ligus crates are pinned to a commit of the ligus repo's main branch
+  (code-match approval) until its 0.4.0 release tag.
+
 ## v0.3.1
 
 ### Added

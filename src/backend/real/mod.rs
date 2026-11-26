@@ -20,6 +20,7 @@
 mod deploy;
 pub(crate) mod detect;
 mod link;
+mod live_link;
 mod local;
 mod mcp;
 mod setup_ops;
@@ -158,6 +159,8 @@ pub(crate) struct Inner {
     ligus: Mutex<HashMap<Uuid, Arc<ligus_runtime::ligus_mcp::LigusMcp>>>,
     /// The turns running on this device, each with its own stop signal.
     turn_stops: Arc<ligus_runtime::turn_engine::TurnStops>,
+    /// The live link request in flight (Add to my devices, code match).
+    live: Mutex<Option<live_link::LiveHandle>>,
     /// A link is being redeemed here: the data dir's identity is in flux,
     /// so [`Inner::follow_disk`] leaves it alone.
     linking: std::sync::atomic::AtomicUsize,
@@ -243,6 +246,7 @@ impl RealBackend {
             drivers: Mutex::new(HashMap::new()),
             ligus: Mutex::new(HashMap::new()),
             turn_stops: ligus_runtime::turn_engine::TurnStops::new(),
+            live: Mutex::new(None),
             linking: std::sync::atomic::AtomicUsize::new(0),
             following: Mutex::new(()),
             cfg,
@@ -898,6 +902,26 @@ impl Backend for RealBackend {
 
     async fn redeem_link(&self, grant: &str) -> Result<WorkspaceSummary> {
         self.inner.redeem_link(grant.trim()).await
+    }
+
+    async fn link_live(&self, address: &str) -> Result<LiveLinkStart> {
+        self.inner.link_live(address.trim()).await
+    }
+
+    async fn link_live_code(&self, rid: &str, matches: bool) -> Result<()> {
+        self.inner.link_live_code(rid, matches)
+    }
+
+    async fn link_live_person(&self, rid: &str, link: bool) -> Result<Option<WorkspaceSummary>> {
+        self.inner.link_live_person(rid, link).await
+    }
+
+    async fn link_live_cancel(&self, rid: &str) -> Result<()> {
+        self.inner.link_live_cancel(rid)
+    }
+
+    async fn approvals(&self, workspace: &WorkspaceId) -> Result<Vec<ApprovalRequest>> {
+        self.inner.approvals(ws_uuid(workspace)?).await
     }
 
     fn linked_person(&self) -> Option<String> {

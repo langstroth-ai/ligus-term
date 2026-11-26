@@ -168,6 +168,12 @@ impl Inner {
     }
 
     pub(crate) fn link_request(self: &Arc<Self>) -> Result<LinkRequestView> {
+        self.make_link_request().map(|(v, _, _)| v)
+    }
+
+    /// A new link request, remembered as pending: its view, the request,
+    /// and the device it asks for.
+    pub(crate) fn make_link_request(self: &Arc<Self>) -> Result<(LinkRequestView, LinkRequest, Uuid)> {
         let ids = self.identity_store();
         let stored = match ids.load().map_err(one_line)? {
             Some(s) => s,
@@ -200,7 +206,13 @@ impl Inner {
         let request = LinkRequest::new(&device_kp, &ka.public_key_bytes(), &self.cfg.device_name, now, previous);
         state.add_pending(&request, now);
         state.save(&self.cfg.data_dir).map_err(one_line)?;
-        Ok(LinkRequestView { code: request.encode(), fingerprint: request.fingerprint(), label: request.label, new_device: fresh_key })
+        let view = LinkRequestView {
+            code: request.encode(),
+            fingerprint: request.fingerprint(),
+            label: request.label.clone(),
+            new_device: fresh_key,
+        };
+        Ok((view, request, device_id))
     }
 
     /// Open `grant` with the key of the pending request it answers and check
@@ -222,6 +234,16 @@ impl Inner {
             }
             return err("this code doesn't answer a request made on this computer (or it was used already): make a new request");
         };
+        let person = self.check_opened(&g, device)?;
+        Ok((g, device, person))
+    }
+
+    /// The offline checks of an opened grant for `device`: its request is
+    /// still pending, the grant certifies this device, and it names the
+    /// person this install already is (if any); the person it names.
+    pub(crate) fn check_opened(&self, g: &OpenedGrant, device: Uuid) -> Result<ligus_core::ActorIdentity> {
+        let ids = self.identity_store();
+        let state = link_state(&self.cfg.data_dir)?;
         let now = now_ms();
         if state.pending_for(&g.request, now).is_none() {
             return err("the request this code answers expired or was used: make a new request");
@@ -240,7 +262,7 @@ impl Inner {
                 others.join(", ")
             ));
         }
-        Ok((g, device, person))
+        Ok(person)
     }
 
     pub(crate) fn inspect_link_grant(&self, grant: &str) -> Result<LinkGrantView> {
@@ -268,8 +290,9 @@ impl Inner {
         Ok(())
     }
 
-    /// Everything up to the link record. Writes nothing to the workspace.
-    async fn redeem_steps(self: &Arc<Self>, g: &OpenedGrant) -> Result<ligus_core::ActorIdentity> {
+    /// Save the grant's connection and pull the workspace. Writes nothing
+    /// to the workspace.
+    async fn connect_for_link(self: &Arc<Self>, g: &OpenedGrant) -> Result<()> {
         let ws = g.workspace_id;
         let (founder, fk) = g.conn.founder_pin().ok_or_else(|| BackendError("the code names no founder".into()))?;
         let mut conn = g.conn.clone();
@@ -282,26 +305,26 @@ impl Inner {
         }
         lock(&self.list).upsert(saved.clone());
         self.save_list()?;
+        self.pull_for_link(ws).await
+    }
+
+    /// Pull a workspace being linked (again: check 5 retries while the
+    /// desktop's approval syncs).
+    pub(crate) async fn pull_for_link(self: &Arc<Self>, ws: Uuid) -> Result<()> {
+        let saved = self.saved(ws)?;
         let mut engine = self.sync_engine(&saved)?;
         let mut store = EventStore::open(self.db()).map_err(one_line)?;
         engine.catch_up(&mut store, 250).await.map_err(one_line)?;
-        let now = now_ms();
-        let g2 = g.clone();
-        self.read(ws, move |svc| svc.check_computer_link(&g2, now))
+        Ok(())
     }
 
-    pub(crate) async fn redeem_link(self: &Arc<Self>, grant: &str) -> Result<WorkspaceSummary> {
+    /// Switch to the grant's device key (when it asked with a new one), save
+    /// the connection and pull. Nothing is recorded: [`Self::commit_link`]
+    /// links, [`Self::rollback_link`] puts everything back.
+    pub(crate) async fn prepare_link(self: &Arc<Self>, g: OpenedGrant, device: Uuid) -> Result<PreparedLink> {
         // The data dir's identity changes step by step below: nothing
         // follows it until the link is recorded (or rolled back).
-        struct Linking<'a>(&'a std::sync::atomic::AtomicUsize);
-        impl Drop for Linking<'_> {
-            fn drop(&mut self) {
-                self.0.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
-            }
-        }
-        self.linking.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        let _linking = Linking(&self.linking);
-        let (g, device, _) = self.open_grant(grant)?;
+        let linking = Linking::start(self);
         let ws = g.workspace_id;
         let ids = self.identity_store();
         let old = ids.load().map_err(one_line)?.ok_or_else(|| BackendError("make a link request first".into()))?;
@@ -322,38 +345,109 @@ impl Inner {
             let stored = ids.adopt_device(device).map_err(one_line)?;
             self.reopen_core(stored)?;
         }
-        let checked = self.redeem_steps(&g).await;
-        let person = match checked {
-            Ok(p) => p,
+        let p = PreparedLink { g, old, previous_entry, switched, _linking: linking };
+        match self.connect_for_link(&p.g).await {
+            Ok(()) => Ok(p),
             Err(e) => {
-                // Back to how it was: the old device, the old entry.
-                {
-                    let mut list = lock(&self.list);
-                    match previous_entry {
-                        Some(w) => list.upsert(w),
-                        None => {
-                            let _ = list.remove(ws, self.secrets.as_ref(), super::SECRET_SCOPE);
-                        }
-                    }
-                }
-                let _ = self.save_list();
-                if switched {
-                    let back = ids.adopt_device(old.device.id).map_err(one_line)?;
-                    self.reopen_core(back)?;
-                }
-                return Err(e);
+                self.rollback_link(p);
+                Err(e)
             }
-        };
-        let mut state = link_state(&self.cfg.data_dir)?;
-        state.record_link(&person, ws).map_err(|e| BackendError(e.to_string()))?;
-        state.save(&self.cfg.data_dir).map_err(one_line)?;
-        // Open as the person from now on.
-        let stored = ids.load().map_err(one_line)?.ok_or_else(|| BackendError("no identity".into()))?;
-        self.reopen_core(stored)?;
+        }
+    }
+
+    /// Back to how it was before [`Self::prepare_link`]: the old device, the
+    /// old entry. Nothing was linked.
+    pub(crate) fn rollback_link(self: &Arc<Self>, p: PreparedLink) {
+        let ws = p.g.workspace_id;
+        let held_before = p.previous_entry.is_some();
+        {
+            let mut list = lock(&self.list);
+            match p.previous_entry {
+                Some(w) => list.upsert(w),
+                None => {
+                    let _ = list.remove(ws, self.secrets.as_ref(), super::SECRET_SCOPE);
+                }
+            }
+        }
+        let _ = self.save_list();
+        if p.switched
+            && let Ok(back) = self.identity_store().adopt_device(p.old.device.id)
+        {
+            let _ = self.reopen_core(back);
+        }
+        // A workspace it held as its own member syncs again.
+        if held_before {
+            self.start_loops(ws);
+        }
+    }
+
+    /// Record the link as `person` and act as them from now on; on a
+    /// failure, everything goes back as [`Self::rollback_link`] does.
+    pub(crate) async fn commit_link(self: &Arc<Self>, p: PreparedLink, person: &ligus_core::ActorIdentity) -> Result<WorkspaceSummary> {
+        let ws = p.g.workspace_id;
+        if let Err(e) = self.record_link(person, ws) {
+            self.rollback_link(p);
+            return Err(e);
+        }
         let me = self.clone();
         tokio::task::spawn_blocking(move || me.activate(ws)).await.map_err(one_line)?;
         self.start_loops(ws);
         self.emit(crate::backend::Event::WorkspacesChanged);
         Ok(self.summary(&self.saved(ws)?))
+    }
+
+    /// Write the link record and reopen as the person.
+    fn record_link(self: &Arc<Self>, person: &ligus_core::ActorIdentity, ws: Uuid) -> Result<()> {
+        let mut state = link_state(&self.cfg.data_dir)?;
+        state.record_link(person, ws).map_err(|e| BackendError(e.to_string()))?;
+        state.save(&self.cfg.data_dir).map_err(one_line)?;
+        // Open as the person from now on.
+        let stored = self.identity_store().load().map_err(one_line)?.ok_or_else(|| BackendError("no identity".into()))?;
+        self.reopen_core(stored)
+    }
+
+    /// The desktop's certificate for this computer, on the pulled log.
+    pub(crate) fn check_link_on_log(&self, g: &OpenedGrant) -> Result<ligus_core::ActorIdentity> {
+        let now = now_ms();
+        let g2 = g.clone();
+        self.read(g.workspace_id, move |svc| svc.check_computer_link(&g2, now))
+    }
+
+    pub(crate) async fn redeem_link(self: &Arc<Self>, grant: &str) -> Result<WorkspaceSummary> {
+        let (g, device, _) = self.open_grant(grant)?;
+        let p = self.prepare_link(g, device).await?;
+        match self.check_link_on_log(&p.g) {
+            Ok(person) => self.commit_link(p, &person).await,
+            Err(e) => {
+                self.rollback_link(p);
+                Err(e)
+            }
+        }
+    }
+}
+
+/// A link being redeemed: connected and pulled, not recorded. Writes wait
+/// ([`LINKING`]) until it is committed or rolled back.
+pub(crate) struct PreparedLink {
+    pub(crate) g: OpenedGrant,
+    old: StoredIdentity,
+    previous_entry: Option<SavedWorkspace>,
+    switched: bool,
+    _linking: Linking,
+}
+
+/// A link in progress on this install, counted while it lives.
+pub(crate) struct Linking(Arc<Inner>);
+
+impl Linking {
+    fn start(inner: &Arc<Inner>) -> Self {
+        inner.linking.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Linking(inner.clone())
+    }
+}
+
+impl Drop for Linking {
+    fn drop(&mut self) {
+        self.0.linking.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
     }
 }

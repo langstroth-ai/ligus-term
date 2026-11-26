@@ -96,6 +96,7 @@ fn synonyms(a: Action) -> &'static str {
     match a {
         Action::LinkDevice => "link add a computer device devices my devices desktop terminal lt same person second member invited myself",
         Action::AdmitBox => "box serve worker admission",
+        Action::Approvals => "approve approval requests join box computer phone code match waiting",
         Action::Invite => "invite person people",
         Action::CopySafetyCode => "copy fingerprint safety code clipboard",
         _ => "",
