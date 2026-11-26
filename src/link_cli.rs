@@ -13,7 +13,7 @@
 use std::io::{self, Write};
 
 use crate::backend::Backend;
-use crate::backend::model::{LinkPending, LinkStatusView};
+use crate::backend::model::{LinkPending, LinkStatusView, Linked, UNCONFIRMED};
 use crate::link_code::{MAX_PASTE, Pasted, grant_in, hh_mm, not_a_grant};
 
 /// The commands this module runs.
@@ -276,26 +276,68 @@ async fn redeem(b: &dyn Backend, rest: &[String], io: &mut Io<'_>) -> Result<(),
             );
         }
     }
-    match b.redeem_link(&grant).await {
-        Ok(w) => {
+    match redeem_saying_waits(b, &grant, io).await {
+        Ok(l) => {
+            let w = &l.workspace;
             if io.json {
+                let unconfirmed = l.unconfirmed.as_deref().map(q).unwrap_or_else(|| "null".into());
                 let _ = writeln!(
                     io.out,
-                    "{{\"record\":\"linked\",\"id\":{},\"name\":{},\"person\":{},\"approver\":{}}}",
+                    "{{\"record\":\"linked\",\"id\":{},\"name\":{},\"person\":{},\"approver\":{},\"unconfirmed\":{unconfirmed}}}",
                     q(&w.id.0),
                     q(&w.name),
                     q(&check.person_name),
                     q(&check.approver_fingerprint)
                 );
             }
-            let _ = writeln!(
-                io.err,
-                "Linked: this computer is one of {person}'s devices in {}. It acts as them; votes ask for their passkey.",
-                one_line(&w.name)
-            );
+            match &l.unconfirmed {
+                None => {
+                    let _ = writeln!(
+                        io.err,
+                        "Linked: this computer is one of {person}'s devices in {}. It acts as them; votes ask for their passkey.",
+                        one_line(&w.name)
+                    );
+                }
+                Some(why) => {
+                    let _ = writeln!(
+                        io.err,
+                        "{UNCONFIRMED} in {} ({}). lt tries again each time it opens: make sure your desktop is online and synced.",
+                        one_line(&w.name),
+                        one_line(why)
+                    );
+                }
+            }
+            for n in &l.notes {
+                let _ = writeln!(io.err, "Note: {}.", one_line(n));
+            }
             Ok(())
         }
         Err(e) => backend_fail(e.0),
+    }
+}
+
+/// Redeem, saying once on stderr while the desktop's approval is on its
+/// way. Between tries nothing is half done, so Ctrl-C stops it safely.
+async fn redeem_saying_waits(b: &dyn Backend, grant: &str, io: &mut Io<'_>) -> crate::backend::Result<Linked> {
+    use futures::StreamExt;
+    let mut events = b.events();
+    let redeem = b.redeem_link(grant);
+    tokio::pin!(redeem);
+    let mut said = false;
+    loop {
+        tokio::select! {
+            r = &mut redeem => return r,
+            Some(ev) = events.next() => {
+                if let crate::backend::Event::LinkWaiting { until, .. } = ev && !said {
+                    said = true;
+                    let _ = writeln!(
+                        io.err,
+                        "Waiting for your desktop's approval to arrive… lt keeps checking until {} (Ctrl-C stops).",
+                        hh_mm(until, io.utc_offset)
+                    );
+                }
+            }
+        }
     }
 }
 

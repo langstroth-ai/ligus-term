@@ -239,6 +239,7 @@ impl FakeBackend {
                 relay_url: None,
                 linked_to: None,
                 link_pending: None,
+                link_unconfirmed: None,
             },
             seq: 100,
             clock: DEMO_NOW,
@@ -1648,7 +1649,7 @@ impl Backend for FakeBackend {
         Ok(LinkGrantView { person_name: "Alex".into(), workspace_name: "Northwind API".into(), approver_fingerprint: DEMO_APPROVER.into() })
     }
 
-    async fn redeem_link(&self, grant: &str) -> Result<WorkspaceSummary> {
+    async fn redeem_link(&self, grant: &str) -> Result<Linked> {
         let check = self.inspect_link_grant(grant).await?;
         if self.lock().linked.as_deref().is_some_and(|p| p != check.person_name) {
             return err("this computer is already someone else's device");
@@ -1657,7 +1658,11 @@ impl Backend for FakeBackend {
         let mut w = self.lock();
         w.linked = Some(check.person_name);
         w.link_pending = None;
-        Ok(ws)
+        Ok(Linked { workspace: ws, unconfirmed: None, notes: vec![] })
+    }
+
+    async fn confirm_link(&self) -> Result<()> {
+        Ok(())
     }
 
     async fn link_live(&self, address: &str) -> Result<LiveLinkStart> {
@@ -1726,7 +1731,7 @@ impl Backend for FakeBackend {
         Ok(())
     }
 
-    async fn link_live_person(&self, rid: &str, link: bool) -> Result<Option<WorkspaceSummary>> {
+    async fn link_live_person(&self, rid: &str, link: bool) -> Result<Option<Linked>> {
         if self.lock().live.as_deref() != Some(rid) {
             return err("that request has ended: start again");
         }
@@ -1741,7 +1746,7 @@ impl Backend for FakeBackend {
         }
         let ws = self.join_workspace("Alex", "fake-invite:Northwind-API").await?;
         self.lock().linked = Some("Alex".into());
-        Ok(Some(ws))
+        Ok(Some(Linked { workspace: ws, unconfirmed: None, notes: vec![] }))
     }
 
     async fn link_live_cancel(&self, rid: &str) -> Result<()> {

@@ -194,7 +194,14 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
             FormMode::Link if form.link_checked.is_none() => "Opening the code…",
             FormMode::Link => "Linking: connecting and checking your desktop's approval…",
         };
-        lines.push(Line::styled(format!("  {msg}"), t.fg(t.warn)));
+        match (&form.link_waiting, form.mode) {
+            // One line while it waits, and when it stops.
+            (Some((until, _)), FormMode::Link) => {
+                lines.push(Line::styled("  Waiting for your desktop's approval to arrive…", t.fg(t.warn)));
+                lines.push(Line::styled(format!("  lt keeps checking until {}", crate::link_code::hh_mm(*until, s.utc_offset)), t.dim()));
+            }
+            _ => lines.push(Line::styled(format!("  {msg}"), t.fg(t.warn))),
+        }
     } else if let Some(e) = &form.error {
         lines.push(Line::styled(format!("  ✗ {e}"), t.fg(t.bad).add_modifier(Modifier::BOLD)));
     } else {
@@ -215,6 +222,13 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
 fn draw_link<'a>(lines: &mut Vec<Line<'a>>, form: &'a WorkspaceForm, focused: bool, w: usize, now: Millis, t: &Theme) {
     let checked = form.link_checked.as_ref().filter(|(g, _)| *g == form.grant.text.trim());
     let stage = form.live.as_ref().map(|l| &l.stage);
+    // The relay isn't answering: one quiet line, above the stage.
+    if let Some(why) = form.live.as_ref().and_then(|l| l.retrying.as_ref())
+        && !matches!(stage, Some(LiveStage::Ended(_)))
+    {
+        lines.push(Line::styled(format!("  Can't reach the relay ({}): trying again", super::trunc(why, 48)), t.fg(t.warn)));
+        lines.push(Line::raw(""));
+    }
     let Some(r) = &form.link else {
         lines.push(Line::styled("  Making this computer's request…", t.dim()));
         lines.push(Line::raw(""));
@@ -374,6 +388,9 @@ fn buttons<'a>(yes_label: &'a str, no_label: &'a str, yes: bool, t: &Theme) -> L
 
 /// The key hints under Add to my devices.
 fn link_hints(form: &WorkspaceForm, esc: &str) -> String {
+    if form.busy && form.link_waiting.is_some() {
+        return "esc stop waiting".into();
+    }
     match form.live.as_ref().map(|l| &l.stage) {
         Some(LiveStage::Code { .. }) | Some(LiveStage::Confirm { busy: false, .. }) => {
             return "y yes · n no · ←→ choose · enter answer · esc end the request".into();

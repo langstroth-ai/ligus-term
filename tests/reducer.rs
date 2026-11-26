@@ -404,6 +404,7 @@ fn notifications_ring_the_bell_unless_turned_off() {
             relay_url: None,
             linked_to: None,
             link_pending: None,
+            link_unconfirmed: None,
         })),
     );
     update(&mut s, Msg::Event(Event::Notification(n)));
@@ -1419,6 +1420,7 @@ fn theme_switches_in_the_app() {
             relay_url: None,
             linked_to: None,
             link_pending: None,
+            link_unconfirmed: None,
         })),
     );
     key(&mut s, KeyCode::Char('s'));
@@ -1783,6 +1785,7 @@ fn settings(linked_to: Option<&str>) -> Settings {
         relay_url: None,
         linked_to: linked_to.map(Into::into),
         link_pending: None,
+        link_unconfirmed: None,
     }
 }
 
@@ -2259,7 +2262,7 @@ fn live_link_yes_links_as_the_verified_person() {
     assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::LinkLivePerson("r1".into(), true)]);
     assert!(matches!(stage(&s), Some(LiveStage::Confirm { busy: true, .. })));
     assert!(key(&mut s, KeyCode::Enter).is_empty(), "one answer");
-    let fx = update(&mut s, Msg::LivePerson(Ok(Some(ws("ws-acme", Role::Contributor)))));
+    let fx = update(&mut s, Msg::LivePerson(Ok(Some(linked(ws("ws-acme", Role::Contributor))))));
     assert!(matches!(s.phase, Phase::Main));
     assert!(fx.contains(&Effect::LoadSettings));
     assert!(s.toasts.iter().any(|t| t.text.contains("Alex")), "{:?}", s.toasts);
@@ -2382,4 +2385,75 @@ fn a_waiting_link_shows_once_on_start_and_in_settings() {
     // Linked: nothing waits.
     update(&mut s, Msg::Settings(Ok(Settings { linked_to: Some("zaz".into()), ..pending_settings() })));
     assert!(s.link_pending_line().is_none());
+}
+
+fn linked(workspace: WorkspaceSummary) -> Linked {
+    Linked { workspace, unconfirmed: None, notes: vec![] }
+}
+
+/// A pasted code whose approval hasn't arrived yet: the form says it is
+/// waiting (one line, until when), Esc stops it, and the answer clears it.
+#[test]
+fn redeem_waiting_is_visible_and_esc_stops_it() {
+    let mut s = state();
+    s.phase = Phase::Onboarding(WorkspaceForm::linking(true));
+    update(&mut s, Msg::LinkRequested(Ok(live_view())));
+    update(&mut s, Msg::Paste("ligusgrant1:abc".into()));
+    let view = LinkGrantView { person_name: "Alex".into(), workspace_name: "Acme".into(), approver_fingerprint: "2C41".into() };
+    update(&mut s, Msg::LinkChecked("ligusgrant1:abc".into(), Ok(view)));
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::RedeemLink("ligusgrant1:abc".into())]);
+    update(&mut s, Msg::Event(Event::LinkWaiting { until: 2_000_000, why: "not here yet".into() }));
+    let Phase::Onboarding(f) = &s.phase else { panic!() };
+    assert_eq!(f.link_waiting, Some((2_000_000, "not here yet".into())));
+    assert_eq!(key(&mut s, KeyCode::Esc), vec![Effect::CancelRedeem]);
+    assert!(!s.quit, "Esc stops the wait, it doesn't quit");
+    update(&mut s, Msg::Linked(Err(BackendError("stopped waiting for your desktop's approval: nothing was linked".into()))));
+    let Phase::Onboarding(f) = &s.phase else { panic!() };
+    assert_eq!(f.link_waiting, None);
+    assert!(!f.busy);
+    assert!(f.error.as_deref().unwrap().contains("stopped waiting"));
+}
+
+/// Linked, but this computer couldn't accept its certificate: the toast
+/// never says plain "Linked", Settings shows one line, and R retries.
+#[test]
+fn an_unconfirmed_link_says_so_and_retries() {
+    let mut s = live_waiting();
+    let l = Linked {
+        workspace: ws("ws-acme", Role::Contributor),
+        unconfirmed: Some("the relay is away".into()),
+        notes: vec!["your earlier member here stays until an Admin removes it (no passkey)".into()],
+    };
+    update(&mut s, Msg::Linked(Ok(l)));
+    assert!(matches!(s.phase, Phase::Main));
+    assert!(s.toasts.iter().any(|t| t.text.starts_with("Linked, but not confirmed here yet") && t.text.contains("the relay is away")));
+    assert!(!s.toasts.iter().any(|t| t.text.starts_with("Linked: ")), "{:?}", s.toasts);
+    assert!(s.log.iter().any(|t| t.text.contains("earlier member here stays")), "kept in the log");
+    update(&mut s, Msg::Settings(Ok(Settings { link_unconfirmed: Some("the relay is away".into()), ..settings(Some("Alex")) })));
+    s.view = View::Settings;
+    assert_eq!(key(&mut s, KeyCode::Char('R')), vec![Effect::ConfirmLink]);
+    let fx = update(&mut s, Msg::LinkConfirmed(Ok(())));
+    assert_eq!(fx, vec![Effect::LoadSettings]);
+    assert!(s.toasts.iter().any(|t| t.text == "Linked and confirmed here"));
+}
+
+/// The relay stops answering a live request: one line says lt is trying
+/// again, and it goes when the relay answers or the request ends.
+#[test]
+fn live_link_shows_its_retries() {
+    let mut s = live_waiting();
+    live(&mut s, LiveLinkUpdate::Retrying(Some("timed out".into())));
+    let retrying = |s: &State| {
+        let Phase::Onboarding(f) = &s.phase else { panic!() };
+        f.live.as_ref().and_then(|l| l.retrying.clone())
+    };
+    assert_eq!(retrying(&s).as_deref(), Some("timed out"));
+    assert_eq!(stage(&s), Some(LiveStage::Waiting), "the stage stays");
+    live(&mut s, LiveLinkUpdate::Retrying(None));
+    assert_eq!(retrying(&s), None);
+    live(&mut s, LiveLinkUpdate::Retrying(Some("502".into())));
+    live(&mut s, LiveLinkUpdate::Ended(LiveLinkEnd::Unreachable("502".into())));
+    assert_eq!(retrying(&s), None);
+    let Some(LiveStage::Ended(e)) = stage(&s) else { panic!() };
+    assert!(e.describe().contains("couldn't be reached (502)"), "{}", e.describe());
 }

@@ -230,8 +230,11 @@ pub const COMMANDS: &[Cmd] = &[
                 approved it; at a terminal it asks \"Is that your desktop?\" (y links), otherwise \
                 --approver-fingerprint FP must match the approving desktop's fingerprint (its sheet shows \
                 it as This desktop), or it exits 4. From then on this computer acts as that person; it no \
-                longer creates workspaces or accepts invites.",
-        prints: "link-grant, linked",
+                longer creates workspaces or accepts invites. While the desktop's approval hasn't reached \
+                this computer yet, it keeps checking with a growing pause until the code runs out (30 \
+                minutes), printing link-arriving. Linked, but not confirmed here yet (this computer couldn't \
+                accept the desktop's certificate) prints link-unconfirmed: lt tries again each time it opens.",
+        prints: "link-grant, link-arriving, linked, link-unconfirmed, link-note",
         example: "lt --plain link-redeem --approver-fingerprint 2C41-88E0-1B9D-04AF-6E73",
     },
     Cmd {
@@ -265,8 +268,9 @@ pub const COMMANDS: &[Cmd] = &[
                 your desktop's passkey, lt checks the approval on the workspace log and asks: link-as yes \
                 or link-as no. A relay without an approval mailbox falls back to the request and \
                 link-redeem. Line mode only (a person compares the code): one-shot exits 4. After 3 \
-                requests end without an approval in 15 minutes it stops.",
-        prints: "link-request, link-waiting, match-code, link-matched, link-checking, link-verified, link-ended, ok",
+                requests end without an approval in 15 minutes it stops. While the relay doesn't answer it \
+                prints link-retrying and tries again; a request never outlives its 15 minutes.",
+        prints: "link-request, link-waiting, match-code, link-matched, link-checking, link-verified, link-retrying, link-ended, ok",
         example: "printf 'link-to ligusaddr1:...\\nwait 120\\n' | lt --plain",
     },
     Cmd {
@@ -689,6 +693,10 @@ pub const RECORDS: &[(&str, &[&[&str]])] = &[
     ("link-checking", &[&["rid", "note"]]),
     ("link-verified", &[&["rid", "person", "workspace", "note"]]),
     ("link-ended", &[&["rid", "why", "next"]]),
+    ("link-retrying", &[&["rid", "note"]]),
+    ("link-arriving", &[&["until", "note"]]),
+    ("link-unconfirmed", &[&["why", "next"]]),
+    ("link-note", &[&["note"]]),
     ("approval", &[&["n", "kind", "label", "age", "checking"]]),
     ("link-status", &[&["state", "person", "started", "expires", "text"]]),
     ("device-name", &[&["name"]]),

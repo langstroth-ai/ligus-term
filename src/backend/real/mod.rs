@@ -168,6 +168,12 @@ pub(crate) struct Inner {
     /// A link is being redeemed here: the data dir's identity is in flux,
     /// so [`Inner::follow_disk`] leaves it alone.
     linking: std::sync::atomic::AtomicUsize,
+    /// Per workspace, a link recorded here whose desktop certificate this
+    /// computer couldn't accept yet: why ("Linked, but not confirmed here
+    /// yet"). Cleared once it is accepted.
+    unconfirmed: Mutex<HashMap<Uuid, String>>,
+    /// Stop the paste redeem waiting for the desktop's approval.
+    redeem_cancel: std::sync::atomic::AtomicBool,
     /// One [`Inner::follow_disk`] at a time.
     following: Mutex<()>,
     /// This computer's name, as kept in the data dir ([`label`]).
@@ -262,6 +268,8 @@ impl RealBackend {
             turn_stops: ligus_runtime::turn_engine::TurnStops::new(),
             live: Mutex::new(None),
             linking: std::sync::atomic::AtomicUsize::new(0),
+            unconfirmed: Mutex::new(HashMap::new()),
+            redeem_cancel: std::sync::atomic::AtomicBool::new(false),
             following: Mutex::new(()),
             label: RwLock::new(stored_label.clone().unwrap_or_else(|| cfg.device_name.clone())),
             relabel: std::sync::atomic::AtomicBool::new(false),
@@ -323,7 +331,7 @@ impl RealBackend {
     /// out (an invite, a box admission) is redeemable only once the relay has
     /// its issuance, and the sync loop's next round may come after the code
     /// is used, or never (plain mode exits once it prints the code).
-    async fn publish_now(&self, ws: Uuid) -> Result<()> {
+    pub async fn publish_now(&self, ws: Uuid) -> Result<()> {
         let mut engine = self.call(move |i| i.sync_engine(&i.saved(ws)?)).await?;
         let failed = |e: ligus_runtime::SyncError| BackendError(format!("couldn't put it on the relay ({}); try again", one_line(e).0));
         let unpushed = engine.take_unpushed(&EventStore::open(self.inner.db()).map_err(one_line)?).map_err(failed)?;
@@ -677,6 +685,7 @@ impl Inner {
         let account = core.author.account_id;
         let linked = link::link_state(&self.cfg.data_dir).ok().and_then(|s| s.linked_in(ws).cloned());
         let mut revoked = false;
+        let mut accepted = None;
         let _ = self.write(ws, |svc| {
             if let Some((f, fk)) = saved.founder_actor_id.as_deref().zip(saved.fk.as_deref()) {
                 let _ = svc.store().set_workspace_pin(ws, f, fk);
@@ -693,7 +702,7 @@ impl Inner {
             }
             // A link whose acceptance was cut off (rules 3) finishes now.
             if linked.is_some() {
-                let _ = svc.accept_device_certificate(ws);
+                accepted = Some(svc.accept_device_certificate(ws).map(|_| ()).map_err(|e| one_line(e).0));
             }
             svc.ensure_self_member(config, ws)?;
             if let Some(ka) = &ka {
@@ -710,6 +719,19 @@ impl Inner {
             let _ = svc.ensure_host(ws, ligus_core::WorkspaceHost::new(device, ligus_core::HostKind::Device, label));
             Ok(())
         });
+        match accepted {
+            Some(Ok(())) => {
+                lock(&self.unconfirmed).remove(&ws);
+            }
+            // Only a link this launch already knew wasn't confirmed stays
+            // so: one that was is not reported again on a passing failure.
+            Some(Err(why)) => {
+                if let Some(w) = lock(&self.unconfirmed).get_mut(&ws) {
+                    *w = why;
+                }
+            }
+            None => {}
+        }
         if revoked {
             self.emit(Event::Sync {
                 workspace: WorkspaceId::new(ws.to_string()),
@@ -1001,8 +1023,17 @@ impl Backend for RealBackend {
         self.call(move |i| i.inspect_link_grant(&grant)).await
     }
 
-    async fn redeem_link(&self, grant: &str) -> Result<WorkspaceSummary> {
+    async fn redeem_link(&self, grant: &str) -> Result<Linked> {
+        self.inner.redeem_cancel.store(false, std::sync::atomic::Ordering::SeqCst);
         self.inner.redeem_link(grant.trim()).await
+    }
+
+    fn cancel_link_redeem(&self) {
+        self.inner.redeem_cancel.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    async fn confirm_link(&self) -> Result<()> {
+        self.inner.confirm_link().await
     }
 
     async fn link_live(&self, address: &str) -> Result<LiveLinkStart> {
@@ -1013,7 +1044,7 @@ impl Backend for RealBackend {
         self.inner.link_live_code(rid, matches)
     }
 
-    async fn link_live_person(&self, rid: &str, link: bool) -> Result<Option<WorkspaceSummary>> {
+    async fn link_live_person(&self, rid: &str, link: bool) -> Result<Option<Linked>> {
         self.inner.link_live_person(rid, link).await
     }
 
@@ -1789,6 +1820,7 @@ impl Inner {
                 _ => self.linked_person().map(|p| ligus_runtime::display::shown(&p.display_name)),
             },
             link_pending: self.link_status().ok().and_then(|v| v.pending),
+            link_unconfirmed: lock(&self.unconfirmed).values().next().cloned(),
         }
     }
 

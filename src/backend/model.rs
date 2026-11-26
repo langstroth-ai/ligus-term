@@ -696,6 +696,11 @@ pub struct Settings {
     pub linked_to: Option<String>,
     /// A link request this install made and hasn't redeemed yet.
     pub link_pending: Option<LinkPending>,
+    /// Linked, but this computer hasn't accepted its desktop's certificate
+    /// in a workspace yet (so the workspace doesn't count it as the
+    /// person's device): why, in one line. Retried on every open and by
+    /// [`crate::backend::Backend::confirm_link`].
+    pub link_unconfirmed: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -767,6 +772,24 @@ pub struct LinkStatusView {
     pub pending: Option<LinkPending>,
 }
 
+/// A redeemed link: the workspace, and whether this computer could
+/// confirm it there yet.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Linked {
+    pub workspace: WorkspaceSummary,
+    /// The link is recorded, but this computer couldn't accept its
+    /// desktop's certificate yet: why, in one line ("Linked, but not
+    /// confirmed here yet"). Retried on every open and by
+    /// [`crate::backend::Backend::confirm_link`].
+    pub unconfirmed: Option<String>,
+    /// Anything else worth a line (this computer's name wasn't saved, the
+    /// earlier member stays).
+    pub notes: Vec<String>,
+}
+
+/// The line shown while a link is recorded but not confirmed here yet.
+pub const UNCONFIRMED: &str = "Linked, but not confirmed here yet";
+
 /// Who a desktop's grant says approved this computer, read before anything
 /// is saved: the person confirms it is them and their desktop.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -828,6 +851,9 @@ pub enum LiveLinkEnd {
     NotLinked { person: String },
     /// Cancelled from this computer.
     Cancelled,
+    /// The relay couldn't be reached until the request ran out (15
+    /// minutes): the last error.
+    Unreachable(String),
 }
 
 impl LiveLinkEnd {
@@ -843,6 +869,7 @@ impl LiveLinkEnd {
                 format!("Nothing was linked. The approval came from “{person}”: if that isn't you, tell an Admin.")
             }
             Self::Cancelled => "Request cancelled. Nothing was granted.".into(),
+            Self::Unreachable(why) => format!("The relay couldn't be reached ({why}), and the request ran out. Nothing was granted."),
         }
     }
 
@@ -852,6 +879,7 @@ impl LiveLinkEnd {
             Self::Mismatch | Self::EndedByDesktop => {
                 "Someone may have tried to intercept it. Check the computer you're adding, start again on a trusted network, and tell an Admin if it happens twice."
             }
+            Self::Unreachable(_) => "Check this computer's network, then start again: a new request gets a new code.",
             _ => "Start again: a new request gets a new code.",
         }
     }
@@ -873,6 +901,8 @@ pub enum LiveLinkUpdate {
         person: String,
         workspace: String,
     },
+    /// The relay didn't answer: retrying (why), or answering again (`None`).
+    Retrying(Option<String>),
     Ended(LiveLinkEnd),
 }
 

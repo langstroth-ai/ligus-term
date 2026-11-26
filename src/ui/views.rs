@@ -12,7 +12,7 @@ use unicode_width::UnicodeWidthStr;
 use super::{pane, trunc};
 use crate::app::state::WorkflowItem;
 use crate::app::state::{State, ago, ago_phrase};
-use crate::backend::model::{AgentStatus, Allowed, HostKind, RunStatus, StageStatus};
+use crate::backend::model::{AgentStatus, Allowed, HostKind, RunStatus, StageStatus, UNCONFIRMED};
 use crate::keymap::{Action, Context};
 use crate::theme::Theme;
 
@@ -356,7 +356,13 @@ pub fn settings(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     ];
     let mut lines = lines;
     match st.linked_to.as_ref() {
-        Some(p) => lines.push(kv("Device of", format!("{p} (linked to their devices)"))),
+        Some(p) => {
+            lines.push(kv("Device of", format!("{p} (linked to their devices)")));
+            // One line, one action: why is in the toast and in R's answer.
+            if st.link_unconfirmed.is_some() {
+                lines.push(Line::from(vec![Span::styled(format!("  {UNCONFIRMED}"), t.fg(t.warn)), Span::styled(" · R retry", t.dim())]));
+            }
+        }
         None if s.own_member_unlinked() => lines.push(own_member_line(s, Context::Settings, "  ", t)),
         None => {}
     }

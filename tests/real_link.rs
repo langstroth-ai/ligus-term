@@ -51,7 +51,10 @@ async fn redeem(b: &Device, grant: &str) -> WorkspaceSummary {
         tries += 1;
         async move {
             match b.b.redeem_link(grant).await {
-                Ok(w) => Some(w),
+                Ok(l) => {
+                    assert_eq!(l.unconfirmed, None, "confirmed here: {l:?}");
+                    Some(l.workspace)
+                }
                 Err(e) if e.0.contains("hasn't reached this computer") => {
                     trace(&format!("redeem try {tries} at {:?}: {e}", start.elapsed()));
                     None
@@ -117,6 +120,44 @@ async fn a_fresh_install_links_as_the_persons_device() {
     let again = device(&tmp.path().join("laptop"), "lt on laptop", &relay);
     assert_eq!(again.b.startup().await.unwrap().your_name.as_deref(), Some("Ana"));
     assert_eq!(again.b.linked_person().as_deref(), Some("Ana"));
+}
+
+/// The desktop's approval is slow to reach this computer: redeeming waits
+/// and says so, stops cleanly when asked (nothing half done), and links
+/// once the approval arrives.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn redeem_waits_for_a_slow_approval_and_can_stop() {
+    let _watchdog = watchdog("redeem_waits_for_a_slow_approval_and_can_stop", 420);
+    let tmp = tempfile::tempdir().unwrap();
+    let relay = serve(ligus_runtime::test_relay::router()).await;
+    let a = device(&tmp.path().join("ana"), "Ana's desktop", &relay);
+    let (ws, wsu, conn) = founded(&a, tmp.path()).await;
+    a.b.publish_now(wsu).await.unwrap();
+    let laptop = device(&tmp.path().join("laptop"), "lt on laptop", &relay);
+    let req = laptop.b.link_request().await.unwrap();
+    // The desktop goes quiet: its approval stays on it for now.
+    a.b.shutdown();
+    let grant = approve(&a, wsu, &req.code, &conn).await;
+
+    let waiting = |d: &Device| d.events.lock().unwrap().iter().any(|e| matches!(e, ligus_term::backend::Event::LinkWaiting { .. }));
+    let (l2, g2) = (laptop.b.clone(), grant.clone());
+    let task = tokio::spawn(async move { l2.redeem_link(&g2).await });
+    until("lt to say it is waiting", || async { waiting(&laptop).then_some(()) }).await;
+    laptop.b.cancel_link_redeem();
+    let e = task.await.unwrap().unwrap_err();
+    assert!(e.0.contains("stopped waiting"), "{e}");
+    assert!(laptop.b.linked_person().is_none(), "nothing linked");
+    assert!(laptop.b.workspaces().await.unwrap().is_empty(), "nothing half done");
+
+    // Again; the approval arrives while it waits.
+    let (l2, g2) = (laptop.b.clone(), grant.clone());
+    let task = tokio::spawn(async move { l2.redeem_link(&g2).await });
+    tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+    a.b.publish_now(wsu).await.unwrap();
+    let linked = task.await.unwrap().unwrap();
+    assert_eq!(linked.workspace.id, ws);
+    assert_eq!(linked.unconfirmed, None, "{linked:?}");
+    assert_eq!(laptop.b.linked_person().as_deref(), Some("Ana"));
 }
 
 /// Today's two-person state: Ana invited herself into lt as "Ana (lt)". Linking
@@ -303,6 +344,8 @@ mod live {
         assert_eq!(v, LiveLinkUpdate::Verified { person: "Ana".into(), workspace: "Acme Web".into() });
         assert!(laptop.b.linked_person().is_none(), "not linked before Yes, link");
         let joined = laptop.b.link_live_person(&rid, true).await.unwrap().expect("linked");
+        assert_eq!(joined.unconfirmed, None, "confirmed here: {joined:?}");
+        let joined = joined.workspace;
         assert_eq!(joined.id, ws);
         assert_eq!(joined.your_role, Role::Owner, "it carries Ana's role");
         assert_eq!(laptop.b.linked_person().as_deref(), Some("Ana"));

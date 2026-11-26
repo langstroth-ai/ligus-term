@@ -32,7 +32,7 @@ use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
 use super::{Inner, lock, one_line};
-use crate::backend::model::{ApprovalKind, ApprovalRequest, LiveLinkEnd, LiveLinkStart, LiveLinkUpdate, MatchCodeView, WorkspaceSummary};
+use crate::backend::model::{ApprovalKind, ApprovalRequest, Linked, LiveLinkEnd, LiveLinkStart, LiveLinkUpdate, MatchCodeView};
 use crate::backend::{BackendError, Event, Result, err};
 
 /// What the person said, sent to the request's task.
@@ -40,7 +40,7 @@ pub(crate) enum Cmd {
     /// The codes match (`true`) or don't.
     Code(bool),
     /// Link as the verified person (`true`) or link nothing.
-    Person(bool, oneshot::Sender<Result<Option<WorkspaceSummary>>>),
+    Person(bool, oneshot::Sender<Result<Option<Linked>>>),
     Cancel,
 }
 
@@ -54,6 +54,55 @@ pub(crate) struct LiveHandle {
 const CONFIRM_WAIT: Duration = Duration::from_secs(10 * 60);
 /// The long poll for the desktop's messages; commands are read between polls.
 const POLL_SECS: u64 = 2;
+/// The longest pause between tries while the relay doesn't answer.
+const RETRY_MAX_SECS: u64 = 15;
+/// How long a request is tried at all: the relay ends it after 15 minutes
+/// (its own `RequestExpired`); a relay that can't be reached never says so,
+/// so this side stops then too, with a little slack for clocks.
+const REQUEST_LIFE: Duration = Duration::from_millis(ligus_runtime::computer_link::REQUEST_TTL_MS as u64 + 30_000);
+
+/// Where the poll loop stands while the relay doesn't answer.
+#[derive(Debug, Default)]
+pub(crate) struct Retry {
+    backoff: u64,
+    /// The last error, while retrying (shown once per new error).
+    shown: Option<String>,
+}
+
+/// What the loop does after a poll.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum RetryStep {
+    /// Answered: say so if the screen showed a retry.
+    Answered { was_retrying: bool },
+    /// Didn't answer: wait this long (say `why` if it is new), then try again.
+    Wait { secs: u64, say: Option<String> },
+    /// Didn't answer and the request's life is over.
+    GiveUp(String),
+}
+
+impl Retry {
+    pub(crate) fn new() -> Self {
+        Self { backoff: 1, shown: None }
+    }
+
+    /// The poll answered.
+    pub(crate) fn answered(&mut self) -> RetryStep {
+        self.backoff = 1;
+        RetryStep::Answered { was_retrying: self.shown.take().is_some() }
+    }
+
+    /// The poll failed with a retryable `why`, `elapsed` into the request.
+    pub(crate) fn failed(&mut self, why: String, elapsed: Duration, life: Duration) -> RetryStep {
+        if elapsed >= life {
+            return RetryStep::GiveUp(why);
+        }
+        let secs = self.backoff;
+        self.backoff = (self.backoff * 2).min(RETRY_MAX_SECS);
+        let say = (self.shown.as_deref() != Some(why.as_str())).then(|| why.clone());
+        self.shown = Some(why);
+        RetryStep::Wait { secs, say }
+    }
+}
 
 /// Whether `relay` is an `http://` address on this machine (a local or a
 /// test relay): the only plain-text relay an address may name.
@@ -148,7 +197,7 @@ impl Inner {
         self.live_cmd(rid, Cmd::Code(matches))
     }
 
-    pub(crate) async fn link_live_person(&self, rid: &str, link: bool) -> Result<Option<WorkspaceSummary>> {
+    pub(crate) async fn link_live_person(&self, rid: &str, link: bool) -> Result<Option<Linked>> {
         let (tx, rx) = oneshot::channel();
         self.live_cmd(rid, Cmd::Person(link, tx))?;
         rx.await.map_err(|_| BackendError("that request has ended: start again".into()))?
@@ -239,8 +288,14 @@ impl Drive {
         let mut said_yes = false;
         let mut offered = false;
         let mut acked = false;
-        let mut backoff = 1u64;
+        let mut retry = Retry::new();
+        let started = tokio::time::Instant::now();
         loop {
+            // Never silently forever: past the request's life it is over,
+            // even when the relay never said so.
+            if started.elapsed() >= REQUEST_LIFE {
+                return self.end(Some(LiveLinkEnd::Expired)).await;
+            }
             while let Ok(cmd) = self.rx.try_recv() {
                 match cmd {
                     Cmd::Code(true) => said_yes = true,
@@ -268,12 +323,22 @@ impl Drive {
             }
             let events = match self.req.poll(POLL_SECS).await {
                 Ok(ev) => {
-                    backoff = 1;
+                    if retry.answered() == (RetryStep::Answered { was_retrying: true }) {
+                        self.emit(LiveLinkUpdate::Retrying(None));
+                    }
                     ev
                 }
                 Err(RequesterError::Mailbox(e)) if e.retryable() => {
-                    tokio::time::sleep(Duration::from_secs(backoff)).await;
-                    backoff = (backoff * 2).min(15);
+                    match retry.failed(e.to_string(), started.elapsed(), REQUEST_LIFE) {
+                        RetryStep::GiveUp(why) => return self.end(Some(LiveLinkEnd::Unreachable(why))).await,
+                        RetryStep::Wait { secs, say } => {
+                            if let Some(why) = say {
+                                self.emit(LiveLinkUpdate::Retrying(Some(why)));
+                            }
+                            tokio::time::sleep(Duration::from_secs(secs)).await;
+                        }
+                        RetryStep::Answered { .. } => {}
+                    }
                     continue;
                 }
                 Err(RequesterError::Mailbox(MailboxError::RequestUnknown)) => return self.end(Some(LiveLinkEnd::Expired)).await,
@@ -392,5 +457,30 @@ impl Drive {
                 self.end(Some(LiveLinkEnd::Cancelled)).await;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn retries_are_shown_once_per_reason_and_end_with_the_request() {
+        let life = Duration::from_secs(15 * 60);
+        let mut r = Retry::new();
+        let at = |s| Duration::from_secs(s);
+        assert_eq!(r.failed("timed out".into(), at(1), life), RetryStep::Wait { secs: 1, say: Some("timed out".into()) });
+        assert_eq!(r.failed("timed out".into(), at(2), life), RetryStep::Wait { secs: 2, say: None });
+        assert_eq!(r.failed("502".into(), at(4), life), RetryStep::Wait { secs: 4, say: Some("502".into()) });
+        for _ in 0..5 {
+            let _ = r.failed("502".into(), at(10), life);
+        }
+        assert_eq!(r.failed("502".into(), at(60), life), RetryStep::Wait { secs: RETRY_MAX_SECS, say: None });
+        // The relay answers: the screen hears so once.
+        assert_eq!(r.answered(), RetryStep::Answered { was_retrying: true });
+        assert_eq!(r.answered(), RetryStep::Answered { was_retrying: false });
+        assert_eq!(r.failed("timed out".into(), at(70), life), RetryStep::Wait { secs: 1, say: Some("timed out".into()) });
+        // Never past the request's life.
+        assert_eq!(r.failed("timed out".into(), life, life), RetryStep::GiveUp("timed out".into()));
     }
 }

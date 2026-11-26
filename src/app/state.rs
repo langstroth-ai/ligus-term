@@ -162,6 +162,9 @@ pub struct WorkspaceForm {
     pub live: Option<LiveLink>,
     /// The relay has no approval mailbox: the request is pasted instead.
     pub live_unavailable: bool,
+    /// Redeeming a pasted code: the desktop's approval hasn't arrived yet,
+    /// and lt keeps checking until this time (ms) for this reason.
+    pub link_waiting: Option<(Millis, String)>,
 }
 
 /// A live link request, as the form shows it.
@@ -170,6 +173,8 @@ pub struct LiveLink {
     /// The request's id once posted (a stale event names another).
     pub rid: Option<String>,
     pub stage: LiveStage,
+    /// The relay isn't answering: why, while lt tries again.
+    pub retrying: Option<String>,
 }
 
 /// Where a live link request is. `yes` is which of the two answers is
@@ -225,6 +230,7 @@ impl WorkspaceForm {
             link_about: false,
             live: None,
             live_unavailable: false,
+            link_waiting: None,
         }
     }
 
