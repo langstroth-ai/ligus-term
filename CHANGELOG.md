@@ -4,7 +4,12 @@ All notable changes to `lt`, the Ligus terminal app (Ligus is short for
 ligustica). Versions follow [semver](https://semver.org); releases are on
 [GitHub](https://github.com/langstroth-ai/ligus-term/releases).
 
-## Unreleased
+## v0.4.0
+
+lt on the Ligus 0.4.0 crates: linking by comparing a code, identity model v2
+(device names, retiring an earlier member, signing only where the log says
+this computer is you), agents' decision cards, proposal archiving and
+scratch repositories.
 
 ### Added
 
@@ -64,13 +69,21 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Changed
 
-- The Ligus crates are pinned to a commit of the ligus repo's main branch
-  (code-match approval, identity model v2, agents' questions, proposal
-  archiving and scratch repositories) until its 0.4.0 release tag.
 - This device applies an approved proposal in its checkout of the
   proposal's repository (a scratch repo's, say) even when no checkout is
   bound for the workspace (Hosts, `b`); that binding is still where
   proposals without a repository are applied.
+
+### Dependencies
+
+- Built on the Ligus 0.4.0 crates (`ligus-core` and `ligus-runtime` at tag
+  v0.4.0, previously 0.3.1): approval by code through the relay's approval
+  mailbox, profiles and synced device names, rules 3 (a device counts only
+  once it accepted its approval; 0.3 devices are read-only on such a
+  workspace), decision cards, proposal archiving, scratch repositories,
+  secrets out of the database with a schema version (a database written by
+  a newer Ligus opens read-only), and attachments renewed on the relay.
+  Upgrade every device in a workspace.
 
 ## v0.3.1
 
