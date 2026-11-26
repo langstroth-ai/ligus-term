@@ -157,6 +157,49 @@ pub struct WorkspaceForm {
     pub link_checked: Option<(String, LinkGrantView)>,
     /// Add to my devices: the longer explanation, shown with `?`.
     pub link_about: bool,
+    /// Add to my devices, live (code match through the approval address):
+    /// the request in flight, or how it ended.
+    pub live: Option<LiveLink>,
+    /// The relay has no approval mailbox: the request is pasted instead.
+    pub live_unavailable: bool,
+}
+
+/// A live link request, as the form shows it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LiveLink {
+    /// The request's id once posted (a stale event names another).
+    pub rid: Option<String>,
+    pub stage: LiveStage,
+}
+
+/// Where a live link request is. `yes` is which of the two answers is
+/// selected (No first: nothing happens on a stray Enter).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LiveStage {
+    /// Posting the request.
+    Sending,
+    /// Posted: waiting for the desktop to open it.
+    Waiting,
+    /// The code to compare: Yes, they match / No.
+    Code {
+        code: MatchCodeView,
+        yes: bool,
+    },
+    /// The person said they match: the desktop asks for its passkey.
+    Matched {
+        code: MatchCodeView,
+        acknowledged: bool,
+    },
+    /// The approval arrived: checking it on the workspace log.
+    Checking,
+    /// Check 6: link as the verified person? Yes, link / No.
+    Confirm {
+        person: String,
+        workspace: String,
+        yes: bool,
+        busy: bool,
+    },
+    Ended(LiveLinkEnd),
 }
 
 impl WorkspaceForm {
@@ -180,6 +223,8 @@ impl WorkspaceForm {
             link_asked: false,
             link_checked: None,
             link_about: false,
+            live: None,
+            live_unavailable: false,
         }
     }
 
@@ -309,6 +354,11 @@ pub enum Overlay {
         checked: Option<JoinRequestCheck>,
         result: Option<BoxAdmission>,
     },
+    /// The live approval requests in the workspace's approval mailbox, read
+    /// only (`None` while they load; the error when they can't be read).
+    Approvals {
+        list: Option<std::result::Result<Vec<ApprovalRequest>, String>>,
+    },
     /// The Set up list (`u`): each guided flow and what is done.
     Setup {
         sel: usize,
@@ -340,6 +390,13 @@ pub enum Overlay {
     },
     /// The checkout this device applies the workspace's proposals in.
     BindCheckout(TextBuf),
+    /// A one-line reply to an agent's question.
+    AskReply {
+        chat: ChatId,
+        ask: AskId,
+        agent: String,
+        text: TextBuf,
+    },
     /// This session's notices and errors, newest first, in full.
     Messages {
         scroll: usize,
@@ -393,7 +450,15 @@ pub enum ConfirmAction {
     Quit,
     CancelRun(RunId),
     Reject(ProposalId),
-    RejectGate { run: RunId, stage: String },
+    RejectGate {
+        run: RunId,
+        stage: String,
+    },
+    /// Allow an agent's call once (a grant card).
+    AllowAsk {
+        chat: ChatId,
+        ask: AskId,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -508,6 +573,11 @@ pub struct State {
     pub chat_sel: Sel,
     pub open_chat: Option<ChatId>,
     pub transcript: Vec<Message>,
+    /// The open chat's decision cards, oldest first.
+    pub asks: Vec<Ask>,
+    /// Older questions put aside here with Not now (they settle on their
+    /// first answer for everyone, so nothing is recorded).
+    pub asks_hidden: BTreeSet<AskId>,
     /// Rows scrolled up from the bottom of the transcript.
     pub transcript_scroll: usize,
     /// Tool calls show what they returned (`o`), not just one line each.
@@ -659,6 +729,8 @@ impl State {
             chat_sel: Sel::default(),
             open_chat: None,
             transcript: vec![],
+            asks: vec![],
+            asks_hidden: BTreeSet::new(),
             transcript_scroll: 0,
             tools_expanded: false,
             thinking: HashMap::new(),
@@ -754,7 +826,8 @@ impl State {
             live: self.thinking.get(chat).is_some_and(|t| !t.is_empty()) || streaming_here,
             failed: outcome == Some(SessionState::Failed),
             finished_unseen: outcome == Some(SessionState::Done),
-            open_asks: self.tasks.iter().filter(|t| &t.chat == chat && t.active && !t.open_questions.is_empty()).count(),
+            open_asks: self.tasks.iter().filter(|t| &t.chat == chat && t.active && !t.open_questions.is_empty()).count()
+                + summary.map(|c| c.asks_for_you).unwrap_or(0),
             proposals_needing_me: self
                 .proposals
                 .iter()
@@ -774,6 +847,12 @@ impl State {
     /// hidden ones.
     pub fn shown_proposals(&self) -> &[Proposal] {
         if self.show_archived { &self.archived_proposals } else { &self.proposals }
+    }
+
+    /// The card the ask keys answer: the oldest open card in the open chat
+    /// that you may answer (and haven't put aside here).
+    pub fn ask_target(&self) -> Option<&Ask> {
+        self.asks.iter().find(|a| a.status == AskStatus::Open && a.can_answer.is_yes() && !self.asks_hidden.contains(&a.id))
     }
 
     pub fn selected_proposal(&self) -> Option<&Proposal> {
@@ -917,6 +996,9 @@ impl State {
             return vec![Composer, Global];
         }
         match self.view {
+            // Its keys answer only with the transcript focused, so the
+            // global keys (1-9, a, n, r) keep their meaning elsewhere.
+            View::Chats if self.focus == Focus::Detail && self.ask_target().is_some() => vec![Ask, Chat, Nav, Global],
             View::Chats => vec![Chat, Nav, Global],
             View::Proposals if self.focus == Focus::Detail => vec![Diff, Review, Nav, Global],
             View::Proposals => vec![Review, Nav, Global],
@@ -1060,6 +1142,21 @@ impl State {
             }
             for l in clean(&m.text).lines() {
                 out.push_str(&format!("  {l}\n"));
+            }
+            out.push('\n');
+        }
+        // Agents' questions and grant cards, the call in full.
+        for a in &self.asks {
+            out.push_str(&format!("{} asks {}: \u{201c}{}\u{201d}\n", clean(&a.agent), clean(&a.audience), clean(&a.question)));
+            if let Some(e) = &a.effect {
+                for l in clean(&e.detail).lines() {
+                    out.push_str(&format!("  | {l}\n"));
+                }
+                if !e.cwd.is_empty() {
+                    out.push_str(&format!("  in {}\n", clean(&e.cwd)));
+                }
+            } else if !a.options.is_empty() {
+                out.push_str(&format!("  options: {}\n", clean(&a.options.join(" | "))));
             }
             out.push('\n');
         }

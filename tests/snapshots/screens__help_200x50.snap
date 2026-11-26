@@ -3,30 +3,30 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
-┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ────┏ Help · 1-46 of 110 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────╮╭ This chat ───────────────────────────╮
+┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ────┏ Help · 1-46 of 122 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────╮╭ This chat ───────────────────────────╮
 ┃  ◆ Fix flaky checkout … 12m  ┃│             Ada  40m        ┃Each chat is a room with people and agents. @ mentions an agent or a      ┃                     ││Proposals                             │
 ┃  ◆ Migrate auth to pas… 50m  ┃│               The checkout t┃person; enter on a chat opens it and puts you in the composer.            ┃                     ││◆ Inject the clock into checkout … 1/2│
 ┃  Weekly release notes    1d  ┃│                             ┃                                                                          ┃                     ││◆ Sign-off: inject a fake clock 0/1   │
 ┃                              ┃│             @coder  via clau┃. opens a row's actions · / searches · rebind keys in the config file     ┃                     ││                                      │
 ┃                              ┃│               Yes. The payme┃                                                                          ┃                     ││Runs                                  │
-┃                              ┃│               ◆ proposal “In┃Chats  here                                                               ┃                     ││· Implement, review, sh… awaiting-gate│
-┃                              ┃│                             ┃  i                        Write a message                                ┃                     ││                                      │
-┃                              ┃│             Ada  12m        ┃  N                        New chat                                       ┃                     ││                                      │
-┃                              ┃│               @Mara can you ┃  D                        The whole transcript in $PAGER (or your termina┃                     ││                                      │
-┃                              ┃│               ◆ proposal “Si┃  o                        Show or hide what tool calls returned          ┃                     ││                                      │
-┃                              ┃│                             ┃  L                        Lock this chat down                            ┃                     ││                                      │
+┃                              ┃│                             ┃Chats  here                                                               ┃                     ││· Implement, review, sh… awaiting-gate│
+┃                              ┃│               ✓ Ada answered┃  i                        Write a message                                ┃                     ││                                      │
+┃                              ┃│               ◆ proposal “In┃  N                        New chat                                       ┃                     ││                                      │
+┃                              ┃│                             ┃  D                        The whole transcript in $PAGER (or your termina┃                     ││                                      │
+┃                              ┃│             Ada  12m        ┃  o                        Show or hide what tool calls returned          ┃                     ││                                      │
+┃                              ┃│               @Mara can you ┃  L                        Lock this chat down                            ┃                     ││                                      │
 ┃                              ┃│                             ┃  U                        Clear the lockdown                             ┃                     ││                                      │
-┃                              ┃│                             ┃                                                                          ┃                     ││                                      │
-┃                              ┃│                             ┃Lists  here                                                               ┃                     ││                                      │
-┃                              ┃│                             ┃  ↑, k                     Up                                             ┃                     ││                                      │
+┃                              ┃│             ▸ coder asks you┃                                                                          ┃                     ││                                      │
+┃                              ┃│                 1 Postgres  ┃Lists  here                                                               ┃                     ││                                      │
+┃                              ┃│                 coder decide┃  ↑, k                     Up                                             ┃                     ││                                      │
 ┃                              ┃│                             ┃  ↓, j                     Down                                           ┃                     ││                                      │
-┃                              ┃│                             ┃  pgup, ctrl-u             Page up                                        ┃                     ││                                      │
-┃                              ┃│                             ┃  pgdn, ctrl-d             Page down                                      ┃                     ││                                      │
-┃                              ┃│                             ┃  home, g                  First                                          ┃                     ││                                      │
-┃                              ┃│                             ┃  end, G                   Last                                           ┃                     ││                                      │
-┃                              ┃│                             ┃  enter, l, →              Open (the row's main action)                   ┃                     ││                                      │
-┃                              ┃│                             ┃  ., shift-f10             Actions for this row and this view (destructive┃                     ││                                      │
-┃                              ┃│                             ┃  /                        Find in this list (as you type; ↑↓ next match) ┃                     ││                                      │
+┃                              ┃│               coder asks you┃  pgup, ctrl-u             Page up                                        ┃                     ││                                      │
+┃                              ┃│                 Allow once l┃  pgdn, ctrl-d             Page down                                      ┃                     ││                                      │
+┃                              ┃│                 │ cargo test┃  home, g                  First                                          ┃                     ││                                      │
+┃                              ┃│                 in /srv/nort┃  end, G                   Last                                           ┃                     ││                                      │
+┃                              ┃│                 coder descri┃  enter, l, →              Open (the row's main action)                   ┃                     ││                                      │
+┃                              ┃│                 Next, after ┃  ., shift-f10             Actions for this row and this view (destructive┃                     ││                                      │
+┃                              ┃│               ◆ proposal “Si┃  /                        Find in this list (as you type; ↑↓ next match) ┃                     ││                                      │
 ┃                              ┃│                             ┃                                                                          ┃                     ││                                      │
 ┃                              ┃│                             ┃Anywhere                                                                  ┃                     ││                                      │
 ┃                              ┃│                             ┃  ctrl-c, q                Quit (asks first while work runs here)         ┃                     ││                                      │
@@ -41,14 +41,14 @@ expression: screen
 ┃                              ┃│                             ┃  +                        Create or join a workspace                     ┃                     ││                                      │
 ┃                              ┃│                             ┃  u                        Set up: an agent, a tool, a folder, a box, a ph┃                     ││                                      │
 ┃                              ┃│                             ┃  unbound                  Link this computer to my devices               ┃                     ││                                      │
+┃                              ┃│                             ┃  unbound                  Approval requests waiting in this workspace (re┃                     ││                                      │
 ┃                              ┃│                             ┃  c, 1                     Chats                                          ┃                     ││                                      │
 ┃                              ┃│                             ┃  f, 2                     Workflows and runs                             ┃                     ││                                      │
 ┃                              ┃│                             ┃  p, 3                     Proposals                                      ┃                     ││                                      │
 ┃                              ┃│                             ┃  a, 4                     Agents and hand-offs                           ┃                     ││                                      │
-┃                              ┃│                             ┃  h, 5                     Hosts and workers                              ┃                     ││                                      │
-┃                              ┃╰─────────────────────────────┃  y, 6                     Task state and memory                          ┃─────────────────────╯│                                      │
-┃                              ┃                              ┃  m, 7                     People                                         ┃                      │                                      │
-┃                              ┃╭ Message the room ───────────┃  n, 8                     Notifications                                  ┃─────────────────────╮│                                      │
-┃                              ┃│i to write · @ mentions an ag┃  s, 9                     Settings                                       ┃                     ││                                      │
+┃                              ┃╰─────────────────────────────┃  h, 5                     Hosts and workers                              ┃─────────────────────╯│                                      │
+┃                              ┃                              ┃  y, 6                     Task state and memory                          ┃                      │                                      │
+┃                              ┃╭ Message the room ───────────┃  m, 7                     People                                         ┃─────────────────────╮│                                      │
+┃                              ┃│i to write · @ mentions an ag┃  n, 8                     Notifications                                  ┃                     ││                                      │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰─────────────────────────────┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛─────────────────────╯╰──────────────────────────────────────╯
 / search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                                                                                                              peer to peer · 1 running · demo

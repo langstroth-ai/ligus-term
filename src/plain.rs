@@ -34,7 +34,14 @@ commands (N is a number from the last list, or an id):
                        My devices > Add a computer); prints its fingerprint
   link-redeem CODE --approver-fingerprint FP  link with the code your desktop shows, after
                        checking the approving desktop's fingerprint (FP) is your desktop's
+  link-to ADDRESS      send this computer's request to the approval address your desktop shows
+                       (ligusaddr1:); then compare the code: match yes|no; then link-as yes|no
+  match yes|no         the code on your desktop is the same (yes) or not (no: nothing is granted)
+  link-as yes|no       link as the person the workspace log verified, or link nothing
+  link-cancel          end the request link-to sent
+  approvals            approval requests waiting in this workspace (approve on your desktop or phone)
   link-status          whether this computer is linked, or a link is waiting for the desktop's code
+  device-rename NAME   name this computer, as every member sees it
   workspaces           list workspaces          use N        switch workspace
   chats                list chats               open N       open a chat and print it
   new TITLE            start a chat             say TEXT     post to the open chat
@@ -89,6 +96,8 @@ struct Session {
     workflows: Vec<Workflow>,
     runs: Vec<Run>,
     local: Vec<LocalRuntime>,
+    /// The live link request `link-to` sent.
+    live: Option<String>,
     /// One-shot (`lt --plain COMMAND`): a secret never rides argv or stdout.
     one_shot: bool,
 }
@@ -183,7 +192,7 @@ pub fn error_code(message: &str) -> (&'static str, i32) {
         ("usage", 2)
     } else if any(&[" yet:", "first:", "open a chat first", "needs a relay", "set your name"]) {
         ("precondition", 3)
-    } else if any(&["passkey", "recovery words", "cancelled", "confirm who approved"]) {
+    } else if any(&["passkey", "recovery words", "cancelled", "confirm who approved", "a person must"]) {
         ("needs_person", 4)
     } else if starts(&[
         "no such ",
@@ -227,7 +236,13 @@ pub const COMMANDS: &[&str] = &[
     "join",
     "link-request",
     "link-redeem",
+    "link-to",
+    "match",
+    "link-as",
+    "link-cancel",
+    "approvals",
     "link-status",
+    "device-rename",
     "check",
     "connect",
     "workspaces",
@@ -239,6 +254,7 @@ pub const COMMANDS: &[&str] = &[
     "lock",
     "unlock",
     "stop",
+    "asks",
     "proposals",
     "archived",
     "archive",
@@ -334,6 +350,7 @@ pub fn event_line(e: &Event, names: &dyn Fn(&WorkspaceId) -> String) -> Option<S
         Event::ToolActivity { chat, call, .. } => format!("tool\t{}\t{}\t{}", esc(chat), esc(&call.name), esc(&call.preview)),
         Event::Thinking { chat, agent, on: true, .. } => format!("thinking\t{}\t{}", esc(chat), esc(agent)),
         Event::Thinking { .. } => return None,
+        Event::AsksChanged { chat, .. } => format!("asks-changed\t{}", esc(chat)),
         Event::ProposalChanged { proposal: p, .. } => {
             format!("proposal-changed\t{}\t{}\t{}/{}\t{}", esc(&p.id), p.status.label(), p.approvals, p.quorum, esc(&p.title))
         }
@@ -362,6 +379,7 @@ pub fn event_line(e: &Event, names: &dyn Fn(&WorkspaceId) -> String) -> Option<S
             format!("presence-done\t{}\t{}\t{}", id.0, if *ok { "ok" } else { "failed" }, esc(error.as_deref().unwrap_or("")))
         }
         Event::Sync { workspace, status } => format!("sync\t{}\t{}", esc(names(workspace)), esc(status)),
+        Event::LiveLink { rid, update } => live_line(rid, update),
         Event::RunChanged { run: r, .. } => {
             let done = r.stages.iter().filter(|s| s.status == StageStatus::Succeeded).count();
             format!("run-changed\t{}\t{}\t{}\t{done}/{}", esc(&r.id), r.status.label(), esc(&r.name), r.stages.len())
@@ -375,6 +393,30 @@ pub fn event_line(e: &Event, names: &dyn Fn(&WorkspaceId) -> String) -> Option<S
             return None;
         }
     })
+}
+
+/// A live link request's progress, as a record.
+fn live_line(rid: &str, u: &LiveLinkUpdate) -> String {
+    match u {
+        LiveLinkUpdate::Opened(c) => format!(
+            "match-code\t{rid}\t{}\t{}\t{}\t{}",
+            esc(&c.shown),
+            esc(&c.spelled),
+            esc(format!("says it's “{}” (checked after approval)", c.claimed)),
+            esc("check your desktop shows the same code: match yes | match no")
+        ),
+        LiveLinkUpdate::Acknowledged => format!("link-matched\t{rid}\t{}", esc("the codes match: waiting for your desktop's passkey")),
+        LiveLinkUpdate::Checking => {
+            format!("link-checking\t{rid}\t{}", esc("checking the approval on the workspace log (up to 2 minutes)"))
+        }
+        LiveLinkUpdate::Verified { person, workspace } => format!(
+            "link-verified\t{rid}\t{}\t{}\t{}",
+            esc(person),
+            esc(workspace),
+            esc(format!("link this computer as “{person}” (verified on the workspace log)? link-as yes | link-as no"))
+        ),
+        LiveLinkUpdate::Ended(e) => format!("link-ended\t{rid}\t{}\t{}", esc(e.describe()), esc(e.next())),
+    }
 }
 
 /// Run plain mode until EOF or `quit`.
@@ -439,6 +481,7 @@ where
         workflows: vec![],
         runs: vec![],
         local: vec![],
+        live: None,
         one_shot,
     }));
     if !one_shot {
@@ -812,6 +855,105 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                 Err(e) => fail(e.0).await,
             }
         }
+        "device-rename" => match b.rename_this_device(arg).await {
+            Ok(name) => say(format!("device-name\t{}", esc(&name))).await,
+            Err(e) => fail(e.0).await,
+        },
+        "link-to" => {
+            if s.lock().await.one_shot {
+                // A person compares the code on this computer: no one-shot.
+                return fail(
+                    "a person must compare the code on this computer: run lt --plain and type link-to ADDRESS, then match yes|no".into(),
+                )
+                .await;
+            }
+            let address: String = arg.split_whitespace().collect();
+            if address.is_empty() {
+                return fail("usage: link-to ADDRESS (ligusaddr1:..., from your desktop's My devices > Add a computer)".into()).await;
+            }
+            match b.link_live(&address).await {
+                Ok(LiveLinkStart::Posted { rid, request: r }) => {
+                    s.lock().await.live = Some(rid.clone());
+                    say(format!("link-request\t{}\t{}\t{}", esc(&r.fingerprint), esc(&r.label), esc(&r.code))).await;
+                    say(format!(
+                        "link-waiting\t{rid}\t{}",
+                        esc("waiting for your desktop (My devices); an older desktop takes the request above instead")
+                    ))
+                    .await;
+                }
+                Ok(LiveLinkStart::NoMailbox { request: r }) => {
+                    say(format!("link-request\t{}\t{}\t{}", esc(&r.fingerprint), esc(&r.label), esc(&r.code))).await;
+                    say(format!(
+                        "ok\t{}",
+                        esc("that relay has no approval mailbox: paste the request on your desktop, compare the fingerprint, then link-redeem CODE --approver-fingerprint FP")
+                    ))
+                    .await;
+                }
+                Err(e) => fail(e.0).await,
+            }
+        }
+        "match" | "link-as" => {
+            let yes = match arg {
+                "yes" | "y" => true,
+                "no" | "n" => false,
+                _ => return fail(format!("usage: {cmd} yes|no")).await,
+            };
+            let Some(rid) = s.lock().await.live.clone() else {
+                return fail("no request yet: link-to ADDRESS first".into()).await;
+            };
+            if cmd == "match" {
+                match b.link_live_code(&rid, yes).await {
+                    Ok(()) => say(format!("ok\tmatch {}", if yes { "yes" } else { "no" })).await,
+                    Err(e) => fail(e.0).await,
+                }
+                return;
+            }
+            match b.link_live_person(&rid, yes).await {
+                Ok(Some(w)) => {
+                    s.lock().await.live = None;
+                    let person = b.linked_person().unwrap_or_default();
+                    say(format!("linked\t{}\t{}\t{}", esc(&w.id), esc(&w.name), esc(&person))).await;
+                    let mut g = s.lock().await;
+                    g.ws = Some(w.id.clone());
+                    g.workspaces.push(w);
+                }
+                Ok(None) => {
+                    s.lock().await.live = None;
+                    say("ok\tnothing was linked".into()).await;
+                }
+                Err(e) => fail(e.0).await,
+            }
+        }
+        "link-cancel" => {
+            let Some(rid) = s.lock().await.live.take() else { return say("ok\tno request to end".into()).await };
+            match b.link_live_cancel(&rid).await {
+                Ok(()) => say("ok\trequest ended".into()).await,
+                Err(e) => fail(e.0).await,
+            }
+        }
+        "approvals" => {
+            need_ws().await;
+            let Some(w) = ws.clone() else { return };
+            match b.approvals(&w).await {
+                Ok(list) => {
+                    let now = ligus_core::flow::now_ms();
+                    for (i, r) in list.iter().enumerate() {
+                        let who = r.checking_line();
+                        say(format!(
+                            "approval\t{}\t{}\t{}\t{}\t{}",
+                            i + 1,
+                            r.kind.label(),
+                            esc(&r.label),
+                            crate::app::state::ago(now.max(r.at), r.at),
+                            esc(&who)
+                        ))
+                        .await;
+                    }
+                    say(format!("ok\t{}", esc("approve on your desktop or phone"))).await;
+                }
+                Err(e) => fail(e.0).await,
+            }
+        }
         "link-status" => match b.link_status().await {
             Ok(v) => {
                 let now = crate::app::runtime::now_ms();
@@ -1169,6 +1311,41 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
             match b.stop_turn(ws.as_ref().unwrap(), &chat).await {
                 Ok(0) => fail("nothing runs on this device in this chat: the turn's host stops it".into()).await,
                 Ok(n) => say(format!("stopped\t{}\t{n}", esc(&chat))).await,
+                Err(e) => fail(e.0).await,
+            }
+        }
+        // Read-only: answering is a person's step, in the full-screen lt
+        // (an agent driving plain mode must not answer as the person).
+        "asks" => {
+            let chat = { s.lock().await.chat.clone() };
+            let Some(chat) = chat else { return fail("open a chat first: open N".into()).await };
+            match b.asks(ws.as_ref().unwrap(), &chat).await {
+                Ok(list) => {
+                    for (i, a) in list.iter().enumerate() {
+                        let status = match &a.status {
+                            AskStatus::Open if a.can_answer.is_yes() => "waiting-on-you".to_string(),
+                            AskStatus::Open => a.can_answer.reason().unwrap_or("waiting").to_string(),
+                            AskStatus::Answered { by, answer, .. } => format!("answered by {by}: {answer}"),
+                            AskStatus::Declined { by } => format!("declined by {by}"),
+                            AskStatus::Stopped => "stopped waiting".to_string(),
+                        };
+                        let kind = match a.kind {
+                            AskKind::Question => "question",
+                            AskKind::Permission => "permission",
+                            AskKind::Secret => "secret",
+                        };
+                        say(format!(
+                            "ask\t{}\t{}\t{}\t{kind}\t{}\t{}\t{}",
+                            i + 1,
+                            esc(&a.id),
+                            esc(&a.agent),
+                            esc(status),
+                            esc(&a.question),
+                            esc(a.options.join(" | "))
+                        ))
+                        .await;
+                    }
+                }
                 Err(e) => fail(e.0).await,
             }
         }
@@ -1626,6 +1803,33 @@ mod tests {
         assert!(out.contains("message\tNorthwind API\tc-checkout\t@coder\tLooked at the checkout test."), "{out}");
         assert!(out.contains("Inject a clock into the session check"), "{out}");
         assert!(out.contains("member\t4\tm-sam\tSam\tviewer\t\tremove: allowed"), "{out}");
+    }
+
+    /// Add to my devices through the approval address: the request (for an
+    /// older desktop too), the code, match yes, the verified person,
+    /// link-as yes. A one-shot link-to exits 4: a person compares the code.
+    #[tokio::test]
+    async fn link_to_compares_the_code_and_links_as_the_verified_person() {
+        let addr = crate::backend::fake::DEMO_ADDRESS;
+        let script = format!("link-to {addr}\nwait 1\nmatch yes\nwait 2\nlink-as yes\n");
+        let out = run_script(FakeBackend::new(FakeConfig::instant()), &script).await;
+        assert!(out.contains("link-request\t7F3A-91C0-77DE-0B14-5E62\t"), "{out}");
+        assert!(out.contains("link-waiting\trid-"), "{out}");
+        assert!(out.contains("match-code\trid-") && out.contains("\tK7Q4 M9X2\t"), "{out}");
+        assert!(out.contains("link-verified\trid-") && out.contains("\tAlex\tNorthwind API\t"), "{out}");
+        assert!(out.contains("linked\t") && out.contains("\tAlex"), "{out}");
+
+        let script = format!("link-to {addr}\nwait 1\nmatch no\nwait 1\nlink-as yes\n");
+        let out = run_script(FakeBackend::new(FakeConfig::instant()), &script).await;
+        assert!(out.contains("link-ended\trid-") && out.contains("Request didn't match. Nothing was granted."), "{out}");
+        assert!(!out.contains("linked\t"), "{out}");
+
+        let (code, out) = one_shot(FakeBackend::new(FakeConfig::instant()), &format!("link-to {addr}")).await;
+        assert_eq!(code, 4, "{out}");
+        let (code, out) = one_shot(FakeBackend::demo(FakeConfig::instant()), "approvals").await;
+        assert_eq!(code, 0, "{out}");
+        assert!(out.contains("approval\t1\tbox\tbuild-2\t") && out.contains("“Ada's desktop” is checking it"), "{out}");
+        assert!(out.contains("approve on your desktop or phone"), "{out}");
     }
 
     #[tokio::test]

@@ -5,21 +5,21 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test · 1/3 ─────────────────────────────────────────────╮
-┃  ◆ Fix flaky checkout … 12m  ┃│Ada  40m                                                                    │
-┃  ◆ Migrate auth to pas… 50m  ┃│  The checkout test fails about one run in ten. Can we stop it reading the  │
-┃  Weekly release notes    1d  ┃│  wall clock?                                                               │
-┃                              ┃│                                                                            │
+┃  ◆ Fix flaky checkout … 12m  ┃│  The checkout test fails about one run in ten. Can we stop it reading the  │
+┃  ◆ Migrate auth to pas… 50m  ┃│  wall clock?                                                               │
+┃  Weekly release notes    1d  ┃│                                                                            │
 ┃                              ┃│@coder  via claude-code · on build-box  38m                                 │
-┃                  ┏ Add a workspace ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ a small change.  │
+┃                              ┃│  Yes. The payment tests already use a fake clock, so it's a small change.  │
+┃                  ┏ Add a workspace ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                  │
 ┃                  ┃› (•) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃                  │
-┃                  ┃  ( ) Add to my devices                                               ┃2 · p to review   │
-┃                  ┃                                                                      ┃                  │
+┃                  ┃  ( ) Add to my devices                                               ┃                  │
+┃                  ┃                                                                      ┃2 · p to review   │
 ┃                  ┃  Workspace name e.g. Northwind API                                   ┃                  │
-┃                  ┃  No server needed: it lives on this device until you invite someone. ┃ provider uses.   │
-┃                  ┃                                                                      ┃p to review       │
+┃                  ┃  No server needed: it lives on this device until you invite someone. ┃                  │
+┃                  ┃                                                                      ┃ provider uses.   │
 ┃                  ┃                                                                      ┃                  │
-┃                  ┃                                                                      ┃                  │
-┃                  ┃tab next · ←→ choose · enter continue · esc close                     ┃                  │
+┃                  ┃                                                                      ┃tures?”           │
+┃                  ┃tab next · ←→ choose · enter continue · esc close                     ┃the chat first)   │
 ┃                  ┃                                                                      ┃                  │
 ┃                  ┃                                                                      ┃                  │
 ┃                  ┃                                                                      ┃                  │
@@ -27,8 +27,8 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                  ┃                                                                      ┃                  │
 ┃                  ┃                                                                      ┃                  │
 ┃                  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                  │
-┃                              ┃│                                                                            │
-┃                              ┃│                                                                            │
+┃                              ┃│    Next, after the question above                                          │
+┃                              ┃│  ◆ proposal “Sign-off: inject a fake clock” · open 0/1 · p to review       │
 ┃                              ┃╰────────────────────────────────────────────────────────────────────────────╯
 ┃                              ┃
 ┃                              ┃╭ Message the room ──────────────────────────────────────────────────────────╮

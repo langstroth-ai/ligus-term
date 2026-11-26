@@ -10,8 +10,8 @@ use ratatui::widgets::{Clear, Paragraph, Wrap};
 
 use super::{center, pane, splash};
 use crate::app::input::TextBuf;
-use crate::app::state::{FormField, FormMode, State, WorkspaceForm};
-use crate::backend::model::{Created, InviteTrust};
+use crate::app::state::{FormField, FormMode, LiveStage, State, WorkspaceForm};
+use crate::backend::model::{Created, InviteTrust, LinkRequestView, MatchCodeView, Millis};
 use crate::theme::Theme;
 
 fn field_line<'a>(label: &'a str, buf: &TextBuf, focused: bool, width: usize, placeholder: &'a str, t: &Theme) -> Line<'a> {
@@ -69,9 +69,18 @@ fn with_splash(f: &mut Frame, area: Rect, w: u16, h: u16, first_run: bool, t: &T
 pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: &Theme, first_run: bool) {
     let connect = form.mode == FormMode::Connect;
     let link = form.mode == FormMode::Link;
+    // Add to my devices: as many rows as its section has.
+    let link_w = 72.min(area.width).saturating_sub(22) as usize;
+    let link_rows = if link {
+        let mut scratch = vec![];
+        draw_link(&mut scratch, form, false, link_w, s.now, t);
+        scratch.len() as u16
+    } else {
+        0
+    };
     let h = match (first_run, connect, link) {
-        (true, _, true) => 26 + link_extra(form),
-        (false, _, true) => 21 + link_extra(form),
+        (true, _, true) => 15 + link_rows,
+        (false, _, true) => 10 + link_rows,
         (true, true, _) => 26,
         (true, false, _) => 24,
         (false, true, _) => 19,
@@ -152,7 +161,7 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
                 None => lines.push(Line::styled("  Enter checks who it's from (its founder's signature); enter again joins.", t.dim())),
             }
         }
-        FormMode::Link => draw_link(&mut lines, form, vf, w, t),
+        FormMode::Link => draw_link(&mut lines, form, vf, w, s.now, t),
         FormMode::Connect => {
             lines.push(field_line("Relay URL", &form.relay, form.field == FormField::Relay, w, "http://127.0.0.1:18443", t));
             lines.push(field_line("Room", &form.room, form.field == FormField::Room, w, "LIGUS_WORKSPACE / Secret key room", t));
@@ -198,14 +207,22 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
     f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
 }
 
-/// Add to my devices: one line, three steps, the fingerprint and the code,
-/// then the desktop's code; then who approved it. The longer explanation is
+/// Add to my devices. Before anything is sent: three steps (the desktop's
+/// approval address is pasted here), and the request itself for an older
+/// desktop. Then the live request: waiting, the code to compare, the
+/// verified person to confirm, or how it ended. The longer explanation is
 /// behind `?`. Lines are broken by hand to keep their indent.
-fn draw_link<'a>(lines: &mut Vec<Line<'a>>, form: &'a WorkspaceForm, focused: bool, w: usize, t: &Theme) {
+fn draw_link<'a>(lines: &mut Vec<Line<'a>>, form: &'a WorkspaceForm, focused: bool, w: usize, now: Millis, t: &Theme) {
     let checked = form.link_checked.as_ref().filter(|(g, _)| *g == form.grant.text.trim());
-    match &form.link {
-        None => lines.push(Line::styled("  Making this computer's request…", t.dim())),
-        Some(r) => {
+    let stage = form.live.as_ref().map(|l| &l.stage);
+    let Some(r) = &form.link else {
+        lines.push(Line::styled("  Making this computer's request…", t.dim()));
+        lines.push(Line::raw(""));
+        lines.push(field_line("From desktop", &form.grant, focused, w, "the approval address it shows (ligusaddr1:…)", t));
+        return;
+    };
+    match stage {
+        None => {
             lines.push(Line::styled("  Make this computer one of your devices.", t.text()));
             if form.link_about {
                 for l in [
@@ -223,27 +240,83 @@ fn draw_link<'a>(lines: &mut Vec<Line<'a>>, form: &'a WorkspaceForm, focused: bo
             lines.push(Line::raw(""));
             for (n, l) in [
                 ("1", "Desktop: My devices > Add a computer (palette: link)"),
-                ("2", "Paste this code (c copies it), compare, confirm"),
-                ("3", "Paste the code it shows here"),
+                ("2", "Copy its approval address and paste it below"),
+                ("3", "Check both screens show the same code"),
             ] {
                 lines.push(Line::from(vec![Span::styled(format!("  {n} "), t.accent()), Span::styled(l, t.text())]));
             }
             lines.push(Line::raw(""));
+            if form.live_unavailable {
+                lines.push(Line::styled("  That relay can't pass requests along: paste this request on your", t.text()));
+                lines.push(Line::styled("  desktop instead (c copies it), then the code it shows below.", t.text()));
+            } else {
+                lines.push(Line::styled("  Older desktop? Paste this request there (c copies it):", t.dim()));
+            }
+            paste_text(lines, r, w, t);
+        }
+        Some(LiveStage::Sending) => {
+            lines.push(Line::styled("  Sending the request to your desktop…", t.text()));
+            lines.push(Line::raw(""));
+        }
+        Some(LiveStage::Waiting) => {
+            lines.push(Line::styled("  Waiting for your desktop…", t.text()));
+            lines.push(Line::styled("  It shows up in My devices there by itself.", t.dim()));
+            lines.push(Line::raw(""));
+            lines.push(Line::styled("  Older desktop? Paste this request there (c copies it):", t.dim()));
+            paste_text(lines, r, w, t);
+        }
+        Some(LiveStage::Code { code, yes }) => {
+            code_frame(lines, code, t);
+            lines.push(Line::styled("  Check your desktop shows the same code.", t.text()));
+            lines.push(Line::styled(
+                format!("  Says it's “{}” (checked after approval) · {} left", code.claimed, countdown(code.expires_at, now)),
+                t.dim(),
+            ));
+            lines.push(Line::raw(""));
+            lines.push(buttons("Yes, they match", "No", *yes, t));
+            return;
+        }
+        Some(LiveStage::Matched { code, acknowledged }) => {
+            code_frame(lines, code, t);
+            lines.push(Line::styled("  The codes match.", t.fg(t.good)));
+            let next = if *acknowledged {
+                "  Waiting for your desktop's passkey…"
+            } else {
+                "  Waiting for your desktop: confirm the code there too."
+            };
+            lines.push(Line::styled(next, t.text()));
+            return;
+        }
+        Some(LiveStage::Checking) => {
+            lines.push(Line::styled("  Your desktop approved it.", t.text()));
+            lines.push(Line::styled("  Checking the approval on the workspace log…", t.text()));
+            lines.push(Line::styled("  (it can take up to 2 minutes to arrive)", t.dim()));
+            return;
+        }
+        Some(LiveStage::Confirm { person, workspace, yes, busy }) => {
             lines.push(Line::from(vec![
-                Span::styled("  Fingerprint    ", t.dim()),
-                Span::styled(r.fingerprint.clone(), t.accent().add_modifier(Modifier::BOLD)),
+                Span::styled("  Link this computer as “", t.text()),
+                Span::styled(person.clone(), t.accent().add_modifier(Modifier::BOLD)),
+                Span::styled("” (verified on the workspace log)?", t.text()),
             ]));
-            // The code in pieces (the desktop ignores the breaks when it is
-            // pasted). Selecting it here takes the border too: c copies it,
-            // o shows it alone on the screen.
-            let chars: Vec<char> = r.code.chars().collect();
-            for piece in chars.chunks(w.saturating_add(16).clamp(20, 66)) {
-                lines.push(Line::styled(format!("  {}", piece.iter().collect::<String>()), t.dim()));
+            lines.push(Line::styled(format!("  In “{workspace}”, it acts as “{person}” from then on."), t.dim()));
+            lines.push(Line::raw(""));
+            if *busy {
+                lines.push(Line::styled("  Linking…", t.fg(t.warn)));
+            } else {
+                lines.push(buttons("Yes, link", "No", *yes, t));
+            }
+            return;
+        }
+        Some(LiveStage::Ended(e)) => {
+            lines.push(Line::styled(format!("  ✗ {}", e.describe()), t.fg(t.bad).add_modifier(Modifier::BOLD)));
+            for l in super::wrap(e.next(), 66) {
+                lines.push(Line::styled(format!("  {l}"), t.dim()));
             }
             lines.push(Line::raw(""));
         }
     }
-    lines.push(field_line("Desktop's code", &form.grant, focused, w, "ligusgrant1:…", t));
+    lines.push(field_line("From desktop", &form.grant, focused, w, "the approval address it shows (ligusaddr1:…)", t));
     if let Some((_, c)) = checked {
         lines.push(Line::from(vec![
             Span::styled(format!("  Approved by {}'s desktop ", c.person_name), t.text()),
@@ -253,24 +326,73 @@ fn draw_link<'a>(lines: &mut Vec<Line<'a>>, form: &'a WorkspaceForm, focused: bo
     }
 }
 
-/// Rows Add to my devices needs beyond its base: the `?` text, and the
-/// approver once a code is checked.
-fn link_extra(form: &WorkspaceForm) -> u16 {
-    let checked = form.link_checked.as_ref().is_some_and(|(g, _)| *g == form.grant.text.trim());
-    (if form.link_about { 5 } else { 0 }) + if checked { 2 } else { 0 }
+/// The request's fingerprint and paste text, for a desktop without the
+/// approval mailbox.
+fn paste_text<'a>(lines: &mut Vec<Line<'a>>, r: &'a LinkRequestView, w: usize, t: &Theme) {
+    lines.push(Line::from(vec![
+        Span::styled("  Fingerprint    ", t.dim()),
+        Span::styled(r.fingerprint.clone(), t.accent().add_modifier(Modifier::BOLD)),
+    ]));
+    // The code in pieces (the desktop ignores the breaks when it is pasted).
+    // Selecting it here takes the border too: c copies it, o shows it alone
+    // on the screen.
+    let chars: Vec<char> = r.code.chars().collect();
+    for piece in chars.chunks(w.saturating_add(16).clamp(20, 66)) {
+        lines.push(Line::styled(format!("  {}", piece.iter().collect::<String>()), t.dim()));
+    }
+    lines.push(Line::raw(""));
+}
+
+/// The code on one framed line, large as a terminal allows: bold, two
+/// groups. Not a secret, and not for copying.
+fn code_frame<'a>(lines: &mut Vec<Line<'a>>, code: &MatchCodeView, t: &Theme) {
+    let inner = code.shown.chars().count() + 4;
+    lines.push(Line::styled(format!("  ┌{}┐", "─".repeat(inner)), t.dim()));
+    lines.push(Line::from(vec![
+        Span::styled("  │  ", t.dim()),
+        Span::styled(code.shown.clone(), t.accent().add_modifier(Modifier::BOLD)),
+        Span::styled("  │", t.dim()),
+    ]));
+    lines.push(Line::styled(format!("  └{}┘", "─".repeat(inner)), t.dim()));
+}
+
+/// How long a code has left, as `4:59` (quiet: no colour change).
+fn countdown(expires_at: Millis, now: Millis) -> String {
+    let secs = (expires_at - now).max(0) / 1000;
+    format!("{}:{:02}", secs / 60, secs % 60)
+}
+
+/// Two answers; the selected one is marked in words (`›`) and in colour.
+fn buttons<'a>(yes_label: &'a str, no_label: &'a str, yes: bool, t: &Theme) -> Line<'a> {
+    let b = |label: &'a str, on: bool| {
+        let style = if on { t.selected().add_modifier(Modifier::BOLD) } else { t.text() };
+        Span::styled(format!("[ {label} ]"), style)
+    };
+    let mark = |on: bool| Span::styled(if on { "› " } else { "  " }, t.accent());
+    Line::from(vec![Span::raw("  "), mark(yes), b(yes_label, yes), Span::raw("   "), mark(!yes), b(no_label, !yes)])
 }
 
 /// The key hints under Add to my devices.
 fn link_hints(form: &WorkspaceForm, esc: &str) -> String {
+    match form.live.as_ref().map(|l| &l.stage) {
+        Some(LiveStage::Code { .. }) | Some(LiveStage::Confirm { busy: false, .. }) => {
+            return "y yes · n no · ←→ choose · enter answer · esc end the request".into();
+        }
+        Some(LiveStage::Confirm { .. }) => return String::new(),
+        Some(LiveStage::Sending | LiveStage::Waiting) => return "c copy the request · o full screen · esc end the request".into(),
+        Some(LiveStage::Matched { .. } | LiveStage::Checking) => return "esc end the request".into(),
+        Some(LiveStage::Ended(_)) => return format!("enter start again · esc {esc}"),
+        None => {}
+    }
     let checked = form.link_checked.as_ref().is_some_and(|(g, _)| *g == form.grant.text.trim());
     if checked {
         "enter link · esc no".into()
     } else if form.link.is_some() && form.grant.text.is_empty() {
-        format!("c copy · o full screen · enter check · ? more · esc {esc}")
+        format!("c copy · o full screen · enter continue · ? more · esc {esc}")
     } else if form.link.is_some() {
-        format!("ctrl-y copy · enter check · ? more · esc {esc}")
+        format!("ctrl-y copy · enter continue · ? more · esc {esc}")
     } else {
-        format!("enter check · ? more · esc {esc}")
+        format!("enter continue · ? more · esc {esc}")
     }
 }
 

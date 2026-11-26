@@ -4,21 +4,21 @@ expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test · 1/3 ─────────────────────────────────────────────╮
-┃  ◆ Fix flaky checkout … 12m  ┃│Ada  40m                                                                    │
-┃  ◆ Migrate auth to pas… 50m  ┃│  The checkout test fails about one run in ten. Can we stop it reading the  │
-┃  Weekly release notes    1d  ┃│  wall clock?                                                               │
-┃                              ┃│                                                                            │
-┃                ┏ Set up an agent · 1 of 4 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                │
-┃                ┃An agent answers when you @mention it. It runs one harness (Claude Code,  ┃ small change.  │
+┃  ◆ Fix flaky checkout … 12m  ┃│  The checkout test fails about one run in ten. Can we stop it reading the  │
+┃  ◆ Migrate auth to pas… 50m  ┃│  wall clock?                                                               │
+┃  Weekly release notes    1d  ┃│                                                                            │
+┃                              ┃│@coder  via claude-code · on build-box  38m                                 │
+┃                ┏ Set up an agent · 1 of 4 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ small change.  │
+┃                ┃An agent answers when you @mention it. It runs one harness (Claude Code,  ┃                │
 ┃                ┃Codex, Copilot, Antigravity, Aider, Pi or a local model) inside this      ┃                │
-┃                ┃device's agent sandbox.                                                   ┃· p to review   │
-┃                ┃                                                                          ┃                │
+┃                ┃device's agent sandbox.                                                   ┃                │
+┃                ┃                                                                          ┃· p to review   │
 ┃                ┃Harness                                                                   ┃                │
-┃                ┃› ● Claude Code                                signed in                  ┃rovider uses.   │
-┃                ┃  ○ Codex                                      not signed in              ┃to review       │
+┃                ┃› ● Claude Code                                signed in                  ┃                │
+┃                ┃  ○ Codex                                      not signed in              ┃rovider uses.   │
 ┃                ┃  ○ GitHub Copilot CLI                         not installed              ┃                │
-┃                ┃  ○ Google Antigravity CLI                     signed in                  ┃                │
-┃                ┃  ○ Aider                                      not in lt yet              ┃                │
+┃                ┃  ○ Google Antigravity CLI                     signed in                  ┃res?”           │
+┃                ┃  ○ Aider                                      not in lt yet              ┃e chat first)   │
 ┃                ┃  ○ Pi                                         not in lt yet              ┃                │
 ┃                ┃  ○ Local model (Ollama or OpenAI-compatible)                             ┃                │
 ┃                ┃  ○ Model gateway on a host                    not in lt yet              ┃                │
@@ -27,7 +27,7 @@ expression: screen
 ┃                ┃                                                                          ┃                │
 ┃                ┃enter next · tab next field · shift-tab back · esc cancel                 ┃                │
 ┃                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                │
-┃                              ┃│                                                                            │
+┃                              ┃│  ◆ proposal “Sign-off: inject a fake clock” · open 0/1 · p to review       │
 ┃                              ┃╰────────────────────────────────────────────────────────────────────────────╯
 ┃                              ┃
 ┃                              ┃╭ Message the room ──────────────────────────────────────────────────────────╮

@@ -133,6 +133,101 @@ async fn onboarding_add_to_my_devices() {
     snap(&h, "onboarding_link_done", "Add to my devices: this computer is now one of Alex's devices");
 }
 
+/// Add to my devices, live: the desktop's approval address pasted, then
+/// waiting for the desktop (the request still shown for an older one), the
+/// code to compare with Yes, they match / No, the desktop's passkey, the
+/// check on the workspace log, and the verified person to confirm (check 6).
+/// The desktop's side is driven by hand (the demo desktop never answers on
+/// its own here), so each screen is caught as it is.
+#[tokio::test]
+async fn onboarding_add_to_my_devices_live() {
+    use ligus_term::app::state::{FormMode, Phase};
+    use ligus_term::backend::fake::{DEMO_ADDRESS, DEMO_NOW, FakeConfig};
+    let slow = FakeConfig { browser_delay: std::time::Duration::from_secs(3600), ..Harness::cfg() };
+    let mut h = Harness::with(FakeBackend::new(slow)).await;
+    h.key(KeyCode::Tab).await;
+    h.key(KeyCode::Char('a')).await;
+    h.key(KeyCode::Tab).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Copy its approval address") && screen.contains("Older desktop?"), "{screen}");
+    h.send(Msg::Paste(DEMO_ADDRESS.into())).await;
+    h.key(KeyCode::Enter).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Waiting for your desktop") && screen.contains("7F3A-91C0-77DE-0B14-5E62"), "{screen}");
+    snap(
+        &h,
+        "onboarding_link_live_waiting",
+        "Add to my devices, live: waiting for your desktop (the request still there for an older one)",
+    );
+    let rid = match &h.state.phase {
+        Phase::Onboarding(f) if f.mode == FormMode::Link => f.live.as_ref().and_then(|l| l.rid.clone()).unwrap(),
+        p => panic!("{p:?}"),
+    };
+    let ev = |update| Msg::Event(Event::LiveLink { rid: rid.clone(), update });
+    let code = MatchCodeView {
+        shown: "K7Q4 M9X2".into(),
+        spelled: "K, 7, Q, 4. M, 9, X, 2.".into(),
+        claimed: "Alex's desktop".into(),
+        expires_at: DEMO_NOW + 5 * 60_000,
+    };
+    h.send(ev(LiveLinkUpdate::Opened(code))).await;
+    let screen = h.screen(W, H);
+    assert!(
+        screen.contains("K7Q4 M9X2")
+            && screen.contains("Check your desktop shows the same code.")
+            && screen.contains("Says it's “Alex's desktop”")
+            && screen.contains("Yes, they match"),
+        "{screen}"
+    );
+    snap(&h, "onboarding_link_live_code", "Add to my devices, live: the code to compare, Yes, they match / No");
+    h.key(KeyCode::Char('y')).await;
+    h.send(ev(LiveLinkUpdate::Acknowledged)).await;
+    assert!(h.screen(W, H).contains("Waiting for your desktop's passkey"), "{}", h.screen(W, H));
+    h.send(ev(LiveLinkUpdate::Checking)).await;
+    assert!(h.screen(W, H).contains("Checking the approval on the workspace log"));
+    h.send(ev(LiveLinkUpdate::Verified { person: "Alex".into(), workspace: "Northwind API".into() })).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Link this computer as “Alex” (verified on the workspace log)?") && screen.contains("Yes, link"), "{screen}");
+    snap(&h, "onboarding_link_live_confirm", "Add to my devices, live: link as the person the workspace log verified?");
+}
+
+/// No on the code: nothing granted, said in words, and how to start again.
+#[tokio::test]
+async fn onboarding_add_to_my_devices_live_mismatch() {
+    use ligus_term::backend::fake::DEMO_ADDRESS;
+    let mut h = Harness::new(false).await;
+    h.key(KeyCode::Tab).await;
+    h.key(KeyCode::Char('a')).await;
+    h.key(KeyCode::Tab).await;
+    h.send(Msg::Paste(DEMO_ADDRESS.into())).await;
+    h.key(KeyCode::Enter).await;
+    // The demo desktop opens it at once here.
+    assert!(h.screen(W, H).contains("K7Q4 M9X2"), "{}", h.screen(W, H));
+    h.key(KeyCode::Char('n')).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Request didn't match. Nothing was granted.") && screen.contains("enter start again"), "{screen}");
+    snap(&h, "onboarding_link_live_mismatch", "Add to my devices, live: the codes didn't match, nothing was granted");
+}
+
+/// The approval requests waiting in the workspace, read only.
+#[tokio::test]
+async fn approval_requests_read_only() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char(':')).await;
+    h.chars("approval requests").await;
+    h.key(KeyCode::Enter).await;
+    let screen = h.screen(W, H);
+    assert!(
+        screen.contains("Approve on your desktop or phone.")
+            && screen.contains("A box asks to join: “build-2”")
+            && screen.contains("Opened by a device that can't approve this.")
+            && screen.contains("“Ada's desktop” is checking it"),
+        "{screen}"
+    );
+    assert!(!screen.contains("K7Q4"), "no code for a request lt isn't party to: {screen}");
+    snap(&h, "approvals", "Approval requests waiting in the workspace (read only)");
+}
+
 /// The palette's Link this computer to my devices, on an install in use.
 #[tokio::test]
 async fn palette_link_this_computer() {
@@ -819,6 +914,8 @@ async fn chat_list_states() {
     h.state.proposals.clear();
     h.state.tasks.clear();
     h.state.turn_outcomes.insert(ids[0].clone(), SessionState::Failed);
+    // The demo's open question would make the first chat "needs you".
+    h.state.chats.iter_mut().for_each(|c| c.asks_for_you = 0);
     let screen = h.screen(W, H);
     assert!(screen.contains("✕ Fix flaky"), "{screen}");
     assert!(screen.contains("‖ Migrate auth"), "the locked-down chat is paused: {screen}");
@@ -1204,4 +1301,43 @@ async fn archive_restore_hide_and_show_again() {
     h.settle().await;
     assert!(!gone(&h, "Inject the clock into checkout tests") && !gone(&h, "Bump the order schema version"));
     assert_eq!(h.state.needs_you(), before);
+}
+
+/// Decision cards (agent questions): with the transcript focused, the
+/// oldest card waiting on you takes its keys; a number answers a question
+/// at once, and a grant's Allow asks first.
+#[tokio::test]
+async fn ask_cards() {
+    let mut h = demo().await;
+    h.key(KeyCode::Tab).await;
+    assert_eq!(h.state.focus, ligus_term::app::state::Focus::Detail);
+    let screen = h.screen(W, H);
+    assert!(screen.contains("coder asks you: “Use Postgres or SQLite for the test fixtures?”"), "{screen}");
+    assert!(screen.contains("1 Postgres   2 SQLite   r reply   n not now"), "{screen}");
+    assert!(screen.contains("coder decides what to do next. No new permission."), "{screen}");
+    assert!(screen.contains("Next, after the question above"), "the grant waits its turn: {screen}");
+    snap(&h, "chat_ask", "An agent's question and a grant card in the transcript");
+    h.key(KeyCode::Char('2')).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Mara answered SQLite"), "{screen}");
+    // Now the grant takes the keys; a number doesn't allow it.
+    h.key(KeyCode::Char('1')).await;
+    assert!(h.state.overlay.is_none());
+    h.key(KeyCode::Char('a')).await;
+    snap(&h, "chat_ask_allow", "Allow once asks first");
+    h.key(KeyCode::Char('y')).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Mara answered Allow once"), "{screen}");
+}
+
+/// An ask someone else posted under an agent's name leads with its poster.
+#[tokio::test]
+async fn ask_card_posted_by_someone_else() {
+    let mut h = demo().await;
+    for a in h.state.asks.iter_mut().filter(|a| a.id.as_str() == "q-fixtures") {
+        a.posted_by = Some("Lin".into());
+    }
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Lin asks you:"), "{screen}");
+    assert!(screen.contains("not from coder."), "{screen}");
 }

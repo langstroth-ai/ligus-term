@@ -4,16 +4,16 @@ expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
 ┏ Proposals ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Inject the clock into checkout tests ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-┃Inject the clock into checkout …  open 1/2 · 37m  ┃│open  by ┏ Commands · 5 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                                                             │
+┃Inject the clock into checkout …  open 1/2 · 37m  ┃│open  by ┏ Commands · 6 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                                                             │
 ┃Export orders to CSV           approved 2/2 · 1d  ┃│✓ Ada app┃› appr                                                                    ┃                                                             │
 ┃Bump the order schema version   applied 2/2 · 2d  ┃╰─────────┃──────────────────────────────────────────────────────────────────────────┃─────────────────────────────────────────────────────────────╯
 ┃Sign-off: inject a fake clock      open 0/1 · 4m  ┃╭ Diff · 2┃▶ Approve “Inject the clock into checkout tests”              A  Proposals┃─────────────────────────────────────────────────────────────╮
-┃Workflow: Dependency audit befo…  open 0/1 · 20m  ┃│▌src/chec┃  Export orders to CSV (approved)                                 Proposal┃                                                             │
-┃                                                  ┃│@@ -12,7 ┃  Withdraw the apply request “Inject the clock into checkou…  W  Proposals┃                                                             │
+┃Workflow: Dependency audit befo…  open 0/1 · 20m  ┃│▌src/chec┃  Approval requests waiting in this workspace                     Anywhere┃                                                             │
+┃                                                  ┃│@@ -12,7 ┃  Export orders to CSV (approved)                                 Proposal┃                                                             │
+┃                                                  ┃│     pub ┃  Withdraw the apply request “Inject the clock into checkou…  W  Proposals┃                                                             │
 ┃                                                  ┃│     pub ┃  Set up: an agent, a tool, a folder, a box, a phone, an in…  u   Anywhere┃                                                             │
-┃                                                  ┃│     pub ┃  Archive a settled proposal for everyone, or restore an ar…  e  Proposals┃                                                             │
-┃                                                  ┃│-    pub ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                                                             │
-┃                                                  ┃│+    /// Injected, so tests set the time instead of reading the wall clock.                                                                       │
+┃                                                  ┃│-    pub ┃  Archive a settled proposal for everyone, or restore an ar…  e  Proposals┃                                                             │
+┃                                                  ┃│+    /// ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                                                             │
 ┃                                                  ┃│+    pub clock: Arc<dyn Clock>,                                                                                                                   │
 ┃                                                  ┃│+    pub started_at: Millis,                                                                                                                      │
 ┃                                                  ┃│     pub paid: bool,                                                                                                                              │

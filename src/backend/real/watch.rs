@@ -45,6 +45,8 @@ pub struct Snap {
     workflows: String,
     /// Memory (config log) and task state and hand-offs (chats).
     flow: String,
+    /// Agents' questions: id, open, answers kept.
+    asks: String,
 }
 
 #[derive(Default)]
@@ -78,6 +80,14 @@ fn snap_of(s: &ChatSession) -> Snap {
             })
             .collect(),
         workflows: format!("{:?}", s.workflow_definitions.iter().map(|d| (d.id, d.disabled, d.nodes.len())).collect::<Vec<_>>()),
+        asks: format!(
+            "{:?}",
+            s.flow
+                .asks
+                .values()
+                .map(|a| (a.ask.ask_id, a.is_open(), a.counted.len(), a.uncounted.len(), a.answered_by.len()))
+                .collect::<Vec<_>>()
+        ),
         flow: format!(
             "{}/{:?}/{}/{}",
             s.flow.memory.entries.len(),
@@ -253,6 +263,9 @@ fn diff(inner: &Inner, batch: HashMap<Uuid, (Uuid, bool)>) -> Vec<(Uuid, Uuid, U
         }
         if any_new && !fresh {
             inner.emit(Event::ChatsChanged { workspace: wsid.clone() });
+        }
+        if old.asks != new.asks {
+            inner.emit(Event::AsksChanged { workspace: wsid.clone(), chat: ChatId::new(sid.to_string()) });
         }
         if old.workflows != new.workflows {
             inner.emit(Event::WorkflowsChanged { workspace: wsid.clone() });

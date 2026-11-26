@@ -22,17 +22,17 @@ expression: screen
 ┃                                                                                                                                                                                                      ┃
 ┃                                                                                                                                                                                                      ┃
 ┃                                                                     ┏ Jo ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                                                                     ┃
-┃                                                                     ┃› r  Change role…  no one grants a role above their own   ┃                                                                     ┃
+┃                                                                     ┃› r        Change role…  no one grants a role above their…┃                                                                     ┃
 ┃                                                                     ┃──────────────────────────────────────────────────────────┃                                                                     ┃
-┃                                                                     ┃  I  Create an invite  only an Admin or Owner issues invi…┃                                                                     ┃
-┃                                                                     ┃  B  Admit a box…  only an Admin or Owner                 ┃                                                                     ┃
-┃                                                                     ┃  D  Link to my devices…                                  ┃                                                                     ┃
+┃                                                                     ┃  I        Create an invite  only an Admin or Owner issue…┃                                                                     ┃
+┃                                                                     ┃  B        Admit a box…  only an Admin or Owner           ┃                                                                     ┃
+┃                                                                     ┃  unbound  Approval requests…                             ┃                                                                     ┃
+┃                                                                     ┃  D        Link to my devices…                            ┃                                                                     ┃
 ┃                                                                     ┃──────────────────────────────────────────────────────────┃                                                                     ┃
-┃                                                                     ┃  X  Remove from the workspace…  nobody cuts the workspac…┃                                                                     ┃
+┃                                                                     ┃  X        Remove from the workspace…  nobody cuts the wo…┃                                                                     ┃
 ┃                                                                     ┃                                                          ┃                                                                     ┃
 ┃                                                                     ┃enter choose · or its key · esc close                     ┃                                                                     ┃
 ┃                                                                     ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                                                                     ┃
-┃                                                                                                                                                                                                      ┃
 ┃                                                                                                                                                                                                      ┃
 ┃                                                                                                                                                                                                      ┃
 ┃                                                                                                                                                                                                      ┃

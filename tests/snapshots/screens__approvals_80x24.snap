@@ -1,0 +1,28 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
+┏ Chats ━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test · 1/3 ───────────────────╮
+┃  ◆ Fix flaky check… 12m  ┃│▸ coder asks you: “Use Postgres or SQLite for     │
+┃  ◆ Migrate auth to… 50m  ┃│                  the test fixtures?”             │
+┃  Weekly release not… 1d  ┃│    1 Postgres   2 SQLite   r reply   n not now   │
+┃       ┏ Approval requests ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓       │
+┃       ┃Approve on your desktop or phone.                             ┃       │
+┃       ┃                                                              ┃       │
+┃       ┃A box asks to join: “build-2”                                 ┃       │
+┃       ┃  3m ago · “Ada's desktop” is checking it                     ┃       │
+┃       ┃A computer asks to be your device: “lt on ada-mbp”            ┃       │
+┃       ┃  1m ago · waiting                                            ┃e-clo  │
+┃       ┃A phone asks to be your device: “Mara's iPhone”               ┃       │
+┃       ┃  2m ago · claimed by “Ben's desktop”                         ┃       │
+┃       ┃  Opened by a device that can't approve this. It may be an    ┃       │
+┃       ┃  attempt to intercept it.                                    ┃       │
+┃       ┃                                                              ┃       │
+┃       ┃r refresh · esc close                                         ┃view   │
+┃       ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛───────╯
+┃                          ┃
+┃                          ┃╭ Message the room ────────────────────────────────╮
+┃                          ┃│i to write · @ mentions an agent or a person      │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────╯
+i write  N new chat  tab pane  . actions  : commands  ? help        peer to peer

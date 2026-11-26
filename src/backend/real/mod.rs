@@ -17,9 +17,11 @@
 //! run in [`turns`], behind the same dispatch gates as the desktop
 //! (`ligus_runtime::turn_dispatch`).
 
+mod asks;
 mod deploy;
 pub(crate) mod detect;
 mod link;
+mod live_link;
 mod local;
 mod mcp;
 mod setup_ops;
@@ -158,6 +160,8 @@ pub(crate) struct Inner {
     ligus: Mutex<HashMap<Uuid, Arc<ligus_runtime::ligus_mcp::LigusMcp>>>,
     /// The turns running on this device, each with its own stop signal.
     turn_stops: Arc<ligus_runtime::turn_engine::TurnStops>,
+    /// The live link request in flight (Add to my devices, code match).
+    live: Mutex<Option<live_link::LiveHandle>>,
     /// A link is being redeemed here: the data dir's identity is in flux,
     /// so [`Inner::follow_disk`] leaves it alone.
     linking: std::sync::atomic::AtomicUsize,
@@ -243,6 +247,7 @@ impl RealBackend {
             drivers: Mutex::new(HashMap::new()),
             ligus: Mutex::new(HashMap::new()),
             turn_stops: ligus_runtime::turn_engine::TurnStops::new(),
+            live: Mutex::new(None),
             linking: std::sync::atomic::AtomicUsize::new(0),
             following: Mutex::new(()),
             cfg,
@@ -477,8 +482,26 @@ impl Inner {
         if self.is_linking() && core.person.is_none() {
             return err(link::LINKING);
         }
-        if core.person.is_some() && link::link_state(&self.cfg.data_dir).ok().and_then(|s| s.linked_in(ws).cloned()).is_none() {
-            return err(link::NOT_LINKED_HERE);
+        if core.person.is_some() {
+            let Ok(state) = link::link_state(&self.cfg.data_dir) else { return err(link::STALE) };
+            if state.linked_in(ws).is_none() {
+                return err(link::NOT_LINKED_HERE);
+            }
+            // Identity model v2 (7.2): which person this computer is here
+            // comes from the log, the link record only a cache. A pending
+            // certificate (not accepted yet) may still sign: accepting it is
+            // a write.
+            use ligus_runtime::device_binding::Binding;
+            let binding = {
+                let mut reader = lock(&core.reader);
+                reader.set_trusted_founder(self.founder(ws));
+                reader.binding(ws, &state, core.identity.account.id)
+            };
+            match binding {
+                Ok(Binding::Linked { .. } | Binding::Pending { .. }) | Err(_) => {}
+                Ok(Binding::NotLinkedHere) => return err(link::NOT_LINKED_HERE),
+                Ok(other) => return Err(BackendError(other.why_read_only().unwrap_or_default())),
+            }
         }
         Ok(())
     }
@@ -594,7 +617,7 @@ impl Inner {
                 let _ = svc.store().set_workspace_pin(ws, f, fk);
             }
             // A linked computer whose device was revoked stops writing.
-            if linked.is_some() && svc.device_standing(ws, None)? == ligus_runtime::device_enroll::Standing::Revoked {
+            if linked.is_some() && svc.device_standing(ws)? == ligus_runtime::device_enroll::Standing::Revoked {
                 svc.set_write_block(Some("this computer was removed from your devices in this workspace (revoked)".into()));
                 revoked = true;
                 return Ok(());
@@ -602,6 +625,10 @@ impl Inner {
             let config = workspace_config_session_id(ws);
             if svc.load_in(ws, config)?.is_none() && svc.store().join_invite(ws)?.is_some() {
                 return Ok(());
+            }
+            // A link whose acceptance was cut off (rules 3) finishes now.
+            if linked.is_some() {
+                let _ = svc.accept_device_certificate(ws);
             }
             svc.ensure_self_member(config, ws)?;
             if let Some(ka) = &ka {
@@ -887,6 +914,11 @@ impl Backend for RealBackend {
         self.call(|i| i.link_request()).await
     }
 
+    async fn rename_this_device(&self, name: &str) -> Result<String> {
+        let name = name.to_string();
+        self.call(move |i| i.rename_this_device(&name)).await
+    }
+
     async fn link_status(&self) -> Result<LinkStatusView> {
         self.call(|i| i.link_status()).await
     }
@@ -898,6 +930,26 @@ impl Backend for RealBackend {
 
     async fn redeem_link(&self, grant: &str) -> Result<WorkspaceSummary> {
         self.inner.redeem_link(grant.trim()).await
+    }
+
+    async fn link_live(&self, address: &str) -> Result<LiveLinkStart> {
+        self.inner.link_live(address.trim()).await
+    }
+
+    async fn link_live_code(&self, rid: &str, matches: bool) -> Result<()> {
+        self.inner.link_live_code(rid, matches)
+    }
+
+    async fn link_live_person(&self, rid: &str, link: bool) -> Result<Option<WorkspaceSummary>> {
+        self.inner.link_live_person(rid, link).await
+    }
+
+    async fn link_live_cancel(&self, rid: &str) -> Result<()> {
+        self.inner.link_live_cancel(rid)
+    }
+
+    async fn approvals(&self, workspace: &WorkspaceId) -> Result<Vec<ApprovalRequest>> {
+        self.inner.approvals(ws_uuid(workspace)?).await
     }
 
     fn linked_person(&self) -> Option<String> {
@@ -1015,6 +1067,32 @@ impl Backend for RealBackend {
     async fn stop_turn(&self, _workspace: &WorkspaceId, chat: &ChatId) -> Result<usize> {
         let sid = uuid_of(chat.as_str(), "chat")?;
         Ok(self.inner.turn_stops.stop(sid, None))
+    }
+
+    async fn asks(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<Vec<Ask>> {
+        let (ws, sid) = (ws_uuid(workspace)?, uuid_of(chat.as_str(), "chat")?);
+        self.call(move |i| {
+            let s = i.read(ws, |svc| svc.load_in(ws, sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
+            let now = (Timestamp::now().inner().unix_timestamp_nanos() / 1_000_000) as i64;
+            Ok(asks::cards(i, ws, &s, &i.me(), now))
+        })
+        .await
+    }
+
+    async fn answer_ask(&self, workspace: &WorkspaceId, chat: &ChatId, ask: &AskId, reply: AskReply) -> Result<()> {
+        let (ws, sid) = (ws_uuid(workspace)?, uuid_of(chat.as_str(), "chat")?);
+        let aid = uuid_of(ask.as_str(), "question")?;
+        let choice = match reply {
+            AskReply::Option(i) => ligus_runtime::chat_service::AskChoice { option: Some(i), ..Default::default() },
+            AskReply::Text(t) => ligus_runtime::chat_service::AskChoice { text: t, ..Default::default() },
+            AskReply::NotNow => ligus_runtime::chat_service::AskChoice { decline: true, ..Default::default() },
+        };
+        self.call(move |i| {
+            i.write(ws, |svc| svc.answer_ask(sid, ws, aid, choice))?;
+            i.emit(Event::AsksChanged { workspace: WorkspaceId::new(ws.to_string()), chat: ChatId::new(sid.to_string()) });
+            Ok(())
+        })
+        .await
     }
 
     async fn lock_chat(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<()> {
@@ -1649,7 +1727,10 @@ impl Inner {
                 let seen = read.get(&id).copied().unwrap_or(0);
                 let unread = last.is_some_and(|m| views::ms(&m.created_at) > seen && m.actor_identity.as_ref().is_none_or(|a| a.id != me));
                 let view = ligus_runtime::lockdown_view::chat_lockdown(s, s.id, &me);
+                let now = (Timestamp::now().inner().unix_timestamp_nanos() / 1_000_000) as i64;
+                let asks_for_you = s.flow.asks.values().filter(|a| a.is_live(now) && ligus_runtime::ask_view::eligible(s, a, &me)).count();
                 ChatSummary {
+                    asks_for_you,
                     id: ChatId::new(id.clone()),
                     title: s.title.clone(),
                     channel: channels.iter().find(|c| c.id == s.channel_id).map(|c| c.name.clone()),

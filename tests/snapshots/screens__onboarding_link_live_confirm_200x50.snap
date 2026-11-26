@@ -1,0 +1,38 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                                              ┏ Welcome to Ligus ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+                                                                              ┃Ligus is short for ligustica, the Italian honeybee.                   ┃
+                                                                              ┃This terminal is its own Ligus device, with its own keys.             ┃
+                                                       ▄▀▀▄▄   ▄▄▀▀▄          ┃Safety code    4821 0937 5512  (compare it with people you invite)    ┃
+                                                     ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃Once in: : opens every command, ? shows every key.                    ┃
+                                                     ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
+                                                     ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  ( ) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃
+                                                  ▄▀▀▀▄▄▀▀▄▄▀▀▀▄▄▀▀▄▄▀▀▀▄     ┃  (•) Add to my devices   ( ) Look around first (the demo)            ┃
+                                                 ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃                                                                      ┃
+                                                 ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃  Link this computer as “Alex” (verified on the workspace log)?       ┃
+                                                  ▀▀▀▀▀▀▄▄▀▀▀▀▀▀▀▄▄▀▀▀▀▀▀     ┃  In “Northwind API”, it acts as “Alex” from then on.                 ┃
+                                                     ▄▄▀▀▀▀▀▄ ▄▀▀▀▀▀▄▄        ┃                                                                      ┃
+                                                     ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃    [ Yes, link ]   › [ No ]                                          ┃
+                                                     ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
+                                                       ▀▀▀▀▀   ▀▀▀▀▀          ┃                                                                      ┃
+                                                                              ┃                                                                      ┃
+                                                                              ┃y yes · n no · ←→ choose · enter answer · esc end the request         ┃
+                                                                              ┃                                                                      ┃
+                                                                              ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛

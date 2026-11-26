@@ -49,7 +49,16 @@ fn ws(id: &str, role: Role) -> WorkspaceSummary {
 }
 
 fn chat(id: &str) -> ChatSummary {
-    ChatSummary { id: ChatId::new(id), title: id.into(), channel: None, updated_at: NOW, unread: true, mentioned: false, lockdown: None }
+    ChatSummary {
+        id: ChatId::new(id),
+        title: id.into(),
+        channel: None,
+        updated_at: NOW,
+        unread: true,
+        mentioned: false,
+        lockdown: None,
+        asks_for_you: 0,
+    }
 }
 
 fn proposal(id: &str, status: ProposalStatus) -> Proposal {
@@ -99,7 +108,11 @@ fn main_state() -> State {
     let fx = update(&mut s, Msg::Chats(WorkspaceId::new("a"), Ok(vec![chat("c1"), chat("c2")])));
     assert_eq!(
         fx,
-        vec![Effect::LoadTranscript(WorkspaceId::new("a"), ChatId::new("c1")), Effect::MarkRead(WorkspaceId::new("a"), ChatId::new("c1"))]
+        vec![
+            Effect::LoadTranscript(WorkspaceId::new("a"), ChatId::new("c1")),
+            Effect::LoadAsks(WorkspaceId::new("a"), ChatId::new("c1")),
+            Effect::MarkRead(WorkspaceId::new("a"), ChatId::new("c1"))
+        ]
     );
     // The first chat opens with the cursor in its composer; esc leaves it
     // for the list, where the other tests start.
@@ -604,9 +617,9 @@ fn row_menu_lists_actions_destructive_last_and_runs_them() {
     let Some(Overlay::RowMenu { title, items, sel: 0 }) = &s.overlay else { panic!("{:?}", s.overlay) };
     assert_eq!(title, "lin");
     let labels: Vec<&str> = items.iter().map(|i| i.label.as_str()).collect();
-    assert_eq!(labels, vec!["Change role…", "Create an invite", "Admit a box…", "Remove from the workspace…"]);
+    assert_eq!(labels, vec!["Change role…", "Create an invite", "Admit a box…", "Approval requests…", "Remove from the workspace…"]);
     let sections: Vec<MenuSection> = items.iter().map(|i| i.section).collect();
-    assert_eq!(sections, vec![MenuSection::Row, MenuSection::Pane, MenuSection::Pane, MenuSection::Danger]);
+    assert_eq!(sections, vec![MenuSection::Row, MenuSection::Pane, MenuSection::Pane, MenuSection::Pane, MenuSection::Danger]);
     // esc closes it, and so does `.` again.
     key(&mut s, KeyCode::Esc);
     assert!(s.overlay.is_none());
@@ -1745,7 +1758,7 @@ fn add_to_my_devices_checks_the_grant_before_linking() {
     let fx = key(&mut s, KeyCode::Enter);
     assert!(fx.is_empty());
     let Phase::Onboarding(f) = &s.phase else { panic!() };
-    assert_eq!(f.error.as_deref(), Some("Paste the code your desktop shows"));
+    assert_eq!(f.error.as_deref(), Some("Paste the approval address your desktop shows"));
     // A paste is checked at once: straight to who approved it.
     assert_eq!(update(&mut s, Msg::Paste("ligusgrant1:abc".into())), vec![Effect::InspectLink("ligusgrant1:abc".into())]);
     let view = LinkGrantView { person_name: "Alex".into(), workspace_name: "Acme".into(), approver_fingerprint: "2C41".into() };
@@ -1980,6 +1993,236 @@ fn archived_and_hidden_proposals_leave_the_list_and_the_counts() {
     s.proposal_sel.index = 2;
     assert!(key(&mut s, KeyCode::Char('e')).is_empty());
     assert!(s.toasts.last().unwrap().text.contains("only a Contributor or above"));
+}
+
+fn ask(id: &str, effect: Option<AskEffect>, can: Allowed) -> Ask {
+    Ask {
+        id: AskId::new(id),
+        chat: ChatId::new("c1"),
+        turn: None,
+        agent: "coder".into(),
+        kind: if effect.is_some() { AskKind::Permission } else { AskKind::Question },
+        v2: true,
+        question: "Postgres or SQLite?".into(),
+        options: if effect.is_some() { vec!["Allow once".into(), "Deny".into()] } else { vec!["Postgres".into(), "SQLite".into()] },
+        allow_text: effect.is_none(),
+        audience: "you".into(),
+        quorum: 1,
+        tally: vec![0, 0],
+        can_answer: can,
+        effect,
+        origin: None,
+        posted_by: None,
+        status: AskStatus::Open,
+        at: NOW,
+        expires_at: NOW + 600_000,
+    }
+}
+
+fn grant() -> AskEffect {
+    AskEffect {
+        tool: "execute".into(),
+        title: "Run tests".into(),
+        detail: "cargo test".into(),
+        cwd: String::new(),
+        host: "build-box".into(),
+        presence_required: true,
+        standing: false,
+        too_large: false,
+    }
+}
+
+/// Decision cards: the keys answer only with the transcript focused; a
+/// number answers a question at once; a grant needs a then y; a card you
+/// can't answer takes no keys; Not now on an older question only hides it.
+#[test]
+fn ask_cards_keys_and_confirm() {
+    let mut s = main_state();
+    let (w, c) = (WorkspaceId::new("a"), ChatId::new("c1"));
+    update(&mut s, Msg::Asks(w.clone(), c.clone(), Ok(vec![ask("q1", None, Allowed::Yes), ask("g1", Some(grant()), Allowed::Yes)])));
+    // In the chat list, 2 is still the Workflows view.
+    key(&mut s, KeyCode::Char('2'));
+    assert_eq!(s.view, View::Workflows);
+    key(&mut s, KeyCode::Char('1'));
+    key(&mut s, KeyCode::Tab);
+    assert_eq!(s.focus, Focus::Detail);
+    assert_eq!(s.ask_target().map(|a| a.id.as_str()), Some("q1"));
+    let fx = key(&mut s, KeyCode::Char('2'));
+    assert_eq!(fx, vec![Effect::AnswerAsk(w.clone(), c.clone(), AskId::new("q1"), AskReply::Option(1))]);
+    assert_eq!(s.view, View::Chats, "the number answered, it didn't switch views");
+    // A reply opens a one-line field.
+    key(&mut s, KeyCode::Char('r'));
+    typed(&mut s, "keep the dev db");
+    let fx = key(&mut s, KeyCode::Enter);
+    assert_eq!(fx, vec![Effect::AnswerAsk(w.clone(), c.clone(), AskId::new("q1"), AskReply::Text("keep the dev db".into()))]);
+    // The question settles; the grant takes the keys.
+    let mut settled = ask("q1", None, Allowed::Yes);
+    settled.status = AskStatus::Answered { by: "Mara".into(), answer: "SQLite".into(), text: None, at: NOW };
+    update(&mut s, Msg::Asks(w.clone(), c.clone(), Ok(vec![settled, ask("g1", Some(grant()), Allowed::Yes)])));
+    assert_eq!(s.ask_target().map(|a| a.id.as_str()), Some("g1"));
+    assert!(key(&mut s, KeyCode::Char('1')).is_empty(), "a number never allows a call");
+    assert!(key(&mut s, KeyCode::Char('a')).is_empty());
+    assert!(matches!(s.overlay, Some(Overlay::Confirm { action: ConfirmAction::AllowAsk { .. }, .. })));
+    let fx = key(&mut s, KeyCode::Char('y'));
+    assert_eq!(fx, vec![Effect::AnswerAsk(w.clone(), c.clone(), AskId::new("g1"), AskReply::Option(0))]);
+    let fx = key(&mut s, KeyCode::Char('d'));
+    assert_eq!(fx, vec![Effect::AnswerAsk(w.clone(), c.clone(), AskId::new("g1"), AskReply::Option(1))]);
+    // Too large: no Allow at all.
+    let mut big = grant();
+    big.too_large = true;
+    update(&mut s, Msg::Asks(w.clone(), c.clone(), Ok(vec![ask("g2", Some(big), Allowed::Yes)])));
+    assert!(key(&mut s, KeyCode::Char('a')).is_empty());
+    assert!(s.overlay.is_none());
+    // Not eligible: read-only, the keys are the usual ones.
+    update(&mut s, Msg::Asks(w.clone(), c.clone(), Ok(vec![ask("q3", None, Allowed::No("Waiting on Ada".into()))])));
+    assert!(s.ask_target().is_none());
+    key(&mut s, KeyCode::Char('2'));
+    assert_eq!(s.view, View::Workflows);
+    // An older question: Not now hides it here and records nothing.
+    key(&mut s, KeyCode::Char('1'));
+    key(&mut s, KeyCode::Tab);
+    let mut old = ask("q4", None, Allowed::Yes);
+    old.v2 = false;
+    update(&mut s, Msg::Asks(w.clone(), c.clone(), Ok(vec![old])));
+    assert!(key(&mut s, KeyCode::Char('n')).is_empty());
+    assert!(s.ask_target().is_none());
+    // A new card reloads the open chat's cards and the list's counts.
+    let fx = update(&mut s, Msg::Event(Event::AsksChanged { workspace: w.clone(), chat: c.clone() }));
+    assert_eq!(fx, vec![Effect::LoadChats(w.clone()), Effect::LoadAsks(w, c)]);
+}
+
+// ── Add to my devices, live (code match) ────────────────────────────────
+
+const ADDR: &str = "ligusaddr1:eyJ2IjoxfQ";
+
+fn live_view() -> LinkRequestView {
+    LinkRequestView { code: "liguslink1:abc".into(), fingerprint: "7F3A-91C0-77DE-0B14-5E62".into(), label: "lt".into(), new_device: false }
+}
+
+fn code(shown: &str) -> MatchCodeView {
+    MatchCodeView { shown: shown.into(), spelled: String::new(), claimed: "Alex's desktop".into(), expires_at: 1_000_000 + 5 * 60_000 }
+}
+
+/// The first-run form on Add to my devices with the approval address
+/// pasted and sent: live request `r1`, waiting for the desktop.
+fn live_waiting() -> State {
+    let mut s = state();
+    s.now = 1_000_000;
+    s.phase = Phase::Onboarding(WorkspaceForm::linking(true));
+    update(&mut s, Msg::LinkRequested(Ok(live_view())));
+    update(&mut s, Msg::Paste(ADDR.into()));
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::LinkLive(ADDR.into())]);
+    assert_eq!(stage(&s), Some(LiveStage::Sending));
+    update(&mut s, Msg::LiveStarted(Ok(LiveLinkStart::Posted { rid: "r1".into(), request: live_view() })));
+    assert_eq!(stage(&s), Some(LiveStage::Waiting));
+    s
+}
+
+fn stage(s: &State) -> Option<LiveStage> {
+    let Phase::Onboarding(f) = &s.phase else { return None };
+    f.live.as_ref().map(|l| l.stage.clone())
+}
+
+fn live(s: &mut State, update_: LiveLinkUpdate) {
+    update(s, Msg::Event(Event::LiveLink { rid: "r1".into(), update: update_ }));
+}
+
+/// No on the code ends the request at once: the abort goes out, and the
+/// form says nothing was granted. The first code is the one shown; a later
+/// one (a racing desktop) never replaces it.
+#[test]
+fn live_link_no_on_the_code_ends_it() {
+    let mut s = live_waiting();
+    live(&mut s, LiveLinkUpdate::Opened(code("K7Q4 M9X2")));
+    live(&mut s, LiveLinkUpdate::Opened(code("ZZZZ 0000")));
+    let Some(LiveStage::Code { code: c, yes: false }) = stage(&s) else { panic!("{:?}", stage(&s)) };
+    assert_eq!(c.shown, "K7Q4 M9X2", "the first code stays");
+    // Enter on the default answer is No: a stray Enter grants nothing.
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::LinkLiveCode("r1".into(), false)]);
+    let Some(LiveStage::Ended(e)) = stage(&s) else { panic!() };
+    assert_eq!(e, LiveLinkEnd::Mismatch);
+    assert_eq!(e.describe(), "Request didn't match. Nothing was granted.");
+    // Enter starts again with a new request.
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::LinkLive(ADDR.into())]);
+}
+
+/// Yes on the code, then the verified person: No links nothing.
+#[test]
+fn live_link_no_on_the_verified_person_links_nothing() {
+    let mut s = live_waiting();
+    live(&mut s, LiveLinkUpdate::Opened(code("K7Q4 M9X2")));
+    assert_eq!(key(&mut s, KeyCode::Char('y')), vec![Effect::LinkLiveCode("r1".into(), true)]);
+    assert!(matches!(stage(&s), Some(LiveStage::Matched { acknowledged: false, .. })));
+    live(&mut s, LiveLinkUpdate::Acknowledged);
+    assert!(matches!(stage(&s), Some(LiveStage::Matched { acknowledged: true, .. })));
+    live(&mut s, LiveLinkUpdate::Checking);
+    assert_eq!(stage(&s), Some(LiveStage::Checking));
+    live(&mut s, LiveLinkUpdate::Verified { person: "Ben".into(), workspace: "Acme".into() });
+    assert!(matches!(stage(&s), Some(LiveStage::Confirm { ref person, yes: false, busy: false, .. }) if person == "Ben"));
+    assert_eq!(key(&mut s, KeyCode::Char('n')), vec![Effect::LinkLivePerson("r1".into(), false)]);
+    assert_eq!(stage(&s), Some(LiveStage::Ended(LiveLinkEnd::NotLinked { person: "Ben".into() })));
+    assert!(matches!(s.phase, Phase::Onboarding(_)), "nothing linked");
+}
+
+/// Yes, link: linked as the verified person.
+#[test]
+fn live_link_yes_links_as_the_verified_person() {
+    let mut s = live_waiting();
+    live(&mut s, LiveLinkUpdate::Opened(code("K7Q4 M9X2")));
+    key(&mut s, KeyCode::Right);
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::LinkLiveCode("r1".into(), true)]);
+    live(&mut s, LiveLinkUpdate::Verified { person: "Alex".into(), workspace: "Acme".into() });
+    key(&mut s, KeyCode::Left);
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::LinkLivePerson("r1".into(), true)]);
+    assert!(matches!(stage(&s), Some(LiveStage::Confirm { busy: true, .. })));
+    assert!(key(&mut s, KeyCode::Enter).is_empty(), "one answer");
+    let fx = update(&mut s, Msg::LivePerson(Ok(Some(ws("ws-acme", Role::Contributor)))));
+    assert!(matches!(s.phase, Phase::Main));
+    assert!(fx.contains(&Effect::LoadSettings));
+    assert!(s.toasts.iter().any(|t| t.text.contains("Alex")), "{:?}", s.toasts);
+}
+
+/// Another request's events change nothing; Esc ends this one without
+/// quitting; the code drops at zero; a relay without a mailbox falls back
+/// to the paste path.
+#[test]
+fn live_link_stale_events_esc_expiry_and_fallback() {
+    let mut s = live_waiting();
+    update(&mut s, Msg::Event(Event::LiveLink { rid: "other".into(), update: LiveLinkUpdate::Opened(code("ZZZZ 0000")) }));
+    assert_eq!(stage(&s), Some(LiveStage::Waiting));
+    assert_eq!(key(&mut s, KeyCode::Esc), vec![Effect::LinkLiveCancel("r1".into())]);
+    assert_eq!(stage(&s), Some(LiveStage::Ended(LiveLinkEnd::Cancelled)));
+    assert!(!s.quit);
+
+    let mut s = live_waiting();
+    live(&mut s, LiveLinkUpdate::Opened(code("K7Q4 M9X2")));
+    assert!(update(&mut s, Msg::Tick(1_000_000 + 60_000)).is_empty());
+    assert_eq!(update(&mut s, Msg::Tick(1_000_000 + 5 * 60_000 + 1)), vec![Effect::LinkLiveCancel("r1".into())]);
+    assert_eq!(stage(&s), Some(LiveStage::Ended(LiveLinkEnd::Expired)));
+
+    let mut s = state();
+    s.phase = Phase::Onboarding(WorkspaceForm::linking(true));
+    update(&mut s, Msg::LinkRequested(Ok(live_view())));
+    update(&mut s, Msg::Paste(ADDR.into()));
+    key(&mut s, KeyCode::Enter);
+    update(&mut s, Msg::LiveStarted(Ok(LiveLinkStart::NoMailbox { request: live_view() })));
+    let Phase::Onboarding(f) = &s.phase else { panic!() };
+    assert!(f.live.is_none() && f.live_unavailable && f.grant.text.is_empty() && f.error.is_none());
+    // The paste path, as before: straight to who approved it.
+    assert_eq!(update(&mut s, Msg::Paste("ligusgrant1:abc".into())), vec![Effect::InspectLink("ligusgrant1:abc".into())]);
+}
+
+/// While waiting, an older desktop's code pasted in takes the paste path
+/// and ends the live request.
+#[test]
+fn live_link_an_older_desktops_code_ends_the_live_request() {
+    let mut s = live_waiting();
+    assert_eq!(key(&mut s, KeyCode::Char('c')).len(), 1, "c copies the request while waiting");
+    assert_eq!(
+        update(&mut s, Msg::Paste("ligusgrant1:abc".into())),
+        vec![Effect::LinkLiveCancel("r1".into()), Effect::InspectLink("ligusgrant1:abc".into())]
+    );
+    assert_eq!(stage(&s), None);
 }
 
 /// The desktop's code pasted with whatever came with it (whitespace, line
