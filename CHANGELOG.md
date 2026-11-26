@@ -4,6 +4,28 @@ All notable changes to `lt`, the Ligus terminal app (Ligus is short for
 ligustica). Versions follow [semver](https://semver.org); releases are on
 [GitHub](https://github.com/langstroth-ai/ligus-term/releases).
 
+## Unreleased
+
+### Fixed
+
+- This computer's name no longer changes with the network. lt chose it from
+  the Mac's network host name on every launch, so one device showed as
+  "lt on Michaels-Air-3" one day and "lt on Michaels-MacBook-Air-3" the next.
+  It is now chosen once, the first time lt opens its data dir, from the most
+  stable name the OS has (macOS's Sharing name, then its local host name,
+  then the host name; on Linux /etc/hostname), kept in the data dir's
+  `device-label` file and reused on every launch. Only linking sends it as
+  this computer's synced name, and `device-rename` changes it (and is now
+  kept for later launches too). An install from before moves once: it keeps
+  a name you gave it, or takes the stable name and replaces the
+  network-derived one it synced.
+- Set up's agent flow can tell whether the Antigravity CLI is signed in. It
+  runs `agy models` (read-only, no quota) off the UI thread, with its input
+  and output captured, and shows "checking sign-in…" on the harness while it
+  runs; a run waits for the answer, so a signed-in `agy` passes instead of
+  warning "can't tell from here whether it is signed in". The warning stays
+  when the check fails or times out.
+
 ## v0.4.0
 
 lt on the Ligus 0.4.0 crates: linking by comparing a code, identity model v2

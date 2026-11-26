@@ -116,6 +116,9 @@ pub enum Event {
         workspace: WorkspaceId,
     },
     WorkspacesChanged,
+    /// What the setup flows know about this device changed (a harness's
+    /// sign-in check finished): an open setup form asks again.
+    SetupFactsChanged,
     Notification(Notification),
     /// The backend needs a passkey (or the recovery key) to go on.
     PresencePrompt(PresencePrompt),

@@ -238,8 +238,11 @@ pub const COMMANDS: &[Cmd] = &[
         name: "device-rename",
         usage: "device-rename NAME [--json]",
         about: "Name this computer, as every member sees it in My devices and People, in every workspace \
-                it is in. An empty NAME clears it. Your name and picture are changed on your desktop \
-                (Settings > Profile), not here.",
+                it is in, and keep it as its name on later launches. An empty NAME clears the synced \
+                name. Until renamed, lt uses the name it chose the first time it opened its data dir \
+                (\"lt on \" and the Mac's Sharing name, else its local or network host name), kept in \
+                the data dir's device-label file: never re-derived, so it doesn't change with the \
+                network. Your name and picture are changed on your desktop (Settings > Profile), not here.",
         prints: "device-name",
         example: "lt --plain device-rename \"Ana's build box\"",
     },
@@ -1225,6 +1228,10 @@ lt finds what this device could run agents on, the way the desktop app does:
 Detection only runs --version, never sends a prompt, never opens a keychain and
 never reads a key's value. Each row says whether it is ready, or what to run
 (codex login, copilot login, ollama pull).
+Set up's agent flow (u) also checks the Antigravity CLI's Google sign-in with
+`agy models` (read-only, no quota; at most 20 s, its output captured, never
+shown): the harness reads \"checking sign-in…\" until it answers, and the
+answer is reused for five minutes.
 
 In the app: Agents (a), then N: pick a runtime in the popup, enter, name the
 agent, enter. In plain mode:

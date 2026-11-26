@@ -19,10 +19,12 @@
 //! `spawn_blocking`) and returns facts, never a secret.
 
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::path::PathBuf;
+use std::sync::{Arc, Condvar};
+use std::time::{Duration, Instant};
 
 use ligus_core::WorkspaceRole;
-use ligus_runtime::cli_detect::DetectEnv;
+use ligus_runtime::cli_detect::{self, DetectEnv, LoginState};
 use ligus_runtime::mcp::McpServerSpec;
 use ligus_runtime::model_catalog::ModelList;
 use ligus_runtime::setup::validate::{origin, same_origin};
@@ -45,6 +47,84 @@ pub(crate) struct RealOps {
     defined: HashMap<String, String>,
     /// Tool tokens this run saved (by server id).
     tokens_put: std::collections::HashSet<String>,
+    /// A run (not a form) waits for a sign-in check still under way.
+    wait_for_checks: bool,
+}
+
+/// What the Antigravity harness shows while `agy models` runs.
+const CHECKING: &str = crate::setup::CHECKING_SIGN_IN;
+/// How long a sign-in answer is reused before `agy models` runs again.
+const AGY_FRESH: Duration = Duration::from_secs(5 * 60);
+/// The longest a run waits for a check under way (`agy models` itself is
+/// capped at 20 s by `cli_detect`).
+const AGY_WAIT: Duration = Duration::from_secs(25);
+
+/// The Antigravity sign-in check, shared by every form and run on this
+/// device: one `agy models` at a time, on its own thread, its answer kept
+/// for a few minutes. `cli_detect` runs it with stdin from /dev/null and
+/// stdout and stderr captured, so nothing reaches lt's terminal.
+#[derive(Default)]
+pub(crate) struct AgyCheck {
+    state: std::sync::Mutex<AgyState>,
+    done: Condvar,
+}
+
+#[derive(Default)]
+enum AgyState {
+    #[default]
+    Idle,
+    Running,
+    Done {
+        path: Option<PathBuf>,
+        at: Instant,
+        login: LoginState,
+        detail: String,
+    },
+}
+
+impl AgyCheck {
+    /// The answer for the `agy` on `env`'s `PATH`, if one is known: else
+    /// the check starts (or goes on) in the background, `on_done` running
+    /// when it ends. With `wait`, waits for it instead (at most
+    /// [`AGY_WAIT`]).
+    pub(crate) fn result(
+        self: &Arc<Self>,
+        env: &DetectEnv,
+        wait: bool,
+        on_done: impl FnOnce() + Send + 'static,
+    ) -> Option<(LoginState, String)> {
+        let path = cli_detect::find_on_path("agy", &env.path);
+        let mut st = lock(&self.state);
+        let fresh = |st: &AgyState| match st {
+            AgyState::Done { path: p, at, login, detail } if *p == path && at.elapsed() < AGY_FRESH => Some((*login, detail.clone())),
+            _ => None,
+        };
+        if let Some(r) = fresh(&st) {
+            return Some(r);
+        }
+        if !matches!(*st, AgyState::Running) {
+            *st = AgyState::Running;
+            let (me, env, path) = (self.clone(), env.clone(), path.clone());
+            std::thread::spawn(move || {
+                let (login, detail) = cli_detect::detect_cli_agents(&env, true)
+                    .into_iter()
+                    .find(|c| c.id == "antigravity")
+                    .map(|c| (c.login, c.login_detail))
+                    .unwrap_or((LoginState::Unknown, String::new()));
+                *lock(&me.state) = AgyState::Done { path, at: Instant::now(), login, detail };
+                me.done.notify_all();
+                on_done();
+            });
+        }
+        if !wait {
+            return None;
+        }
+        let (st, _) = self.done.wait_timeout_while(st, AGY_WAIT, |s| matches!(s, AgyState::Running)).unwrap_or_else(|e| e.into_inner());
+        match &*st {
+            AgyState::Done { login, detail, .. } => Some((*login, detail.clone())),
+            _ => None,
+        }
+    }
 }
 
 fn failed(e: impl std::fmt::Display) -> OpsError {
@@ -54,7 +134,13 @@ fn failed(e: impl std::fmt::Display) -> OpsError {
 impl RealOps {
     pub(crate) fn new(inner: Arc<Inner>, ws: Option<Uuid>) -> Self {
         let env = inner.cfg.detect_env.clone().unwrap_or_else(detect::process_env);
-        RealOps { inner, ws, env, defined: HashMap::new(), tokens_put: Default::default() }
+        RealOps { inner, ws, env, defined: HashMap::new(), tokens_put: Default::default(), wait_for_checks: false }
+    }
+
+    /// For a run: harness facts wait for a sign-in check under way, so its
+    /// checks say what is known rather than "can't tell".
+    pub(crate) fn for_run(inner: Arc<Inner>, ws: Option<Uuid>) -> Self {
+        RealOps { wait_for_checks: true, ..Self::new(inner, ws) }
     }
 
     fn ws(&self) -> OpsResult<Uuid> {
@@ -114,8 +200,22 @@ impl SetupOps for RealOps {
 
     // agent
     fn harnesses(&self) -> Vec<HarnessFact> {
-        // Never `agy models` (it may prompt): sign-in from files only.
-        service::harnesses(&self.env, false)
+        let mut facts = service::harnesses(&self.env, false);
+        // Antigravity keeps its sign-in in the keychain: `agy models` says
+        // (read-only, no quota), checked off the UI thread ([`AgyCheck`]).
+        if let Some(f) = facts.iter_mut().find(|f| f.id == "antigravity" && f.installed) {
+            let inner = self.inner.clone();
+            let on_done = move || inner.emit(Event::SetupFactsChanged);
+            match self.inner.agy.result(&self.env, self.wait_for_checks, on_done) {
+                Some((login, detail)) => {
+                    f.login = login;
+                    f.login_detail = detail;
+                }
+                None if !self.wait_for_checks => f.login_detail = CHECKING.into(),
+                None => {}
+            }
+        }
+        facts
     }
     fn models(&self, harness: &str, endpoint: &str) -> ModelList {
         // No request to an endpoint the engine would refuse.
@@ -253,7 +353,7 @@ impl SetupOps for RealOps {
     }
     fn bind_folder(&mut self, repo_id: &str, path: &str) -> OpsResult<()> {
         let abs = self.abs(path);
-        let label = self.inner.cfg.device_name.clone();
+        let label = self.inner.label();
         self.write(|svc, ws| service::bind_folder(svc, ws, &label, repo_id, &abs))?;
         // lt applies proposals in one checkout per workspace: this one,
         // when none is set yet.
@@ -266,7 +366,7 @@ impl SetupOps for RealOps {
         Ok(())
     }
     fn create_scratch(&mut self, name: &str) -> OpsResult<(String, String)> {
-        let label = self.inner.cfg.device_name.clone();
+        let label = self.inner.label();
         let root = self.inner.scratch_root();
         let made = self.write(|svc, ws| service::create_scratch(svc, ws, &label, &root, &super::scratch::forbidden(), name))?;
         if let Some(ws) = self.ws {

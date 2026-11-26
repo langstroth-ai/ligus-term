@@ -20,6 +20,7 @@
 mod asks;
 mod deploy;
 pub(crate) mod detect;
+pub mod label;
 mod link;
 mod live_link;
 mod local;
@@ -68,6 +69,8 @@ pub const SIGNING_IDENTIFIER: &str = "ai.ligus.term";
 #[derive(Clone)]
 pub struct RealConfig {
     pub data_dir: PathBuf,
+    /// The name for this computer when its data dir has none yet
+    /// ([`label`]): kept there on first open, and never re-derived after.
     pub device_name: String,
     /// The relay new workspaces sync through (`LT_RELAY_URL`); none keeps
     /// them on this device.
@@ -109,10 +112,9 @@ pub struct RealConfig {
 
 impl RealConfig {
     pub fn new(data_dir: PathBuf) -> Self {
-        let host = ligus_runtime::machine_hostname().unwrap_or_else(|| "this machine".into());
         Self {
             data_dir,
-            device_name: format!("lt on {host}"),
+            device_name: label::choose(),
             relay_url: None,
             sync_every: Duration::from_secs(3),
             opener: Arc::new(presence::SystemOpener),
@@ -168,6 +170,13 @@ pub(crate) struct Inner {
     linking: std::sync::atomic::AtomicUsize,
     /// One [`Inner::follow_disk`] at a time.
     following: Mutex<()>,
+    /// This computer's name, as kept in the data dir ([`label`]).
+    label: RwLock<String>,
+    /// This launch moved an older install onto a kept name: activation
+    /// replaces the network-derived name it may have synced before.
+    relabel: std::sync::atomic::AtomicBool,
+    /// The Antigravity sign-in check the setup forms and runs share.
+    agy: Arc<setup_ops::AgyCheck>,
 }
 
 /// The open device.
@@ -237,6 +246,7 @@ impl RealBackend {
                 .hand_off_on(cfg.presence_port, cfg.no_browser),
         );
         let list = WorkspaceList::load(&cfg.data_dir, secrets.as_ref(), SECRET_SCOPE);
+        let stored_label = label::load(&cfg.data_dir);
         let inner = Arc::new(Inner {
             local: Mutex::new(LocalState::load(&cfg.data_dir)),
             list: Mutex::new(list),
@@ -253,12 +263,21 @@ impl RealBackend {
             live: Mutex::new(None),
             linking: std::sync::atomic::AtomicUsize::new(0),
             following: Mutex::new(()),
+            label: RwLock::new(stored_label.clone().unwrap_or_else(|| cfg.device_name.clone())),
+            relabel: std::sync::atomic::AtomicBool::new(false),
+            agy: Arc::default(),
             cfg,
             tx,
         });
         let identity = inner.identity_store().load().map_err(|e| e.to_string())?;
+        let had_identity = identity.is_some();
         if let Some(stored) = identity {
             inner.open_core(stored).map_err(|e| e.0)?;
+        }
+        if stored_label.is_none() {
+            inner.settle_label(had_identity);
+        }
+        if had_identity {
             let ids: Vec<Uuid> = lock(&inner.list).workspaces.iter().map(|w| w.id()).collect();
             for ws in ids {
                 // Activation writes (it may wait on the write lock or a
@@ -438,7 +457,7 @@ impl Inner {
             return err("tell us your name first");
         }
         let handle: String = name.to_lowercase().chars().map(|c| if c.is_alphanumeric() { c } else { '-' }).collect();
-        let stored = self.identity_store().bootstrap(name, &handle, &self.cfg.device_name).map_err(one_line)?;
+        let stored = self.identity_store().bootstrap(name, &handle, &self.label()).map_err(one_line)?;
         self.open_core(stored)
     }
 
@@ -599,6 +618,47 @@ impl Inner {
         f(&r).map_err(one_line)
     }
 
+    /// This computer's name ([`label`]).
+    pub(crate) fn label(&self) -> String {
+        self.label.read().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// Keep `name` as this computer's name, here and in the data dir.
+    pub(crate) fn keep_label(&self, name: &str) {
+        let name = label::fit(name);
+        if name.is_empty() {
+            return;
+        }
+        *self.label.write().unwrap_or_else(|e| e.into_inner()) = name.clone();
+        // Best effort: unkept, this launch still uses it, and the next one
+        // settles the name again.
+        let _ = label::store(&self.cfg.data_dir, &name);
+    }
+
+    /// Name a data dir that has no kept name yet, once. A new install keeps
+    /// the name it was given. An install from before names were kept
+    /// (`existing`) keeps a name a person gave it (a synced name that isn't
+    /// lt's own "lt on …"); otherwise it takes the stable name and marks
+    /// its old network-derived synced name for replacing.
+    fn settle_label(&self, existing: bool) {
+        let renamed = if existing { self.synced_rename() } else { None };
+        let relabel = existing && renamed.is_none();
+        self.keep_label(&renamed.unwrap_or_else(|| self.cfg.device_name.clone()));
+        self.relabel.store(relabel, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// A name a person gave this computer in any of its workspaces.
+    fn synced_rename(&self) -> Option<String> {
+        let account = self.core().ok()?.author.account_id?;
+        let ids: Vec<Uuid> = lock(&self.list).workspaces.iter().map(|w| w.id()).collect();
+        ids.into_iter().find_map(|ws| {
+            self.read(ws, |svc| Ok(svc.device_label_of(ws, svc.device_id(), account)))
+                .ok()
+                .flatten()
+                .filter(|l| !l.is_empty() && !label::is_auto(l))
+        })
+    }
+
     fn me(&self) -> String {
         self.core().map(|c| c.author.id.clone()).unwrap_or_default()
     }
@@ -612,7 +672,9 @@ impl Inner {
         let Ok(core) = self.core() else { return };
         let ka = self.identity_store().key_agreement(core.identity.device.id).ok();
         let device = core.identity.device.id.to_string();
-        let label = self.cfg.device_name.clone();
+        let label = self.label();
+        let relabel = self.relabel.load(std::sync::atomic::Ordering::Relaxed);
+        let account = core.author.account_id;
         let linked = link::link_state(&self.cfg.data_dir).ok().and_then(|s| s.linked_in(ws).cloned());
         let mut revoked = false;
         let _ = self.write(ws, |svc| {
@@ -636,6 +698,14 @@ impl Inner {
             svc.ensure_self_member(config, ws)?;
             if let Some(ka) = &ka {
                 let _ = svc.publish_key_agreement(ws, ka.public_key_bytes());
+            }
+            // The one-time move to a kept name: replace the network-derived
+            // name an older lt synced (never a name a person gave it).
+            if relabel && let Some(account) = account {
+                let d = svc.device_id();
+                if svc.device_label_of(ws, d, account).is_some_and(|l| label::is_auto(&l) && l != label) {
+                    let _ = svc.set_device_label(ws, d, &label);
+                }
             }
             let _ = svc.ensure_host(ws, ligus_core::WorkspaceHost::new(device, ligus_core::HostKind::Device, label));
             Ok(())
@@ -723,7 +793,7 @@ impl Inner {
             credential_id: b64url(&id),
             alg,
             public_key: pk,
-            label: format!("lt: {}", self.cfg.device_name).chars().take(64).collect(),
+            label: format!("lt: {}", self.label()).chars().take(64).collect(),
             recovery: false,
             registered_at: Timestamp::now(),
         })
@@ -773,7 +843,7 @@ impl Backend for RealBackend {
             })
             .unwrap_or_default();
         DeviceInfo {
-            device_name: self.inner.cfg.device_name.clone(),
+            device_name: self.inner.label(),
             safety_code,
             data_dir: self.inner.cfg.data_dir.display().to_string(),
             secret_store: self.inner.secrets.backend().as_str().to_string(),
@@ -1692,7 +1762,7 @@ impl Backend for RealBackend {
         let crate::setup::LtFlow::Engine(f) = flow else { return Ok(crate::setup::device_run(self.linked_person())) };
         let ws = workspace.map(ws_uuid).transpose()?;
         self.call(move |i| {
-            let mut ops = setup_ops::RealOps::new(i.clone(), ws);
+            let mut ops = setup_ops::RealOps::for_run(i.clone(), ws);
             Ok(crate::setup::run(f, &mut ops, &inputs, secrets, dry_run, &cancel))
         })
         .await
@@ -1708,7 +1778,7 @@ impl Inner {
         let l = lock(&self.local);
         Settings {
             your_name: self.core().map(|c| c.author.display_name.clone()).unwrap_or_default(),
-            device_name: self.cfg.device_name.clone(),
+            device_name: self.label(),
             notify_mentions: l.notify_mentions,
             agents_may_edit: l.agents_may_edit,
             relay_url: self.cfg.relay_url.clone(),
