@@ -844,3 +844,48 @@ async fn the_antigravity_sign_in_is_checked_in_the_background() {
     }
     d.b.shutdown();
 }
+
+/// Set up's agent flow can let an agy agent run local servers on a real
+/// device: the Owner's signed switch is written after the agent exists, a
+/// rerun reads it back as already on, and a run without the flag leaves it.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn set_up_lets_an_agy_agent_run_local_servers() {
+    use ligus_runtime::setup::FlowId;
+    use ligus_term::setup::{CancelFlag, CheckStatus, LtFlow, SetupInputs, SetupSecrets};
+
+    // Without an agent sandbox the run stops before the agent is written.
+    if !ligus_runtime::setup::SandboxFact::here().confined() {
+        return;
+    }
+    let tmp = tempfile::tempdir().unwrap();
+    let relay = serve(ligus_runtime::test_relay::router()).await;
+    let home = tmp.path().join("home");
+    std::fs::create_dir_all(&home).unwrap();
+    let bin = tmp.path().join("bin");
+    stub_agy(&bin, "0", "gemini-3-pro\\tGemini 3 Pro\\n", 0);
+    let env = ligus_runtime::cli_detect::DetectEnv { path: bin.clone().into_os_string(), home: home.clone(), vars: Default::default() };
+    let d = device_with(&tmp.path().join("ana"), "lt Ana", &relay, |c| c.detect_env = Some(env));
+    let ws = d.b.create_workspace("Ana", "Acme Web").await.unwrap().workspace.id;
+    let run = |kv: &'static [(&'static str, &'static str)]| {
+        let inputs: SetupInputs = kv.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+        d.b.setup_run(Some(&ws), LtFlow::Engine(FlowId::Agent), inputs, SetupSecrets::new(), false, CancelFlag::default())
+    };
+    let check =
+        |o: &ligus_term::setup::SetupOutcome| o.checks.iter().find(|c| c.id == "agent.local-servers").map(|c| (c.status, c.detail.clone()));
+
+    let o = run(&[("harness", "antigravity"), ("name", "gem"), ("model", "gemini-3-pro"), ("local-servers", "on")]).await.unwrap();
+    let (status, detail) = check(&o).unwrap_or_else(|| panic!("{:#?}", o.checks));
+    assert_eq!(status, CheckStatus::Ok, "{o:?}");
+    assert_eq!(detail, "@gem may run local servers");
+
+    // Read back from the signed grants: already on, nothing to write.
+    let o = run(&[("harness", "antigravity"), ("name", "gem"), ("model", "gemini-3-pro"), ("local-servers", "on")]).await.unwrap();
+    assert_eq!(check(&o).map(|c| c.1).as_deref(), Some("@gem may already run local servers"), "{o:?}");
+
+    // A run without the flag neither checks nor turns it off.
+    let o = run(&[("harness", "antigravity"), ("name", "gem"), ("model", "gemini-3-pro")]).await.unwrap();
+    assert!(check(&o).is_none(), "{o:?}");
+    let o = run(&[("harness", "antigravity"), ("name", "gem"), ("model", "gemini-3-pro"), ("local-servers", "on")]).await.unwrap();
+    assert_eq!(check(&o).map(|c| c.1).as_deref(), Some("@gem may already run local servers"), "{o:?}");
+    d.b.shutdown();
+}
