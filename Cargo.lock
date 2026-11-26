@@ -1703,8 +1703,8 @@ dependencies = [
 
 [[package]]
 name = "ligus-core"
-version = "0.4.0"
-source = "git+https://github.com/langstroth-ai/ligus?rev=2726ae41f92532928ca763dd530948a181eced8f#2726ae41f92532928ca763dd530948a181eced8f"
+version = "0.4.1"
+source = "git+https://github.com/langstroth-ai/ligus?tag=v0.4.1#5312f9715f0c5bd828708bda9e32c9349f86d1b0"
 dependencies = [
  "argon2",
  "base64",
@@ -1729,8 +1729,8 @@ dependencies = [
 
 [[package]]
 name = "ligus-forge"
-version = "0.4.0"
-source = "git+https://github.com/langstroth-ai/ligus?rev=2726ae41f92532928ca763dd530948a181eced8f#2726ae41f92532928ca763dd530948a181eced8f"
+version = "0.4.1"
+source = "git+https://github.com/langstroth-ai/ligus?tag=v0.4.1#5312f9715f0c5bd828708bda9e32c9349f86d1b0"
 dependencies = [
  "async-trait",
  "http",
@@ -1753,8 +1753,8 @@ dependencies = [
 
 [[package]]
 name = "ligus-proto"
-version = "0.4.0"
-source = "git+https://github.com/langstroth-ai/ligus?rev=2726ae41f92532928ca763dd530948a181eced8f#2726ae41f92532928ca763dd530948a181eced8f"
+version = "0.4.1"
+source = "git+https://github.com/langstroth-ai/ligus?tag=v0.4.1#5312f9715f0c5bd828708bda9e32c9349f86d1b0"
 dependencies = [
  "serde",
  "ts-rs",
@@ -1762,8 +1762,8 @@ dependencies = [
 
 [[package]]
 name = "ligus-runtime"
-version = "0.4.0"
-source = "git+https://github.com/langstroth-ai/ligus?rev=2726ae41f92532928ca763dd530948a181eced8f#2726ae41f92532928ca763dd530948a181eced8f"
+version = "0.4.1"
+source = "git+https://github.com/langstroth-ai/ligus?tag=v0.4.1#5312f9715f0c5bd828708bda9e32c9349f86d1b0"
 dependencies = [
  "aho-corasick",
  "anyhow",
