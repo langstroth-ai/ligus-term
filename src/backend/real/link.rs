@@ -65,30 +65,35 @@ pub(crate) fn mismatch(owner: &str) -> String {
     )
 }
 
-/// A refusal of the role gate (`role Viewer cannot perform messageAppended`),
-/// in words: what was refused, why, and the fix. A device that signs as
-/// someone who isn't a member (removed, or an install still signing as its
-/// old member) is told to link this computer again; a role too low, which
-/// role it needs. Anything else passes through.
+/// A refusal of the role gate, in words: what was refused, why, and the fix.
+/// The Ligus crates already explain it (`ligus_runtime::role_refusal`); lt
+/// adds what only it knows: a device certified for someone this install
+/// doesn't act as (its link record missing or someone else's) is told to
+/// re-link, and the fix names lt's own palette entry. A raw gate refusal
+/// (`role Viewer cannot perform messageAppended`) from a path that didn't
+/// explain it is worded the same way. Anything else passes through.
 pub(crate) fn explain(svc: &ligus_runtime::ChatService, ws: Uuid, e: BackendError) -> BackendError {
     let s = &e.0;
-    let Some(rest) = s.strip_prefix("role ") else { return e };
-    let Some((_, kind)) = rest.split_once(" cannot perform ") else { return e };
-    let action = match kind.trim() {
-        "messageAppended" => "posting a message".to_string(),
-        "sessionCreated" => "starting a chat".to_string(),
-        "proposalVoteCast" => "voting".to_string(),
-        other => format!("this change ({other})"),
-    };
+    let raw = ligus_runtime::role_refusal::is_role_refusal(s);
+    let not_member = s.starts_with("Refused: this device signs as ");
+    let low_role = s.starts_with("Refused: your role here is ");
+    if !raw && !not_member && !low_role {
+        return e;
+    }
+    let action = s
+        .split_once(" cannot perform ")
+        .map(|(_, kind)| ligus_runtime::role_refusal::action_phrase(kind.trim()))
+        .unwrap_or_else(|| "this change".to_string());
     let me = svc.author().clone();
     let config = svc.load_in(ws, ligus_core::workspace_config_session_id(ws)).ok().flatten();
     let member = config.as_ref().and_then(|c| c.members.iter().find(|m| m.id == me.id).cloned());
     // Only the wording: a device certified for someone this install doesn't
-    // act as (its link record missing or someone else's) is told to re-link.
-    // Never a block: anyone can publish a certificate for a public key.
-    let owner = match svc.device_standing(ws, Some(&me.id)) {
-        Ok(ligus_runtime::device_enroll::Standing::OwnerDevice(o)) if o.account_id != me.account_id => Some(o),
-        _ => None,
+    // act as is told to re-link. Never a block: anyone can publish a
+    // certificate for a public key, and such a certificate changes nothing.
+    let owner = match svc.device_standing_and_foreign(ws) {
+        Ok((ligus_runtime::device_enroll::Standing::OwnerDevice(o), _)) if o.account_id != me.account_id => Some(o),
+        Ok((_, foreign)) => foreign.into_iter().find(|o| o.account_id.is_some() && o.account_id != me.account_id),
+        Err(_) => None,
     };
     match (member, owner) {
         (None, Some(owner)) => BackendError(mismatch(&owner.display_name)),
@@ -99,6 +104,8 @@ pub(crate) fn explain(svc: &ligus_runtime::ChatService, ws: Uuid, e: BackendErro
              approve it on your desktop under Settings > Profile > My devices > Add a computer, then paste the code back",
             shown(&me.display_name)
         )),
+        // The crates' wording names the role it needs; keep it.
+        (Some(_), _) if low_role => e,
         (Some(m), _) => BackendError(format!(
             "Refused: your role here is {:?}, and {action} needs a higher one. Fix: ask an Owner or Admin to change your role (People)",
             m.role
