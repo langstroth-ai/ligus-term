@@ -235,6 +235,15 @@ pub const COMMANDS: &[Cmd] = &[
         example: "lt --plain link-redeem --approver-fingerprint 2C41-88E0-1B9D-04AF-6E73",
     },
     Cmd {
+        name: "device-rename",
+        usage: "device-rename NAME [--json]",
+        about: "Name this computer, as every member sees it in My devices and People, in every workspace \
+                it is in. An empty NAME clears it. Your name and picture are changed on your desktop \
+                (Settings > Profile), not here.",
+        prints: "device-name",
+        example: "lt --plain device-rename \"Ana's build box\"",
+    },
+    Cmd {
         name: "link-status",
         usage: "link-status [--json]",
         about: "Whether this computer is linked to your devices, or a link is waiting for your desktop's \
@@ -614,6 +623,7 @@ pub const RECORDS: &[(&str, &[&[&str]])] = &[
     ("link-ended", &[&["rid", "why", "next"]]),
     ("approval", &[&["n", "kind", "label", "age", "checking"]]),
     ("link-status", &[&["state", "person", "started", "expires", "text"]]),
+    ("device-name", &[&["name"]]),
     ("workspace", &[&["n", "id", "name", "role", "sync"]]),
     ("using", &[&["id", "name"]]),
     ("invite-check", &[&["trust", "workspace", "founder", "safety_code", "relay", "note"]]),
@@ -1340,7 +1350,9 @@ pub fn topic(name: &str, flags: &[(String, Option<String>, String)]) -> Option<S
         }
         "devices" | "link" | "add-to-my-devices" => {
             let mut s = DEVICES.to_string();
-            for n in ["link-to", "match", "link-as", "link-cancel", "link-request", "link-redeem", "link-status", "approvals"] {
+            for n in
+                ["link-to", "match", "link-as", "link-cancel", "link-request", "link-redeem", "link-status", "device-rename", "approvals"]
+            {
                 if let Some(c) = COMMANDS.iter().find(|c| c.name == n) {
                     s.push('\n');
                     s.push_str(&command_text(c));

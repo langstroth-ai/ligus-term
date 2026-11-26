@@ -201,6 +201,10 @@ pub trait Backend: Send + Sync {
     /// Where linking stands: linked, or a request waiting for the
     /// desktop's code (expired requests are dropped as it reads them).
     async fn link_status(&self) -> Result<LinkStatusView>;
+    /// Name this computer, as every member sees it, in every workspace it
+    /// acts in (identity model v2, 6): its synced device name. Empty clears
+    /// it. Returns the name as shown.
+    async fn rename_this_device(&self, name: &str) -> Result<String>;
     /// The person confirmed they wrote the recovery words down.
     async fn confirm_recovery_saved(&self, workspace: &WorkspaceId) -> Result<()>;
 

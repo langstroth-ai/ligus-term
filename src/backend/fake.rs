@@ -106,6 +106,8 @@ struct World {
     dead: usize,
     /// Link requests made and not redeemed: (when the first was made, how many).
     link_pending: Option<(Millis, usize)>,
+    /// This demo device's synced name (device-rename).
+    device_label: Option<String>,
 }
 
 impl World {
@@ -184,6 +186,7 @@ impl FakeBackend {
             live: None,
             dead: 0,
             link_pending: None,
+            device_label: None,
         };
         Self { world: Arc::new(Mutex::new(world)), tx, cfg }
     }
@@ -1577,6 +1580,12 @@ impl Backend for FakeBackend {
     async fn link_status(&self) -> Result<LinkStatusView> {
         let w = self.lock();
         Ok(LinkStatusView { linked_to: w.linked.clone(), pending: fake_pending(w.link_pending) })
+    }
+
+    async fn rename_this_device(&self, name: &str) -> Result<String> {
+        let shown = ligus_runtime::display::shown(name.trim());
+        self.lock().device_label = Some(shown.clone());
+        Ok(shown)
     }
 
     async fn confirm_recovery_saved(&self, workspace: &WorkspaceId) -> Result<()> {

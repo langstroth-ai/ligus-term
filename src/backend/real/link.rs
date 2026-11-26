@@ -50,8 +50,8 @@ pub(crate) const STALE: &str = "this lt is out of date: another lt on this data 
 pub(crate) const LINKING: &str = "this computer is being linked to your devices: try again in a moment";
 
 /// What a write says in a workspace a linked install wasn't linked into.
-pub(crate) const NOT_LINKED_HERE: &str = "this computer is linked to someone's devices in another workspace, not this one: \
-     add it to this workspace from the desktop (My devices > Add a computer), or use another LT_DATA_DIR";
+pub(crate) const NOT_LINKED_HERE: &str = "read-only here: this computer is one of your devices in another workspace, not this one. \
+     Link it here: palette > Link this computer to my devices, then approve it on your desktop (My devices > Add a computer)";
 
 /// What a refused write says when the workspace certifies this device for
 /// `owner` but this install doesn't act as them.
@@ -152,6 +152,30 @@ impl Inner {
 
     /// Where linking stands. Requests past [`LinkState::PENDING_TTL_MS`]
     /// (no grant for them can still open) are dropped and the file saved.
+    /// Name this computer in every workspace it is in (as itself, or as
+    /// the person where it is linked): a synced `DeviceLabelSet`.
+    pub(crate) fn rename_this_device(&self, name: &str) -> Result<String> {
+        let shown = ligus_runtime::display::shown(name.trim());
+        let workspaces: Vec<Uuid> = lock(&self.list).workspaces.iter().map(|w| w.id()).collect();
+        let mut first_err = None;
+        let mut done = 0;
+        for ws in workspaces {
+            match self.write(ws, |svc| {
+                let d = svc.device_id();
+                svc.set_device_label(ws, d, &shown)
+            }) {
+                Ok(_) => done += 1,
+                Err(e) => {
+                    first_err.get_or_insert(e);
+                }
+            }
+        }
+        match (done, first_err) {
+            (0, Some(e)) => Err(e),
+            _ => Ok(shown),
+        }
+    }
+
     pub(crate) fn link_status(&self) -> Result<LinkStatusView> {
         let mut state = link_state(&self.cfg.data_dir)?;
         let now = now_ms();
@@ -388,6 +412,31 @@ impl Inner {
         if let Err(e) = self.record_link(person, ws) {
             self.rollback_link(p);
             return Err(e);
+        }
+        // Identity model v2: accept the desktop's certificate (rules 3 counts
+        // it only then), name this computer, and retire the member this
+        // install was here before, when that is safe.
+        let ids = self.identity_store();
+        let label = self.cfg.device_name.clone();
+        let old_kp = ids.account_keypair(p.old.account.id).ok();
+        let (old_account, old_member) = (p.old.account.id, p.old.actor().id);
+        let retire_note = self
+            .write(ws, move |svc| {
+                svc.accept_device_certificate(ws)?;
+                let d = svc.device_id();
+                let _ = svc.set_device_label(ws, d, &label);
+                Ok(match &old_kp {
+                    Some(kp) => svc.retire_previous_member(ws, kp, old_account, &old_member)?,
+                    None => None,
+                })
+            })
+            .ok()
+            .flatten();
+        if let Some(why) = retire_note {
+            self.emit(crate::backend::Event::Sync {
+                workspace: crate::backend::WorkspaceId::new(ws.to_string()),
+                status: format!("your earlier member here stays until an Admin removes it ({why})"),
+            });
         }
         let me = self.clone();
         tokio::task::spawn_blocking(move || me.activate(ws)).await.map_err(one_line)?;

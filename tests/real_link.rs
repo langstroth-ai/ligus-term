@@ -544,9 +544,12 @@ async fn an_open_lt_follows_a_link_redeemed_by_another_lt() {
     plain.b.shutdown();
     drop(plain);
 
-    let zaz = a.b.members(&ws).await.unwrap().into_iter().find(|m| m.name == "zaz").unwrap();
-    a.b.remove_member(&ws, &zaz.id).await.unwrap();
-    until("lt to see zaz removed", || async { (!tui.b.members(&ws).await.unwrap().iter().any(|m| m.name == "zaz")).then_some(()) }).await;
+    // The redeem retired zaz into Ana (rules 3, identity model v2 8.3);
+    // where it couldn't (an older workspace), the desktop removes it.
+    if let Some(zaz) = a.b.members(&ws).await.unwrap().into_iter().find(|m| m.name == "zaz") {
+        let _ = a.b.remove_member(&ws, &zaz.id).await;
+    }
+    until("lt to see zaz gone", || async { (!tui.b.members(&ws).await.unwrap().iter().any(|m| m.name == "zaz")).then_some(()) }).await;
 
     // The open lt posts as Ana now.
     tui.b.send_message(&ws, &desk_chat.id, "from the open lt").await.unwrap();
@@ -584,9 +587,10 @@ async fn a_broken_link_says_so_and_linking_again_heals_it() {
     let req = lt.b.link_request().await.unwrap();
     let grant = approve(&a, wsu, &req.code, &conn).await;
     redeem(&lt, &grant).await;
-    let zaz = a.b.members(&ws).await.unwrap().into_iter().find(|m| m.name == "zaz").unwrap();
-    a.b.remove_member(&ws, &zaz.id).await.unwrap();
-    until("lt to see zaz removed", || async { (!lt.b.members(&ws).await.unwrap().iter().any(|m| m.name == "zaz")).then_some(()) }).await;
+    if let Some(zaz) = a.b.members(&ws).await.unwrap().into_iter().find(|m| m.name == "zaz") {
+        let _ = a.b.remove_member(&ws, &zaz.id).await;
+    }
+    until("lt to see zaz gone", || async { (!lt.b.members(&ws).await.unwrap().iter().any(|m| m.name == "zaz")).then_some(()) }).await;
     lt.b.shutdown();
     drop(lt);
 
@@ -596,7 +600,13 @@ async fn a_broken_link_says_so_and_linking_again_heals_it() {
     let lt = device(&lt_dir, "lt", &relay);
     lt.b.startup().await.unwrap();
     let e = lt.b.send_message(&ws, &chat.id, "as nobody").await.unwrap_err();
-    assert!(e.0.contains("one of Ana's devices") && e.0.contains("re-link this computer"), "{e}");
+    // Either lt's words or the runtime's own (ligus 0.3.1 explains a role
+    // refusal itself): who it signs as, and how to link it again.
+    assert!(
+        (e.0.contains("one of Ana's devices") && e.0.contains("re-link this computer"))
+            || (e.0.contains("signs as zaz") && e.0.contains("link it again")),
+        "{e}"
+    );
 
     // Linking again heals it: a new request, approved on the desktop.
     let req = lt.b.link_request().await.unwrap();
@@ -634,7 +644,11 @@ async fn a_removed_member_is_told_why_and_what_to_do() {
     a.b.remove_member(&ws, &zaz.id).await.unwrap();
     until("lt to see itself removed", || async { (!lt.b.members(&ws).await.unwrap().iter().any(|m| m.name == "zaz")).then_some(()) }).await;
     let e = lt.b.send_message(&ws, &chat.id, "still here?").await.unwrap_err();
-    assert!(e.0.contains("zaz, who isn't a member of this workspace any more") && e.0.contains("re-link this computer"), "{e}");
+    assert!(
+        (e.0.contains("zaz, who isn't a member of this workspace any more") && e.0.contains("re-link this computer"))
+            || (e.0.contains("zaz, who isn't a member of this workspace") && e.0.contains("link it again")),
+        "{e}"
+    );
     assert!(!e.0.contains("cannot perform"), "{e}");
 }
 

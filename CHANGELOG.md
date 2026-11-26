@@ -25,11 +25,19 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   the requests waiting in the workspace's approval mailbox, with their
   kind, label, age and who is checking each, read only ("Approve on your
   desktop or phone").
+- **Identity model v2.** Linking accepts the desktop's certificate (rules 3
+  counts it only then), names this computer with its device name and
+  retires the member this install was before when that is safe; an
+  acceptance cut off finishes on the next start. `lt --plain device-rename
+  NAME` names this computer as every member sees it. `lt` signs only where
+  the workspace log says this computer is the person: a removed person, a
+  revoked device, or a workspace it wasn't linked into is read-only, with
+  the reason and how to link it there.
 
 ### Changed
 
 - The Ligus crates are pinned to a commit of the ligus repo's main branch
-  (code-match approval) until its 0.4.0 release tag.
+  (code-match approval and identity model v2) until its 0.4.0 release tag.
 
 ## v0.3.1
 
