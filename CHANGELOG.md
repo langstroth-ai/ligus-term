@@ -46,7 +46,8 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 ### Changed
 
 - The Ligus crates are pinned to a commit of the ligus repo's main branch
-  (code-match approval, identity model v2 and agents' questions) until its 0.4.0 release tag.
+  (code-match approval, identity model v2 and agents' questions) until its
+  0.4.0 release tag.
 
 ## v0.3.1
 
