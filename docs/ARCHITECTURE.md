@@ -210,6 +210,10 @@ ligus-runtime = { version = "0.1.0", git = "https://github.com/langstroth-ai/lig
 
 - **Tags only.** lt depends on a released ligus tag; a newer ligus release
   moves the pin to its tag. Never depend on a branch.
+  While code-match approval (Ligus 0.4) is unreleased, the pin is an exact
+  commit (`rev = ...`) of the ligus repo's `feat/codematch-protocol`
+  branch, never the branch itself; it moves to the `v0.4.0` tag once that
+  is cut.
 - **Features.** `ligus-runtime` is built without its `p2p` feature (no iroh)
   for now; the dev-dependency adds `test-relay` for the tests.
 - **`version = "0.1.0"`** sits next to `git` so cargo-deny doesn't count

@@ -21,6 +21,7 @@ mod asks;
 mod deploy;
 pub(crate) mod detect;
 mod link;
+mod live_link;
 mod local;
 mod mcp;
 mod setup_ops;
@@ -159,6 +160,13 @@ pub(crate) struct Inner {
     ligus: Mutex<HashMap<Uuid, Arc<ligus_runtime::ligus_mcp::LigusMcp>>>,
     /// The turns running on this device, each with its own stop signal.
     turn_stops: Arc<ligus_runtime::turn_engine::TurnStops>,
+    /// The live link request in flight (Add to my devices, code match).
+    live: Mutex<Option<live_link::LiveHandle>>,
+    /// A link is being redeemed here: the data dir's identity is in flux,
+    /// so [`Inner::follow_disk`] leaves it alone.
+    linking: std::sync::atomic::AtomicUsize,
+    /// One [`Inner::follow_disk`] at a time.
+    following: Mutex<()>,
 }
 
 /// The open device.
@@ -167,6 +175,11 @@ pub(crate) struct Core {
     /// Who this device authors as: its own identity, or, linked as a
     /// person's device ("Add to my devices"), that person.
     author: ligus_core::ActorIdentity,
+    /// Linked: the account of the person this device acts for.
+    person: Option<Uuid>,
+    /// Replaced by [`Inner::follow_disk`]: whoever still holds it signs
+    /// nothing more with it.
+    retired: std::sync::atomic::AtomicBool,
     svc: Arc<Mutex<ChatService>>,
     reader: Mutex<ChatService>,
     /// The write service's change feed, kept here so nothing has to lock the
@@ -234,6 +247,9 @@ impl RealBackend {
             drivers: Mutex::new(HashMap::new()),
             ligus: Mutex::new(HashMap::new()),
             turn_stops: ligus_runtime::turn_engine::TurnStops::new(),
+            live: Mutex::new(None),
+            linking: std::sync::atomic::AtomicUsize::new(0),
+            following: Mutex::new(()),
             cfg,
             tx,
         });
@@ -323,7 +339,12 @@ impl RealBackend {
 
     async fn call<T: Send + 'static>(&self, f: impl FnOnce(&Arc<Inner>) -> Result<T> + Send + 'static) -> Result<T> {
         let inner = self.inner.clone();
-        tokio::task::spawn_blocking(move || f(&inner)).await.map_err(one_line)?
+        tokio::task::spawn_blocking(move || {
+            inner.follow_disk();
+            f(&inner)
+        })
+        .await
+        .map_err(one_line)?
     }
 }
 
@@ -362,7 +383,25 @@ impl Inner {
         svc.set_presence_provider(Some(Arc::new(Provider(self.presence.clone()))));
         let mut reader = self.service_for(&stored)?;
         // Linked as a person's device: act as them, without their account key.
-        let author = match link::link_state(&self.cfg.data_dir)?.person {
+        let state = link::link_state(&self.cfg.data_dir)?;
+        let person = state.person.as_ref().and_then(|p| p.account_id);
+        // The person as the workspace's roster has them now (their name,
+        // avatar), not as the grant named them on the day it was redeemed:
+        // the profile is theirs, edited on their desktop.
+        let linked = state.person.clone().map(|p| {
+            state
+                .workspaces
+                .iter()
+                .find_map(|ws| {
+                    reader.set_trusted_founder(self.founder(*ws));
+                    let config = reader.load_in(*ws, workspace_config_session_id(*ws)).ok().flatten()?;
+                    let m =
+                        config.members.into_iter().find(|m| m.id == p.id && m.actor.id == p.id && m.actor.account_id == p.account_id)?;
+                    Some(ligus_runtime::computer_link::device_local_cleared(&m.actor))
+                })
+                .unwrap_or(p)
+        });
+        let author = match linked {
             Some(person) => {
                 svc.act_as_owner_device(person.clone());
                 reader.act_as_owner_device(person);
@@ -371,8 +410,15 @@ impl Inner {
             None => stored.actor(),
         };
         let feed = svc.change_feed();
-        let core =
-            Arc::new(Core { identity: stored, author, svc: Arc::new(Mutex::new(svc)), reader: Mutex::new(reader), feed: feed.clone() });
+        let core = Arc::new(Core {
+            identity: stored,
+            author,
+            person,
+            retired: std::sync::atomic::AtomicBool::new(false),
+            svc: Arc::new(Mutex::new(svc)),
+            reader: Mutex::new(reader),
+            feed: feed.clone(),
+        });
         *self.core.write().unwrap_or_else(|e| e.into_inner()) = Some(core.clone());
         watch::prime(self, &core);
         watch::spawn_translator(self.clone(), feed.subscribe());
@@ -409,12 +455,136 @@ impl Inner {
         let _ = lock(&self.local).save(&self.cfg.data_dir);
     }
 
-    /// Run `f` on the write service, pinned to `ws`'s founder.
+    /// Run `f` on the write service, pinned to `ws`'s founder. Refused
+    /// while the open identity isn't the data dir's (another lt linked it
+    /// since): nothing is signed with keys the data dir has left behind.
     pub(crate) fn write<T>(&self, ws: Uuid, f: impl FnOnce(&mut ChatService) -> std::result::Result<T, ChatError>) -> Result<T> {
         let core = self.core()?;
+        self.may_sign(&core, ws)?;
         let mut svc = lock(&core.svc);
         svc.set_trusted_founder(self.founder(ws));
-        f(&mut svc).map_err(one_line)
+        f(&mut svc).map_err(|e| link::explain(&svc, ws, one_line(e)))
+    }
+
+    /// Whether `core` may sign in `ws`: refused while it isn't the data
+    /// dir's identity (another lt linked it since), and, linked, anywhere it
+    /// wasn't linked into (its own account there is a phantom). Every write
+    /// path checks it: [`Inner::write`], setup, the MCP host, apply.
+    pub(crate) fn may_sign(&self, core: &Core, ws: Uuid) -> Result<()> {
+        if core.retired.load(std::sync::atomic::Ordering::SeqCst) || self.stale(core) {
+            return err(link::STALE);
+        }
+        // While a link is redeemed here, the device key switches before the
+        // link is recorded: a write in between (an activation or heartbeat
+        // still in flight) would sign with the new key as this install's own
+        // member and certify it for the wrong account. Nothing but the
+        // linked identity signs until the redeem is done.
+        if self.is_linking() && core.person.is_none() {
+            return err(link::LINKING);
+        }
+        if core.person.is_some() {
+            let Ok(state) = link::link_state(&self.cfg.data_dir) else { return err(link::STALE) };
+            if state.linked_in(ws).is_none() {
+                return err(link::NOT_LINKED_HERE);
+            }
+            // Identity model v2 (7.2): which person this computer is here
+            // comes from the log, the link record only a cache. A pending
+            // certificate (not accepted yet) may still sign: accepting it is
+            // a write.
+            use ligus_runtime::device_binding::Binding;
+            let binding = {
+                let mut reader = lock(&core.reader);
+                reader.set_trusted_founder(self.founder(ws));
+                reader.binding(ws, &state, core.identity.account.id)
+            };
+            match binding {
+                Ok(Binding::Linked { .. } | Binding::Pending { .. }) | Err(_) => {}
+                Ok(Binding::NotLinkedHere) => return err(link::NOT_LINKED_HERE),
+                Ok(other) => return Err(BackendError(other.why_read_only().unwrap_or_default())),
+            }
+        }
+        Ok(())
+    }
+
+    /// What the data dir says this install is now: its device, and the
+    /// person it acts for if it is linked. `Err` when the link record is
+    /// unreadable (it may name a person).
+    fn disk_identity(&self) -> std::result::Result<Option<(Uuid, Option<Uuid>)>, ()> {
+        let Ok(Some(stored)) = self.identity_store().load() else { return Ok(None) };
+        let person = link::link_state(&self.cfg.data_dir).map_err(|_| ())?.person.and_then(|p| p.account_id);
+        Ok(Some((stored.device.id, person)))
+    }
+
+    fn is_linking(&self) -> bool {
+        self.linking.load(std::sync::atomic::Ordering::SeqCst) > 0
+    }
+
+    /// Whether `core` signs as an identity the data dir no longer holds (or
+    /// can't say: an unreadable link record fails closed).
+    fn stale(&self, core: &Core) -> bool {
+        !self.is_linking()
+            && match self.disk_identity() {
+                Ok(d) => d.is_some_and(|d| d != (core.identity.device.id, core.person)),
+                Err(()) => true,
+            }
+    }
+
+    /// Whether the data dir holds a link this open identity doesn't follow
+    /// yet. Only a recorded link counts: another lt's redeem switches the
+    /// device key before it records the link (and switches back if the
+    /// redeem fails), and opening that half-way device as this install's own
+    /// member would certify it for the wrong account.
+    fn link_to_follow(&self, core: &Core) -> bool {
+        !self.is_linking()
+            && self
+                .disk_identity()
+                .ok()
+                .flatten()
+                .is_some_and(|(device, person)| person.is_some() && (device, person) != (core.identity.device.id, core.person))
+    }
+
+    /// Follow the data dir when another lt on it (`lt --plain link-redeem`
+    /// while this one is open) switched its identity: reopen as what it holds
+    /// now (the new device key, acting as the person), reload the workspace
+    /// list, and restart the loops, so this process stops signing as its old
+    /// member. A no-op when nothing changed.
+    pub(crate) fn follow_disk(self: &Arc<Self>) {
+        let Ok(core) = self.core() else { return };
+        if !self.link_to_follow(&core) {
+            return;
+        }
+        let _one = lock(&self.following);
+        let Ok(core) = self.core() else { return };
+        if !self.link_to_follow(&core) {
+            return;
+        }
+        let Ok(Some(stored)) = self.identity_store().load() else { return };
+        for (_, stop) in lock(&self.loops).drain() {
+            let _ = stop.send(true);
+        }
+        // Whatever still holds the old service (a turn running, an MCP
+        // tool) signs nothing more with it. Never waited on here: a write
+        // holding it may be waiting on a passkey.
+        core.retired.store(true, std::sync::atomic::Ordering::SeqCst);
+        {
+            let old = core.clone();
+            std::thread::spawn(move || lock(&old.svc).set_write_block(Some(link::STALE.into())));
+        }
+        // The list first: the new core reads its founders and rosters.
+        *lock(&self.list) = WorkspaceList::load(&self.cfg.data_dir, self.secrets.as_ref(), SECRET_SCOPE);
+        *self.core.write().unwrap_or_else(|e| e.into_inner()) = None;
+        if let Err(e) = self.open_core(stored) {
+            for w in lock(&self.list).workspaces.iter() {
+                self.emit(Event::Sync { workspace: WorkspaceId::new(w.id().to_string()), status: format!("{}: {}", link::STALE, e.0) });
+            }
+            return;
+        }
+        let ids: Vec<Uuid> = lock(&self.list).workspaces.iter().map(|w| w.id()).collect();
+        for ws in ids {
+            self.activate(ws);
+            self.start_loops(ws);
+        }
+        self.emit(Event::WorkspacesChanged);
     }
 
     /// Run `f` on the read service, pinned to `ws`'s founder. Never waits on a
@@ -447,7 +617,7 @@ impl Inner {
                 let _ = svc.store().set_workspace_pin(ws, f, fk);
             }
             // A linked computer whose device was revoked stops writing.
-            if linked.is_some() && svc.device_standing(ws, None)? == ligus_runtime::device_enroll::Standing::Revoked {
+            if linked.is_some() && svc.device_standing(ws)? == ligus_runtime::device_enroll::Standing::Revoked {
                 svc.set_write_block(Some("this computer was removed from your devices in this workspace (revoked)".into()));
                 revoked = true;
                 return Ok(());
@@ -455,6 +625,10 @@ impl Inner {
             let config = workspace_config_session_id(ws);
             if svc.load_in(ws, config)?.is_none() && svc.store().join_invite(ws)?.is_some() {
                 return Ok(());
+            }
+            // A link whose acceptance was cut off (rules 3) finishes now.
+            if linked.is_some() {
+                let _ = svc.accept_device_certificate(ws);
             }
             svc.ensure_self_member(config, ws)?;
             if let Some(ka) = &ka {
@@ -740,6 +914,15 @@ impl Backend for RealBackend {
         self.call(|i| i.link_request()).await
     }
 
+    async fn rename_this_device(&self, name: &str) -> Result<String> {
+        let name = name.to_string();
+        self.call(move |i| i.rename_this_device(&name)).await
+    }
+
+    async fn link_status(&self) -> Result<LinkStatusView> {
+        self.call(|i| i.link_status()).await
+    }
+
     async fn inspect_link_grant(&self, grant: &str) -> Result<LinkGrantView> {
         let grant = grant.trim().to_string();
         self.call(move |i| i.inspect_link_grant(&grant)).await
@@ -747,6 +930,26 @@ impl Backend for RealBackend {
 
     async fn redeem_link(&self, grant: &str) -> Result<WorkspaceSummary> {
         self.inner.redeem_link(grant.trim()).await
+    }
+
+    async fn link_live(&self, address: &str) -> Result<LiveLinkStart> {
+        self.inner.link_live(address.trim()).await
+    }
+
+    async fn link_live_code(&self, rid: &str, matches: bool) -> Result<()> {
+        self.inner.link_live_code(rid, matches)
+    }
+
+    async fn link_live_person(&self, rid: &str, link: bool) -> Result<Option<WorkspaceSummary>> {
+        self.inner.link_live_person(rid, link).await
+    }
+
+    async fn link_live_cancel(&self, rid: &str) -> Result<()> {
+        self.inner.link_live_cancel(rid)
+    }
+
+    async fn approvals(&self, workspace: &WorkspaceId) -> Result<Vec<ApprovalRequest>> {
+        self.inner.approvals(ws_uuid(workspace)?).await
     }
 
     fn linked_person(&self) -> Option<String> {
@@ -1454,7 +1657,13 @@ impl Inner {
             notify_mentions: l.notify_mentions,
             agents_may_edit: l.agents_may_edit,
             relay_url: self.cfg.relay_url.clone(),
-            linked_to: self.linked_person().map(|p| ligus_runtime::display::shown(&p.display_name)),
+            // The person as the open core acts for them (their roster name),
+            // falling back to the link record's.
+            linked_to: match self.core() {
+                Ok(c) if c.person.is_some() => Some(ligus_runtime::display::shown(&c.author.display_name)),
+                _ => self.linked_person().map(|p| ligus_runtime::display::shown(&p.display_name)),
+            },
+            link_pending: self.link_status().ok().and_then(|v| v.pending),
         }
     }
 

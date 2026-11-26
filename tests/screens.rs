@@ -122,8 +122,8 @@ async fn onboarding_add_to_my_devices() {
     assert!(screen.contains("7F3A-91C0-77DE-0B14-5E62") && screen.contains("Add a computer"), "{screen}");
     assert!(!screen.contains("Your name"), "the person's name comes from the desktop: {screen}");
     snap(&h, "onboarding_link_request", "First run: Add to my devices (the request for your desktop)");
-    h.send(Msg::Paste("ligusgrant1:demo-grant-from-the-desktop".into())).await;
-    h.key(KeyCode::Enter).await;
+    // A paste goes straight to who approved it.
+    h.send(Msg::Paste("ligusgrant1:demo-grant-from-the-desktop\n".into())).await;
     let screen = h.screen(W, H);
     assert!(screen.contains("Approved by Alex's desktop") && screen.contains("2C41-88E0-1B9D-04AF-6E73"), "{screen}");
     snap(&h, "onboarding_link_confirm", "Add to my devices: who approved it, confirmed before linking");
@@ -131,6 +131,101 @@ async fn onboarding_add_to_my_devices() {
     let screen = h.screen(W, H);
     assert!(screen.contains("one of Alex's devices"), "{screen}");
     snap(&h, "onboarding_link_done", "Add to my devices: this computer is now one of Alex's devices");
+}
+
+/// Add to my devices, live: the desktop's approval address pasted, then
+/// waiting for the desktop (the request still shown for an older one), the
+/// code to compare with Yes, they match / No, the desktop's passkey, the
+/// check on the workspace log, and the verified person to confirm (check 6).
+/// The desktop's side is driven by hand (the demo desktop never answers on
+/// its own here), so each screen is caught as it is.
+#[tokio::test]
+async fn onboarding_add_to_my_devices_live() {
+    use ligus_term::app::state::{FormMode, Phase};
+    use ligus_term::backend::fake::{DEMO_ADDRESS, DEMO_NOW, FakeConfig};
+    let slow = FakeConfig { browser_delay: std::time::Duration::from_secs(3600), ..Harness::cfg() };
+    let mut h = Harness::with(FakeBackend::new(slow)).await;
+    h.key(KeyCode::Tab).await;
+    h.key(KeyCode::Char('a')).await;
+    h.key(KeyCode::Tab).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Copy its approval address") && screen.contains("Older desktop?"), "{screen}");
+    h.send(Msg::Paste(DEMO_ADDRESS.into())).await;
+    h.key(KeyCode::Enter).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Waiting for your desktop") && screen.contains("7F3A-91C0-77DE-0B14-5E62"), "{screen}");
+    snap(
+        &h,
+        "onboarding_link_live_waiting",
+        "Add to my devices, live: waiting for your desktop (the request still there for an older one)",
+    );
+    let rid = match &h.state.phase {
+        Phase::Onboarding(f) if f.mode == FormMode::Link => f.live.as_ref().and_then(|l| l.rid.clone()).unwrap(),
+        p => panic!("{p:?}"),
+    };
+    let ev = |update| Msg::Event(Event::LiveLink { rid: rid.clone(), update });
+    let code = MatchCodeView {
+        shown: "K7Q4 M9X2".into(),
+        spelled: "K, 7, Q, 4. M, 9, X, 2.".into(),
+        claimed: "Alex's desktop".into(),
+        expires_at: DEMO_NOW + 5 * 60_000,
+    };
+    h.send(ev(LiveLinkUpdate::Opened(code))).await;
+    let screen = h.screen(W, H);
+    assert!(
+        screen.contains("K7Q4 M9X2")
+            && screen.contains("Check your desktop shows the same code.")
+            && screen.contains("Says it's “Alex's desktop”")
+            && screen.contains("Yes, they match"),
+        "{screen}"
+    );
+    snap(&h, "onboarding_link_live_code", "Add to my devices, live: the code to compare, Yes, they match / No");
+    h.key(KeyCode::Char('y')).await;
+    h.send(ev(LiveLinkUpdate::Acknowledged)).await;
+    assert!(h.screen(W, H).contains("Waiting for your desktop's passkey"), "{}", h.screen(W, H));
+    h.send(ev(LiveLinkUpdate::Checking)).await;
+    assert!(h.screen(W, H).contains("Checking the approval on the workspace log"));
+    h.send(ev(LiveLinkUpdate::Verified { person: "Alex".into(), workspace: "Northwind API".into() })).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Link this computer as “Alex” (verified on the workspace log)?") && screen.contains("Yes, link"), "{screen}");
+    snap(&h, "onboarding_link_live_confirm", "Add to my devices, live: link as the person the workspace log verified?");
+}
+
+/// No on the code: nothing granted, said in words, and how to start again.
+#[tokio::test]
+async fn onboarding_add_to_my_devices_live_mismatch() {
+    use ligus_term::backend::fake::DEMO_ADDRESS;
+    let mut h = Harness::new(false).await;
+    h.key(KeyCode::Tab).await;
+    h.key(KeyCode::Char('a')).await;
+    h.key(KeyCode::Tab).await;
+    h.send(Msg::Paste(DEMO_ADDRESS.into())).await;
+    h.key(KeyCode::Enter).await;
+    // The demo desktop opens it at once here.
+    assert!(h.screen(W, H).contains("K7Q4 M9X2"), "{}", h.screen(W, H));
+    h.key(KeyCode::Char('n')).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Request didn't match. Nothing was granted.") && screen.contains("enter start again"), "{screen}");
+    snap(&h, "onboarding_link_live_mismatch", "Add to my devices, live: the codes didn't match, nothing was granted");
+}
+
+/// The approval requests waiting in the workspace, read only.
+#[tokio::test]
+async fn approval_requests_read_only() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char(':')).await;
+    h.chars("approval requests").await;
+    h.key(KeyCode::Enter).await;
+    let screen = h.screen(W, H);
+    assert!(
+        screen.contains("Approve on your desktop or phone.")
+            && screen.contains("A box asks to join: “build-2”")
+            && screen.contains("Opened by a device that can't approve this.")
+            && screen.contains("“Ada's desktop” is checking it"),
+        "{screen}"
+    );
+    assert!(!screen.contains("K7Q4"), "no code for a request lt isn't party to: {screen}");
+    snap(&h, "approvals", "Approval requests waiting in the workspace (read only)");
 }
 
 /// The palette's Link this computer to my devices, on an install in use.
@@ -581,6 +676,21 @@ async fn notifications() {
     let mut h = demo().await;
     h.key(KeyCode::Char('n')).await;
     snap(&h, "notifications", "Notifications");
+}
+
+/// A link started and not finished: one line in Settings.
+#[tokio::test]
+async fn settings_link_waiting() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char('s')).await;
+    let mut st = h.state.settings.clone().unwrap();
+    let at = 1_795_615_350_000;
+    st.link_pending = Some(LinkPending { started_ms: at, approve_by_ms: at + 15 * 60_000, expires_ms: at + 45 * 60_000, count: 1 });
+    h.state.now = at + 60_000;
+    h.send(Msg::Settings(Ok(st))).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Linking waiting for your desktop's code (started 14:02; expires 14:17)"), "{screen}");
+    snap(&h, "settings_link_waiting", "Settings: a link waiting for the desktop's code");
 }
 
 #[tokio::test]

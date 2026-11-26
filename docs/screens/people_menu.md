@@ -14,17 +14,17 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                                                                                                            ┃
 ┃                                                                                                            ┃
 ┃                        ┏ Lin ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                        ┃
-┃                        ┃› r  Change role…                                         ┃                        ┃
+┃                        ┃› r        Change role…                                   ┃                        ┃
 ┃                        ┃──────────────────────────────────────────────────────────┃                        ┃
-┃                        ┃  I  Create an invite                                     ┃                        ┃
-┃                        ┃  B  Admit a box…                                         ┃                        ┃
-┃                        ┃  D  Link to my devices…                                  ┃                        ┃
+┃                        ┃  I        Create an invite                               ┃                        ┃
+┃                        ┃  B        Admit a box…                                   ┃                        ┃
+┃                        ┃  unbound  Approval requests…                             ┃                        ┃
+┃                        ┃  D        Link to my devices…                            ┃                        ┃
 ┃                        ┃──────────────────────────────────────────────────────────┃                        ┃
-┃                        ┃  X  Remove from the workspace…                           ┃                        ┃
+┃                        ┃  X        Remove from the workspace…                     ┃                        ┃
 ┃                        ┃                                                          ┃                        ┃
 ┃                        ┃enter choose · or its key · esc close                     ┃                        ┃
 ┃                        ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                        ┃
-┃                                                                                                            ┃
 ┃                                                                                                            ┃
 ┃                                                                                                            ┃
 ┃                                                                                                            ┃

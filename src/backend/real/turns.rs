@@ -428,7 +428,11 @@ pub async fn run_turn(inner: &Arc<Inner>, plan: &Plan) -> Result<(Uuid, String)>
     let host = TermHost {
         inner: inner.clone(),
         ws,
-        svc: inner.core()?.svc.clone(),
+        svc: {
+            let core = inner.core()?;
+            inner.may_sign(&core, ws)?;
+            core.svc.clone()
+        },
         founder: inner.founder(ws),
         ligus: ligus_server(inner, ws),
         checkout,
@@ -566,6 +570,9 @@ impl LigusHost for TermLigusHost {
     fn with_service(&self, f: &mut dyn FnMut(&mut ChatService)) {
         let Some(inner) = self.inner.upgrade() else { return };
         let Ok(core) = inner.core() else { return };
+        if inner.may_sign(&core, self.ws).is_err() {
+            return;
+        }
         let mut svc = core.svc.lock().unwrap_or_else(|e| e.into_inner());
         svc.set_trusted_founder(inner.founder(self.ws));
         f(&mut svc);

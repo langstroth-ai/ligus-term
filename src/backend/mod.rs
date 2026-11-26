@@ -138,6 +138,11 @@ pub enum Event {
         url: String,
         port: u16,
     },
+    /// A live link request moved on (`rid` names it; a stale one is ignored).
+    LiveLink {
+        rid: String,
+        update: LiveLinkUpdate,
+    },
     /// Sync status, shown in the status bar.
     Sync {
         workspace: WorkspaceId,
@@ -179,8 +184,32 @@ pub trait Backend: Send + Sync {
     /// pull, check the desktop's certificate for this computer, and act as
     /// that person from then on.
     async fn redeem_link(&self, grant: &str) -> Result<WorkspaceSummary>;
+    /// Code-match approval: post this computer's link request to the
+    /// approval address its desktop shows (`ligusaddr1:`, My devices > Add a
+    /// computer). Progress arrives as [`Event::LiveLink`]. A relay without
+    /// an approval mailbox is [`LiveLinkStart::NoMailbox`] (paste instead).
+    async fn link_live(&self, address: &str) -> Result<LiveLinkStart>;
+    /// The person's answer to "Check your desktop shows the same code.":
+    /// Yes acknowledges the desktop's offer (once it comes); No ends the
+    /// request (nothing is granted).
+    async fn link_live_code(&self, rid: &str, matches: bool) -> Result<()>;
+    /// Link as the person the workspace log verified (`true`), or link
+    /// nothing (`false`, `None`).
+    async fn link_live_person(&self, rid: &str, link: bool) -> Result<Option<WorkspaceSummary>>;
+    /// End a live request from this computer (nothing is granted).
+    async fn link_live_cancel(&self, rid: &str) -> Result<()>;
+    /// The live approval requests in the workspace's approval mailbox, read
+    /// only: they are approved on a desktop or a phone.
+    async fn approvals(&self, workspace: &WorkspaceId) -> Result<Vec<ApprovalRequest>>;
     /// The person this computer is a device of, once linked.
     fn linked_person(&self) -> Option<String>;
+    /// Where linking stands: linked, or a request waiting for the
+    /// desktop's code (expired requests are dropped as it reads them).
+    async fn link_status(&self) -> Result<LinkStatusView>;
+    /// Name this computer, as every member sees it, in every workspace it
+    /// acts in (identity model v2, 6): its synced device name. Empty clears
+    /// it. Returns the name as shown.
+    async fn rename_this_device(&self, name: &str) -> Result<String>;
     /// The person confirmed they wrote the recovery words down.
     async fn confirm_recovery_saved(&self, workspace: &WorkspaceId) -> Result<()>;
 

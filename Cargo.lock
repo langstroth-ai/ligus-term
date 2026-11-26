@@ -1703,8 +1703,8 @@ dependencies = [
 
 [[package]]
 name = "ligus-core"
-version = "0.3.0"
-source = "git+https://github.com/langstroth-ai/ligus?rev=d382ff902f2f27d396e55ed16ffc6ee0ce421feb#d382ff902f2f27d396e55ed16ffc6ee0ce421feb"
+version = "0.3.1"
+source = "git+https://github.com/langstroth-ai/ligus?rev=dcfdec540bb78e6a3d5ddad45bdd99db73347394#dcfdec540bb78e6a3d5ddad45bdd99db73347394"
 dependencies = [
  "argon2",
  "base64",
@@ -1729,8 +1729,8 @@ dependencies = [
 
 [[package]]
 name = "ligus-forge"
-version = "0.3.0"
-source = "git+https://github.com/langstroth-ai/ligus?rev=d382ff902f2f27d396e55ed16ffc6ee0ce421feb#d382ff902f2f27d396e55ed16ffc6ee0ce421feb"
+version = "0.3.1"
+source = "git+https://github.com/langstroth-ai/ligus?rev=dcfdec540bb78e6a3d5ddad45bdd99db73347394#dcfdec540bb78e6a3d5ddad45bdd99db73347394"
 dependencies = [
  "async-trait",
  "http",
@@ -1753,8 +1753,8 @@ dependencies = [
 
 [[package]]
 name = "ligus-proto"
-version = "0.3.0"
-source = "git+https://github.com/langstroth-ai/ligus?rev=d382ff902f2f27d396e55ed16ffc6ee0ce421feb#d382ff902f2f27d396e55ed16ffc6ee0ce421feb"
+version = "0.3.1"
+source = "git+https://github.com/langstroth-ai/ligus?rev=dcfdec540bb78e6a3d5ddad45bdd99db73347394#dcfdec540bb78e6a3d5ddad45bdd99db73347394"
 dependencies = [
  "serde",
  "ts-rs",
@@ -1762,8 +1762,8 @@ dependencies = [
 
 [[package]]
 name = "ligus-runtime"
-version = "0.3.0"
-source = "git+https://github.com/langstroth-ai/ligus?rev=d382ff902f2f27d396e55ed16ffc6ee0ce421feb#d382ff902f2f27d396e55ed16ffc6ee0ce421feb"
+version = "0.3.1"
+source = "git+https://github.com/langstroth-ai/ligus?rev=dcfdec540bb78e6a3d5ddad45bdd99db73347394#dcfdec540bb78e6a3d5ddad45bdd99db73347394"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -1780,6 +1780,7 @@ dependencies = [
  "ligus-core",
  "ligus-forge",
  "ligus-proto",
+ "p256 0.14.0",
  "regex",
  "reqwest",
  "rsa 0.10.0",
@@ -1803,7 +1804,7 @@ dependencies = [
 
 [[package]]
 name = "ligus-term"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "async-trait",

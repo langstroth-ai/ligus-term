@@ -615,6 +615,8 @@ pub struct Settings {
     /// The person this install is a device of ("Add to my devices"); none
     /// while it is its own member.
     pub linked_to: Option<String>,
+    /// A link request this install made and hasn't redeemed yet.
+    pub link_pending: Option<LinkPending>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -653,6 +655,39 @@ pub struct LinkRequestView {
     pub new_device: bool,
 }
 
+/// A link this install started and hasn't finished: the newest pending
+/// request (all times Unix ms). Expired ones are dropped when it is read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LinkPending {
+    pub started_ms: i64,
+    /// The desktop may approve it until then.
+    pub approve_by_ms: i64,
+    /// A code the desktop showed for it works until then.
+    pub expires_ms: i64,
+    /// Requests waiting (each `link-request` makes one).
+    pub count: usize,
+}
+
+impl LinkPending {
+    /// The one line Settings, the start notice and `link-status` show;
+    /// `hh_mm` writes a time as the person's clock shows it.
+    pub fn line(&self, now_ms: i64, hh_mm: impl Fn(i64) -> String) -> String {
+        if now_ms < self.approve_by_ms {
+            format!("Linking waiting for your desktop's code (started {}; expires {})", hh_mm(self.started_ms), hh_mm(self.approve_by_ms))
+        } else {
+            format!("Linking waiting: the code your desktop showed works until {}", hh_mm(self.expires_ms))
+        }
+    }
+}
+
+/// Where linking stands on this install (`lt link-status`).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct LinkStatusView {
+    /// The person this install is a device of, once linked.
+    pub linked_to: Option<String>,
+    pub pending: Option<LinkPending>,
+}
+
 /// Who a desktop's grant says approved this computer, read before anything
 /// is saved: the person confirms it is them and their desktop.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -663,6 +698,177 @@ pub struct LinkGrantView {
     /// This desktop).
     pub approver_fingerprint: String,
 }
+
+/// How a live link request (code-match approval through the workspace's
+/// approval address) started.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LiveLinkStart {
+    /// Posted: the desktop sees it in My devices. `request` is the link
+    /// request it carries, which is also the paste text for an older desktop.
+    Posted { rid: String, request: LinkRequestView },
+    /// The relay has no approval mailbox: paste the request instead (the
+    /// fingerprint compare, as before).
+    NoMailbox { request: LinkRequestView },
+}
+
+/// Said when 3 live requests ended without an approval in 15 minutes (the
+/// requester stops there).
+pub const TOO_MANY_DEAD: &str = "3 requests ended without an approval in the last 15 minutes, so lt stops here. Check the computer \
+                                 you're adding, start again on a trusted network in a while, and tell an Admin if it keeps happening";
+
+/// The 8-symbol code both screens show (`K7Q4 M9X2`). Not a secret.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MatchCodeView {
+    /// `K7Q4 M9X2`.
+    pub shown: String,
+    /// What a screen reader reads (`K, 7, Q, 4. M, 9, X, 2.`).
+    pub spelled: String,
+    /// Who the desktop says it is, unverified until the approval is on the
+    /// workspace log ("Alex's desktop").
+    pub claimed: String,
+    /// When the code stops being valid (5 minutes after the desktop opened
+    /// the request).
+    pub expires_at: Millis,
+}
+
+/// Why a live link request ended without a link. Each is said in words;
+/// nothing was granted in any of them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LiveLinkEnd {
+    /// The person said the codes don't match (this side posted the abort).
+    Mismatch,
+    /// The desktop said the codes don't match, or ended it (unverified).
+    EndedByDesktop,
+    /// The desktop declined it.
+    Declined,
+    /// The code (5 minutes) or the request (15 minutes) ran out.
+    Expired,
+    /// The grant or the approval on the log was refused: why.
+    Refused(String),
+    /// The person said No to the verified person (check 6): nothing linked.
+    NotLinked { person: String },
+    /// Cancelled from this computer.
+    Cancelled,
+}
+
+impl LiveLinkEnd {
+    /// The one line the screen and plain mode show.
+    pub fn describe(&self) -> String {
+        match self {
+            Self::Mismatch => "Request didn't match. Nothing was granted.".into(),
+            Self::EndedByDesktop => "Your desktop ended the request. Nothing was granted.".into(),
+            Self::Declined => "Your desktop declined the request. Nothing was granted.".into(),
+            Self::Expired => "The request ran out of time. Nothing was granted.".into(),
+            Self::Refused(why) => format!("Not linked: {why}. Nothing was granted."),
+            Self::NotLinked { person } => {
+                format!("Nothing was linked. The approval came from “{person}”: if that isn't you, tell an Admin.")
+            }
+            Self::Cancelled => "Request cancelled. Nothing was granted.".into(),
+        }
+    }
+
+    /// What to do next.
+    pub fn next(&self) -> &'static str {
+        match self {
+            Self::Mismatch | Self::EndedByDesktop => {
+                "Someone may have tried to intercept it. Check the computer you're adding, start again on a trusted network, and tell an Admin if it happens twice."
+            }
+            _ => "Start again: a new request gets a new code.",
+        }
+    }
+}
+
+/// Progress of a live link request ([`crate::backend::Event::LiveLink`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LiveLinkUpdate {
+    /// The desktop opened it: compare the code.
+    Opened(MatchCodeView),
+    /// The person said the codes match and the desktop's offer was
+    /// acknowledged: the desktop asks for its passkey now.
+    Acknowledged,
+    /// The approval arrived: checking it on the workspace log (up to 2
+    /// minutes while it syncs).
+    Checking,
+    /// The approval is on the workspace log, by this person: link as them?
+    Verified {
+        person: String,
+        workspace: String,
+    },
+    Ended(LiveLinkEnd),
+}
+
+/// What kind of device an approval request is from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ApprovalKind {
+    Box,
+    Computer,
+    Phone,
+}
+
+impl ApprovalKind {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Box => "box",
+            Self::Computer => "computer",
+            Self::Phone => "phone",
+        }
+    }
+
+    /// What a request of this kind asks, verb first, before its quoted
+    /// label (the kind word comes from the request's kind, never from its
+    /// label).
+    pub fn asks(self) -> &'static str {
+        match self {
+            Self::Box => "A box asks to join",
+            Self::Computer => "A computer asks to be your device",
+            Self::Phone => "A phone asks to be your device",
+        }
+    }
+}
+
+impl ApprovalRequest {
+    /// `A box asks to join: “build-1”`.
+    pub fn statement(&self) -> String {
+        format!("{}: “{}”", self.kind.asks(), self.label)
+    }
+
+    /// Who is checking it, the name quoted (`“Ben's desktop” is checking
+    /// it`), `waiting`, or the contested warning.
+    pub fn checking_line(&self) -> String {
+        if self.contested {
+            return CONTESTED.to_string();
+        }
+        if self.mine {
+            return "this device is checking it".into();
+        }
+        match &self.checking {
+            Some(n) => format!("“{n}” is checking it"),
+            None => "waiting".into(),
+        }
+    }
+}
+
+/// A live approval request in the workspace's mailbox, read only: lt can't
+/// approve one, and shows no code (the exchange is sealed to its requester
+/// and its approver).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ApprovalRequest {
+    pub kind: ApprovalKind,
+    /// The device's own label (`build-1`, `lt on mbp`).
+    pub label: String,
+    /// When it was posted.
+    pub at: Millis,
+    /// Who says they are checking it ("Ben's desktop"), as its claim says.
+    pub checking: Option<String>,
+    /// This device claimed it.
+    pub mine: bool,
+    /// Opened or claimed by a device that can't approve this kind (or
+    /// opened with no claim): it may be an attempt to intercept it.
+    pub contested: bool,
+}
+
+/// What a contested approval request says (design note 6.4).
+pub const CONTESTED: &str = "Opened by a device that can't approve this. It may be an attempt to intercept it.";
 
 /// What an invite says about who sent it, checked before joining.
 #[derive(Debug, Clone, PartialEq, Eq)]

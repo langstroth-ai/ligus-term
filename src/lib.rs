@@ -14,6 +14,8 @@ pub mod config;
 pub mod doctor;
 pub mod help;
 pub mod keymap;
+pub mod link_cli;
+pub mod link_code;
 pub mod paths;
 pub mod plain;
 pub mod setup;

@@ -16,9 +16,59 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   and a call too large to review offers only Deny. Cards you can't answer
   say who they wait on; settled ones are one line; a chat with a card
   waiting on you shows "needs you". Plain mode's `asks` lists them
-  (read-only). Built against the ligus 0.4 agent-questions branch; re-pinned
-  to the ligus v0.4.0 tag at release.
+  (read-only).
+- **Add to my devices with a code match.** Paste the approval address your
+  desktop shows (My devices > Add a computer > Copy, `ligusaddr1:`) and the
+  request reaches the desktop by itself. Both screens show the same
+  8-symbol code; `lt` frames it with "Check your desktop shows the same
+  code." and **Yes, they match** / **No**. This replaces the second paste
+  and the approving desktop's fingerprint. `lt` acknowledges the desktop's
+  offer only after Yes, checks the approval on the workspace log (retrying
+  for up to 2 minutes while it syncs), then asks **Link this computer as
+  Ana (verified on the workspace log)?**. No at either step grants or links
+  nothing, said in words. The request and its fingerprint stay on the
+  screen for an older desktop, and a relay without an approval mailbox
+  falls back to them. Plain mode: `link-to ADDRESS`, `match yes|no`,
+  `link-as yes|no`, `link-cancel`.
+- **Approval requests** (palette, People's row menu, plain `approvals`):
+  the requests waiting in the workspace's approval mailbox, with their
+  kind, label, age and who is checking each, read only ("Approve on your
+  desktop or phone").
+- **Identity model v2.** Linking accepts the desktop's certificate (rules 3
+  counts it only then), names this computer with its device name and
+  retires the member this install was before when that is safe; an
+  acceptance cut off finishes on the next start. `lt --plain device-rename
+  NAME` names this computer as every member sees it. `lt` signs only where
+  the workspace log says this computer is the person: a removed person, a
+  revoked device, or a workspace it wasn't linked into is read-only, with
+  the reason and how to link it there.
 
+### Changed
+
+- The Ligus crates are pinned to a commit of the ligus repo's main branch
+  (code-match approval, identity model v2 and agents' questions) until its 0.4.0 release tag.
+
+## v0.3.1
+
+### Added
+
+- Linking from a shell without retyping: `lt --plain link-request` prints
+  only the request on stdout (so `| pbcopy` copies exactly the code); the
+  fingerprint and the next steps go to stderr. `--copy` copies it, `--json`
+  prints `{code, fingerprint, label, expiresAt, newDevice}`.
+- `lt --plain link-redeem` with no code, at a terminal, asks for a paste it
+  doesn't echo or, on a bare Enter, reads the clipboard (`pbpaste`,
+  `wl-paste`, `xclip`, `xsel`, `Get-Clipboard`); `-` reads stdin. It shows
+  who approved the code and asks "Is that your desktop?", so
+  `--approver-fingerprint` is needed only without a terminal (else exit 4).
+  The code never needs to be on the command line.
+- The link form's Desktop's code field takes a paste with whatever came
+  with it (spaces, line breaks, a whole copied command) and goes straight to
+  who approved it.
+- A link started and not finished says so: "Linking waiting for your
+  desktop's code (started HH:MM; expires HH:MM)" in Settings, once when `lt`
+  starts, and from `lt --plain link-status`. Requests no code can answer any
+  more are dropped on their own.
 - Link to my devices is easy to find: while this terminal is its own member,
   Settings says so on one line, and so does People when another member there
   looks like you (the same name, or a shorter one: "zaz" and "zazulam"). `D`
@@ -31,11 +81,39 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   lines, to select it with the mouse. On the link form `ctrl-y` copies while
   you paste the desktop's code. Settings' row menu copies your safety code.
 
+### Fixed
+
+- A linked computer kept posting as its old member when the link was
+  redeemed by another `lt` on the same data dir (`lt --plain link-redeem`
+  while `lt` was open): once the desktop removed that member, sending failed
+  with "role Viewer cannot perform messageAppended". An open `lt` now follows
+  a link recorded on disk (the new device key, acting as the person) and
+  never signs with the identity the data dir left behind.
+- A linked `lt` signs only in the workspaces it was linked into, on every
+  write path (posts, agent turns, MCP tools, apply, setup). A refusal where
+  the workspace certifies this device for the person but `lt` isn't acting
+  as them (a missing `computer-link.json`) says so and how to fix it
+  (re-link this computer).
+- A linked `lt` shows the person as the workspace's roster has them now, not
+  the name the grant carried on the day it was redeemed.
+- What this install wrote as its own member and hadn't pushed is pushed
+  before it switches to the person's device.
+- "role X cannot perform Y" reads as what was refused, why, and the fix.
+
+### Dependencies
+
+- Built on the Ligus 0.3.1 crates (`ligus-core` and `ligus-runtime` at tag
+  v0.3.1, previously 0.3.0), a security release: "Allow" on an agent's
+  permission request always means once; only the device running an agent's
+  turn can ask for a permission, and only the asker closes a question; a
+  device acts only for the account it chose; and model API keys are never
+  stored in the workspace. Refusals of the role gate now read the same in
+  lt and the other Ligus apps.
+
 ### Changed
 
 - The key hints always end with `: commands  ? help`, and the first run
   says that `:` opens every command.
-
 - `lt --demo`: the demo's always-on host is called `build-box`.
 - `scripts/capture-screenshots.sh` captures every view and the guided
   setup flows in light and dark for the README, langstroth.ai and the docs.

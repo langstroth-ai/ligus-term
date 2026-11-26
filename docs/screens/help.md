@@ -4,7 +4,7 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
-┏ Chats ━━━━━━━━━┏ Help · 1-40 of 118 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
+┏ Chats ━━━━━━━━━┏ Help · 1-40 of 119 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓────────────────╮
 ┃  ◆ Fix flaky ch┃Each chat is a room with people and agents. @ mentions an agent or a      ┃                │
 ┃  ◆ Migrate auth┃person; enter on a chat opens it and puts you in the composer.            ┃it reading the  │
 ┃  Weekly release┃                                                                          ┃                │
@@ -42,9 +42,9 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 ┃                ┃  +                        Create or join a workspace                     ┃                │
 ┃                ┃  u                        Set up: an agent, a tool, a folder, a box, a ph┃                │
 ┃                ┃  unbound                  Link this computer to my devices               ┃────────────────╯
-┃                ┃  c, 1                     Chats                                          ┃
-┃                ┃  f, 2                     Workflows and runs                             ┃────────────────╮
-┃                ┃  p, 3                     Proposals                                      ┃                │
+┃                ┃  unbound                  Approval requests waiting in this workspace (re┃
+┃                ┃  c, 1                     Chats                                          ┃────────────────╮
+┃                ┃  f, 2                     Workflows and runs                             ┃                │
 ┗━━━━━━━━━━━━━━━━┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛────────────────╯
 / search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                    peer to peer · 1 running · demo
 ```

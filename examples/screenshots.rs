@@ -415,6 +415,59 @@ async fn gallery(dir: &Path) {
             write_in(dir, &format!("{name}-{w}x{ht}"), &format!("lt: {name} ({w}×{ht})"), &buffer(&h, w, ht, &t), &t);
         }
     }
+    link_live_gallery(dir, &t).await;
+}
+
+/// Add to my devices with a code match, on an install in use (the palette's
+/// Link this computer): waiting for the desktop, the code to compare, and
+/// the verified person to confirm; then the read-only approval requests.
+/// The desktop's side is played by hand so each screen is caught as it is.
+async fn link_live_gallery(dir: &Path, t: &Theme) {
+    use ligus_term::app::state::{Overlay, Phase};
+    use ligus_term::backend::fake::{DEMO_ADDRESS, DEMO_NOW, FakeBackend};
+    let slow = ligus_term::backend::fake::FakeConfig { browser_delay: std::time::Duration::from_secs(3600), ..Harness::cfg() };
+    let mut h = Harness::with(FakeBackend::demo(slow)).await;
+    h.key(KeyCode::Esc).await;
+    h.key(KeyCode::Char(':')).await;
+    for c in "link this".chars() {
+        h.key(KeyCode::Char(c)).await;
+    }
+    h.key(KeyCode::Enter).await;
+    h.send(Msg::Paste(DEMO_ADDRESS.into())).await;
+    h.key(KeyCode::Enter).await;
+    let shot = |h: &Harness, name: &str| {
+        for (w, ht) in [(110, 32), (80, 24)] {
+            write_in(dir, &format!("{name}-{w}x{ht}"), &format!("lt: {name} ({w}×{ht})"), &buffer(h, w, ht, t), t);
+        }
+    };
+    shot(&h, "link-live-waiting");
+    let rid = match (&h.state.overlay, &h.state.phase) {
+        (Some(Overlay::AddWorkspace(f)), _) | (_, Phase::Onboarding(f)) => f.live.as_ref().and_then(|l| l.rid.clone()).unwrap(),
+        _ => panic!("no link form"),
+    };
+    let ev = |update| Msg::Event(Event::LiveLink { rid: rid.clone(), update });
+    let code = MatchCodeView {
+        shown: ligus_term::backend::fake::DEMO_MATCH_CODE.into(),
+        spelled: "K, 7, Q, 4. M, 9, X, 2.".into(),
+        claimed: "Mara's desktop".into(),
+        expires_at: DEMO_NOW + 5 * 60_000 - 13_000,
+    };
+    h.send(ev(LiveLinkUpdate::Opened(code))).await;
+    shot(&h, "link-live-code");
+    h.key(KeyCode::Char('y')).await;
+    h.send(ev(LiveLinkUpdate::Acknowledged)).await;
+    h.send(ev(LiveLinkUpdate::Checking)).await;
+    h.send(ev(LiveLinkUpdate::Verified { person: "Mara".into(), workspace: "Northwind API".into() })).await;
+    shot(&h, "link-live-confirm");
+
+    let mut h = Harness::new(true).await;
+    h.key(KeyCode::Esc).await;
+    h.key(KeyCode::Char(':')).await;
+    for c in "approval requests".chars() {
+        h.key(KeyCode::Char(c)).await;
+    }
+    h.key(KeyCode::Enter).await;
+    shot(&h, "approvals");
 }
 
 /// One input of a scripted shot.
