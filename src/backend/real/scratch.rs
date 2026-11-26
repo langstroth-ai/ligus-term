@@ -139,7 +139,7 @@ pub(crate) fn set_chat_repo(i: &Inner, ws: Uuid, chat: Uuid, repo: Option<&str>)
 /// Make a scratch repository for `chat`, named after the chat.
 pub(crate) fn create(i: &Inner, ws: Uuid, chat: Uuid) -> Result<ChatRepo> {
     let name = i.read(ws, |svc| svc.load_in(ws, chat))?.map(|s| s.title).unwrap_or_default();
-    let label = i.cfg.device_name.clone();
+    let label = i.label();
     let (_, repo) = i.write(ws, |svc| {
         let settings = i.scratch_settings(svc);
         scratch_host::create(svc, ws, Some(chat), &settings, &forbidden(), &name, &label)
@@ -155,7 +155,7 @@ pub(crate) fn keep(i: &Inner, ws: Uuid, chat: Uuid, dest: &str) -> Result<String
     if dest.as_os_str().is_empty() {
         return err("pick a folder to keep it in");
     }
-    let label = i.cfg.device_name.clone();
+    let label = i.label();
     let (kept, _) = i.write(ws, |svc| {
         let repo = svc.load_in(ws, chat)?.and_then(|s| s.repo).and_then(|r| r.repo_id);
         let entry = repo.and_then(|r| scratch::live(svc.store(), ws).into_iter().find(|e| e.repo_id == Some(r)));
@@ -174,7 +174,7 @@ pub(crate) fn keep(i: &Inner, ws: Uuid, chat: Uuid, dest: &str) -> Result<String
 /// Removal only moves a folder to the trash under the service lock; the
 /// trash is deleted after, without holding it.
 pub(crate) fn sweep(i: &Inner, ws: Uuid) -> Result<scratch_host::SweepReport> {
-    let label = i.cfg.device_name.clone();
+    let label = i.label();
     let (report, trash) = i
         .write(ws, |svc| {
             let settings = i.scratch_settings(svc);

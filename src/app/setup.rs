@@ -692,6 +692,15 @@ pub fn formed(s: &mut State, flow: LtFlow, r: crate::backend::Result<SetupForm>)
     }
 }
 
+/// The device's facts changed (a sign-in check finished): a form being
+/// filled in asks again, values kept.
+pub fn refresh(s: &mut State) -> Vec<Effect> {
+    match &s.overlay {
+        Some(Overlay::SetupFlow(w)) if w.stage == Stage::Fill && w.form.is_some() => vec![Effect::SetupForm(ws(s), w.flow, w.inputs())],
+        _ => vec![],
+    }
+}
+
 /// After a key: a popup whose form was dropped by esc closes.
 pub fn settle(s: &mut State) -> Vec<Effect> {
     if let Some(Overlay::SetupFlow(w)) = &s.overlay

@@ -497,7 +497,7 @@ fn prepare(
     let checkout = {
         let core = i.core()?;
         core.svc.lock().unwrap_or_else(|e| e.into_inner()).set_trusted_founder(i.founder(ws));
-        match turn_engine::repo_checkout(&core.svc, &s, &i.cfg.device_name, legacy) {
+        match turn_engine::repo_checkout(&core.svc, &s, &i.label(), legacy) {
             Ok(c) => c,
             Err(reason) => {
                 let _ = i.write(ws, |svc| svc.post_system_note(sid, ws, format!("{author} did not run: {reason}")));

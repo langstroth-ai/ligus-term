@@ -172,7 +172,18 @@ impl Inner {
         }
         match (done, first_err) {
             (0, Some(e)) => Err(e),
-            _ => Ok(shown),
+            _ => {
+                // Kept here too, so later launches (and this device's host
+                // record) use it instead of the name chosen at first open.
+                if !shown.is_empty() {
+                    self.keep_label(&shown);
+                    let ids: Vec<Uuid> = lock(&self.list).workspaces.iter().map(|w| w.id()).collect();
+                    for w in ids {
+                        self.activate(w);
+                    }
+                }
+                Ok(shown)
+            }
         }
     }
 
@@ -203,7 +214,7 @@ impl Inner {
             Some(s) => s,
             // A fresh install: an identity named after this device.
             None => {
-                let name = self.cfg.device_name.clone();
+                let name = self.label();
                 ids.bootstrap(&name, "lt", &name).map_err(one_line)?
             }
         };
@@ -227,7 +238,7 @@ impl Inner {
         let ka = ids.key_agreement(device_id).map_err(one_line)?;
         let account_kp = ids.account_keypair(stored.account.id).map_err(one_line)?;
         let previous = fresh_key.then_some((stored.account.id, &account_kp));
-        let request = LinkRequest::new(&device_kp, &ka.public_key_bytes(), &self.cfg.device_name, now, previous);
+        let request = LinkRequest::new(&device_kp, &ka.public_key_bytes(), &self.label(), now, previous);
         state.add_pending(&request, now);
         state.save(&self.cfg.data_dir).map_err(one_line)?;
         let view = LinkRequestView {
@@ -417,7 +428,7 @@ impl Inner {
         // it only then), name this computer, and retire the member this
         // install was here before, when that is safe.
         let ids = self.identity_store();
-        let label = self.cfg.device_name.clone();
+        let label = self.label();
         let old_kp = ids.account_keypair(p.old.account.id).ok();
         let (old_account, old_member) = (p.old.account.id, p.old.actor().id);
         let retire_note = self

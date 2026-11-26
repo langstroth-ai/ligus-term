@@ -402,7 +402,8 @@ pub fn event_line(e: &Event, names: &dyn Fn(&WorkspaceId) -> String) -> Option<S
         | Event::MembersChanged { .. }
         | Event::HostsChanged { .. }
         | Event::AgentsChanged { .. }
-        | Event::WorkspacesChanged => {
+        | Event::WorkspacesChanged
+        | Event::SetupFactsChanged => {
             return None;
         }
     })

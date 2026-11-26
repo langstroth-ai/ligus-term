@@ -391,3 +391,17 @@ async fn the_device_row_opens_the_link_screens() {
         h.state.overlay
     );
 }
+
+/// A sign-in check that finishes while a form is being filled in asks for
+/// the form again (values kept); outside a form it does nothing.
+#[tokio::test]
+async fn a_finished_sign_in_check_refreshes_the_open_form() {
+    let mut h = demo().await;
+    let fx = update(&mut h.state, Msg::Event(ligus_term::backend::Event::SetupFactsChanged));
+    assert!(fx.is_empty(), "{fx:?}");
+    open(&mut h, 0).await;
+    assert_eq!(wizard(&h).stage, Stage::Fill);
+    let flow = wizard(&h).flow;
+    let fx = update(&mut h.state, Msg::Event(ligus_term::backend::Event::SetupFactsChanged));
+    assert!(matches!(fx.as_slice(), [Effect::SetupForm(_, f, _)] if *f == flow), "{fx:?}");
+}

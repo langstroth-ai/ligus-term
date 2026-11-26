@@ -37,6 +37,8 @@ pub const LT_HARNESSES: &[&str] = &["claude-code", "codex", "copilot", "antigrav
 
 /// Why a harness isn't offered here.
 pub const NOT_IN_LT: &str = "not in lt yet";
+/// A harness whose sign-in is being checked (`agy models`) right now.
+pub const CHECKING_SIGN_IN: &str = "checking sign-in…";
 
 /// A flow as lt lists it: one of the engine's, or linking this computer
 /// to your devices.
@@ -470,11 +472,18 @@ pub fn form(flow: FlowId, ops: &dyn SetupOps, inputs: &SetupInputs) -> SetupForm
         })
         .collect();
     if flow == FlowId::Agent {
+        let checking: Vec<String> = ops.harnesses().into_iter().filter(|h| h.login_detail == CHECKING_SIGN_IN).map(|h| h.id).collect();
         for fd in steps.iter_mut().flat_map(|s| s.fields.iter_mut()).filter(|f| f.id == "harness") {
             if let FieldType::Choice(opts) = &mut fd.kind {
                 for o in opts.iter_mut().filter(|o| !LT_HARNESSES.contains(&o.value.as_str())) {
                     o.disabled = true;
                     o.hint = Some(NOT_IN_LT.into());
+                }
+                // A sign-in check still under way says so, not "unknown".
+                for o in opts.iter_mut() {
+                    if checking.contains(&o.value) {
+                        o.hint = Some(CHECKING_SIGN_IN.into());
+                    }
                 }
             }
         }

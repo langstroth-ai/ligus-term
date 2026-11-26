@@ -622,3 +622,225 @@ async fn a_chat_works_in_a_scratch_repo_and_keeps_it() {
     assert!(e.0.contains("isn't a scratch repo this device made"), "{e}");
     d.b.shutdown();
 }
+
+/// This computer's synced name (`DeviceLabelSet`) in `ws`.
+fn synced_label(b: &RealBackend, ws: Uuid) -> Option<String> {
+    let svc = b.service().unwrap();
+    let svc = svc.lock().unwrap();
+    svc.device_label_of(ws, svc.device_id(), svc.author().account_id.unwrap())
+}
+
+/// Wait for `f` to hold (activation runs off the opening thread).
+async fn eventually(what: &str, mut f: impl FnMut() -> bool) {
+    for _ in 0..100 {
+        if f() {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    panic!("never: {what}");
+}
+
+/// The device name is chosen once, when a data dir is first opened, and
+/// kept: a later launch whose network host name differs still shows (and
+/// registers its host as) the kept name. An install from before names were
+/// kept moves once to the stable name, replacing the network-derived name
+/// it synced, but keeps a name a person gave it.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn the_device_name_is_chosen_once_and_kept() {
+    let tmp = tempfile::tempdir().unwrap();
+    let relay = serve(ligus_runtime::test_relay::router()).await;
+    let dir = tmp.path().join("air");
+    let label_file = dir.join(ligus_term::backend::real::label::LABEL_FILE);
+
+    let a = device(&dir, "lt on Michaels-Air-3", &relay);
+    assert_eq!(std::fs::read_to_string(&label_file).unwrap().trim(), "lt on Michaels-Air-3");
+    let created = a.b.create_workspace("Michael", "Hive").await.unwrap();
+    let wsu = Uuid::parse_str(created.workspace.id.as_str()).unwrap();
+    a.b.shutdown();
+    drop(a);
+
+    // ── Another network, another host name: the kept name wins.
+    let a = device(&dir, "lt on Michaels-MacBook-Air-3", &relay);
+    assert_eq!(a.b.device().device_name, "lt on Michaels-Air-3");
+    let svc = a.b.service().unwrap();
+    let hosts = svc.lock().unwrap().list_hosts(wsu).unwrap();
+    let labels: Vec<_> = hosts.iter().map(|h| h.label.clone()).collect();
+    assert_eq!(labels, ["lt on Michaels-Air-3"]);
+    // An older lt had synced its network name.
+    let svc = a.b.service().unwrap();
+    tokio::task::spawn_blocking(move || {
+        let mut svc = svc.lock().unwrap();
+        let d = svc.device_id();
+        svc.set_device_label(wsu, d, "lt on Michaels-Air-3").unwrap();
+    })
+    .await
+    .unwrap();
+    a.b.shutdown();
+    drop(a);
+
+    // ── The one-time move of an install with no kept name: the stable
+    // name, kept, and the network-derived synced name replaced.
+    std::fs::remove_file(&label_file).unwrap();
+    let a = device(&dir, "lt on Michael’s MacBook Air", &relay);
+    assert_eq!(a.b.device().device_name, "lt on Michael’s MacBook Air");
+    assert_eq!(std::fs::read_to_string(&label_file).unwrap().trim(), "lt on Michael’s MacBook Air");
+    eventually("the synced name moves", || synced_label(&a.b, wsu).as_deref() == Some("lt on Michael’s MacBook Air")).await;
+    eventually("the host label moves", || {
+        let svc = a.b.service().unwrap();
+        let svc = svc.lock().unwrap();
+        svc.list_hosts(wsu).unwrap().iter().any(|h| h.label == "lt on Michael’s MacBook Air")
+    })
+    .await;
+
+    // ── A rename is kept too, and survives the next launch.
+    assert_eq!(a.b.rename_this_device("Work laptop").await.unwrap(), "Work laptop");
+    assert_eq!(a.b.device().device_name, "Work laptop");
+    assert_eq!(std::fs::read_to_string(&label_file).unwrap().trim(), "Work laptop");
+    a.b.shutdown();
+    drop(a);
+    let a = device(&dir, "lt on Michaels-Air-3", &relay);
+    assert_eq!(a.b.device().device_name, "Work laptop");
+    a.b.shutdown();
+    drop(a);
+
+    // ── With no kept name, a name a person gave it is adopted, not replaced.
+    std::fs::remove_file(&label_file).unwrap();
+    let a = device(&dir, "lt on Michaels-Air-3", &relay);
+    assert_eq!(a.b.device().device_name, "Work laptop");
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(synced_label(&a.b, wsu).as_deref(), Some("Work laptop"));
+    a.b.shutdown();
+}
+
+/// A stub `agy` in a temporary `PATH`: `models` takes `delay` seconds,
+/// counts itself in `calls`, prints to both streams and exits `code`.
+fn stub_agy(bin: &std::path::Path, delay: &str, out: &str, code: i32) -> std::path::PathBuf {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::create_dir_all(bin).unwrap();
+    let calls = bin.join("calls");
+    let p = bin.join("agy");
+    std::fs::write(
+        &p,
+        format!(
+            "#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'agy 1.0.0'; exit 0; fi\nif [ \"$1\" = models ]; then echo x >> '{}'; sleep {delay}; printf '{out}'; echo 'stderr noise' >&2; exit {code}; fi\nexit 9\n",
+            calls.display()
+        ),
+    )
+    .unwrap();
+    std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
+    calls
+}
+
+/// The Antigravity harness's sign-in is checked with `agy models` off the
+/// UI thread: a form shows "checking sign-in…" at once and is told when
+/// the answer is in; the answer is reused; a run waits for a check under
+/// way, so a signed-in agy is a pass, not "can't tell". A failing check
+/// keeps the warning.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn the_antigravity_sign_in_is_checked_in_the_background() {
+    use ligus_runtime::setup::FlowId;
+    use ligus_term::setup::{CancelFlag, CheckStatus, FieldType, LtFlow, SetupInputs, SetupSecrets};
+
+    let tmp = tempfile::tempdir().unwrap();
+    let relay = serve(ligus_runtime::test_relay::router()).await;
+    let home = tmp.path().join("home");
+    std::fs::create_dir_all(&home).unwrap();
+    let hint = |f: &ligus_term::setup::SetupForm| {
+        f.fields()
+            .find(|f| f.id == "harness")
+            .and_then(|f| match &f.kind {
+                FieldType::Choice(o) => o.iter().find(|o| o.value == "antigravity").and_then(|o| o.hint.clone()),
+                _ => None,
+            })
+            .unwrap_or_default()
+    };
+    let inputs = |kv: &[(&str, &str)]| -> SetupInputs { kv.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect() };
+    // Without an agent sandbox the run stops before the harness checks.
+    let confined = ligus_runtime::setup::SandboxFact::here().confined();
+    let sign_in = |o: &ligus_term::setup::SetupOutcome| {
+        o.checks.iter().find(|c| c.id == "agent.harness.signed-in").map(|c| (c.status, c.detail.clone()))
+    };
+
+    // ── Signed in: the form doesn't wait for it.
+    let bin = tmp.path().join("bin");
+    let calls = stub_agy(&bin, "1", "gemini-3-pro\\tGemini 3 Pro\\ngemini-3-flash\\tGemini 3 Flash\\n", 0);
+    let env = ligus_runtime::cli_detect::DetectEnv { path: bin.clone().into_os_string(), home: home.clone(), vars: Default::default() };
+    let d = device_with(&tmp.path().join("ana"), "lt Ana", &relay, |c| c.detect_env = Some(env));
+    let ws = d.b.create_workspace("Ana", "Acme Web").await.unwrap().workspace.id;
+    let started = std::time::Instant::now();
+    let f = d.b.setup_form(Some(&ws), LtFlow::Engine(FlowId::Agent), SetupInputs::new()).await.unwrap();
+    assert!(started.elapsed() < Duration::from_millis(900), "the form waited for agy: {:?}", started.elapsed());
+    assert_eq!(hint(&f), "checking sign-in…");
+    eventually("the check reports back", || d.saw(|e| matches!(e, Event::SetupFactsChanged))).await;
+    let f = d.b.setup_form(Some(&ws), LtFlow::Engine(FlowId::Agent), SetupInputs::new()).await.unwrap();
+    assert_eq!(hint(&f), "signed in");
+    // Two forms, one check: the answer is reused. (Listing the harness's
+    // models, once one is picked, runs `agy models` on its own.)
+    assert_eq!(std::fs::read_to_string(&calls).unwrap().lines().count(), 1, "the answer is reused");
+    let o =
+        d.b.setup_run(
+            Some(&ws),
+            LtFlow::Engine(FlowId::Agent),
+            inputs(&[("harness", "antigravity"), ("name", "agy")]),
+            SetupSecrets::new(),
+            true,
+            CancelFlag::default(),
+        )
+        .await
+        .unwrap();
+    if confined {
+        let (status, detail) = sign_in(&o).unwrap_or_else(|| panic!("{:#?}", o.checks));
+        assert_eq!(status, CheckStatus::Ok, "{o:?}");
+        assert!(detail.contains("2 models"), "{detail}");
+    }
+    d.b.shutdown();
+
+    // ── A run with no answer yet waits for the check.
+    let d = device_with(&tmp.path().join("ana2"), "lt Ana", &relay, |c| {
+        c.detect_env =
+            Some(ligus_runtime::cli_detect::DetectEnv { path: bin.clone().into_os_string(), home: home.clone(), vars: Default::default() })
+    });
+    let ws = d.b.create_workspace("Ana", "Acme Web").await.unwrap().workspace.id;
+    let o =
+        d.b.setup_run(
+            Some(&ws),
+            LtFlow::Engine(FlowId::Agent),
+            inputs(&[("harness", "antigravity"), ("name", "agy")]),
+            SetupSecrets::new(),
+            true,
+            CancelFlag::default(),
+        )
+        .await
+        .unwrap();
+    if confined {
+        assert_eq!(sign_in(&o).map(|s| s.0), Some(CheckStatus::Ok), "{o:?}");
+    }
+    d.b.shutdown();
+
+    // ── A check that fails keeps the warning.
+    let bad = tmp.path().join("bad");
+    stub_agy(&bad, "0", "something broke\\n", 3);
+    let d = device_with(&tmp.path().join("ana3"), "lt Ana", &relay, |c| {
+        c.detect_env =
+            Some(ligus_runtime::cli_detect::DetectEnv { path: bad.clone().into_os_string(), home: home.clone(), vars: Default::default() })
+    });
+    let ws = d.b.create_workspace("Ana", "Acme Web").await.unwrap().workspace.id;
+    let o =
+        d.b.setup_run(
+            Some(&ws),
+            LtFlow::Engine(FlowId::Agent),
+            inputs(&[("harness", "antigravity"), ("name", "agy")]),
+            SetupSecrets::new(),
+            true,
+            CancelFlag::default(),
+        )
+        .await
+        .unwrap();
+    if confined {
+        let (status, detail) = sign_in(&o).unwrap_or_else(|| panic!("{:#?}", o.checks));
+        assert_eq!(status, CheckStatus::Warn, "{o:?}");
+        assert!(detail.contains("can't tell"), "{detail}");
+    }
+    d.b.shutdown();
+}
