@@ -22,7 +22,21 @@ macro_rules! id_type {
     )*};
 }
 
-id_type!(WorkspaceId, ChatId, MessageId, ProposalId, MemberId, AgentId, HostId, RuntimeId, NotificationId, WorkflowId, RunId, MemoryId);
+id_type!(
+    WorkspaceId,
+    ChatId,
+    MessageId,
+    ProposalId,
+    MemberId,
+    AgentId,
+    HostId,
+    RuntimeId,
+    NotificationId,
+    WorkflowId,
+    RunId,
+    MemoryId,
+    AskId
+);
 
 /// A pending passkey ceremony, numbered by the backend.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -136,6 +150,8 @@ pub struct ChatSummary {
     pub mentioned: bool,
     /// Lockdown is per chat.
     pub lockdown: Option<Lockdown>,
+    /// Agents' questions waiting on you here (live, and you may answer).
+    pub asks_for_you: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1326,4 +1342,86 @@ mod secret_debug_tests {
         }
         assert!(shown.contains("room") && shown.contains("http://r"), "{shown}");
     }
+}
+
+/// An agent's question (a decision card), as the shared card view
+/// (`ligus_runtime::ask_view`) draws it: the agent's words cleaned and
+/// plain, who may answer, and what the answer does, in Ligus's words.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Ask {
+    pub id: AskId,
+    /// The chat whose log holds it (a child chat for a pointer card).
+    pub chat: ChatId,
+    /// The asking turn's reply: the card sits after it in the transcript.
+    pub turn: Option<MessageId>,
+    /// The asking agent's name ("Claude Code" for an outside prompt).
+    pub agent: String,
+    pub kind: AskKind,
+    /// An ask with the 0.4 rules (older asks can't be declined for everyone).
+    pub v2: bool,
+    pub question: String,
+    /// The buttons: the agent's options, or Ligus's labels on a grant.
+    pub options: Vec<String>,
+    pub allow_text: bool,
+    /// Who it is put to, as the header says it ("you", "Admins", "the room", "Ana").
+    pub audience: String,
+    pub quorum: u8,
+    pub tally: Vec<u32>,
+    /// Whether you may answer it, and who it waits on when not.
+    pub can_answer: Allowed,
+    pub effect: Option<AskEffect>,
+    /// "via sub-agent", "from <chat>", "outside Ligus".
+    pub origin: Option<String>,
+    /// Posted by someone other than the agent or its host (a person, or
+    /// another device, under the agent's name): the card is theirs, never
+    /// a grant.
+    pub posted_by: Option<String>,
+    pub status: AskStatus,
+    pub at: Millis,
+    pub expires_at: Millis,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AskKind {
+    Question,
+    Permission,
+    Secret,
+}
+
+/// What answering a grant card lets the host do.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AskEffect {
+    pub tool: String,
+    /// The agent's own description of the call (unverified).
+    pub title: String,
+    /// The call's own content: what Allow once covers.
+    pub detail: String,
+    pub cwd: String,
+    /// The host's name ("build-box"), or empty.
+    pub host: String,
+    pub presence_required: bool,
+    /// A permission for the rest of the agent's session.
+    pub standing: bool,
+    /// Too large to review here: Deny only.
+    pub too_large: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AskStatus {
+    /// Waiting for an answer.
+    Open,
+    /// Settled: who answered and what.
+    Answered { by: String, answer: String, text: Option<String>, at: Millis },
+    /// The one person it was put to said Not now.
+    Declined { by: String },
+    /// The agent stopped waiting (expired or closed unanswered).
+    Stopped,
+}
+
+/// What you pick on a card.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AskReply {
+    Option(u32),
+    Text(String),
+    NotNow,
 }

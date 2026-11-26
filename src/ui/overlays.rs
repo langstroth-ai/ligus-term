@@ -42,6 +42,27 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             f.render_widget(Paragraph::new(lines), inner);
             f.set_cursor_position(Position::new(inner.x + input.cursor_pos().1 as u16, inner.y + 1));
         }
+        Some(Overlay::AskReply { agent, text, .. }) => {
+            let r = center(area, 72, 7);
+            f.render_widget(Clear, r);
+            let title = format!("Reply to {agent}");
+            let block = pane(&title, true, t);
+            let inner = block.inner(r);
+            f.render_widget(block, r);
+            // The reply scrolls sideways in one line; up to 1000 characters.
+            let w = inner.width as usize;
+            let (_, col) = text.cursor_pos();
+            let skip = col.saturating_sub(w.saturating_sub(1));
+            let shown: String = text.text.chars().skip(skip).take(w).collect();
+            let lines = vec![
+                Line::styled(format!("{agent} reads it and decides what to do next. It grants no new permission."), t.dim()),
+                Line::styled(shown, t.text()),
+                Line::raw(""),
+                Line::styled("enter send · esc cancel", t.dim()),
+            ];
+            f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
+            f.set_cursor_position(Position::new(inner.x + (col - skip) as u16, inner.y + 1));
+        }
         Some(Overlay::BindCheckout(buf)) => {
             let r = center(area, 72, 7);
             f.render_widget(Clear, r);

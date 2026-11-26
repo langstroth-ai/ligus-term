@@ -415,6 +415,40 @@ kept in this device's data dir and never synced.
 
 ![The proposals queue in lt: open, approved and applied proposals on the left; on the right a proposal's votes and actions above a diff of src/checkout.rs](assets/screens/proposals.svg)
 
+### Agents' questions
+
+When an agent needs one word from you ("Postgres or SQLite?"), it asks
+with a decision card, and `lt` shows it in the transcript where the agent
+asked:
+
+```
+▸ coder asks you: “Use Postgres or SQLite for the test fixtures?”
+    1 Postgres   2 SQLite   r reply   n not now
+    coder decides what to do next. No new permission.
+```
+
+- With the transcript focused (`tab`), the oldest card waiting on you takes
+  its keys: `1` to `5` answer with an option at once (a question grants the
+  agent nothing), `r` replies in your own words when the question takes a
+  reply, and `n` says Not now. Not now closes a question put to you alone;
+  in a room it is only your abstention, and on an older question it only
+  puts it aside on this terminal. Elsewhere the number keys still switch
+  views.
+- A **grant card** asks to run something: the exact call (the command and
+  its folder, or the file and its content), the host it runs on, and the
+  agent's own description, labelled as its words. `a` allows it once and
+  asks first (and asks for your passkey when the card needs one); `d`
+  denies. A number never allows. A call too large to review here offers
+  only Deny, and `D` shows every call in full.
+- A card you can't answer is read-only: "Waiting on Ada", or "Waiting on
+  Admins · 1 of 2" for a quorum. A settled card is one line ("Ada answered
+  Postgres · 9m"), and one whose agent gave up says it stopped waiting.
+- A chat with a card waiting on you gets the `◆` "needs you" chip.
+- The agent's words are plain text: no Markdown, no links, nothing that
+  looks like one of `lt`'s own controls.
+- In plain mode, `asks` lists the open chat's cards; answering is a person's
+  step, in the full-screen app.
+
 ### Agent tools
 
 Agent turns that run on this device use the same turn engine as the
@@ -605,6 +639,7 @@ The default keys (all can be rebound, see [Configure](#configure)):
 |---|---|
 | Anywhere | `q` / `ctrl-c` quit (while this device drives a run or an agent's turn it asks first; a second `ctrl-c` quits) · `:` / `ctrl-p` / `ctrl-k` command palette · `space` then pause: a sheet of the keys you can press here (any key then acts as usual) · `?` / `f1` help · `!` messages · `esc` back (to the view you came from) · `ctrl-o` / `alt-left` the previous view, `alt-right` forward again · `w` / `ctrl-w` workspaces · `+` add a workspace · `tab` / `shift-tab` next or previous pane · `ctrl-l` the chat list · `ctrl-f` focus mode (no top bar or key hints; one quiet `◆` badge while something needs you) · `ctrl-x` stop the agent's turn in this chat (when it runs on this device) |
 | Lists | `↑ ↓` or `j k` move · `pgup pgdn` (`ctrl-u ctrl-d`) · `g G` (`home end`) first and last · `enter` (`l`, `→`) the row's main action (open) · `.` / `shift-f10` the row menu (see below) · `/` find as you type (`↑ ↓` the previous or next match, `enter` keep, `esc` back to where you were) |
+| A question for you (transcript focused) | `1`-`5` answer with that option · `r` reply in your own words · `n` not now · on a grant card: `a` allow once (asks first; a passkey when it needs one) · `d` deny |
 | Chats | `D` the whole transcript in `$PAGER` (or left in your terminal's scrollback) · `i` write (lt starts with the cursor in the open chat's composer; `esc` leaves it) · `N` new chat · `o` show what tool calls returned · `L` lock the chat down · `U` clear the lockdown |
 | Composer | `enter` send · `alt-enter` / `ctrl-j` new line (`shift-enter` too, in terminals with the kitty keyboard protocol) · `@` mention, then `tab` or `enter` to accept · `↑` on an empty draft recalls what you sent (`↓` comes back) · `ctrl-r` search what you sent · `ctrl-g` write the draft in `$VISUAL` / `$EDITOR` · `esc` leave (the draft is kept) |
 | Workflows | `S` start a run (asks for its input) · `A` / `R` approve or reject the run's waiting gate (reject asks first) · `X` cancel the run (asks first) · `enter` on a run opens its chat |

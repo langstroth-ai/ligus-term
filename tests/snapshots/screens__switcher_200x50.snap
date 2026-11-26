@@ -9,24 +9,24 @@ expression: screen
 ┃  Weekly release notes    1d  ┃│                                                                                                                              ││◆ Sign-off: inject a fake clock 0/1   │
 ┃                              ┃│             @coder  via claude-code · on build-box  38m                                                                      ││                                      │
 ┃                              ┃│               Yes. The payment tests already use a fake clock, so it's a small change. I'll propose it.                      ││Runs                                  │
-┃                              ┃│               ◆ proposal “Inject the clock into checkout tests” · open 1/2 · p to review                                     ││· Implement, review, sh… awaiting-gate│
+┃                              ┃│                                                                                                                              ││· Implement, review, sh… awaiting-gate│
+┃                              ┃│               ✓ Ada answered Fake clock · 37m                                                                                ││                                      │
+┃                              ┃│               ◆ proposal “Inject the clock into checkout tests” · open 1/2 · p to review                                     ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│             Ada  12m                                                                                                         ││                                      │
 ┃                              ┃│               @Mara can you review the timeout? 30 seconds is what the provider uses.                                        ││                                      │
-┃                              ┃│               ◆ proposal “Sign-off: inject a fake clock” · open 0/1 · p to review                                            ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│             ▸ coder asks you: “Use Postgres or SQLite for the test fixtures?”                                                ││                                      │
+┃                              ┃│                 1 Postgres   2 SQLite   r reply   n not now   (tab to the chat first)                                        ││                                      │
+┃                              ┃│                 coder decides what to do next. No new permission.                                                            ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                               ┏ Workspaces ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                       ││                                      │
-┃                              ┃│                               ┃1 [NA] Northwind API  owner · peer to peer                            ┃                       ││                                      │
-┃                              ┃│                               ┃2 [DS] docs-site  viewer · relay https://relay.example.org  • mentione┃                       ││                                      │
-┃                              ┃│                               ┃                                                                      ┃                       ││                                      │
+┃                              ┃│               coder asks you to run something                                                                                ││                                      │
+┃                              ┃│                 Allow once lets coder run this once on build-box:                                                            ││                                      │
+┃                              ┃│                 │ cargo test -p checkout --features fake-clock                                                               ││                                      │
+┃                              ┃│                 in /srv/northw┏ Workspaces ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                       ││                                      │
+┃                              ┃│                 coder describe┃1 [NA] Northwind API  owner · peer to peer                            ┃                       ││                                      │
+┃                              ┃│                 Next, after th┃2 [DS] docs-site  viewer · relay https://relay.example.org  • mentione┃                       ││                                      │
+┃                              ┃│               ◆ proposal “Sign┃                                                                      ┃                       ││                                      │
 ┃                              ┃│                               ┃                                                                      ┃                       ││                                      │
 ┃                              ┃│                               ┃enter switch · 1-9 jump · + create or join · esc close                ┃                       ││                                      │
 ┃                              ┃│                               ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                       ││                                      │

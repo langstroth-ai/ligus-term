@@ -8,6 +8,15 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Added
 
+- Agents' questions (Ligus 0.4 decision cards): a card in the transcript
+  where the agent asked, with the agent's words quoted as plain text and
+  what the answer does in Ligus's words. `1`-`5` answer, `r` replies, `n`
+  says Not now; a grant card shows the exact call and its host, `a` allows
+  once after a confirm (and a passkey where the card needs one), `d` denies,
+  and a call too large to review offers only Deny. Cards you can't answer
+  say who they wait on; settled ones are one line; a chat with a card
+  waiting on you shows "needs you". Plain mode's `asks` lists them
+  (read-only).
 - **Add to my devices with a code match.** Paste the approval address your
   desktop shows (My devices > Add a computer > Copy, `ligusaddr1:`) and the
   request reaches the desktop by itself. Both screens show the same
@@ -37,7 +46,8 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 ### Changed
 
 - The Ligus crates are pinned to a commit of the ligus repo's main branch
-  (code-match approval and identity model v2) until its 0.4.0 release tag.
+  (code-match approval, identity model v2 and agents' questions) until its
+  0.4.0 release tag.
 
 ## v0.3.1
 

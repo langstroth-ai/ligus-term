@@ -914,6 +914,8 @@ async fn chat_list_states() {
     h.state.proposals.clear();
     h.state.tasks.clear();
     h.state.turn_outcomes.insert(ids[0].clone(), SessionState::Failed);
+    // The demo's open question would make the first chat "needs you".
+    h.state.chats.iter_mut().for_each(|c| c.asks_for_you = 0);
     let screen = h.screen(W, H);
     assert!(screen.contains("✕ Fix flaky"), "{screen}");
     assert!(screen.contains("‖ Migrate auth"), "the locked-down chat is paused: {screen}");
@@ -1218,4 +1220,43 @@ async fn presence_without_a_browser_here() {
     assert!(screen.lines().any(|l| l.starts_with("https://ligus.ai/presence#op=get")), "{screen}");
     assert!(screen.contains("8765:127.0.0.1:8765"), "{screen}");
     snap(&h, "presence_no_browser", "Passkey sheet with no browser here: the address for another device");
+}
+
+/// Decision cards (agent questions): with the transcript focused, the
+/// oldest card waiting on you takes its keys; a number answers a question
+/// at once, and a grant's Allow asks first.
+#[tokio::test]
+async fn ask_cards() {
+    let mut h = demo().await;
+    h.key(KeyCode::Tab).await;
+    assert_eq!(h.state.focus, ligus_term::app::state::Focus::Detail);
+    let screen = h.screen(W, H);
+    assert!(screen.contains("coder asks you: “Use Postgres or SQLite for the test fixtures?”"), "{screen}");
+    assert!(screen.contains("1 Postgres   2 SQLite   r reply   n not now"), "{screen}");
+    assert!(screen.contains("coder decides what to do next. No new permission."), "{screen}");
+    assert!(screen.contains("Next, after the question above"), "the grant waits its turn: {screen}");
+    snap(&h, "chat_ask", "An agent's question and a grant card in the transcript");
+    h.key(KeyCode::Char('2')).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Mara answered SQLite"), "{screen}");
+    // Now the grant takes the keys; a number doesn't allow it.
+    h.key(KeyCode::Char('1')).await;
+    assert!(h.state.overlay.is_none());
+    h.key(KeyCode::Char('a')).await;
+    snap(&h, "chat_ask_allow", "Allow once asks first");
+    h.key(KeyCode::Char('y')).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Mara answered Allow once"), "{screen}");
+}
+
+/// An ask someone else posted under an agent's name leads with its poster.
+#[tokio::test]
+async fn ask_card_posted_by_someone_else() {
+    let mut h = demo().await;
+    for a in h.state.asks.iter_mut().filter(|a| a.id.as_str() == "q-fixtures") {
+        a.posted_by = Some("Lin".into());
+    }
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Lin asks you:"), "{screen}");
+    assert!(screen.contains("not from coder."), "{screen}");
 }

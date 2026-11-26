@@ -33,6 +33,8 @@ pub enum Msg {
     Workspaces(Result<Vec<WorkspaceSummary>>),
     Chats(WorkspaceId, Result<Vec<ChatSummary>>),
     Transcript(WorkspaceId, ChatId, Result<Vec<Message>>),
+    /// A chat's decision cards.
+    Asks(WorkspaceId, ChatId, Result<Vec<Ask>>),
     Mentionables(WorkspaceId, Result<Vec<Mentionable>>),
     Proposals(WorkspaceId, Result<Vec<Proposal>>),
     Diff(WorkspaceId, ProposalId, Result<Diff>),
@@ -111,6 +113,9 @@ pub enum Effect {
     LoadWorkspaces,
     LoadChats(WorkspaceId),
     LoadTranscript(WorkspaceId, ChatId),
+    LoadAsks(WorkspaceId, ChatId),
+    /// Answer a decision card on its chat's log.
+    AnswerAsk(WorkspaceId, ChatId, AskId, AskReply),
     LoadMentionables(WorkspaceId),
     LoadProposals(WorkspaceId),
     LoadDiff(WorkspaceId, ProposalId),
@@ -355,6 +360,10 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
         }
         Msg::Transcript(ws, chat, Ok(t)) if is_active(s, &ws) && s.open_chat.as_ref() == Some(&chat) => {
             s.transcript = t;
+            vec![]
+        }
+        Msg::Asks(ws, chat, Ok(a)) if is_active(s, &ws) && s.open_chat.as_ref() == Some(&chat) => {
+            s.asks = a;
             vec![]
         }
         Msg::Mentionables(ws, Ok(m)) if is_active(s, &ws) => {
@@ -754,6 +763,7 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
         | Msg::Workspaces(Err(e))
         | Msg::Chats(_, Err(e))
         | Msg::Transcript(_, _, Err(e))
+        | Msg::Asks(_, _, Err(e))
         | Msg::Mentionables(_, Err(e))
         | Msg::Proposals(_, Err(e))
         | Msg::Diff(_, _, Err(e))
@@ -782,6 +792,7 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
         // Results for a workspace that is no longer active.
         Msg::Chats(..)
         | Msg::Transcript(..)
+        | Msg::Asks(..)
         | Msg::Mentionables(..)
         | Msg::Proposals(..)
         | Msg::Diff(..)
@@ -918,6 +929,16 @@ fn event(s: &mut State, e: Event) -> Vec<Effect> {
             vec![]
         }
         Event::ChatsChanged { workspace } if is_active(s, &workspace) => vec![Effect::LoadChats(workspace)],
+        // A card asked or answered: the open chat's cards, and the list's
+        // "needs you" counts.
+        Event::AsksChanged { workspace, chat } if is_active(s, &workspace) => {
+            let mut fx = vec![Effect::LoadChats(workspace.clone())];
+            if s.open_chat.as_ref() == Some(&chat) {
+                fx.push(Effect::LoadAsks(workspace, chat));
+            }
+            fx
+        }
+        Event::AsksChanged { .. } => vec![],
         Event::ProposalChanged { workspace, proposal } => {
             upsert_proposal(s, &workspace, proposal);
             vec![]
@@ -1222,6 +1243,7 @@ fn paste(s: &mut State, text: &str) -> Vec<Effect> {
         (Some(Overlay::NewChat(b)), _) | (Some(Overlay::BindCheckout(b)), _) | (Some(Overlay::AddAgent { name: b, .. }), _) => {
             b.insert_str(text.trim())
         }
+        (Some(Overlay::AskReply { text: b, .. }), _) => b.insert_str(&text.replace(['\n', '\r'], " ")),
         (Some(Overlay::StartRun { input, .. }), _) => input.insert_str(text),
         (Some(Overlay::SetupFlow(w)), _) => crate::app::setup::paste(w, text),
         (Some(Overlay::AdmitBox { request, checked: None, result: None, .. }), _) => request.insert_str(text.trim()),
@@ -2166,6 +2188,7 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
                 (ConfirmAction::CancelRun(r), Some(w)) => vec![Effect::CancelRun(w, r)],
                 (ConfirmAction::Reject(p), Some(w)) => vec![Effect::Vote(w, p, VoteChoice::Reject)],
                 (ConfirmAction::RejectGate { run, stage }, Some(w)) => vec![Effect::DecideGate(w, run, stage, false)],
+                (ConfirmAction::AllowAsk { chat, ask }, Some(w)) => vec![Effect::AnswerAsk(w, chat, ask, AskReply::Option(0))],
                 (_, None) => vec![],
             }
         }
@@ -2243,6 +2266,25 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
                 vec![]
             }
         },
+        Overlay::AskReply { chat, ask, text, .. } => match k.code {
+            KeyCode::Esc => {
+                s.overlay = None;
+                vec![]
+            }
+            KeyCode::Enter => {
+                let reply = text.text.trim().to_string();
+                if reply.is_empty() {
+                    return vec![];
+                }
+                let (chat, ask) = (chat.clone(), ask.clone());
+                s.overlay = None;
+                ws.map(|w| vec![Effect::AnswerAsk(w, chat, ask, AskReply::Text(reply))]).unwrap_or_default()
+            }
+            _ => {
+                text.handle(&k);
+                vec![]
+            }
+        },
         Overlay::BindCheckout(buf) => match k.code {
             KeyCode::Esc => {
                 s.overlay = None;
@@ -2271,6 +2313,7 @@ pub fn switch_workspace(s: &mut State, id: WorkspaceId) -> Vec<Effect> {
     s.chat_sel = Sel::default();
     s.open_chat = None;
     s.transcript.clear();
+    s.asks.clear();
     s.transcript_scroll = 0;
     s.proposals.clear();
     s.proposal_sel = Sel::default();
@@ -2313,6 +2356,7 @@ fn open_chat(s: &mut State, id: ChatId) -> Vec<Effect> {
     if s.open_chat.as_ref() != Some(&id) {
         save_draft(s);
         s.transcript.clear();
+        s.asks.clear();
         s.transcript_scroll = 0;
         if let Some(d) = s.drafts.remove(&id) {
             s.composer.set(&d);
@@ -2324,7 +2368,7 @@ fn open_chat(s: &mut State, id: ChatId) -> Vec<Effect> {
         c.unread = false;
         c.mentioned = false;
     }
-    vec![Effect::LoadTranscript(ws.clone(), id.clone()), Effect::MarkRead(ws, id)]
+    vec![Effect::LoadTranscript(ws.clone(), id.clone()), Effect::LoadAsks(ws.clone(), id.clone()), Effect::MarkRead(ws, id)]
 }
 
 /// Go to a view, remembering where you were (`ctrl-o`, `esc` go back).
@@ -2707,6 +2751,64 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             s.tools_expanded = !s.tools_expanded;
             vec![]
         }
+        AskOption1 | AskOption2 | AskOption3 | AskOption4 | AskOption5 => {
+            let i = match action {
+                AskOption1 => 0,
+                AskOption2 => 1,
+                AskOption3 => 2,
+                AskOption4 => 3,
+                _ => 4,
+            };
+            ask_pick(s, i)
+        }
+        AskReply => {
+            let Some(a) = s.ask_target() else { return vec![] };
+            if !a.allow_text {
+                s.toast(ToastKind::Info, "This question takes one of its options, not a reply");
+                return vec![];
+            }
+            let (chat, ask, agent) = (a.chat.clone(), a.id.clone(), a.agent.clone());
+            s.overlay = Some(Overlay::AskReply { chat, ask, agent, text: TextBuf::single() });
+            vec![]
+        }
+        AskNotNow => {
+            let Some(a) = s.ask_target() else { return vec![] };
+            let (chat, ask, v2) = (a.chat.clone(), a.id.clone(), a.v2);
+            if !v2 {
+                // An older question settles on its first answer for
+                // everyone: put it aside here only.
+                s.asks_hidden.insert(ask);
+                s.toast(ToastKind::Info, "Put aside here; it stays open for the others");
+                return vec![];
+            }
+            ws.map(|w| vec![Effect::AnswerAsk(w, chat, ask, crate::backend::model::AskReply::NotNow)]).unwrap_or_default()
+        }
+        AskAllow => {
+            let Some(a) = s.ask_target() else { return vec![] };
+            let Some(e) = a.effect.clone() else {
+                s.toast(ToastKind::Info, "This is a question: pick an option with its number");
+                return vec![];
+            };
+            if e.too_large {
+                s.toast(ToastKind::Error, "Too large to review here: only Deny is offered");
+                return vec![];
+            }
+            let (chat, ask, agent) = (a.chat.clone(), a.id.clone(), a.agent.clone());
+            let on = if e.host.is_empty() { String::new() } else { format!(" on {}", e.host) };
+            let how = if e.presence_required { " Your passkey confirms it." } else { "" };
+            let once = if e.standing { "for the rest of its session" } else { "once" };
+            confirm(s, "Allow", format!("Let {agent} run this {once}{on}?{how}"), "allow", ConfirmAction::AllowAsk { chat, ask });
+            vec![]
+        }
+        AskDeny => {
+            let Some(a) = s.ask_target() else { return vec![] };
+            if a.effect.is_none() {
+                s.toast(ToastKind::Info, "This is a question: pick an option with its number");
+                return vec![];
+            }
+            let (chat, ask) = (a.chat.clone(), a.id.clone());
+            ws.map(|w| vec![Effect::AnswerAsk(w, chat, ask, crate::backend::model::AskReply::Option(1))]).unwrap_or_default()
+        }
         Compose => {
             if s.open_chat.is_some() {
                 s.focus = Focus::Composer;
@@ -3018,6 +3120,21 @@ fn run_palette(s: &mut State, target: crate::app::palette::Target) -> Vec<Effect
             fx
         }
     }
+}
+
+/// A number key on the card the ask keys answer: its option, sent at once
+/// (a question grants nothing). A grant's Allow needs `a` and a confirm.
+fn ask_pick(s: &mut State, i: u32) -> Vec<Effect> {
+    let Some(a) = s.ask_target() else { return vec![] };
+    if a.effect.is_some() {
+        s.toast(ToastKind::Info, "A permission: a to allow once (asks first), d to deny");
+        return vec![];
+    }
+    if i as usize >= a.options.len() {
+        return vec![];
+    }
+    let (chat, ask) = (a.chat.clone(), a.id.clone());
+    s.active.clone().map(|w| vec![Effect::AnswerAsk(w, chat, ask, AskReply::Option(i))]).unwrap_or_default()
 }
 
 fn confirm(s: &mut State, title: &str, question: String, yes: &str, action: ConfirmAction) {

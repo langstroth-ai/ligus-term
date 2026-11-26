@@ -249,6 +249,7 @@ pub const COMMANDS: &[&str] = &[
     "lock",
     "unlock",
     "stop",
+    "asks",
     "proposals",
     "diff",
     "approve",
@@ -339,6 +340,7 @@ pub fn event_line(e: &Event, names: &dyn Fn(&WorkspaceId) -> String) -> Option<S
         Event::ToolActivity { chat, call, .. } => format!("tool\t{}\t{}\t{}", esc(chat), esc(&call.name), esc(&call.preview)),
         Event::Thinking { chat, agent, on: true, .. } => format!("thinking\t{}\t{}", esc(chat), esc(agent)),
         Event::Thinking { .. } => return None,
+        Event::AsksChanged { chat, .. } => format!("asks-changed\t{}", esc(chat)),
         Event::ProposalChanged { proposal: p, .. } => {
             format!("proposal-changed\t{}\t{}\t{}/{}\t{}", esc(&p.id), p.status.label(), p.approvals, p.quorum, esc(&p.title))
         }
@@ -1297,6 +1299,41 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
             match b.stop_turn(ws.as_ref().unwrap(), &chat).await {
                 Ok(0) => fail("nothing runs on this device in this chat: the turn's host stops it".into()).await,
                 Ok(n) => say(format!("stopped\t{}\t{n}", esc(&chat))).await,
+                Err(e) => fail(e.0).await,
+            }
+        }
+        // Read-only: answering is a person's step, in the full-screen lt
+        // (an agent driving plain mode must not answer as the person).
+        "asks" => {
+            let chat = { s.lock().await.chat.clone() };
+            let Some(chat) = chat else { return fail("open a chat first: open N".into()).await };
+            match b.asks(ws.as_ref().unwrap(), &chat).await {
+                Ok(list) => {
+                    for (i, a) in list.iter().enumerate() {
+                        let status = match &a.status {
+                            AskStatus::Open if a.can_answer.is_yes() => "waiting-on-you".to_string(),
+                            AskStatus::Open => a.can_answer.reason().unwrap_or("waiting").to_string(),
+                            AskStatus::Answered { by, answer, .. } => format!("answered by {by}: {answer}"),
+                            AskStatus::Declined { by } => format!("declined by {by}"),
+                            AskStatus::Stopped => "stopped waiting".to_string(),
+                        };
+                        let kind = match a.kind {
+                            AskKind::Question => "question",
+                            AskKind::Permission => "permission",
+                            AskKind::Secret => "secret",
+                        };
+                        say(format!(
+                            "ask\t{}\t{}\t{}\t{kind}\t{}\t{}\t{}",
+                            i + 1,
+                            esc(&a.id),
+                            esc(&a.agent),
+                            esc(status),
+                            esc(&a.question),
+                            esc(a.options.join(" | "))
+                        ))
+                        .await;
+                    }
+                }
                 Err(e) => fail(e.0).await,
             }
         }

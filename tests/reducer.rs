@@ -49,7 +49,16 @@ fn ws(id: &str, role: Role) -> WorkspaceSummary {
 }
 
 fn chat(id: &str) -> ChatSummary {
-    ChatSummary { id: ChatId::new(id), title: id.into(), channel: None, updated_at: NOW, unread: true, mentioned: false, lockdown: None }
+    ChatSummary {
+        id: ChatId::new(id),
+        title: id.into(),
+        channel: None,
+        updated_at: NOW,
+        unread: true,
+        mentioned: false,
+        lockdown: None,
+        asks_for_you: 0,
+    }
 }
 
 fn proposal(id: &str, status: ProposalStatus) -> Proposal {
@@ -96,7 +105,11 @@ fn main_state() -> State {
     let fx = update(&mut s, Msg::Chats(WorkspaceId::new("a"), Ok(vec![chat("c1"), chat("c2")])));
     assert_eq!(
         fx,
-        vec![Effect::LoadTranscript(WorkspaceId::new("a"), ChatId::new("c1")), Effect::MarkRead(WorkspaceId::new("a"), ChatId::new("c1"))]
+        vec![
+            Effect::LoadTranscript(WorkspaceId::new("a"), ChatId::new("c1")),
+            Effect::LoadAsks(WorkspaceId::new("a"), ChatId::new("c1")),
+            Effect::MarkRead(WorkspaceId::new("a"), ChatId::new("c1"))
+        ]
     );
     // The first chat opens with the cursor in its composer; esc leaves it
     // for the list, where the other tests start.
@@ -1908,6 +1921,102 @@ fn invites_and_admissions_copy_on_c_and_never_print_the_code() {
     assert!(matches!(&fx[..], [Effect::Copy(c)] if c.text == "ligusadmit1:z"));
     key(&mut s, KeyCode::Char('o'));
     assert!(matches!(&s.overlay, Some(Overlay::Code { fingerprint: Some(f), .. }) if f == "AAAA"));
+}
+
+fn ask(id: &str, effect: Option<AskEffect>, can: Allowed) -> Ask {
+    Ask {
+        id: AskId::new(id),
+        chat: ChatId::new("c1"),
+        turn: None,
+        agent: "coder".into(),
+        kind: if effect.is_some() { AskKind::Permission } else { AskKind::Question },
+        v2: true,
+        question: "Postgres or SQLite?".into(),
+        options: if effect.is_some() { vec!["Allow once".into(), "Deny".into()] } else { vec!["Postgres".into(), "SQLite".into()] },
+        allow_text: effect.is_none(),
+        audience: "you".into(),
+        quorum: 1,
+        tally: vec![0, 0],
+        can_answer: can,
+        effect,
+        origin: None,
+        posted_by: None,
+        status: AskStatus::Open,
+        at: NOW,
+        expires_at: NOW + 600_000,
+    }
+}
+
+fn grant() -> AskEffect {
+    AskEffect {
+        tool: "execute".into(),
+        title: "Run tests".into(),
+        detail: "cargo test".into(),
+        cwd: String::new(),
+        host: "build-box".into(),
+        presence_required: true,
+        standing: false,
+        too_large: false,
+    }
+}
+
+/// Decision cards: the keys answer only with the transcript focused; a
+/// number answers a question at once; a grant needs a then y; a card you
+/// can't answer takes no keys; Not now on an older question only hides it.
+#[test]
+fn ask_cards_keys_and_confirm() {
+    let mut s = main_state();
+    let (w, c) = (WorkspaceId::new("a"), ChatId::new("c1"));
+    update(&mut s, Msg::Asks(w.clone(), c.clone(), Ok(vec![ask("q1", None, Allowed::Yes), ask("g1", Some(grant()), Allowed::Yes)])));
+    // In the chat list, 2 is still the Workflows view.
+    key(&mut s, KeyCode::Char('2'));
+    assert_eq!(s.view, View::Workflows);
+    key(&mut s, KeyCode::Char('1'));
+    key(&mut s, KeyCode::Tab);
+    assert_eq!(s.focus, Focus::Detail);
+    assert_eq!(s.ask_target().map(|a| a.id.as_str()), Some("q1"));
+    let fx = key(&mut s, KeyCode::Char('2'));
+    assert_eq!(fx, vec![Effect::AnswerAsk(w.clone(), c.clone(), AskId::new("q1"), AskReply::Option(1))]);
+    assert_eq!(s.view, View::Chats, "the number answered, it didn't switch views");
+    // A reply opens a one-line field.
+    key(&mut s, KeyCode::Char('r'));
+    typed(&mut s, "keep the dev db");
+    let fx = key(&mut s, KeyCode::Enter);
+    assert_eq!(fx, vec![Effect::AnswerAsk(w.clone(), c.clone(), AskId::new("q1"), AskReply::Text("keep the dev db".into()))]);
+    // The question settles; the grant takes the keys.
+    let mut settled = ask("q1", None, Allowed::Yes);
+    settled.status = AskStatus::Answered { by: "Mara".into(), answer: "SQLite".into(), text: None, at: NOW };
+    update(&mut s, Msg::Asks(w.clone(), c.clone(), Ok(vec![settled, ask("g1", Some(grant()), Allowed::Yes)])));
+    assert_eq!(s.ask_target().map(|a| a.id.as_str()), Some("g1"));
+    assert!(key(&mut s, KeyCode::Char('1')).is_empty(), "a number never allows a call");
+    assert!(key(&mut s, KeyCode::Char('a')).is_empty());
+    assert!(matches!(s.overlay, Some(Overlay::Confirm { action: ConfirmAction::AllowAsk { .. }, .. })));
+    let fx = key(&mut s, KeyCode::Char('y'));
+    assert_eq!(fx, vec![Effect::AnswerAsk(w.clone(), c.clone(), AskId::new("g1"), AskReply::Option(0))]);
+    let fx = key(&mut s, KeyCode::Char('d'));
+    assert_eq!(fx, vec![Effect::AnswerAsk(w.clone(), c.clone(), AskId::new("g1"), AskReply::Option(1))]);
+    // Too large: no Allow at all.
+    let mut big = grant();
+    big.too_large = true;
+    update(&mut s, Msg::Asks(w.clone(), c.clone(), Ok(vec![ask("g2", Some(big), Allowed::Yes)])));
+    assert!(key(&mut s, KeyCode::Char('a')).is_empty());
+    assert!(s.overlay.is_none());
+    // Not eligible: read-only, the keys are the usual ones.
+    update(&mut s, Msg::Asks(w.clone(), c.clone(), Ok(vec![ask("q3", None, Allowed::No("Waiting on Ada".into()))])));
+    assert!(s.ask_target().is_none());
+    key(&mut s, KeyCode::Char('2'));
+    assert_eq!(s.view, View::Workflows);
+    // An older question: Not now hides it here and records nothing.
+    key(&mut s, KeyCode::Char('1'));
+    key(&mut s, KeyCode::Tab);
+    let mut old = ask("q4", None, Allowed::Yes);
+    old.v2 = false;
+    update(&mut s, Msg::Asks(w.clone(), c.clone(), Ok(vec![old])));
+    assert!(key(&mut s, KeyCode::Char('n')).is_empty());
+    assert!(s.ask_target().is_none());
+    // A new card reloads the open chat's cards and the list's counts.
+    let fx = update(&mut s, Msg::Event(Event::AsksChanged { workspace: w.clone(), chat: c.clone() }));
+    assert_eq!(fx, vec![Effect::LoadChats(w.clone()), Effect::LoadAsks(w, c)]);
 }
 
 // ── Add to my devices, live (code match) ────────────────────────────────

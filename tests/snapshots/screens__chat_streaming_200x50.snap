@@ -9,28 +9,28 @@ expression: screen
 ┃  Weekly release notes    1d  ┃│                                                                                                                              ││                                      │
 ┃                              ┃│             @coder  via claude-code · on build-box  38m                                                                      ││Proposals                             │
 ┃                              ┃│               Yes. The payment tests already use a fake clock, so it's a small change. I'll propose it.                      ││◆ Inject the clock into checkout … 1/2│
-┃                              ┃│               ◆ proposal “Inject the clock into checkout tests” · open 1/2 · p to review                                     ││◆ Sign-off: inject a fake clock 0/1   │
+┃                              ┃│                                                                                                                              ││◆ Sign-off: inject a fake clock 0/1   │
+┃                              ┃│               ✓ Ada answered Fake clock · 37m                                                                                ││                                      │
+┃                              ┃│               ◆ proposal “Inject the clock into checkout tests” · open 1/2 · p to review                                     ││Runs                                  │
+┃                              ┃│                                                                                                                              ││· Implement, review, sh… awaiting-gate│
+┃                              ┃│             Ada  12m                                                                                                         ││                                      │
+┃                              ┃│               @Mara can you review the timeout? 30 seconds is what the provider uses.                                        ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│             Ada  12m                                                                                                         ││Runs                                  │
-┃                              ┃│               @Mara can you review the timeout? 30 seconds is what the provider uses.                                        ││· Implement, review, sh… awaiting-gate│
+┃                              ┃│             ▸ coder asks you: “Use Postgres or SQLite for the test fixtures?”                                                ││                                      │
+┃                              ┃│                 1 Postgres   2 SQLite   r reply   n not now   (tab to the chat first)                                        ││                                      │
+┃                              ┃│                 coder decides what to do next. No new permission.                                                            ││                                      │
+┃                              ┃│                                                                                                                              ││                                      │
+┃                              ┃│               coder asks you to run something                                                                                ││                                      │
+┃                              ┃│                 Allow once lets coder run this once on build-box:                                                            ││                                      │
+┃                              ┃│                 │ cargo test -p checkout --features fake-clock                                                               ││                                      │
+┃                              ┃│                 in /srv/northwind                                                                                            ││                                      │
+┃                              ┃│                 coder describes it as: Run the checkout tests                                                                ││                                      │
+┃                              ┃│                 Next, after the question above                                                                               ││                                      │
 ┃                              ┃│               ◆ proposal “Sign-off: inject a fake clock” · open 0/1 · p to review                                            ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│             @coder  via claude-code · on build-box  now  ⠋ 00:00                                                             ││                                      │
 ┃                              ┃│               ▸ read_file src/checkout.rs done                                                                               ││                                      │
 ┃                              ┃│               Thirty seconds matches the provider's ▍                                                                        ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │

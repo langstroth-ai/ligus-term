@@ -9,12 +9,12 @@ expression: screen
 ┃  W┃  Make this computer one of your devices.                             ┃   │
 ┃   ┃  An invite makes a second member with your name; this makes it you.  ┃   │
 ┃   ┃  It acts as you without your account key: votes ask for your         ┃   │
-┃   ┃  passkey; devices, phones and keys stay on the desktop.              ┃ck,│
+┃   ┃  passkey; devices, phones and keys stay on the desktop.              ┃   │
 ┃   ┃  In use already: it asks with a new device key, and the desktop      ┃   │
 ┃   ┃  can then remove the old member (their messages keep their name).    ┃   │
 ┃   ┃                                                                      ┃   │
-┃   ┃  1 Desktop: My devices > Add a computer (palette: link)              ┃   │
-┃   ┃  2 Copy its approval address and paste it below                      ┃is │
+┃   ┃  1 Desktop: My devices > Add a computer (palette: link)              ┃o  │
+┃   ┃  2 Copy its approval address and paste it below                      ┃   │
 ┃   ┃  3 Check both screens show the same code                             ┃   │
 ┃   ┃                                                                      ┃   │
 ┃   ┃  Older desktop? Paste this request there (c copies it):              ┃   │

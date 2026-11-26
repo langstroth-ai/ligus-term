@@ -17,6 +17,7 @@
 //! run in [`turns`], behind the same dispatch gates as the desktop
 //! (`ligus_runtime::turn_dispatch`).
 
+mod asks;
 mod deploy;
 pub(crate) mod detect;
 mod link;
@@ -1068,6 +1069,32 @@ impl Backend for RealBackend {
         Ok(self.inner.turn_stops.stop(sid, None))
     }
 
+    async fn asks(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<Vec<Ask>> {
+        let (ws, sid) = (ws_uuid(workspace)?, uuid_of(chat.as_str(), "chat")?);
+        self.call(move |i| {
+            let s = i.read(ws, |svc| svc.load_in(ws, sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
+            let now = (Timestamp::now().inner().unix_timestamp_nanos() / 1_000_000) as i64;
+            Ok(asks::cards(i, ws, &s, &i.me(), now))
+        })
+        .await
+    }
+
+    async fn answer_ask(&self, workspace: &WorkspaceId, chat: &ChatId, ask: &AskId, reply: AskReply) -> Result<()> {
+        let (ws, sid) = (ws_uuid(workspace)?, uuid_of(chat.as_str(), "chat")?);
+        let aid = uuid_of(ask.as_str(), "question")?;
+        let choice = match reply {
+            AskReply::Option(i) => ligus_runtime::chat_service::AskChoice { option: Some(i), ..Default::default() },
+            AskReply::Text(t) => ligus_runtime::chat_service::AskChoice { text: t, ..Default::default() },
+            AskReply::NotNow => ligus_runtime::chat_service::AskChoice { decline: true, ..Default::default() },
+        };
+        self.call(move |i| {
+            i.write(ws, |svc| svc.answer_ask(sid, ws, aid, choice))?;
+            i.emit(Event::AsksChanged { workspace: WorkspaceId::new(ws.to_string()), chat: ChatId::new(sid.to_string()) });
+            Ok(())
+        })
+        .await
+    }
+
     async fn lock_chat(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<()> {
         let (ws, sid) = (ws_uuid(workspace)?, uuid_of(chat.as_str(), "chat")?);
         self.call(move |i| {
@@ -1676,7 +1703,10 @@ impl Inner {
                 let seen = read.get(&id).copied().unwrap_or(0);
                 let unread = last.is_some_and(|m| views::ms(&m.created_at) > seen && m.actor_identity.as_ref().is_none_or(|a| a.id != me));
                 let view = ligus_runtime::lockdown_view::chat_lockdown(s, s.id, &me);
+                let now = (Timestamp::now().inner().unix_timestamp_nanos() / 1_000_000) as i64;
+                let asks_for_you = s.flow.asks.values().filter(|a| a.is_live(now) && ligus_runtime::ask_view::eligible(s, a, &me)).count();
                 ChatSummary {
+                    asks_for_you,
                     id: ChatId::new(id.clone()),
                     title: s.title.clone(),
                     channel: channels.iter().find(|c| c.id == s.channel_id).map(|c| c.name.clone()),

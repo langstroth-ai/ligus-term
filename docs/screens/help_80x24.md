@@ -4,13 +4,13 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 
 ```text
 [NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
-┏ ┏ Help · 1-20 of 108 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─╮
+┏ ┏ Help · 1-20 of 119 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─╮
 ┃ ┃Each chat is a room with people and agents. @ mentions an agent or a      ┃ │
 ┃ ┃person; enter on a chat opens it and puts you in the composer.            ┃ │
 ┃ ┃                                                                          ┃ │
 ┃ ┃. opens a row's actions · / searches · rebind keys in the config file     ┃ │
 ┃ ┃                                                                          ┃ │
-┃ ┃Chats  here                                                               ┃,│
+┃ ┃Chats  here                                                               ┃ │
 ┃ ┃  i                        Write a message                                ┃ │
 ┃ ┃  N                        New chat                                       ┃ │
 ┃ ┃  D                        The whole transcript in $PAGER (or your termina┃ │

@@ -106,6 +106,11 @@ pub enum Event {
         workspace: WorkspaceId,
         run: Run,
     },
+    /// A chat's decision cards changed (asked, answered, closed).
+    AsksChanged {
+        workspace: WorkspaceId,
+        chat: ChatId,
+    },
     /// Workspace memory or an agent's task state changed.
     MemoryChanged {
         workspace: WorkspaceId,
@@ -228,6 +233,11 @@ pub trait Backend: Send + Sync {
     /// Stop the agents' turns running on this device in a chat; how many
     /// were stopped (0: none runs here, so its host has to stop it).
     async fn stop_turn(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<usize>;
+    /// The decision cards to show in a chat, oldest first.
+    async fn asks(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<Vec<Ask>>;
+    /// Answer an ask on the log of `chat` (the ask's own chat). A grant
+    /// that needs a passkey asks for one ([`Event::PresencePrompt`]).
+    async fn answer_ask(&self, workspace: &WorkspaceId, chat: &ChatId, ask: &AskId, reply: AskReply) -> Result<()>;
     async fn lock_chat(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<()>;
     /// A human Contributor or above clears it, with a passkey.
     async fn clear_lockdown(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<()>;

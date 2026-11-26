@@ -362,6 +362,13 @@ pub const COMMANDS: &[Cmd] = &[
         prints: "stopped",
         example: "stop",
     },
+    Cmd {
+        name: "asks",
+        usage: "asks",
+        about: "List the open chat's agent questions and grant cards, and who each waits on. Read-only: you answer them in the full-screen lt (a person's step).",
+        prints: "ask",
+        example: "asks",
+    },
     Cmd { name: "lock", usage: "lock", about: "Lock the open chat down.", prints: "ok", example: "lock" },
     Cmd {
         name: "unlock",
@@ -667,6 +674,8 @@ pub const RECORDS: &[(&str, &[&[&str]])] = &[
     ("tool", &[&["chat", "tool", "preview"]]),
     ("thinking", &[&["chat", "agent"]]),
     ("proposal-changed", &[&["id", "status", "votes", "title"]]),
+    ("ask", &[&["n", "id", "agent", "kind", "status", "question", "options"]]),
+    ("asks-changed", &[&["chat"]]),
     ("presence", &[&["id", "kind", "digest", "summary", "answers"]]),
     ("presence-problem", &[&["id", "error"]]),
     ("presence-url", &[&["id", "port", "address", "note"]]),
