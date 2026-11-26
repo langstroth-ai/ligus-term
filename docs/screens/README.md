@@ -43,6 +43,9 @@ INSTA_UPDATE=always LT_WRITE_SCREENS=1 cargo test --test screens --test setup
 | A run started here, live | [workflow_run_live.md](workflow_run_live.md) |
 | Proposals with the diff viewer | [proposals.md](proposals.md) |
 | Diff viewer: a later hunk | [proposals_hunk.md](proposals_hunk.md) |
+| A settled proposal's row menu: Archive, Hide for me | [proposal_archive_menu.md](proposal_archive_menu.md) |
+| Archived and hidden proposals | [archived_proposals.md](archived_proposals.md) |
+| An archived proposal's row menu: Restore | [archived_proposal_menu.md](archived_proposal_menu.md) |
 | Apply on ‹host› | [apply_host.md](apply_host.md) |
 | Agents (status, what they're doing), runtimes, hand-offs | [agents.md](agents.md) |
 | Agents: what this device could add, in a popup | [agents_add_pick.md](agents_add_pick.md) |

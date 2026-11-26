@@ -8,6 +8,13 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Added
 
+- Archiving proposals. Archive (`e`, or the row menu) takes a settled
+  proposal off the Proposals list for everyone; one settled for the
+  workspace's auto-archive days leaves on its own. Hide for me (`H`) takes a
+  proposal off this device's list only. `v` lists the archived and hidden
+  ones, with Restore and Show again. Neither is counted in what needs you. A
+  proposal that still waits on a decision can't be archived. Plain mode:
+  `archived`, `archive N`, `restore N`, `hide N`, `show N`.
 - Agents' questions (Ligus 0.4 decision cards): a card in the transcript
   where the agent asked, with the agent's words quoted as plain text and
   what the answer does in Ligus's words. `1`-`5` answer, `r` replies, `n`
@@ -46,8 +53,8 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 ### Changed
 
 - The Ligus crates are pinned to a commit of the ligus repo's main branch
-  (code-match approval, identity model v2 and agents' questions) until its
-  0.4.0 release tag.
+  (code-match approval, identity model v2, agents' questions and proposal
+  archiving) until its 0.4.0 release tag.
 
 ## v0.3.1
 

@@ -4,23 +4,23 @@ expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
 ┏ Proposals ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Inject the clock into checkout tests ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-┃Inject the clock into checkout …  open 1/2 · 37m  ┃│open  by ┏ Commands · 62 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                                                             │
+┃Inject the clock into checkout …  open 1/2 · 37m  ┃│open  by ┏ Commands · 65 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                                                             │
 ┃Export orders to CSV           approved 2/2 · 1d  ┃│✓ Ada app┃›                                                                         ┃                                                             │
 ┃Bump the order schema version   applied 2/2 · 2d  ┃╰─────────┃──────────────────────────────────────────────────────────────────────────┃─────────────────────────────────────────────────────────────╯
 ┃Sign-off: inject a fake clock      open 0/1 · 4m  ┃╭ Diff · 2┃▶ Approve “Inject the clock into checkout tests”       A         Proposals┃─────────────────────────────────────────────────────────────╮
 ┃Workflow: Dependency audit befo…  open 0/1 · 20m  ┃│▌src/chec┃  Reject “Inject the clock into checkout tests”        R         Proposals┃                                                             │
 ┃                                                  ┃│@@ -12,7 ┃  Apply on a host “Inject the clock into checkout te…  O         Proposals┃                                                             │
 ┃                                                  ┃│     pub ┃  Withdraw the apply request “Inject the clock into …  W         Proposals┃                                                             │
-┃                                                  ┃│     pub ┃  Quit                                                 ctrl-c q   Anywhere┃                                                             │
-┃                                                  ┃│-    pub ┃  Show or hide this help                               ? f1       Anywhere┃                                                             │
-┃                                                  ┃│+    /// ┃  Switch the theme                                                Anywhere┃                                                             │
-┃                                                  ┃│+    pub ┃  Switch light or dark                                            Anywhere┃                                                             │
-┃                                                  ┃│+    pub ┃  Show the keys you can press here                     space      Anywhere┃                                                             │
+┃                                                  ┃│     pub ┃  Archive a settled proposal for everyone, or restor…  e         Proposals┃                                                             │
+┃                                                  ┃│-    pub ┃  Hide for me (this device only), or show again “Inj…  H         Proposals┃                                                             │
+┃                                                  ┃│+    /// ┃  Archived and hidden proposals                        v         Proposals┃                                                             │
+┃                                                  ┃│+    pub ┃  Quit                                                 ctrl-c q   Anywhere┃                                                             │
+┃                                                  ┃│+    pub ┃  Show or hide this help                               ? f1       Anywhere┃                                                             │
+┃                                                  ┃│     pub ┃  Switch the theme                                                Anywhere┃                                                             │
+┃                                                  ┃│ }       ┃  Switch light or dark                                            Anywhere┃                                                             │
+┃                                                  ┃│@@ -40,9 ┃  Show the keys you can press here                     space      Anywhere┃                                                             │
 ┃                                                  ┃│     pub ┃  This session's notices and errors, in full           !          Anywhere┃                                                             │
-┃                                                  ┃│ }       ┃  Switch workspace                                     w ctrl-w   Anywhere┃                                                             │
-┃                                                  ┃│@@ -40,9 ┃  Create or join a workspace                           +          Anywhere┃                                                             │
-┃                                                  ┃│     pub ┃  Set up: an agent, a tool, a folder, a box, a phone…  u          Anywhere┃                                                             │
-┃                                                  ┃│-        ┃  Link this computer to my devices                                Anywhere┃                                                             │
+┃                                                  ┃│-        ┃  Switch workspace                                     w ctrl-w   Anywhere┃                                                             │
 ┃                                                  ┃│-    }   ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                                                             │
 ┃                                                  ┃│+        // 30 seconds matches the payment provider's session timeout.                                                                            │
 ┃                                                  ┃│+        self.clock.now() - self.started_at >= Self::SESSION_TIMEOUT_MS                                                                           │

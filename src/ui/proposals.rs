@@ -11,7 +11,7 @@ use unicode_width::UnicodeWidthStr;
 
 use super::{pane, trunc};
 use crate::app::state::{DiffRow, Focus, State, ago};
-use crate::backend::model::{ApplyState, DiffLine, Proposal, ProposalStatus};
+use crate::backend::model::{ApplyState, DiffLine, Proposal, ProposalStatus, Shelf};
 use crate::theme::Theme;
 
 pub(crate) fn status_style(st: ProposalStatus, t: &Theme) -> ratatui::style::Style {
@@ -50,14 +50,14 @@ pub fn proposal_hit(s: &State, area: Rect, x: u16, y: u16) -> ProposalHit {
         return ProposalHit::Detail;
     }
     let inner_h = area.height.saturating_sub(2);
-    if y <= area.y || y >= area.bottom().saturating_sub(1) || s.proposals.is_empty() {
+    if y <= area.y || y >= area.bottom().saturating_sub(1) || s.shown_proposals().is_empty() {
         return ProposalHit::List(None);
     }
     // One line a proposal; the list scrolls to keep the selection in view.
     let visible = inner_h.max(1) as usize;
     let offset = (s.proposal_sel.index + 1).saturating_sub(visible);
     let row = offset + (y - area.y - 1) as usize;
-    ProposalHit::List((row < s.proposals.len()).then_some(row))
+    ProposalHit::List((row < s.shown_proposals().len()).then_some(row))
 }
 
 pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
@@ -66,32 +66,59 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
     draw_list(f, list, s, t);
     let Some(p) = s.selected_proposal() else {
         let block = pane("Review", false, t);
-        f.render_widget(Paragraph::new(Line::styled("Nothing is waiting for review.", t.dim())).block(block), right);
+        f.render_widget(Paragraph::new(Line::styled(empty_text(s), t.dim())).block(block), right);
         return;
     };
     let refused = p.status == ProposalStatus::Open && !p.can_vote.is_yes();
-    let detail_h = 3 + p.votes.len() as u16 + u16::from(p.needs_presence) + u16::from(apply_text(&p.apply).is_some()) + u16::from(refused);
+    let detail_h = 3
+        + p.votes.len() as u16
+        + u16::from(p.needs_presence)
+        + u16::from(apply_text(&p.apply).is_some())
+        + u16::from(refused)
+        + u16::from(shelf_text(p.shelf).is_some());
     let [detail, diff] = Layout::vertical([Constraint::Length(detail_h), Constraint::Min(3)]).areas(right);
     draw_detail(f, detail, p, t);
     draw_diff(f, diff, s, t);
 }
 
+/// What the list says when it is empty.
+fn empty_text(s: &State) -> &'static str {
+    if s.show_archived { "Nothing archived or hidden." } else { "Nothing is waiting for review." }
+}
+
+/// Where an archived or hidden proposal is, for its detail.
+pub fn shelf_text(shelf: Shelf) -> Option<&'static str> {
+    match shelf {
+        Shelf::Inbox => None,
+        Shelf::Archived => Some("Archived for everyone"),
+        Shelf::AutoArchived => Some("Archived automatically after it settled"),
+        Shelf::Hidden => Some("Hidden on this device only"),
+    }
+}
+
 fn draw_list(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
-    let block = pane("Proposals", s.focus == Focus::List, t);
-    if s.proposals.is_empty() {
-        f.render_widget(Paragraph::new(Line::styled("Nothing is waiting for review.", t.dim())).block(block), area);
+    let title = if s.show_archived { "Archived proposals" } else { "Proposals" };
+    let block = pane(title, s.focus == Focus::List, t);
+    if s.shown_proposals().is_empty() {
+        f.render_widget(Paragraph::new(Line::styled(empty_text(s), t.dim())).block(block), area);
         return;
     }
     let w = area.width.saturating_sub(4) as usize;
     // The title, then where it stands: its status (in its colour), the
     // votes and its age.
     let items: Vec<ListItem> = s
-        .proposals
+        .shown_proposals()
         .iter()
         .map(|p| {
             let applying = if matches!(p.apply, ApplyState::Waiting { .. }) { " · applying" } else { "" };
-            let meta = format!(" {}/{} · {}{applying}", p.approvals, p.quorum, ago(s.now, p.created_at));
-            let label = p.status.label();
+            // Off the list: where it is instead of its votes (its status is
+            // in the detail).
+            let (label, meta, label_style) = if p.in_inbox() {
+                let meta = format!(" {}/{} · {}{applying}", p.approvals, p.quorum, ago(s.now, p.created_at));
+                (p.status.label(), meta, status_style(p.status, t).remove_modifier(Modifier::BOLD))
+            } else {
+                (p.shelf.label(), format!(" · {}", ago(s.now, p.created_at)), t.dim())
+            };
             let tail = 2 + label.width() + meta.width();
             let title = trunc(&p.title, w.saturating_sub(tail).max(8));
             let pad = w.saturating_sub(title.width() + tail);
@@ -100,7 +127,7 @@ fn draw_list(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             ListItem::new(Line::from(vec![
                 Span::styled(title, style),
                 Span::raw(" ".repeat(pad + 2)),
-                Span::styled(label, status_style(p.status, t).remove_modifier(Modifier::BOLD)),
+                Span::styled(label, label_style),
                 Span::styled(meta, t.dim()),
             ]))
         })
@@ -147,6 +174,9 @@ fn draw_detail(f: &mut Frame, area: Rect, p: &Proposal, t: &Theme) {
             _ => t.warn,
         };
         lines.push(Line::styled(a, t.fg(c)));
+    }
+    if let Some(w) = shelf_text(p.shelf) {
+        lines.push(Line::styled(w, t.dim()));
     }
     f.render_widget(Paragraph::new(lines).wrap(ratatui::widgets::Wrap { trim: false }).block(block), area);
 }

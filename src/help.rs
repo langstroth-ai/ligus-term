@@ -380,9 +380,47 @@ pub const COMMANDS: &[Cmd] = &[
     Cmd {
         name: "proposals",
         usage: "proposals",
-        about: "List proposals from every chat: code changes, decisions, workflow gates and workflows.",
+        about: "List proposals from every chat: code changes, decisions, workflow gates and workflows. \
+                Archived ones and ones hidden on this device are under archived.",
         prints: "proposal",
         example: "lt --plain --json proposals",
+    },
+    Cmd {
+        name: "archived",
+        usage: "archived",
+        about: "List archived proposals (archived for everyone, or settled long enough to archive on their \
+                own) and the ones hidden on this device.",
+        prints: "archived",
+        example: "lt --plain --json archived",
+    },
+    Cmd {
+        name: "archive",
+        usage: "archive N",
+        about: "Archive a settled proposal (applied, rejected or replaced) for everyone; N from proposals. \
+                One that still waits on a decision can't be archived: reject it, or hide it for yourself.",
+        prints: "shelved",
+        example: "lt --plain archive 3",
+    },
+    Cmd {
+        name: "restore",
+        usage: "restore N",
+        about: "Bring an archived proposal back for everyone (a hidden one: show it again); N from archived.",
+        prints: "shelved",
+        example: "lt --plain restore 1",
+    },
+    Cmd {
+        name: "hide",
+        usage: "hide N",
+        about: "Hide for me: take a proposal off this device's list only (never synced); N from proposals.",
+        prints: "shelved",
+        example: "lt --plain hide 2",
+    },
+    Cmd {
+        name: "show",
+        usage: "show N",
+        about: "Show again: bring back a proposal hidden on this device; N from archived.",
+        prints: "shelved",
+        example: "lt --plain show 1",
     },
     Cmd { name: "diff", usage: "diff N", about: "Print a proposal's diff.", prints: "file, hunk, line", example: "lt --plain diff 1" },
     Cmd {
@@ -658,6 +696,8 @@ pub const RECORDS: &[(&str, &[&[&str]])] = &[
     ("sent", &[&["chat", "message"]]),
     ("stopped", &[&["chat", "n"]]),
     ("proposal", &[&["n", "id", "status", "votes", "title", "apply", "kind"]]),
+    ("archived", &[&["n", "id", "shelf", "status", "title"]]),
+    ("shelved", &[&["id", "shelf", "title"]]),
     ("file", &[&["path", "added", "removed"]]),
     ("hunk", &[&["header"]]),
     ("line", &[&["kind", "text"]]),

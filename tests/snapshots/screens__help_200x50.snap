@@ -3,7 +3,7 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
-┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ────┏ Help · 1-46 of 119 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────╮╭ This chat ───────────────────────────╮
+┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test ────┏ Help · 1-46 of 122 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─────────────────────╮╭ This chat ───────────────────────────╮
 ┃  ◆ Fix flaky checkout … 12m  ┃│             Ada  40m        ┃Each chat is a room with people and agents. @ mentions an agent or a      ┃                     ││Proposals                             │
 ┃  ◆ Migrate auth to pas… 50m  ┃│               The checkout t┃person; enter on a chat opens it and puts you in the composer.            ┃                     ││◆ Inject the clock into checkout … 1/2│
 ┃  Weekly release notes    1d  ┃│                             ┃                                                                          ┃                     ││◆ Sign-off: inject a fake clock 0/1   │

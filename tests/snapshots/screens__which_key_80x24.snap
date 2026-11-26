@@ -17,9 +17,9 @@ expression: screen
 ┃                              ┃│+    pub clock: Arc<dyn Clock>,               │
 ┃                              ┃│+    pub started_at: Millis,                  │
 ┃                              ┃│     pub paid: bool,                          │
-┃                              ┃│ }                                            │
 ┃┏ space … press a key · esc ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓│
 ┃┃Proposals A approve   R reject   O apply on host   W withdraw apply         ┃│
+┃┃          e archive   H hide   v show archived                              ┃│
 ┃┃Go to     c chats   f workflows   p proposals   a agents   h hosts          ┃│
 ┃┃          y memory   m people   n notifications   s settings                ┃│
 ┃┃Anywhere  q quit   ? help   : palette   ! messages   w switch workspace     ┃│

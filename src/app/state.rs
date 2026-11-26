@@ -600,7 +600,14 @@ pub struct State {
     /// The composer text at which the popup was dismissed with Esc.
     pub mention_dismissed: Option<String>,
 
+    /// The inbox: proposals neither archived nor hidden on this device
+    /// (the only ones the counts and the chat views see).
     pub proposals: Vec<Proposal>,
+    /// Archived (for everyone, or by the workspace's auto-archive rule)
+    /// and hidden here ("Hide for me").
+    pub archived_proposals: Vec<Proposal>,
+    /// The Proposals view lists the archived and hidden ones instead.
+    pub show_archived: bool,
     pub proposal_sel: Sel,
     pub diff: Option<DiffState>,
 
@@ -736,6 +743,8 @@ impl State {
             mention_sel: 0,
             mention_dismissed: None,
             proposals: vec![],
+            archived_proposals: vec![],
+            show_archived: false,
             proposal_sel: Sel::default(),
             diff: None,
             agents: vec![],
@@ -834,6 +843,12 @@ impl State {
         self.session_signals(chat).state()
     }
 
+    /// What the Proposals view lists: the inbox, or the archived and
+    /// hidden ones.
+    pub fn shown_proposals(&self) -> &[Proposal] {
+        if self.show_archived { &self.archived_proposals } else { &self.proposals }
+    }
+
     /// The card the ask keys answer: the oldest open card in the open chat
     /// that you may answer (and haven't put aside here).
     pub fn ask_target(&self) -> Option<&Ask> {
@@ -841,7 +856,7 @@ impl State {
     }
 
     pub fn selected_proposal(&self) -> Option<&Proposal> {
-        self.proposals.get(self.proposal_sel.index)
+        self.shown_proposals().get(self.proposal_sel.index)
     }
 
     pub fn selected_member(&self) -> Option<&Member> {
@@ -1082,9 +1097,10 @@ impl State {
             View::Chats => {
                 (self.chats.iter().map(|c| format!("{} {}", c.title, c.channel.as_deref().unwrap_or(""))).collect(), self.chat_sel.index)
             }
-            View::Proposals => {
-                (self.proposals.iter().map(|p| format!("{} {} {}", p.title, p.author, p.status.label())).collect(), self.proposal_sel.index)
-            }
+            View::Proposals => (
+                self.shown_proposals().iter().map(|p| format!("{} {} {}", p.title, p.author, p.status.label())).collect(),
+                self.proposal_sel.index,
+            ),
             View::Agents => (self.agents.iter().map(|a| format!("@{} {}", a.handle, a.runtime)).collect(), self.agent_sel.index),
             View::Hosts => (self.hosts.iter().map(|h| h.label.clone()).collect(), self.host_sel.index),
             View::People => (self.members.iter().map(|m| format!("{} {}", m.name, m.role.label())).collect(), self.member_sel.index),

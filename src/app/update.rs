@@ -54,6 +54,8 @@ pub enum Msg {
     ChatCreated(WorkspaceId, Result<ChatSummary>),
     Sent(Result<Message>),
     ProposalUpdated(WorkspaceId, Result<Proposal>),
+    /// A proposal archived, restored, hidden here or shown again.
+    Shelved(WorkspaceId, Result<Proposal>),
     Invite(Result<String>),
     /// The invite (as typed) and what it says about its sender.
     InviteChecked(String, Result<InviteCheck>),
@@ -153,6 +155,10 @@ pub enum Effect {
     Vote(WorkspaceId, ProposalId, VoteChoice),
     RequestApply(WorkspaceId, ProposalId, HostId),
     WithdrawApply(WorkspaceId, ProposalId),
+    /// Archive (`true`) or restore a proposal, for everyone.
+    ArchiveProposal(WorkspaceId, ProposalId, bool),
+    /// Hide (`true`) a proposal on this device, or show it again.
+    HideProposal(WorkspaceId, ProposalId, bool),
     SetAgentRuntime(WorkspaceId, AgentId, RuntimeId),
     /// Who may use an agent: everyone (`true`) or only its owner.
     SetAgentAccess(WorkspaceId, AgentId, bool),
@@ -371,8 +377,10 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
             vec![]
         }
         Msg::Proposals(ws, Ok(p)) if is_active(s, &ws) => {
-            s.proposals = p;
-            s.proposal_sel.clamp(s.proposals.len());
+            let (inbox, off): (Vec<_>, Vec<_>) = p.into_iter().partition(|p| p.in_inbox());
+            s.proposals = inbox;
+            s.archived_proposals = off;
+            s.proposal_sel.clamp(s.shown_proposals().len());
             // The selected proposal's diff shows without asking.
             if s.view == View::Proposals { load_selected_diff(s) } else { vec![] }
         }
@@ -489,6 +497,17 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
         Msg::ProposalUpdated(ws, Ok(p)) => {
             upsert_proposal(s, &ws, p);
             vec![]
+        }
+        Msg::Shelved(ws, Ok(p)) => {
+            let what = match p.shelf {
+                Shelf::Inbox => "Back in Proposals",
+                Shelf::Archived | Shelf::AutoArchived => "Archived for everyone",
+                Shelf::Hidden => "Hidden on this device",
+            };
+            s.toast(ToastKind::Ok, format!("{what}: \u{201c}{}\u{201d}", p.title));
+            upsert_proposal(s, &ws, p);
+            // The selection moved onto another row: show its diff.
+            if is_active(s, &ws) && s.view == View::Proposals { preview_selected_diff(s) } else { vec![] }
         }
         Msg::Invite(Ok(code)) => {
             s.overlay = Some(Overlay::Invite { code: Some(code) });
@@ -758,6 +777,7 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
         }
         Msg::Done { result: Err(e), .. }
         | Msg::ProposalUpdated(_, Err(e))
+        | Msg::Shelved(_, Err(e))
         | Msg::Invite(Err(e))
         | Msg::ChatCreated(_, Err(e))
         | Msg::Workspaces(Err(e))
@@ -847,10 +867,16 @@ fn upsert_proposal(s: &mut State, ws: &WorkspaceId, p: Proposal) {
     if !is_active(s, ws) {
         return;
     }
-    match s.proposals.iter_mut().find(|x| x.id == p.id) {
+    // Each proposal is on one list: the inbox, or archived and hidden.
+    let (list, other) =
+        if p.in_inbox() { (&mut s.proposals, &mut s.archived_proposals) } else { (&mut s.archived_proposals, &mut s.proposals) };
+    other.retain(|x| x.id != p.id);
+    match list.iter_mut().find(|x| x.id == p.id) {
         Some(x) => *x = p,
-        None => s.proposals.insert(0, p),
+        None => list.insert(0, p),
     }
+    let n = s.shown_proposals().len();
+    s.proposal_sel.clamp(n);
 }
 
 fn event(s: &mut State, e: Event) -> Vec<Effect> {
@@ -2316,6 +2342,8 @@ pub fn switch_workspace(s: &mut State, id: WorkspaceId) -> Vec<Effect> {
     s.asks.clear();
     s.transcript_scroll = 0;
     s.proposals.clear();
+    s.archived_proposals.clear();
+    s.show_archived = false;
     s.proposal_sel = Sel::default();
     s.diff = None;
     s.agents.clear();
@@ -2646,6 +2674,8 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
                 vec![]
             }
             (View::Chats, Focus::List) => vec![],
+            // From the archived proposals, back to the inbox.
+            (View::Proposals, Focus::List) if s.show_archived => toggle_archived(s),
             // Back to the view you came from, not always to Chats.
             _ if !s.back.is_empty() => view_history(s, true),
             _ => show(s, View::Chats),
@@ -2916,6 +2946,43 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             let id = p.id.clone();
             ws.map(|w| vec![Effect::WithdrawApply(w, id)]).unwrap_or_default()
         }
+        ArchiveProposal => {
+            let Some(p) = s.selected_proposal() else { return vec![] };
+            let restore = match p.shelf {
+                Shelf::Hidden => {
+                    s.toast(ToastKind::Info, "Hidden on this device: show it again first");
+                    return vec![];
+                }
+                Shelf::Archived | Shelf::AutoArchived => true,
+                Shelf::Inbox => false,
+            };
+            if !restore && p.waiting {
+                s.toast(ToastKind::Error, "It still waits on a decision: reject it first, or hide it for yourself");
+                return vec![];
+            }
+            if let Allowed::No(r) = &p.can_archive {
+                let r = r.clone();
+                s.toast(ToastKind::Error, format!("Can't {}: {r}", if restore { "restore" } else { "archive" }));
+                return vec![];
+            }
+            let id = p.id.clone();
+            ws.map(|w| vec![Effect::ArchiveProposal(w, id, !restore)]).unwrap_or_default()
+        }
+        HideProposal => {
+            let Some(p) = s.selected_proposal() else { return vec![] };
+            let (id, hide) = (p.id.clone(), p.shelf != Shelf::Hidden);
+            ws.map(|w| vec![Effect::HideProposal(w, id, hide)]).unwrap_or_default()
+        }
+        ShowArchived => {
+            if s.view != View::Proposals {
+                let mut fx = go(s, View::Proposals);
+                if !s.show_archived {
+                    fx.extend(toggle_archived(s));
+                }
+                return fx;
+            }
+            toggle_archived(s)
+        }
         NextHunk | PrevHunk | NextFile | PrevFile => {
             if let Some(d) = s.diff.as_mut() {
                 let rows = d.rows();
@@ -3097,7 +3164,8 @@ fn run_palette(s: &mut State, target: crate::app::palette::Target) -> Vec<Effect
         }
         Target::ShowProposal(id) => {
             let mut fx = go(s, View::Proposals);
-            if let Some(i) = s.proposals.iter().position(|p| p.id == id) {
+            s.show_archived = !s.proposals.iter().any(|p| p.id == id) && s.archived_proposals.iter().any(|p| p.id == id);
+            if let Some(i) = s.shown_proposals().iter().position(|p| p.id == id) {
                 s.proposal_sel.index = i;
             }
             // go() asked for the old selection's diff; ask for this one.
@@ -3198,7 +3266,8 @@ fn nav_action(s: &mut State, a: Action) -> Vec<Effect> {
                 return vec![];
             }
             let before = s.proposal_sel.index;
-            list_nav(&mut s.proposal_sel, s.proposals.len(), a);
+            let n = s.shown_proposals().len();
+            list_nav(&mut s.proposal_sel, n, a);
             if before != s.proposal_sel.index {
                 return preview_selected_diff(s);
             }
@@ -3236,6 +3305,16 @@ fn nav_action(s: &mut State, a: Action) -> Vec<Effect> {
             vec![]
         }
     }
+}
+
+/// Switch the Proposals view between the inbox and the archived and hidden
+/// proposals.
+fn toggle_archived(s: &mut State) -> Vec<Effect> {
+    s.show_archived = !s.show_archived;
+    s.proposal_sel = Sel::default();
+    s.focus = Focus::List;
+    s.diff = None;
+    load_selected_diff(s)
 }
 
 /// The selection moved: drop the old diff and preview the new one once the

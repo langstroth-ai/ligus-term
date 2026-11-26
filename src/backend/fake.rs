@@ -59,6 +59,9 @@ struct Ws {
     /// Agents' questions per chat, oldest first.
     asks: HashMap<ChatId, Vec<Ask>>,
     proposals: Vec<Proposal>,
+    /// Proposals hidden on this device ("Hide for me"); their `shelf` keeps
+    /// where they'd be otherwise.
+    hidden: std::collections::HashSet<ProposalId>,
     diffs: HashMap<ProposalId, Diff>,
     members: Vec<MemberRec>,
     agents: Vec<Agent>,
@@ -110,6 +113,20 @@ struct World {
     link_pending: Option<(Millis, usize)>,
     /// This demo device's synced name (device-rename).
     device_label: Option<String>,
+}
+
+impl Ws {
+    /// A proposal as this device shows it: hidden here, or on its shelf,
+    /// with whether you may archive it.
+    fn shown(&self, p: &Proposal) -> Proposal {
+        let mut p = p.clone();
+        if self.hidden.contains(&p.id) {
+            p.shelf = Shelf::Hidden;
+        }
+        let role = self.summary.as_ref().map(|s| s.your_role).unwrap_or(Role::Viewer);
+        p.can_archive = if role >= Role::Contributor { Allowed::Yes } else { Allowed::No("only a Contributor or above".into()) };
+        p
+    }
 }
 
 impl World {
@@ -354,6 +371,9 @@ impl FakeBackend {
                             needs_presence: false,
                             apply: ApplyState::NotRequested,
                             can_vote: Allowed::Yes,
+                            shelf: Shelf::Inbox,
+                            waiting: true,
+                            can_archive: Allowed::Yes,
                         });
                     } else if st.status == StageStatus::Running {
                         st.status = StageStatus::Succeeded;
@@ -549,6 +569,9 @@ impl FakeBackend {
                         needs_presence: false,
                         apply: ApplyState::NotRequested,
                         can_vote: Allowed::Yes,
+                        shelf: Shelf::Inbox,
+                        waiting: true,
+                        can_archive: Allowed::Yes,
                     };
                     if let Ok(wsd) = w.ws(&ws) {
                         wsd.proposals.insert(0, p.clone());
@@ -1036,6 +1059,9 @@ fn seed_northwind(w: &mut World) {
             needs_presence: false,
             apply: ApplyState::NotRequested,
             can_vote: Allowed::Yes,
+            shelf: Shelf::Inbox,
+            waiting: true,
+            can_archive: Allowed::Yes,
         },
         Proposal {
             id: ProposalId::new("p-2"),
@@ -1055,6 +1081,9 @@ fn seed_northwind(w: &mut World) {
             needs_presence: false,
             apply: ApplyState::NotRequested,
             can_vote: Allowed::No("you already voted".into()),
+            shelf: Shelf::Inbox,
+            waiting: true,
+            can_archive: Allowed::Yes,
         },
         Proposal {
             id: ProposalId::new("p-3"),
@@ -1071,6 +1100,9 @@ fn seed_northwind(w: &mut World) {
             needs_presence: false,
             apply: ApplyState::Applied { host: "build-box".into(), commit: "4be1c09a77d2".into() },
             can_vote: Allowed::No("already applied".into()),
+            shelf: Shelf::Inbox,
+            waiting: false,
+            can_archive: Allowed::Yes,
         },
     ];
     ws.diffs.insert(p1, clock_diff());
@@ -1095,6 +1127,36 @@ fn seed_northwind(w: &mut World) {
         },
     );
     ws.diffs.insert(ProposalId::new("p-3"), Diff { files: vec![] });
+    // Off the list: one archived by a person, one settled long enough to
+    // auto-archive, and one hidden on this device.
+    let settled = |id: &str, chat: &str, title: &str, status: ProposalStatus, ago: Millis, shelf: Shelf| Proposal {
+        id: ProposalId::new(id),
+        chat: Some(ChatId::new(chat)),
+        title: title.into(),
+        author: "@coder".into(),
+        kind: ProposalKind::Change,
+        status,
+        files_changed: 1,
+        approvals: 1,
+        quorum: 2,
+        votes: vec![],
+        created_at: DEMO_NOW - ago,
+        needs_presence: false,
+        apply: ApplyState::NotRequested,
+        can_vote: Allowed::No(format!("already {}", status.label())),
+        shelf,
+        waiting: false,
+        can_archive: Allowed::Yes,
+    };
+    ws.proposals.extend([
+        settled("p-4", "c-notes", "Rename the cart module to basket", ProposalStatus::Applied, 3 * 24 * 60 * MIN, Shelf::Archived),
+        settled("p-5", "c-checkout", "Retry payment webhooks forever", ProposalStatus::Rejected, 10 * 24 * 60 * MIN, Shelf::AutoArchived),
+        settled("p-6", "c-notes", "Try a second CSV library", ProposalStatus::Rejected, 2 * 24 * 60 * MIN, Shelf::Inbox),
+    ]);
+    ws.hidden.insert(ProposalId::new("p-6"));
+    for id in ["p-4", "p-5", "p-6"] {
+        ws.diffs.insert(ProposalId::new(id), Diff { files: vec![] });
+    }
     seed_orchestration(&mut ws);
     w.order.push(id.clone());
     w.ws.insert(id, ws);
@@ -1188,6 +1250,9 @@ fn seed_orchestration(ws: &mut Ws) {
         needs_presence: false,
         apply: ApplyState::NotRequested,
         can_vote: Allowed::Yes,
+        shelf: Shelf::Inbox,
+        waiting: true,
+        can_archive: Allowed::Yes,
     });
     ws.proposals.push(Proposal {
         id: ProposalId::new("p-wf-1"),
@@ -1204,6 +1269,9 @@ fn seed_orchestration(ws: &mut Ws) {
         needs_presence: true,
         apply: ApplyState::NotRequested,
         can_vote: Allowed::Yes,
+        shelf: Shelf::Inbox,
+        waiting: true,
+        can_archive: Allowed::Yes,
     });
     ws.diffs.insert(ProposalId::new("p-gate-7"), Diff { files: vec![] });
     ws.diffs.insert(ProposalId::new("p-wf-1"), Diff { files: vec![] });
@@ -1906,7 +1974,9 @@ impl Backend for FakeBackend {
     }
 
     async fn proposals(&self, workspace: &WorkspaceId) -> Result<Vec<Proposal>> {
-        Ok(self.lock().ws(workspace)?.proposals.clone())
+        let mut w = self.lock();
+        let ws = w.ws(workspace)?;
+        Ok(ws.proposals.iter().map(|p| ws.shown(p)).collect())
     }
 
     async fn proposal_diff(&self, workspace: &WorkspaceId, proposal: &ProposalId) -> Result<Diff> {
@@ -1951,7 +2021,9 @@ impl Backend for FakeBackend {
                 p.status = ProposalStatus::Rejected;
             }
             p.can_vote = Allowed::No("you already voted".into());
+            p.waiting = matches!(p.status, ProposalStatus::Open | ProposalStatus::Approved);
             let p = p.clone();
+            let p = ws.shown(&p);
             if p.kind == ProposalKind::Workflow && p.status == ProposalStatus::Approved {
                 let name = p.title.trim_start_matches("Workflow: ").to_string();
                 let def = workflow_def(
@@ -1993,7 +2065,8 @@ impl Backend for FakeBackend {
                 return err(format!("{} is offline; the request waits until it reconnects", h.label));
             }
             p.apply = ApplyState::Waiting { host: h.label.clone() };
-            (p.clone(), h.label)
+            let p = p.clone();
+            (ws.shown(&p), h.label)
         };
         self.emit(Event::ProposalChanged { workspace: workspace.clone(), proposal: p.clone() });
         let me = self.clone();
@@ -2009,7 +2082,9 @@ impl Backend for FakeBackend {
                 }
                 p.apply = ApplyState::Applied { host: label, commit: format!("{:012x}", fnv(id.as_str()) & 0xffff_ffff_ffff) };
                 p.status = ProposalStatus::Applied;
-                p.clone()
+                p.waiting = false;
+                let p = p.clone();
+                wsd.shown(&p)
             };
             me.emit(Event::ProposalChanged { workspace: ws, proposal: p });
         });
@@ -2019,12 +2094,53 @@ impl Backend for FakeBackend {
     async fn withdraw_apply(&self, workspace: &WorkspaceId, proposal: &ProposalId) -> Result<Proposal> {
         let p = {
             let mut w = self.lock();
-            let Some(p) = w.ws(workspace)?.proposals.iter_mut().find(|p| &p.id == proposal) else { return err("no such proposal") };
+            let ws = w.ws(workspace)?;
+            let Some(p) = ws.proposals.iter_mut().find(|p| &p.id == proposal) else { return err("no such proposal") };
             if !matches!(p.apply, ApplyState::Waiting { .. }) {
                 return err("there's no apply request to withdraw");
             }
             p.apply = ApplyState::Withdrawn;
-            p.clone()
+            let p = p.clone();
+            ws.shown(&p)
+        };
+        self.emit(Event::ProposalChanged { workspace: workspace.clone(), proposal: p.clone() });
+        Ok(p)
+    }
+
+    async fn archive_proposal(&self, workspace: &WorkspaceId, proposal: &ProposalId, archived: bool) -> Result<Proposal> {
+        let p = {
+            let mut w = self.lock();
+            let ws = w.ws(workspace)?;
+            let Some(i) = ws.proposals.iter().position(|p| &p.id == proposal) else { return err("no such proposal") };
+            if let Allowed::No(r) = ws.shown(&ws.proposals[i]).can_archive {
+                return err(r);
+            }
+            let p = &mut ws.proposals[i];
+            if archived && p.waiting {
+                return err(format!(
+                    "\u{201c}{}\u{201d} still waits on a decision, so it can't be archived: reject it first, or hide it for yourself",
+                    p.title
+                ));
+            }
+            p.shelf = if archived { Shelf::Archived } else { Shelf::Inbox };
+            let p = p.clone();
+            ws.shown(&p)
+        };
+        self.emit(Event::ProposalChanged { workspace: workspace.clone(), proposal: p.clone() });
+        Ok(p)
+    }
+
+    async fn hide_proposal(&self, workspace: &WorkspaceId, proposal: &ProposalId, hidden: bool) -> Result<Proposal> {
+        let p = {
+            let mut w = self.lock();
+            let ws = w.ws(workspace)?;
+            let Some(p) = ws.proposals.iter().find(|p| &p.id == proposal).cloned() else { return err("no such proposal") };
+            if hidden {
+                ws.hidden.insert(p.id.clone());
+            } else {
+                ws.hidden.remove(&p.id);
+            }
+            ws.shown(&p)
         };
         self.emit(Event::ProposalChanged { workspace: workspace.clone(), proposal: p.clone() });
         Ok(p)

@@ -1222,6 +1222,87 @@ async fn presence_without_a_browser_here() {
     snap(&h, "presence_no_browser", "Passkey sheet with no browser here: the address for another device");
 }
 
+/// A settled proposal's row menu offers Archive (for everyone) and Hide for
+/// me; one that still waits on a decision offers only Hide for me.
+#[tokio::test]
+async fn proposal_archive_menu() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char('p')).await;
+    h.key(KeyCode::Char('.')).await;
+    let open = h.screen(W, H);
+    assert!(open.contains("Hide for me") && !open.contains("  Archive "), "{open}");
+    h.key(KeyCode::Esc).await;
+    h.key(KeyCode::Down).await;
+    h.key(KeyCode::Down).await;
+    h.key(KeyCode::Char('.')).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Bump the order schema version") && screen.contains("Archive") && screen.contains("Hide for me"), "{screen}");
+    snap(&h, "proposal_archive_menu", "Proposals: a settled proposal's row menu, with Archive and Hide for me");
+}
+
+/// The archived view lists what was archived (by a person or on its own)
+/// and what is hidden here; its row menu brings them back.
+#[tokio::test]
+async fn archived_proposals_view() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char('p')).await;
+    let inbox = h.screen(W, H);
+    assert!(!inbox.contains("Rename the cart module") && !inbox.contains("Try a second CSV library"), "{inbox}");
+    h.key(KeyCode::Char('v')).await;
+    h.settle().await;
+    let screen = h.screen(W, H);
+    for t in ["Rename the cart", "Retry payment", "Try a second", "auto-archived", "hidden"] {
+        assert!(screen.contains(t), "{t}: {screen}");
+    }
+    snap(&h, "archived_proposals", "Proposals: the archived and hidden ones");
+    h.key(KeyCode::Char('.')).await;
+    let menu = h.screen(W, H);
+    assert!(menu.contains("Restore") && menu.contains("Back to proposals"), "{menu}");
+    snap(&h, "archived_proposal_menu", "An archived proposal's row menu: Restore, Hide for me");
+    // esc closes the menu, then goes back to the inbox.
+    h.key(KeyCode::Esc).await;
+    h.key(KeyCode::Esc).await;
+    assert!(!h.state.show_archived);
+}
+
+/// Archive takes a settled proposal off the list; Restore brings it back;
+/// Hide for me and Show again do the same on this device.
+#[tokio::test]
+async fn archive_restore_hide_and_show_again() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char('p')).await;
+    h.key(KeyCode::Down).await;
+    h.key(KeyCode::Down).await;
+    h.key(KeyCode::Char('e')).await;
+    h.settle().await;
+    let gone = |h: &Harness, t: &str| !h.state.proposals.iter().any(|p| p.title == t);
+    assert!(gone(&h, "Bump the order schema version"));
+    assert!(h.state.archived_proposals.iter().any(|p| p.title == "Bump the order schema version" && p.shelf == Shelf::Archived));
+    // An open one can't be archived, only hidden.
+    h.key(KeyCode::Home).await;
+    h.key(KeyCode::Char('e')).await;
+    h.settle().await;
+    assert!(!gone(&h, "Inject the clock into checkout tests"));
+    assert!(h.state.toasts.last().unwrap().text.contains("still waits on a decision"));
+    let before = h.state.needs_you();
+    h.key(KeyCode::Char('H')).await;
+    h.settle().await;
+    assert!(gone(&h, "Inject the clock into checkout tests"));
+    assert_eq!(h.state.needs_you(), before - 1, "a hidden proposal isn't counted");
+    // Both are in the archived view; bring them back.
+    h.key(KeyCode::Char('v')).await;
+    h.settle().await;
+    let at = |h: &Harness, t: &str| h.state.archived_proposals.iter().position(|p| p.title == t).unwrap();
+    h.state.proposal_sel.index = at(&h, "Inject the clock into checkout tests");
+    h.key(KeyCode::Char('H')).await;
+    h.settle().await;
+    h.state.proposal_sel.index = at(&h, "Bump the order schema version");
+    h.key(KeyCode::Char('e')).await;
+    h.settle().await;
+    assert!(!gone(&h, "Inject the clock into checkout tests") && !gone(&h, "Bump the order schema version"));
+    assert_eq!(h.state.needs_you(), before);
+}
+
 /// Decision cards (agent questions): with the transcript focused, the
 /// oldest card waiting on you takes its keys; a number answers a question
 /// at once, and a grant's Allow asks first.

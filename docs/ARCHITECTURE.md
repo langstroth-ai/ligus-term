@@ -98,6 +98,7 @@ pub trait Backend: Send + Sync {
     async fn cancel_run(&self, ws: &WorkspaceId, run: &RunId) -> Result<Run>;
     async fn decide_gate(&self, ws: &WorkspaceId, run: &RunId, stage: &str, approve: bool) -> Result<Run>;
     // … chats, transcript, asks, answer_ask, send_message, stop_turn, proposals, vote, request_apply,
+    //   archive_proposal, hide_proposal,
     //   agents, handoffs, runtimes, local_runtimes, add_local_agent,
     //   hosts, checkout, set_checkout,
     //   memory, task_state, members, set_role, remove_member,

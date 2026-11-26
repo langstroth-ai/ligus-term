@@ -5,7 +5,7 @@
 //! an entry runs its action as its key would.
 
 use crate::app::state::{MenuItem, MenuSection, State, View, WorkflowItem};
-use crate::backend::model::{Allowed, ApplyState, ProposalStatus, Role, StageStatus};
+use crate::backend::model::{Allowed, ApplyState, ProposalStatus, Role, Shelf, StageStatus};
 use crate::keymap::{Action, Context};
 
 fn item(label: impl Into<String>, action: Action, context: Context, allowed: Allowed, section: MenuSection) -> MenuItem {
@@ -38,7 +38,22 @@ pub fn row_menu(s: &State) -> (String, Vec<MenuItem>) {
         }
         View::Proposals => {
             let ctx = Context::Review;
-            if let Some(p) = s.selected_proposal() {
+            let shelf_label = if s.show_archived { "Back to proposals" } else { "Archived proposals" };
+            items.push(item(shelf_label, ShowArchived, ctx, Allowed::Yes, Pane));
+            if let Some(p) = s.selected_proposal().filter(|p| !p.in_inbox()) {
+                // Archived or hidden: only bringing it back (or hiding it).
+                title = p.title.clone();
+                if s.focus != crate::app::state::Focus::Detail {
+                    items.push(item("View the diff", Select, Context::Nav, Allowed::Yes, Row));
+                }
+                match p.shelf {
+                    Shelf::Hidden => items.push(item("Show again", HideProposal, ctx, Allowed::Yes, Row)),
+                    _ => {
+                        items.push(item("Restore", ArchiveProposal, ctx, p.can_archive.clone(), Row));
+                        items.push(item("Hide for me", HideProposal, ctx, Allowed::Yes, Row));
+                    }
+                }
+            } else if let Some(p) = s.selected_proposal() {
                 title = p.title.clone();
                 if s.focus != crate::app::state::Focus::Detail {
                     items.push(item("View the diff", Select, Context::Nav, Allowed::Yes, Row));
@@ -64,6 +79,12 @@ pub fn row_menu(s: &State) -> (String, Vec<MenuItem>) {
                 if matches!(p.apply, ApplyState::Waiting { .. }) {
                     items.push(item("Withdraw the apply request", WithdrawApply, ctx, Allowed::Yes, Row));
                 }
+                // Only a settled proposal can be archived for everyone;
+                // anyone can hide one for themselves.
+                if !p.waiting {
+                    items.push(item("Archive", ArchiveProposal, ctx, p.can_archive.clone(), Row));
+                }
+                items.push(item("Hide for me", HideProposal, ctx, Allowed::Yes, Row));
                 items.push(item("Reject…", Reject, ctx, vote, Danger));
             }
         }
