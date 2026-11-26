@@ -66,6 +66,12 @@ pub const ENV: &[EnvVar] = &[
         meaning: "the relay new workspaces sync through, an http(s) URL; needed to invite anyone",
     },
     EnvVar {
+        name: "LIGUS_RELAY_URL",
+        default: "-",
+        meaning: "an operator's relay override for Add to my devices (as the ligus CLI reads it): the desktop's \
+                  approval may name another relay than the approval address, and this computer syncs through this one",
+    },
+    EnvVar {
         name: "LT_NO_BROWSER",
         default: "off",
         meaning: "1/true/on/yes: a passkey prompt shows its page's address (for a browser on another device that \
@@ -245,6 +251,53 @@ pub const COMMANDS: &[Cmd] = &[
                 no code can answer any more are dropped as it reads them. --json adds the times (Unix ms).",
         prints: "link-status",
         example: "lt --plain link-status",
+    },
+    Cmd {
+        name: "link-to",
+        usage: "link-to ADDRESS",
+        about: "Ask to be added to your devices through the approval address your desktop shows (ligusaddr1:..., \
+                My devices > Add a computer > Copy; not a secret). Sends this computer's request, prints it \
+                and its fingerprint too (an older desktop takes it pasted), then waits. When your desktop \
+                opens it, both screens show the same 8-symbol code: answer match yes or match no. After \
+                your desktop's passkey, lt checks the approval on the workspace log and asks: link-as yes \
+                or link-as no. A relay without an approval mailbox falls back to the request and \
+                link-redeem. Line mode only (a person compares the code): one-shot exits 4. After 3 \
+                requests end without an approval in 15 minutes it stops.",
+        prints: "link-request, link-waiting, match-code, link-matched, link-checking, link-verified, link-ended, ok",
+        example: "printf 'link-to ligusaddr1:...\\nwait 120\\n' | lt --plain",
+    },
+    Cmd {
+        name: "match",
+        usage: "match yes|no",
+        about: "Answer the code link-to printed: yes when your desktop shows the same code, no when it \
+                doesn't (the request ends and nothing is granted; start again on a trusted network).",
+        prints: "ok, link-matched, link-ended",
+        example: "match yes",
+    },
+    Cmd {
+        name: "link-as",
+        usage: "link-as yes|no",
+        about: "Answer link-verified: yes links this computer as the person the workspace log says approved \
+                it; no links nothing (tell an Admin if it isn't you).",
+        prints: "linked, ok, link-ended",
+        example: "link-as yes",
+    },
+    Cmd {
+        name: "link-cancel",
+        usage: "link-cancel",
+        about: "End the request link-to sent (nothing is granted).",
+        prints: "ok",
+        example: "link-cancel",
+    },
+    Cmd {
+        name: "approvals",
+        usage: "approvals",
+        about: "The approval requests waiting in this workspace (a box asking to join, a computer or a phone \
+                asking to be someone's device): kind, label, age and who is checking it. Read only: lt \
+                can't approve them, and shows no code (only the requester and its approver have one). \
+                Approve on your desktop or phone.",
+        prints: "approval, ok",
+        example: "lt --plain approvals",
     },
     Cmd {
         name: "check",
@@ -562,6 +615,13 @@ pub const RECORDS: &[(&str, &[&[&str]])] = &[
     ("link-request", &[&["fingerprint", "label", "code"]]),
     ("link-grant", &[&["person", "workspace", "approver"]]),
     ("linked", &[&["id", "name", "person"]]),
+    ("link-waiting", &[&["rid", "note"]]),
+    ("match-code", &[&["rid", "code", "spelled", "approver", "note"]]),
+    ("link-matched", &[&["rid", "note"]]),
+    ("link-checking", &[&["rid", "note"]]),
+    ("link-verified", &[&["rid", "person", "workspace", "note"]]),
+    ("link-ended", &[&["rid", "why", "next"]]),
+    ("approval", &[&["n", "kind", "label", "age", "checking"]]),
     ("link-status", &[&["state", "person", "started", "expires", "text"]]),
     ("device-name", &[&["name"]]),
     ("workspace", &[&["n", "id", "name", "role", "sync"]]),
@@ -695,15 +755,29 @@ devices instead; it then acts as you (your name, your role, your chats).
 
 1. In lt: first run, choose Add to my devices. In an install you already use,
    press D in Settings or People (they say \"This terminal is its own member\"
-   while it is), or type link in the palette (:). lt shows a request (no
-   secret) and a fingerprint. c copies the request (ctrl-y once you are pasting
-   the desktop's code); o shows it alone on the screen to select it.
-2. On your desktop: Settings > Profile > My devices > Add a computer. Paste the
-   request, compare all five groups of the fingerprint, confirm with your passkey.
-3. On the desktop press Copy for lt, and paste into lt's Desktop's code field
-   (cmd-v, or ctrl-shift-v on Linux): lt goes straight to who approved it and
-   the desktop's fingerprint (the desktop shows it as This desktop). Check it is
-   yours and confirm. The code works for 30 minutes.
+   while it is), or type link in the palette (:).
+2. On your desktop: Settings > Profile > My devices > Add a computer. Copy its
+   approval address (ligusaddr1:..., not a secret) and paste it into lt.
+3. Your desktop shows the request by itself. When it opens it, both screens
+   show the same 8-symbol code (K7Q4 M9X2). Check they match, then choose Yes,
+   they match in lt and Codes match on the desktop, with your passkey. A code
+   that differs: choose No, and nothing is granted (someone may have tried to
+   intercept it: start again on a trusted network).
+4. lt checks the approval on the workspace log, then asks: Link this computer
+   as you (verified on the workspace log)? Choose Yes, link.
+
+An older desktop, or a relay without an approval mailbox: lt shows its request
+(no secret) and a fingerprint as well. c copies the request (ctrl-y once you
+are pasting the desktop's code); o shows it alone on the screen to select it.
+Paste it on the desktop, compare all five groups of the fingerprint, confirm
+with your passkey, then paste the code the desktop shows into lt (within 30
+minutes): press Copy for lt on the desktop and paste into lt's Desktop's code
+field (cmd-v, or ctrl-shift-v on Linux). lt goes straight to who approved it
+and the desktop's fingerprint (the desktop shows it as This desktop): check it
+is yours and confirm.
+
+Approval requests (palette: approvals, or People > .) lists the requests
+waiting in the workspace, read only: approve them on your desktop or phone.
 
 From a shell: lt --plain link-request prints just the request on stdout (| pbcopy,
 or --copy); then lt --plain link-redeem reads the desktop's code from a hidden
@@ -1276,7 +1350,9 @@ pub fn topic(name: &str, flags: &[(String, Option<String>, String)]) -> Option<S
         }
         "devices" | "link" | "add-to-my-devices" => {
             let mut s = DEVICES.to_string();
-            for n in ["link-request", "link-redeem", "link-status", "device-rename"] {
+            for n in
+                ["link-to", "match", "link-as", "link-cancel", "link-request", "link-redeem", "link-status", "device-rename", "approvals"]
+            {
                 if let Some(c) = COMMANDS.iter().find(|c| c.name == n) {
                     s.push('\n');
                     s.push_str(&command_text(c));

@@ -157,6 +157,49 @@ pub struct WorkspaceForm {
     pub link_checked: Option<(String, LinkGrantView)>,
     /// Add to my devices: the longer explanation, shown with `?`.
     pub link_about: bool,
+    /// Add to my devices, live (code match through the approval address):
+    /// the request in flight, or how it ended.
+    pub live: Option<LiveLink>,
+    /// The relay has no approval mailbox: the request is pasted instead.
+    pub live_unavailable: bool,
+}
+
+/// A live link request, as the form shows it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LiveLink {
+    /// The request's id once posted (a stale event names another).
+    pub rid: Option<String>,
+    pub stage: LiveStage,
+}
+
+/// Where a live link request is. `yes` is which of the two answers is
+/// selected (No first: nothing happens on a stray Enter).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LiveStage {
+    /// Posting the request.
+    Sending,
+    /// Posted: waiting for the desktop to open it.
+    Waiting,
+    /// The code to compare: Yes, they match / No.
+    Code {
+        code: MatchCodeView,
+        yes: bool,
+    },
+    /// The person said they match: the desktop asks for its passkey.
+    Matched {
+        code: MatchCodeView,
+        acknowledged: bool,
+    },
+    /// The approval arrived: checking it on the workspace log.
+    Checking,
+    /// Check 6: link as the verified person? Yes, link / No.
+    Confirm {
+        person: String,
+        workspace: String,
+        yes: bool,
+        busy: bool,
+    },
+    Ended(LiveLinkEnd),
 }
 
 impl WorkspaceForm {
@@ -180,6 +223,8 @@ impl WorkspaceForm {
             link_asked: false,
             link_checked: None,
             link_about: false,
+            live: None,
+            live_unavailable: false,
         }
     }
 
@@ -308,6 +353,11 @@ pub enum Overlay {
         /// The request's fingerprint, read before the passkey is asked.
         checked: Option<JoinRequestCheck>,
         result: Option<BoxAdmission>,
+    },
+    /// The live approval requests in the workspace's approval mailbox, read
+    /// only (`None` while they load; the error when they can't be read).
+    Approvals {
+        list: Option<std::result::Result<Vec<ApprovalRequest>, String>>,
     },
     /// The Set up list (`u`): each guided flow and what is done.
     Setup {

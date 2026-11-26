@@ -100,6 +100,10 @@ struct World {
     stopping: std::collections::HashSet<ChatId>,
     /// The person this demo device was linked to (Add to my devices).
     linked: Option<String>,
+    /// The live link request in flight (its rid), and how many ended
+    /// without a link (the demo stops at 3, as the real requester does).
+    live: Option<String>,
+    dead: usize,
     /// Link requests made and not redeemed: (when the first was made, how many).
     link_pending: Option<(Millis, usize)>,
     /// This demo device's synced name (device-rename).
@@ -128,6 +132,12 @@ pub const DEMO_LINK_REQUEST: &str = "liguslink1:eyJ2IjoxLCJkZXZpY2VJZCI6ImRlbW8i
 /// The demo's approving desktop.
 pub const DEMO_APPROVER: &str = "2C41-88E0-1B9D-04AF-6E73";
 
+/// The demo's approval address (what a desktop's My devices > Add a
+/// computer copies). The demo answers any `ligusaddr1:` text; one that
+/// holds `no-mailbox` behaves like a relay without an approval mailbox.
+pub const DEMO_ADDRESS: &str = "ligusaddr1:eyJ2IjoxLCJyZWxheSI6Imh0dHBzOi8vcmVsYXkuZXhhbXBsZSJ9";
+/// The code both screens show in the demo.
+pub const DEMO_MATCH_CODE: &str = "K7Q4 M9X2";
 /// The demo's pending link, with the real lifetimes (15 minutes to
 /// approve, then 30 for the code).
 fn fake_pending(p: Option<(Millis, usize)>) -> Option<LinkPending> {
@@ -173,6 +183,8 @@ impl FakeBackend {
             replying: HashMap::new(),
             stopping: Default::default(),
             linked: None,
+            live: None,
+            dead: 0,
             link_pending: None,
             device_label: None,
         };
@@ -1431,6 +1443,134 @@ impl Backend for FakeBackend {
         w.linked = Some(check.person_name);
         w.link_pending = None;
         Ok(ws)
+    }
+
+    async fn link_live(&self, address: &str) -> Result<LiveLinkStart> {
+        let address = address.trim();
+        if !address.starts_with("ligusaddr1:") || address.len() < 16 {
+            return err("not a Ligus approval address (expected ligusaddr1:...)");
+        }
+        let request = self.link_request().await?;
+        if address.contains("no-mailbox") {
+            return Ok(LiveLinkStart::NoMailbox { request });
+        }
+        let rid = {
+            let mut w = self.lock();
+            if w.dead >= 3 {
+                return err(TOO_MANY_DEAD);
+            }
+            let rid = w.next("rid-");
+            w.live = Some(rid.clone());
+            rid
+        };
+        // The desktop opens it a moment later.
+        let me = self.clone();
+        let r = rid.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(me.cfg.browser_delay).await;
+            let expires_at = me.lock().clock + 5 * MIN;
+            if me.lock().live.as_deref() != Some(r.as_str()) {
+                return;
+            }
+            let code = MatchCodeView {
+                shown: DEMO_MATCH_CODE.into(),
+                spelled: "K, 7, Q, 4. M, 9, X, 2.".into(),
+                claimed: "Alex's desktop".into(),
+                expires_at,
+            };
+            me.emit(Event::LiveLink { rid: r, update: LiveLinkUpdate::Opened(code) });
+        });
+        Ok(LiveLinkStart::Posted { rid, request })
+    }
+
+    async fn link_live_code(&self, rid: &str, matches: bool) -> Result<()> {
+        if self.lock().live.as_deref() != Some(rid) {
+            return err("that request has ended: start again");
+        }
+        let rid = rid.to_string();
+        if !matches {
+            {
+                let mut w = self.lock();
+                w.live = None;
+                w.dead += 1;
+            }
+            self.emit(Event::LiveLink { rid, update: LiveLinkUpdate::Ended(LiveLinkEnd::Mismatch) });
+            return Ok(());
+        }
+        // The desktop confirms too and asks for its passkey; the approval is
+        // then checked on the workspace log.
+        let me = self.clone();
+        tokio::spawn(async move {
+            me.emit(Event::LiveLink { rid: rid.clone(), update: LiveLinkUpdate::Acknowledged });
+            tokio::time::sleep(me.cfg.browser_delay).await;
+            me.emit(Event::LiveLink { rid: rid.clone(), update: LiveLinkUpdate::Checking });
+            tokio::time::sleep(me.cfg.browser_delay / 2).await;
+            let update = LiveLinkUpdate::Verified { person: "Alex".into(), workspace: "Northwind API".into() };
+            me.emit(Event::LiveLink { rid, update });
+        });
+        Ok(())
+    }
+
+    async fn link_live_person(&self, rid: &str, link: bool) -> Result<Option<WorkspaceSummary>> {
+        if self.lock().live.as_deref() != Some(rid) {
+            return err("that request has ended: start again");
+        }
+        self.lock().live = None;
+        if !link {
+            let update = LiveLinkUpdate::Ended(LiveLinkEnd::NotLinked { person: "Alex".into() });
+            self.emit(Event::LiveLink { rid: rid.to_string(), update });
+            return Ok(None);
+        }
+        if self.lock().linked.as_deref().is_some_and(|p| p != "Alex") {
+            return err("this computer is already someone else's device");
+        }
+        let ws = self.join_workspace("Alex", "fake-invite:Northwind-API").await?;
+        self.lock().linked = Some("Alex".into());
+        Ok(Some(ws))
+    }
+
+    async fn link_live_cancel(&self, rid: &str) -> Result<()> {
+        let mut w = self.lock();
+        if w.live.as_deref() == Some(rid) {
+            w.live = None;
+        }
+        Ok(())
+    }
+
+    async fn approvals(&self, workspace: &WorkspaceId) -> Result<Vec<ApprovalRequest>> {
+        let mut w = self.lock();
+        let now = w.clock;
+        w.ws(workspace)?;
+        if workspace.as_str() != "ws-northwind" {
+            return Ok(vec![]);
+        }
+        Ok(vec![
+            ApprovalRequest {
+                kind: ApprovalKind::Box,
+                label: "build-2".into(),
+                at: now - 3 * MIN,
+                checking: Some("Ada's desktop".into()),
+                mine: false,
+                contested: false,
+            },
+            ApprovalRequest {
+                kind: ApprovalKind::Computer,
+                label: "lt on ada-mbp".into(),
+                at: now - MIN,
+                checking: None,
+                mine: false,
+                contested: false,
+            },
+            // A claim by a device that can't approve it.
+            ApprovalRequest {
+                kind: ApprovalKind::Phone,
+                label: "Mara's iPhone".into(),
+                at: now - 2 * MIN,
+                checking: Some("Ben's desktop".into()),
+                mine: false,
+                contested: true,
+            },
+        ])
     }
 
     fn linked_person(&self) -> Option<String> {

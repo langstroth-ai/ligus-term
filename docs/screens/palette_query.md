@@ -5,15 +5,15 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Proposals ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Inject the clock into checkout tests ──────────────────────────╮
-┃Inject the clock┏ Commands · 4 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓s               │
+┃Inject the clock┏ Commands · 5 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓s               │
 ┃Export orders to┃› appr                                                                    ┃                │
 ┃Bump the order s┃──────────────────────────────────────────────────────────────────────────┃────────────────╯
 ┃Sign-off: inject┃▶ Approve “Inject the clock into checkout tests”              A  Proposals┃────────────────╮
-┃Workflow: Depend┃  Export orders to CSV (approved)                                 Proposal┃                │
+┃Workflow: Depend┃  Approval requests waiting in this workspace                     Anywhere┃                │
+┃                ┃  Export orders to CSV (approved)                                 Proposal┃                │
 ┃                ┃  Withdraw the apply request “Inject the clock into checkou…  W  Proposals┃                │
 ┃                ┃  Set up: an agent, a tool, a folder, a box, a phone, an in…  u   Anywhere┃                │
 ┃                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                │
-┃                                          ┃│-    pub started: Instant,                                      │
 ┃                                          ┃│+    /// Injected, so tests set the time instead of reading the…│
 ┃                                          ┃│+    pub clock: Arc<dyn Clock>,                                 │
 ┃                                          ┃│+    pub started_at: Millis,                                    │

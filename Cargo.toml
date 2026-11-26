@@ -1,6 +1,6 @@
 [package]
 name = "ligus-term"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2024"
 rust-version = "1.91"
 description = "lt: a full Ligus client in the terminal (Ligus is short for ligustica)"
@@ -36,10 +36,11 @@ unicode-width = "0.2.2"
 uuid = { version = "1.29.1", features = ["v4"] }
 serde_json = "1.0.154"
 zeroize = "1.9.1"
-# The Ligus crates (Ligus is short for ligustica), pinned to the ligus
-# repo's identity model v2 work (0.4, before its release tag).
-ligus-core = { version = "0.3.0", git = "https://github.com/langstroth-ai/ligus", rev = "1e40e2d77df954abc3d4f54e73e3fdb61bddace3" }
-ligus-runtime = { version = "0.3.0", git = "https://github.com/langstroth-ai/ligus", rev = "1e40e2d77df954abc3d4f54e73e3fdb61bddace3", default-features = false }
+# The Ligus crates (Ligus is short for ligustica), pinned to a commit of
+# the ligus repo's identity model v2 work (with code-match approval);
+# this moves to the v0.4.0 release tag once it is cut.
+ligus-core = { version = "0.3.1", git = "https://github.com/langstroth-ai/ligus", rev = "ec759f2b8091478978312c7750c5a69ca980fc06" }
+ligus-runtime = { version = "0.3.1", git = "https://github.com/langstroth-ai/ligus", rev = "ec759f2b8091478978312c7750c5a69ca980fc06", default-features = false }
 
 # poll(2) on stdin for the terminal's background colour (OSC 11).
 [target.'cfg(unix)'.dependencies]
@@ -48,8 +49,9 @@ libc = "0.2.191"
 [dev-dependencies]
 insta = "1.48.0"
 tempfile = "3.27.0"
-# The in-process mock relay two test devices sync through.
-ligus-runtime = { version = "0.3.0", git = "https://github.com/langstroth-ai/ligus", rev = "1e40e2d77df954abc3d4f54e73e3fdb61bddace3", default-features = false, features = ["test-relay"] }
+# The in-process mock relay two test devices sync through (the same rev as
+# above; moves to the v0.4.0 tag with it).
+ligus-runtime = { version = "0.3.1", git = "https://github.com/langstroth-ai/ligus", rev = "ec759f2b8091478978312c7750c5a69ca980fc06", default-features = false, features = ["test-relay"] }
 axum = "0.8.9"
 
 [profile.release]
