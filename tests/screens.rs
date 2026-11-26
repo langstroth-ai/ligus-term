@@ -122,8 +122,8 @@ async fn onboarding_add_to_my_devices() {
     assert!(screen.contains("7F3A-91C0-77DE-0B14-5E62") && screen.contains("Add a computer"), "{screen}");
     assert!(!screen.contains("Your name"), "the person's name comes from the desktop: {screen}");
     snap(&h, "onboarding_link_request", "First run: Add to my devices (the request for your desktop)");
-    h.send(Msg::Paste("ligusgrant1:demo-grant-from-the-desktop".into())).await;
-    h.key(KeyCode::Enter).await;
+    // A paste goes straight to who approved it.
+    h.send(Msg::Paste("ligusgrant1:demo-grant-from-the-desktop\n".into())).await;
     let screen = h.screen(W, H);
     assert!(screen.contains("Approved by Alex's desktop") && screen.contains("2C41-88E0-1B9D-04AF-6E73"), "{screen}");
     snap(&h, "onboarding_link_confirm", "Add to my devices: who approved it, confirmed before linking");
@@ -676,6 +676,21 @@ async fn notifications() {
     let mut h = demo().await;
     h.key(KeyCode::Char('n')).await;
     snap(&h, "notifications", "Notifications");
+}
+
+/// A link started and not finished: one line in Settings.
+#[tokio::test]
+async fn settings_link_waiting() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char('s')).await;
+    let mut st = h.state.settings.clone().unwrap();
+    let at = 1_795_615_350_000;
+    st.link_pending = Some(LinkPending { started_ms: at, approve_by_ms: at + 15 * 60_000, expires_ms: at + 45 * 60_000, count: 1 });
+    h.state.now = at + 60_000;
+    h.send(Msg::Settings(Ok(st))).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Linking waiting for your desktop's code (started 14:02; expires 14:17)"), "{screen}");
+    snap(&h, "settings_link_waiting", "Settings: a link waiting for the desktop's code");
 }
 
 #[tokio::test]

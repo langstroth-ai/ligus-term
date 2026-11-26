@@ -417,6 +417,13 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
         }
         Msg::Settings(Ok(st)) => {
             s.settings = Some(st);
+            // A link started and not finished: say so once, on start.
+            if !s.link_notice_shown
+                && let Some(line) = s.link_pending_line()
+            {
+                s.link_notice_shown = true;
+                s.toast(ToastKind::Info, line);
+            }
             vec![]
         }
         Msg::Copied(Ok(m)) => {
@@ -1123,6 +1130,15 @@ fn mouse(s: &mut State, m: crossterm::event::MouseEvent) -> Vec<Effect> {
     }
 }
 
+/// A message as a sentence: its first letter upper-case.
+fn sentence(m: &str) -> String {
+    let mut c = m.chars();
+    match c.next() {
+        Some(f) => f.to_uppercase().chain(c).collect(),
+        None => String::new(),
+    }
+}
+
 fn paste(s: &mut State, text: &str) -> Vec<Effect> {
     if let Some(p) = s.presence.front_mut() {
         if let PresenceStage::EnteringPath(b) = &mut p.stage {
@@ -1146,7 +1162,7 @@ fn paste(s: &mut State, text: &str) -> Vec<Effect> {
             *scroll = 0;
         }
         (Some(Overlay::AddWorkspace(f)), _) | (None, Phase::Onboarding(f))
-            if f.mode == FormMode::Link && (f.live.is_some() || text.trim().starts_with("ligus")) =>
+            if f.mode == FormMode::Link && text.trim().starts_with("ligusaddr1:") =>
         {
             // A pasted address or code replaces what the field held.
             f.grant.take();
@@ -1156,6 +1172,33 @@ fn paste(s: &mut State, text: &str) -> Vec<Effect> {
             f.error = None;
         }
         (Some(Overlay::AddWorkspace(f)), _) | (None, Phase::Onboarding(f)) => {
+            // A desktop's code goes straight to who approved it, whatever
+            // came with it (whitespace, line breaks, a copied command).
+            let on_code = matches!(f.field, FormField::Value | FormField::Mode);
+            if on_code && !f.busy && (f.mode == FormMode::Link || text.contains(crate::link_code::GRANT_PREFIX)) {
+                match crate::link_code::grant_in(text) {
+                    crate::link_code::Pasted::Grant(g) => {
+                        f.mode = FormMode::Link;
+                        f.field = FormField::Value;
+                        f.grant.set(&g);
+                        f.error = None;
+                        f.checked = None;
+                        f.link_checked = None;
+                        f.busy = true;
+                        // An older desktop's code: the paste path, and any
+                        // live request ends.
+                        let mut fx: Vec<Effect> = live_in_flight(f).map(Effect::LinkLiveCancel).into_iter().collect();
+                        f.live = None;
+                        fx.push(Effect::InspectLink(g));
+                        return fx;
+                    }
+                    other if f.mode == FormMode::Link => {
+                        f.error = Some(sentence(&crate::link_code::not_a_grant(&other, false)));
+                        return vec![];
+                    }
+                    _ => {}
+                }
+            }
             match f.field {
                 FormField::Name => f.name.insert_str(text),
                 FormField::Value | FormField::Relay | FormField::Room | FormField::Key | FormField::Token => {
@@ -1501,22 +1544,31 @@ fn submit_form(s: &mut State, your_name: Option<String>) -> Vec<Effect> {
         return vec![];
     }
     if form.mode == FormMode::Link {
-        let grant: String = form.grant.text.split_whitespace().collect();
-        if grant.is_empty() {
+        let typed = form.grant.text.trim().to_string();
+        if typed.is_empty() {
             form.error = Some("Paste the approval address your desktop shows".into());
             return vec![];
         }
-        form.error = None;
+        let compact: String = typed.split_whitespace().collect();
         // The approval address: the live path (code match).
-        if grant.starts_with("ligusaddr1:") {
+        if compact.starts_with("ligusaddr1:") {
+            form.error = None;
             if live_in_flight(form).is_some() {
                 return vec![];
             }
             form.live = Some(LiveLink { rid: None, stage: LiveStage::Sending });
             form.live_unavailable = false;
             form.link_checked = None;
-            return vec![Effect::LinkLive(grant)];
+            return vec![Effect::LinkLive(compact)];
         }
+        let grant = match crate::link_code::grant_in(&typed) {
+            crate::link_code::Pasted::Grant(g) => g,
+            other => {
+                form.error = Some(sentence(&crate::link_code::not_a_grant(&other, false)));
+                return vec![];
+            }
+        };
+        form.error = None;
         // An older desktop's code: the paste path, and any live request ends.
         let mut fx: Vec<Effect> = live_in_flight(form).map(Effect::LinkLiveCancel).into_iter().collect();
         form.live = None;

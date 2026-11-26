@@ -172,10 +172,11 @@ An older desktop, or a relay without an approval mailbox, takes the request
 the old way: `lt` shows it (no secret in it) and its fingerprint the whole
 time. **c** copies the request; **o** shows it alone on the screen, with
 nothing around it, to select with the mouse. Paste it on the desktop, compare
-all five groups of the fingerprint, confirm with your passkey, then paste the
-code the desktop shows into `lt` within 30 minutes. `lt` shows who approved it
-and the desktop's fingerprint (the desktop shows it as **This desktop**):
-check it is yours and confirm.
+all five groups of the fingerprint, confirm with your passkey, then press
+**Copy for lt** on the desktop and paste into `lt` (⌘V, or ctrl-shift-v on
+Linux) within 30 minutes. `lt` goes straight to who approved it and the
+desktop's fingerprint (the desktop shows it as **This desktop**): check it is
+yours and confirm.
 
 After 3 requests end without an approval in 15 minutes, `lt` stops and says
 why. **Approval requests** (palette: **approvals**, or People's row menu)
@@ -191,9 +192,22 @@ then offers to remove the old member (their messages keep their name).
 
 Scripted, in line mode (a person compares the code, so a one-shot
 `link-to` exits 4): `link-to ADDRESS`, then `match yes` (or `match no`), then
-`link-as yes`. The old way: `lt --plain link-request`, then
-`lt --plain link-redeem CODE --approver-fingerprint FP` (without the
-fingerprint it exits 4). `lt help devices` has it all.
+`link-as yes`. The old way, from a shell:
+
+```sh
+lt --plain link-request --copy   # or | pbcopy: stdout has only the request
+lt --plain link-redeem           # Enter reads the desktop's code from the clipboard
+```
+
+`link-redeem` with no code asks for a paste it doesn't echo, or reads the
+clipboard on a bare Enter, then asks **Is that your desktop?** The desktop's
+**Copy command** button copies that command with its fingerprint filled in
+(`--approver-fingerprint FP`). The code never goes on the command line; in a
+script, pipe it in: `lt --plain link-redeem - --approver-fingerprint FP <
+code-file` (without a terminal the fingerprint is required, else exit 4).
+A link started and not finished shows in Settings and when `lt` starts
+("Linking waiting for your desktop's code (started 14:02; expires 14:17)");
+`lt --plain link-status` says the same. `lt help devices` has it all.
 
 ## Help in the terminal
 

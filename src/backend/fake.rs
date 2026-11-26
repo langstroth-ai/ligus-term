@@ -104,6 +104,8 @@ struct World {
     /// without a link (the demo stops at 3, as the real requester does).
     live: Option<String>,
     dead: usize,
+    /// Link requests made and not redeemed: (when the first was made, how many).
+    link_pending: Option<(Millis, usize)>,
 }
 
 impl World {
@@ -134,6 +136,12 @@ pub const DEMO_APPROVER: &str = "2C41-88E0-1B9D-04AF-6E73";
 pub const DEMO_ADDRESS: &str = "ligusaddr1:eyJ2IjoxLCJyZWxheSI6Imh0dHBzOi8vcmVsYXkuZXhhbXBsZSJ9";
 /// The code both screens show in the demo.
 pub const DEMO_MATCH_CODE: &str = "K7Q4 M9X2";
+/// The demo's pending link, with the real lifetimes (15 minutes to
+/// approve, then 30 for the code).
+fn fake_pending(p: Option<(Millis, usize)>) -> Option<LinkPending> {
+    let (at, count) = p?;
+    Some(LinkPending { started_ms: at, approve_by_ms: at + 15 * 60_000, expires_ms: at + 45 * 60_000, count })
+}
 
 /// What a linked computer says when asked to found or join a workspace.
 pub fn linked_refusal(person: &str) -> String {
@@ -164,6 +172,7 @@ impl FakeBackend {
                 agents_may_edit: false,
                 relay_url: None,
                 linked_to: None,
+                link_pending: None,
             },
             seq: 100,
             clock: DEMO_NOW,
@@ -174,6 +183,7 @@ impl FakeBackend {
             linked: None,
             live: None,
             dead: 0,
+            link_pending: None,
         };
         Self { world: Arc::new(Mutex::new(world)), tx, cfg }
     }
@@ -1398,6 +1408,12 @@ impl Backend for FakeBackend {
     }
 
     async fn link_request(&self) -> Result<LinkRequestView> {
+        {
+            let mut w = self.lock();
+            let at = w.clock;
+            let (first, n) = w.link_pending.unwrap_or((at, 0));
+            w.link_pending = Some((first.max(at), n + 1));
+        }
         Ok(LinkRequestView {
             code: DEMO_LINK_REQUEST.into(),
             fingerprint: "7F3A-91C0-77DE-0B14-5E62".into(),
@@ -1420,7 +1436,9 @@ impl Backend for FakeBackend {
             return err("this computer is already someone else's device");
         }
         let ws = self.join_workspace(&check.person_name, "fake-invite:Northwind-API").await?;
-        self.lock().linked = Some(check.person_name);
+        let mut w = self.lock();
+        w.linked = Some(check.person_name);
+        w.link_pending = None;
         Ok(ws)
     }
 
@@ -1554,6 +1572,11 @@ impl Backend for FakeBackend {
 
     fn linked_person(&self) -> Option<String> {
         self.lock().linked.clone()
+    }
+
+    async fn link_status(&self) -> Result<LinkStatusView> {
+        let w = self.lock();
+        Ok(LinkStatusView { linked_to: w.linked.clone(), pending: fake_pending(w.link_pending) })
     }
 
     async fn confirm_recovery_saved(&self, workspace: &WorkspaceId) -> Result<()> {
@@ -2028,7 +2051,7 @@ impl Backend for FakeBackend {
 
     async fn settings(&self) -> Result<Settings> {
         let w = self.lock();
-        Ok(Settings { linked_to: w.linked.clone(), ..w.settings.clone() })
+        Ok(Settings { linked_to: w.linked.clone(), link_pending: fake_pending(w.link_pending), ..w.settings.clone() })
     }
 
     async fn set_setting(&self, key: SettingKey, on: bool) -> Result<Settings> {
@@ -2037,7 +2060,7 @@ impl Backend for FakeBackend {
             SettingKey::NotifyMentions => w.settings.notify_mentions = on,
             SettingKey::AgentsMayEdit => w.settings.agents_may_edit = on,
         }
-        Ok(Settings { linked_to: w.linked.clone(), ..w.settings.clone() })
+        Ok(Settings { linked_to: w.linked.clone(), link_pending: fake_pending(w.link_pending), ..w.settings.clone() })
     }
 
     async fn inspect_invite(&self, invite: &str) -> Result<InviteCheck> {

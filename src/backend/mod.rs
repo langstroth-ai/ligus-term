@@ -198,6 +198,9 @@ pub trait Backend: Send + Sync {
     async fn approvals(&self, workspace: &WorkspaceId) -> Result<Vec<ApprovalRequest>>;
     /// The person this computer is a device of, once linked.
     fn linked_person(&self) -> Option<String>;
+    /// Where linking stands: linked, or a request waiting for the
+    /// desktop's code (expired requests are dropped as it reads them).
+    async fn link_status(&self) -> Result<LinkStatusView>;
     /// The person confirmed they wrote the recovery words down.
     async fn confirm_recovery_saved(&self, workspace: &WorkspaceId) -> Result<()>;
 

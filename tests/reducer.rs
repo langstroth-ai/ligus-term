@@ -386,6 +386,7 @@ fn notifications_ring_the_bell_unless_turned_off() {
             agents_may_edit: false,
             relay_url: None,
             linked_to: None,
+            link_pending: None,
         })),
     );
     update(&mut s, Msg::Event(Event::Notification(n)));
@@ -1400,6 +1401,7 @@ fn theme_switches_in_the_app() {
             agents_may_edit: false,
             relay_url: None,
             linked_to: None,
+            link_pending: None,
         })),
     );
     key(&mut s, KeyCode::Char('s'));
@@ -1741,8 +1743,8 @@ fn add_to_my_devices_checks_the_grant_before_linking() {
     assert!(fx.is_empty());
     let Phase::Onboarding(f) = &s.phase else { panic!() };
     assert_eq!(f.error.as_deref(), Some("Paste the approval address your desktop shows"));
-    update(&mut s, Msg::Paste("ligusgrant1:abc".into()));
-    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::InspectLink("ligusgrant1:abc".into())]);
+    // A paste is checked at once: straight to who approved it.
+    assert_eq!(update(&mut s, Msg::Paste("ligusgrant1:abc".into())), vec![Effect::InspectLink("ligusgrant1:abc".into())]);
     let view = LinkGrantView { person_name: "Alex".into(), workspace_name: "Acme".into(), approver_fingerprint: "2C41".into() };
     update(&mut s, Msg::LinkChecked("ligusgrant1:abc".into(), Ok(view)));
     assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::RedeemLink("ligusgrant1:abc".into())]);
@@ -1763,6 +1765,7 @@ fn settings(linked_to: Option<&str>) -> Settings {
         agents_may_edit: false,
         relay_url: None,
         linked_to: linked_to.map(Into::into),
+        link_pending: None,
     }
 }
 
@@ -1861,7 +1864,8 @@ fn the_link_request_copies_on_c_and_shows_full_screen_on_o() {
     key(&mut s, KeyCode::Esc);
     assert!(matches!(&s.overlay, Some(Overlay::AddWorkspace(f)) if f.link.is_some()));
     // Pasting the desktop's code: now c types, ctrl-y still copies.
-    update(&mut s, Msg::Paste("ligusgrant1:x".into()));
+    assert_eq!(update(&mut s, Msg::Paste("ligusgrant1:x".into())), vec![Effect::InspectLink("ligusgrant1:x".into())]);
+    update(&mut s, Msg::LinkChecked("ligusgrant1:x".into(), Err(BackendError("damaged".into()))));
     key(&mut s, KeyCode::Char('c'));
     assert!(matches!(&s.overlay, Some(Overlay::AddWorkspace(f)) if f.grant.text == "ligusgrant1:xc"));
     assert_eq!(mods(&mut s, KeyCode::Char('y'), KeyModifiers::CONTROL), vec![copy]);
@@ -2023,9 +2027,8 @@ fn live_link_stale_events_esc_expiry_and_fallback() {
     update(&mut s, Msg::LiveStarted(Ok(LiveLinkStart::NoMailbox { request: live_view() })));
     let Phase::Onboarding(f) = &s.phase else { panic!() };
     assert!(f.live.is_none() && f.live_unavailable && f.grant.text.is_empty() && f.error.is_none());
-    // The paste path, as before.
-    update(&mut s, Msg::Paste("ligusgrant1:abc".into()));
-    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::InspectLink("ligusgrant1:abc".into())]);
+    // The paste path, as before: straight to who approved it.
+    assert_eq!(update(&mut s, Msg::Paste("ligusgrant1:abc".into())), vec![Effect::InspectLink("ligusgrant1:abc".into())]);
 }
 
 /// While waiting, an older desktop's code pasted in takes the paste path
@@ -2034,7 +2037,85 @@ fn live_link_stale_events_esc_expiry_and_fallback() {
 fn live_link_an_older_desktops_code_ends_the_live_request() {
     let mut s = live_waiting();
     assert_eq!(key(&mut s, KeyCode::Char('c')).len(), 1, "c copies the request while waiting");
-    update(&mut s, Msg::Paste("ligusgrant1:abc".into()));
-    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::LinkLiveCancel("r1".into()), Effect::InspectLink("ligusgrant1:abc".into())]);
+    assert_eq!(
+        update(&mut s, Msg::Paste("ligusgrant1:abc".into())),
+        vec![Effect::LinkLiveCancel("r1".into()), Effect::InspectLink("ligusgrant1:abc".into())]
+    );
     assert_eq!(stage(&s), None);
+}
+
+/// The desktop's code pasted with whatever came with it (whitespace, line
+/// breaks, the whole command someone copied) still goes straight to who
+/// approved it; a request or the bare command says what to paste instead.
+#[test]
+fn a_pasted_grant_is_cut_out_of_what_came_with_it() {
+    let g = "ligusgrant1:eyJ2Ijox_LCJh-Zm9v";
+    for pasted in [
+        format!("\n  {g}\n\n"),
+        "ligusgrant1:eyJ2Ijox_\n  LCJh-Zm9v\n".to_string(),
+        format!("lt --plain link-redeem '{g}' --approver-fingerprint 2C41-88E0-1B9D-04AF-6E73"),
+    ] {
+        let mut s = state();
+        s.phase = Phase::Onboarding(WorkspaceForm::new(true));
+        key(&mut s, KeyCode::Tab);
+        key(&mut s, KeyCode::Char('a'));
+        key(&mut s, KeyCode::Tab);
+        assert_eq!(update(&mut s, Msg::Paste(pasted.clone())), vec![Effect::InspectLink(g.into())], "{pasted:?}");
+        let Phase::Onboarding(f) = &s.phase else { panic!() };
+        assert_eq!(f.grant.text, g);
+        assert!(f.busy);
+    }
+    // On the mode row, in another mode: a grant still opens the link form.
+    let mut s = state();
+    s.phase = Phase::Onboarding(WorkspaceForm::new(true));
+    key(&mut s, KeyCode::Tab);
+    assert_eq!(update(&mut s, Msg::Paste(format!(" {g} "))), vec![Effect::InspectLink(g.into())]);
+    let Phase::Onboarding(f) = &s.phase else { panic!() };
+    assert_eq!(f.mode, FormMode::Link);
+    // The bare command, or this computer's own request: nothing is checked.
+    for (pasted, says) in
+        [("lt --plain link-redeem --approver-fingerprint 2C41-88E0", "Copy for lt"), ("liguslink1:AAAABBBB", "this computer's request")]
+    {
+        let mut s = state();
+        s.phase = Phase::Onboarding(WorkspaceForm::new(true));
+        key(&mut s, KeyCode::Tab);
+        key(&mut s, KeyCode::Char('a'));
+        key(&mut s, KeyCode::Tab);
+        assert!(update(&mut s, Msg::Paste(pasted.into())).is_empty());
+        let Phase::Onboarding(f) = &s.phase else { panic!() };
+        assert!(f.error.as_deref().unwrap().contains(says), "{:?}", f.error);
+    }
+}
+
+fn pending_settings() -> Settings {
+    // Started 14:02 UTC; the desktop may approve until 14:17.
+    let at = 1_795_615_350_000;
+    Settings {
+        link_pending: Some(LinkPending { started_ms: at, approve_by_ms: at + 15 * 60_000, expires_ms: at + 45 * 60_000, count: 2 }),
+        ..settings(None)
+    }
+}
+
+/// A link started and not finished: one notice on start, and a line in
+/// Settings until it is linked.
+#[test]
+fn a_waiting_link_shows_once_on_start_and_in_settings() {
+    let mut s = main_state();
+    s.now = 1_795_615_350_000 + 60_000;
+    update(&mut s, Msg::Settings(Ok(pending_settings())));
+    let want = "Linking waiting for your desktop's code (started 14:02; expires 14:17) · 2 requests waiting";
+    assert_eq!(s.toasts[0].text, want);
+    assert_eq!(s.link_pending_line().as_deref(), Some(want));
+    s.toasts.clear();
+    update(&mut s, Msg::Settings(Ok(pending_settings())));
+    assert!(s.toasts.is_empty(), "once a run");
+    // Past the approval window: the code the desktop showed still works.
+    s.now += 20 * 60_000;
+    assert_eq!(
+        s.link_pending_line().as_deref(),
+        Some("Linking waiting: the code your desktop showed works until 14:47 · 2 requests waiting")
+    );
+    // Linked: nothing waits.
+    update(&mut s, Msg::Settings(Ok(Settings { linked_to: Some("zaz".into()), ..pending_settings() })));
+    assert!(s.link_pending_line().is_none());
 }

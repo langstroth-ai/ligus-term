@@ -27,7 +27,7 @@ use ligus_runtime::{EventStore, StoredIdentity};
 use uuid::Uuid;
 
 use super::{Inner, lock, one_line};
-use crate::backend::model::{LinkGrantView, LinkRequestView, WorkspaceSummary};
+use crate::backend::model::{LinkGrantView, LinkPending, LinkRequestView, LinkStatusView, WorkspaceSummary};
 use crate::backend::{BackendError, Result, err};
 
 fn now_ms() -> i64 {
@@ -39,6 +39,96 @@ fn now_ms() -> i64 {
 pub(crate) fn link_state(data_dir: &std::path::Path) -> Result<LinkState> {
     LinkState::load(data_dir)
         .map_err(|e| BackendError(format!("{} is unreadable ({e}): fix or remove it", LinkState::path(data_dir).display())))
+}
+
+/// What a write says when this lt's open identity is no longer the data
+/// dir's (another lt on it linked it, and following it failed).
+pub(crate) const STALE: &str = "this lt is out of date: another lt on this data dir linked this computer to your devices since it opened. \
+     Quit this lt and start it again (it then acts as the person it was linked to)";
+
+/// What a write says while a link is being redeemed on this install.
+pub(crate) const LINKING: &str = "this computer is being linked to your devices: try again in a moment";
+
+/// What a write says in a workspace a linked install wasn't linked into.
+pub(crate) const NOT_LINKED_HERE: &str = "this computer is linked to someone's devices in another workspace, not this one: \
+     add it to this workspace from the desktop (My devices > Add a computer), or use another LT_DATA_DIR";
+
+/// What a refused write says when the workspace certifies this device for
+/// `owner` but this install doesn't act as them.
+pub(crate) fn mismatch(owner: &str) -> String {
+    format!(
+        "Refused: this computer is certified as one of {}'s devices in this workspace, but lt is signing as its old member, \
+         who isn't a member here any more (its link record, computer-link.json, is missing or names someone else). \
+         Fix: re-link this computer: palette > Link this computer to my devices (or lt --plain link-request), \
+         approve it on the desktop, then paste the code back",
+        shown(owner)
+    )
+}
+
+/// A refusal of the role gate, in words: what was refused, why, and the fix.
+/// The Ligus crates already explain it (`ligus_runtime::role_refusal`); lt
+/// adds what only it knows: a device certified for someone this install
+/// doesn't act as (its link record missing or someone else's) is told to
+/// re-link, and the fix names lt's own palette entry. A raw gate refusal
+/// (`role Viewer cannot perform messageAppended`) from a path that didn't
+/// explain it is worded the same way. Anything else passes through.
+pub(crate) fn explain(svc: &ligus_runtime::ChatService, ws: Uuid, e: BackendError) -> BackendError {
+    let s = &e.0;
+    let raw = ligus_runtime::role_refusal::is_role_refusal(s);
+    let not_member = s.starts_with("Refused: this device signs as ");
+    let low_role = s.starts_with("Refused: your role here is ");
+    if !raw && !not_member && !low_role {
+        return e;
+    }
+    let action = s
+        .split_once(" cannot perform ")
+        .map(|(_, kind)| ligus_runtime::role_refusal::action_phrase(kind.trim()))
+        .unwrap_or_else(|| "this change".to_string());
+    let me = svc.author().clone();
+    let config = svc.load_in(ws, ligus_core::workspace_config_session_id(ws)).ok().flatten();
+    let member = config.as_ref().and_then(|c| c.members.iter().find(|m| m.id == me.id).cloned());
+    // Only the wording: a device certified for someone this install doesn't
+    // act as is told to re-link. Never a block: anyone can publish a
+    // certificate for a public key, and such a certificate changes nothing.
+    let owner = match svc.device_standing_and_foreign(ws) {
+        Ok((ligus_runtime::device_enroll::Standing::OwnerDevice(o), _)) if o.account_id != me.account_id => Some(o),
+        Ok((_, foreign)) => foreign.into_iter().find(|o| o.account_id.is_some() && o.account_id != me.account_id),
+        Err(_) => None,
+    };
+    match (member, owner) {
+        (None, Some(owner)) => BackendError(mismatch(&owner.display_name)),
+        (None, None) => BackendError(format!(
+            "Refused: this computer signs as {}, who isn't a member of this workspace any more, so {action} isn't allowed. \
+             Why: an Admin removed that member (the duplicate left when this computer was linked to your devices?). \
+             Fix: re-link this computer: palette > Link this computer to my devices (or lt --plain link-request), \
+             approve it on your desktop under Settings > Profile > My devices > Add a computer, then paste the code back",
+            shown(&me.display_name)
+        )),
+        // The crates' wording names the role it needs; keep it.
+        (Some(_), _) if low_role => e,
+        (Some(m), _) => BackendError(format!(
+            "Refused: your role here is {:?}, and {action} needs a higher one. Fix: ask an Owner or Admin to change your role (People)",
+            m.role
+        )),
+    }
+}
+
+/// Drop the requests no grant can answer any more; whether any went.
+pub(crate) fn prune(state: &mut LinkState, now: i64) -> bool {
+    let before = state.pending.len();
+    state.pending.retain(|p| now.saturating_sub(p.created_at) <= LinkState::PENDING_TTL_MS);
+    state.pending.len() != before
+}
+
+/// The newest pending request, as Settings and `link-status` show it.
+pub(crate) fn pending_of(state: &LinkState) -> Option<LinkPending> {
+    let p = state.pending.iter().max_by_key(|p| p.created_at)?;
+    Some(LinkPending {
+        started_ms: p.created_at,
+        approve_by_ms: p.created_at.saturating_add(ligus_runtime::computer_link::REQUEST_TTL_MS),
+        expires_ms: p.created_at.saturating_add(LinkState::PENDING_TTL_MS),
+        count: state.pending.len(),
+    })
 }
 
 /// What a linked install says when asked to found or join a workspace.
@@ -58,6 +148,23 @@ impl Inner {
             Some(p) => err(refusal(&p.display_name)),
             None => Ok(()),
         }
+    }
+
+    /// Where linking stands. Requests past [`LinkState::PENDING_TTL_MS`]
+    /// (no grant for them can still open) are dropped and the file saved.
+    pub(crate) fn link_status(&self) -> Result<LinkStatusView> {
+        let mut state = link_state(&self.cfg.data_dir)?;
+        let now = now_ms();
+        if prune(&mut state, now) {
+            state.save(&self.cfg.data_dir).map_err(one_line)?;
+        }
+        // As Settings shows it: the roster's name while the core acts for
+        // the person, else the link record's.
+        let linked_to = match self.core() {
+            Ok(c) if c.person.is_some() => Some(shown(&c.author.display_name)),
+            _ => self.linked_person().map(|p| shown(&p.display_name)),
+        };
+        Ok(LinkStatusView { linked_to, pending: pending_of(&state) })
     }
 
     pub(crate) fn link_request(self: &Arc<Self>) -> Result<LinkRequestView> {
@@ -174,6 +281,15 @@ impl Inner {
         self.open_core(stored).map(|_| ())
     }
 
+    /// Push what this device holds for `w` and the relay hasn't got.
+    async fn push_unpushed(&self, w: &SavedWorkspace) -> Result<()> {
+        let mut engine = self.sync_engine(w)?;
+        let unpushed = engine.take_unpushed(&EventStore::open(self.db()).map_err(one_line)?).map_err(one_line)?;
+        engine.push_envelopes(&unpushed).await.map_err(one_line)?;
+        engine.take_unpushed(&EventStore::open(self.db()).map_err(one_line)?).map_err(one_line)?;
+        Ok(())
+    }
+
     /// Save the grant's connection and pull the workspace. Writes nothing
     /// to the workspace.
     async fn connect_for_link(self: &Arc<Self>, g: &OpenedGrant) -> Result<()> {
@@ -206,10 +322,19 @@ impl Inner {
     /// the connection and pull. Nothing is recorded: [`Self::commit_link`]
     /// links, [`Self::rollback_link`] puts everything back.
     pub(crate) async fn prepare_link(self: &Arc<Self>, g: OpenedGrant, device: Uuid) -> Result<PreparedLink> {
+        // The data dir's identity changes step by step below: nothing
+        // follows it until the link is recorded (or rolled back).
+        let linking = Linking::start(self);
         let ws = g.workspace_id;
         let ids = self.identity_store();
         let old = ids.load().map_err(one_line)?.ok_or_else(|| BackendError("make a link request first".into()))?;
         let previous_entry = lock(&self.list).get(ws).cloned();
+        // What this install wrote as its own member and hasn't pushed yet
+        // goes out now, while it is still a member: pushed after the desktop
+        // removes that member, it would be refused there.
+        if let Some(w) = &previous_entry {
+            let _ = self.push_unpushed(w).await;
+        }
         // The sync loop of a workspace this install held as its own member
         // stops: it is replaced.
         if let Some(stop) = lock(&self.loops).remove(&ws) {
@@ -220,7 +345,7 @@ impl Inner {
             let stored = ids.adopt_device(device).map_err(one_line)?;
             self.reopen_core(stored)?;
         }
-        let p = PreparedLink { g, old, previous_entry, switched };
+        let p = PreparedLink { g, old, previous_entry, switched, _linking: linking };
         match self.connect_for_link(&p.g).await {
             Ok(()) => Ok(p),
             Err(e) => {
@@ -301,10 +426,28 @@ impl Inner {
     }
 }
 
-/// A link being redeemed: connected and pulled, not recorded.
+/// A link being redeemed: connected and pulled, not recorded. Writes wait
+/// ([`LINKING`]) until it is committed or rolled back.
 pub(crate) struct PreparedLink {
     pub(crate) g: OpenedGrant,
     old: StoredIdentity,
     previous_entry: Option<SavedWorkspace>,
     switched: bool,
+    _linking: Linking,
+}
+
+/// A link in progress on this install, counted while it lives.
+pub(crate) struct Linking(Arc<Inner>);
+
+impl Linking {
+    fn start(inner: &Arc<Inner>) -> Self {
+        inner.linking.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Linking(inner.clone())
+    }
+}
+
+impl Drop for Linking {
+    fn drop(&mut self) {
+        self.0.linking.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+    }
 }
