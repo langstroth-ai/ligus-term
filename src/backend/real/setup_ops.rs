@@ -292,11 +292,21 @@ impl SetupOps for RealOps {
             if e.0.contains("only") || e.0.contains("Viewer") || e.0.contains("not allowed") { OpsError::Refused(e.0) } else { failed(e.0) }
         })
     }
+    fn local_servers(&self, agent_id: Uuid) -> bool {
+        self.read(|svc, ws| service::local_servers(svc, ws, agent_id))
+    }
+    fn set_local_servers(&mut self, agent_id: Uuid, on: bool) -> OpsResult<()> {
+        self.write(|svc, ws| service::set_local_servers(svc, ws, agent_id, on))
+    }
     fn test_turn(&mut self, runtime_id: &str) -> OpsResult<TestTurn> {
+        self.test_turn_with(runtime_id, false)
+    }
+    fn test_turn_with(&mut self, runtime_id: &str, local_servers: bool) -> OpsResult<TestTurn> {
         let ws = self.ws()?;
         let rid = self.defined.get(runtime_id).cloned().unwrap_or_else(|| runtime_id.to_string());
         let (rt, _) = super::turns::runtime_for(&self.inner, ws, &rid).map_err(|e| failed(e.0))?;
-        service::block_on(async move { service::ping(&rt, None).await }).ok_or_else(|| failed("couldn't run the test turn"))
+        service::block_on(async move { service::ping_with(&rt, None, local_servers).await })
+            .ok_or_else(|| failed("couldn't run the test turn"))
     }
 
     // tool

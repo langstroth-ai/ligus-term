@@ -4,7 +4,20 @@ All notable changes to `lt`, the Ligus terminal app (Ligus is short for
 ligustica). Versions follow [semver](https://semver.org); releases are on
 [GitHub](https://github.com/langstroth-ai/ligus-term/releases).
 
-## Unreleased
+## v0.4.1
+
+lt on the Ligus 0.4.1 crates: a device name that stays put, Antigravity's
+sign-in checked in setup, linking that never fails silently, and setup
+letting an Antigravity agent run local servers.
+
+### Added
+
+- Set up's agent flow can let an Antigravity (`agy`) agent run its own
+  local language server: the **May run local servers** choice (off by
+  default, the workspace Owner's) writes that agent's signed switch, and a
+  test turn of such an agent runs with it. It takes effect on Linux with the
+  bubblewrap sandbox; on a Mac it is stored, and setup says it has no effect
+  there yet.
 
 ### Fixed
 
@@ -44,6 +57,13 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
     says "Can't reach the relay (why): trying again" until it answers. A
     request that still can't get through ends after its 15 minutes and
     says so, instead of retrying forever with nothing on the screen.
+
+### Dependencies
+
+- Built on the Ligus 0.4.1 crates (`ligus-core` and `ligus-runtime`,
+  previously 0.4.0): replies stamped with when they were posted, the chat
+  stuck on "this draft is out of date" sending again, the per-agent local
+  servers switch, and setup's passkey step pointing to the desktop app.
 
 ## v0.4.0
 
