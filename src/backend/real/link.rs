@@ -27,7 +27,7 @@ use ligus_runtime::{EventStore, StoredIdentity};
 use uuid::Uuid;
 
 use super::{Inner, lock, one_line};
-use crate::backend::model::{LinkGrantView, LinkPending, LinkRequestView, LinkStatusView, WorkspaceSummary};
+use crate::backend::model::{LinkGrantView, LinkPending, LinkRequestView, LinkStatusView, Linked, UNCONFIRMED};
 use crate::backend::{BackendError, Result, err};
 
 fn now_ms() -> i64 {
@@ -417,8 +417,13 @@ impl Inner {
     }
 
     /// Record the link as `person` and act as them from now on; on a
-    /// failure, everything goes back as [`Self::rollback_link`] does.
-    pub(crate) async fn commit_link(self: &Arc<Self>, p: PreparedLink, person: &ligus_core::ActorIdentity) -> Result<WorkspaceSummary> {
+    /// failure to record it, everything goes back as [`Self::rollback_link`]
+    /// does. Once it is recorded, nothing after it is dropped silently: a
+    /// certificate this computer couldn't accept yet is
+    /// [`Linked::unconfirmed`] (retried on every open and by
+    /// [`Self::confirm_link`]), and a name or member step that failed is a
+    /// note.
+    pub(crate) async fn commit_link(self: &Arc<Self>, p: PreparedLink, person: &ligus_core::ActorIdentity) -> Result<Linked> {
         let ws = p.g.workspace_id;
         if let Err(e) = self.record_link(person, ws) {
             self.rollback_link(p);
@@ -431,29 +436,59 @@ impl Inner {
         let label = self.label();
         let old_kp = ids.account_keypair(p.old.account.id).ok();
         let (old_account, old_member) = (p.old.account.id, p.old.actor().id);
-        let retire_note = self
-            .write(ws, move |svc| {
-                svc.accept_device_certificate(ws)?;
-                let d = svc.device_id();
-                let _ = svc.set_device_label(ws, d, &label);
-                Ok(match &old_kp {
-                    Some(kp) => svc.retire_previous_member(ws, kp, old_account, &old_member)?,
-                    None => None,
-                })
-            })
-            .ok()
-            .flatten();
-        if let Some(why) = retire_note {
-            self.emit(crate::backend::Event::Sync {
-                workspace: crate::backend::WorkspaceId::new(ws.to_string()),
-                status: format!("your earlier member here stays until an Admin removes it ({why})"),
-            });
+        let steps = self.write(ws, move |svc| {
+            let accepted = svc.accept_device_certificate(ws).map(|_| ()).map_err(|e| one_line(e).0);
+            let d = svc.device_id();
+            let labelled = svc.set_device_label(ws, d, &label).map(|_| ()).map_err(|e| one_line(e).0);
+            // Only once accepted: retiring needs this device to count.
+            let retired = match (&accepted, &old_kp) {
+                (Ok(()), Some(kp)) => svc.retire_previous_member(ws, kp, old_account, &old_member).map_err(|e| one_line(e).0),
+                _ => Ok(None),
+            };
+            Ok(LinkSteps { accepted, labelled, retired })
+        });
+        let steps = steps.unwrap_or_else(|e| LinkSteps::failed(e.0));
+        let (unconfirmed, notes) = steps.outcome();
+        match &unconfirmed {
+            Some(why) => {
+                lock(&self.unconfirmed).insert(ws, why.clone());
+            }
+            None => {
+                lock(&self.unconfirmed).remove(&ws);
+            }
         }
         let me = self.clone();
         tokio::task::spawn_blocking(move || me.activate(ws)).await.map_err(one_line)?;
         self.start_loops(ws);
         self.emit(crate::backend::Event::WorkspacesChanged);
-        Ok(self.summary(&self.saved(ws)?))
+        // Opening may have accepted it after all.
+        let unconfirmed = lock(&self.unconfirmed).get(&ws).cloned();
+        Ok(Linked { workspace: self.summary(&self.saved(ws)?), unconfirmed, notes })
+    }
+
+    /// Accept the desktop's certificate again where the link isn't
+    /// confirmed here yet (pulled first). Why it still isn't, if so.
+    pub(crate) async fn confirm_link(self: &Arc<Self>) -> Result<()> {
+        let pending: Vec<Uuid> = lock(&self.unconfirmed).keys().copied().collect();
+        let mut last = None;
+        for ws in pending {
+            let _ = self.pull_for_link(ws).await;
+            let r = self.write(ws, move |svc| svc.accept_device_certificate(ws).map(|_| ()));
+            match r {
+                Ok(()) => {
+                    lock(&self.unconfirmed).remove(&ws);
+                    self.emit(crate::backend::Event::WorkspacesChanged);
+                }
+                Err(e) => {
+                    lock(&self.unconfirmed).insert(ws, e.0.clone());
+                    last = Some(e);
+                }
+            }
+        }
+        match last {
+            Some(e) => Err(BackendError(format!("{UNCONFIRMED}: {e}"))),
+            None => Ok(()),
+        }
     }
 
     /// Write the link record and reopen as the person.
@@ -473,16 +508,114 @@ impl Inner {
         self.read(g.workspace_id, move |svc| svc.check_computer_link(&g2, now))
     }
 
-    pub(crate) async fn redeem_link(self: &Arc<Self>, grant: &str) -> Result<WorkspaceSummary> {
-        let (g, device, _) = self.open_grant(grant)?;
-        let p = self.prepare_link(g, device).await?;
-        match self.check_link_on_log(&p.g) {
-            Ok(person) => self.commit_link(p, &person).await,
-            Err(e) => {
-                self.rollback_link(p);
-                Err(e)
+    /// Redeem a pasted grant. While the desktop's approval hasn't reached
+    /// this computer, it puts everything back, waits with a growing pause
+    /// (up to [`REDEEM_RETRY_MAX`]) and tries again until the grant runs
+    /// out, saying so with [`crate::backend::Event::LinkWaiting`]; a
+    /// refusal ends it at once. Between tries the install is as it was
+    /// (its own device key, no link in progress), so quitting while it
+    /// waits leaves nothing half done and other writes aren't held up.
+    pub(crate) async fn redeem_link(self: &Arc<Self>, grant: &str) -> Result<Linked> {
+        let mut pause = REDEEM_RETRY_FIRST;
+        loop {
+            let (g, device, _) = self.open_grant(grant)?;
+            let until = g.expires_at;
+            let why = match self.prepare_link(g, device).await {
+                Ok(p) => match self.check_link_on_log(&p.g) {
+                    Ok(person) => return self.commit_link(p, &person).await,
+                    Err(e) => {
+                        self.rollback_link(p);
+                        if !not_yet(&e.0) {
+                            return Err(e);
+                        }
+                        e.0
+                    }
+                },
+                // The relay didn't answer the pull: the same wait.
+                Err(e) if offline(&e.0) => e.0,
+                Err(e) => return Err(e),
+            };
+            if now_ms().saturating_add(pause.as_millis() as i64) > until {
+                return err(format!("{NEVER_ARRIVED} ({why})"));
             }
+            self.emit(crate::backend::Event::LinkWaiting { until, why });
+            if self.wait_or_cancel(pause).await {
+                return err("stopped waiting for your desktop's approval: nothing was linked");
+            }
+            pause = (pause * 2).min(REDEEM_RETRY_MAX);
         }
+    }
+
+    /// Sleep `pause`, waking early when the redeem is cancelled: whether
+    /// it was.
+    async fn wait_or_cancel(&self, pause: std::time::Duration) -> bool {
+        let step = std::time::Duration::from_millis(200);
+        let mut left = pause;
+        loop {
+            if self.redeem_cancel.swap(false, std::sync::atomic::Ordering::SeqCst) {
+                return true;
+            }
+            if left.is_zero() {
+                return false;
+            }
+            let d = left.min(step);
+            tokio::time::sleep(d).await;
+            left = left.saturating_sub(d);
+        }
+    }
+}
+
+/// The first pause before checking the log again for the desktop's
+/// approval, and the longest one.
+pub(crate) const REDEEM_RETRY_FIRST: std::time::Duration = std::time::Duration::from_secs(1);
+pub(crate) const REDEEM_RETRY_MAX: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// What a redeem says when the desktop's approval never arrived.
+pub(crate) const NEVER_ARRIVED: &str = "your desktop's approval didn't reach this computer before the code ran out. \
+     Make sure the desktop is online and synced, then make a new request";
+
+/// Whether a failed pull means the relay didn't answer (wait and try
+/// again) rather than a refusal.
+pub(crate) fn offline(why: &str) -> bool {
+    let w = why.to_ascii_lowercase();
+    ["couldn't be reached", "unreachable", "connection", "timed out", "timeout", "dns", "error sending request", "502", "503", "504"]
+        .iter()
+        .any(|k| w.contains(k))
+}
+
+/// Whether a refusal of the link check means "not here yet" (sync and look
+/// again) rather than "no".
+pub(crate) fn not_yet(why: &str) -> bool {
+    why.contains(ligus_runtime::computer_link::NOT_ON_RELAY_YET)
+        || why.contains("hasn't synced to this computer yet")
+        || why.contains("founding hasn't synced")
+}
+
+/// What the steps after recording a link did, each in one line.
+struct LinkSteps {
+    accepted: std::result::Result<(), String>,
+    labelled: std::result::Result<(), String>,
+    retired: std::result::Result<Option<String>, String>,
+}
+
+impl LinkSteps {
+    /// The write itself failed: none of them happened.
+    fn failed(why: String) -> Self {
+        Self { accepted: Err(why.clone()), labelled: Ok(()), retired: Ok(None) }
+    }
+
+    /// (why the link isn't confirmed here, if it isn't; the other notes).
+    fn outcome(self) -> (Option<String>, Vec<String>) {
+        let mut notes = Vec::new();
+        if let Err(why) = self.labelled {
+            notes.push(format!("this computer's name wasn't saved ({why}): rename it from the palette"));
+        }
+        match self.retired {
+            Ok(Some(why)) => notes.push(format!("your earlier member here stays until an Admin removes it ({why})")),
+            Ok(None) => {}
+            Err(why) => notes.push(format!("your earlier member here stays until an Admin removes it ({why})")),
+        }
+        (self.accepted.err(), notes)
     }
 }
 
@@ -509,5 +642,37 @@ impl Linking {
 impl Drop for Linking {
     fn drop(&mut self) {
         self.0.linking.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_failed_acceptance_is_unconfirmed_never_dropped() {
+        let ok = LinkSteps { accepted: Ok(()), labelled: Ok(()), retired: Ok(None) };
+        assert_eq!(ok.outcome(), (None, vec![]));
+        let not = LinkSteps { accepted: Err("the relay is away".into()), labelled: Err("busy".into()), retired: Ok(None) };
+        let (unconfirmed, notes) = not.outcome();
+        assert_eq!(unconfirmed.as_deref(), Some("the relay is away"));
+        assert_eq!(notes.len(), 1);
+        assert!(notes[0].contains("name wasn't saved (busy)"), "{notes:?}");
+        let kept = LinkSteps { accepted: Ok(()), labelled: Ok(()), retired: Err("no passkey".into()) };
+        let (unconfirmed, notes) = kept.outcome();
+        assert_eq!(unconfirmed, None);
+        assert!(notes[0].contains("earlier member here stays") && notes[0].contains("no passkey"), "{notes:?}");
+        // The write itself failed: unconfirmed, with its reason.
+        assert_eq!(LinkSteps::failed("refused".into()).outcome().0.as_deref(), Some("refused"));
+    }
+
+    #[test]
+    fn only_not_arrived_yet_is_waited_for() {
+        assert!(not_yet(&format!("Refused: {}", ligus_runtime::computer_link::NOT_ON_RELAY_YET)));
+        assert!(not_yet("the workspace hasn't synced to this computer yet: check the relay and try again"));
+        assert!(!not_yet("the person who approved isn't a member of this workspace"));
+        assert!(!not_yet("the workspace is in lockdown: no device can be added until an Admin turns it off"));
+        assert!(offline("the relay couldn't be reached (connection refused)"));
+        assert!(!offline("Refused: the grant names no account"));
     }
 }

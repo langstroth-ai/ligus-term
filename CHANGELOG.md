@@ -25,6 +25,25 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   runs; a run waits for the answer, so a signed-in `agy` passes instead of
   warning "can't tell from here whether it is signed in". The warning stays
   when the check fails or times out.
+- Linking this computer to your devices no longer fails silently.
+  - Pasting your desktop's code while its approval is still on the way now
+    waits for it. lt says "Waiting for your desktop's approval to arrive…",
+    checks again with a growing pause until the code runs out (30 minutes),
+    and Esc stops it with nothing linked. Before, it checked once and gave
+    up. Between checks this computer stays as it was, so quitting while it
+    waits leaves nothing half done. `lt link-redeem` waits the same way
+    and says so once.
+  - When the link is saved but this computer couldn't confirm it yet (it
+    couldn't accept the desktop's certificate, so the workspace doesn't count
+    it as your device), lt says "Linked, but not confirmed here yet" with the
+    reason, instead of "Linked". Settings shows the same line, R retries, and
+    lt also tries again each time it opens. If this computer's name or the
+    removal of your earlier member didn't go through, that's said too
+    (kept in the log).
+  - With the approval address, when the relay stops answering, the screen
+    says "Can't reach the relay (why): trying again" until it answers. A
+    request that still can't get through ends after its 15 minutes and
+    says so, instead of retrying forever with nothing on the screen.
 
 ## v0.4.0
 

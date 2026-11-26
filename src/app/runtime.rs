@@ -77,6 +77,11 @@ pub async fn run_effect(b: Arc<dyn Backend>, fx: Effect) -> Msg {
         LinkLiveCode(rid, yes) => Msg::LiveAnswered(b.link_live_code(&rid, yes).await),
         LinkLivePerson(rid, yes) => Msg::LivePerson(b.link_live_person(&rid, yes).await),
         LinkLiveCancel(rid) => Msg::LiveAnswered(b.link_live_cancel(&rid).await),
+        CancelRedeem => {
+            b.cancel_link_redeem();
+            done("", Ok(()))
+        }
+        ConfirmLink => Msg::LinkConfirmed(b.confirm_link().await),
         LoadApprovals(w) => Msg::Approvals(w.clone(), b.approvals(&w).await),
         ConnectDeployment { your_name, spec } => Msg::Created(b.connect_deployment(&your_name, spec).await),
         InspectJoinRequest(r) => Msg::JoinRequestChecked(r.clone(), b.inspect_join_request(&r).await),

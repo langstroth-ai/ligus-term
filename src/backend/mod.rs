@@ -141,6 +141,13 @@ pub enum Event {
         url: String,
         port: u16,
     },
+    /// Redeeming a pasted link code: the desktop's approval hasn't reached
+    /// this computer yet, so it keeps checking until `until` (the code's
+    /// end, ms since the epoch). `why` is the last reason, in one line.
+    LinkWaiting {
+        until: i64,
+        why: String,
+    },
     /// A live link request moved on (`rid` names it; a stale one is ignored).
     LiveLink {
         rid: String,
@@ -186,7 +193,17 @@ pub trait Backend: Send + Sync {
     /// Redeem the grant once the person confirmed who approved it: connect,
     /// pull, check the desktop's certificate for this computer, and act as
     /// that person from then on.
-    async fn redeem_link(&self, grant: &str) -> Result<WorkspaceSummary>;
+    /// While the desktop's approval hasn't reached this computer it keeps
+    /// checking, with [`Event::LinkWaiting`], until the code runs out or
+    /// [`Backend::cancel_link_redeem`].
+    async fn redeem_link(&self, grant: &str) -> Result<Linked>;
+    /// Stop a [`Backend::redeem_link`] that is waiting for the desktop's
+    /// approval (nothing is linked).
+    fn cancel_link_redeem(&self) {}
+    /// Accept the desktop's certificate again where a link is recorded but
+    /// not confirmed here yet ([`Linked::unconfirmed`]); why it still
+    /// isn't, if so.
+    async fn confirm_link(&self) -> Result<()>;
     /// Code-match approval: post this computer's link request to the
     /// approval address its desktop shows (`ligusaddr1:`, My devices > Add a
     /// computer). Progress arrives as [`Event::LiveLink`]. A relay without
@@ -198,7 +215,7 @@ pub trait Backend: Send + Sync {
     async fn link_live_code(&self, rid: &str, matches: bool) -> Result<()>;
     /// Link as the person the workspace log verified (`true`), or link
     /// nothing (`false`, `None`).
-    async fn link_live_person(&self, rid: &str, link: bool) -> Result<Option<WorkspaceSummary>>;
+    async fn link_live_person(&self, rid: &str, link: bool) -> Result<Option<Linked>>;
     /// End a live request from this computer (nothing is granted).
     async fn link_live_cancel(&self, rid: &str) -> Result<()>;
     /// The live approval requests in the workspace's approval mailbox, read

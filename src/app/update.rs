@@ -64,13 +64,15 @@ pub enum Msg {
     /// A grant (as typed) and who it says approved this computer.
     LinkChecked(String, Result<LinkGrantView>),
     /// The grant was redeemed: this computer is the person's device here.
-    Linked(Result<WorkspaceSummary>),
+    Linked(Result<Linked>),
     /// A live link request was posted (or the relay can't carry one).
     LiveStarted(Result<LiveLinkStart>),
     /// The answer to the code went to the request.
     LiveAnswered(Result<()>),
     /// The answer to the verified person: linked (`Some`) or not.
-    LivePerson(Result<Option<WorkspaceSummary>>),
+    LivePerson(Result<Option<Linked>>),
+    /// Confirming a link here again (Settings, R).
+    LinkConfirmed(Result<()>),
     /// The workspace's live approval requests (read only).
     Approvals(WorkspaceId, Result<Vec<ApprovalRequest>>),
     /// A join request read (no passkey yet): the request and its fingerprint.
@@ -189,6 +191,11 @@ pub enum Effect {
     LinkLivePerson(String, bool),
     /// End live request `rid` from this computer.
     LinkLiveCancel(String),
+    /// Stop a redeem waiting for the desktop's approval.
+    CancelRedeem,
+    /// Accept the desktop's certificate again where a link isn't confirmed
+    /// here yet.
+    ConfirmLink,
     /// The workspace's live approval requests.
     LoadApprovals(WorkspaceId),
     ConnectDeployment {
@@ -573,10 +580,13 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
             vec![]
         }
         Msg::Linked(Err(e)) => {
+            if let Some(f) = link_form(s) {
+                f.link_waiting = None;
+            }
             form_error(s, e.0);
             vec![]
         }
-        Msg::Linked(Ok(ws)) => {
+        Msg::Linked(Ok(Linked { workspace: ws, unconfirmed, notes })) => {
             let who = match (&s.overlay, &s.phase) {
                 (Some(Overlay::AddWorkspace(f)), _) | (_, Phase::Onboarding(f)) => match &f.live {
                     Some(LiveLink { stage: LiveStage::Confirm { person, .. }, .. }) => Some(person.clone()),
@@ -589,7 +599,17 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
                 s.workspaces.push(ws.clone());
             }
             s.your_name = who.clone().or_else(|| s.your_name.clone()).or_else(|| Some(String::new()));
-            s.toast(ToastKind::Ok, format!("Linked: one of {}'s devices in “{}”", who.unwrap_or_else(|| "your".into()), ws.name));
+            // The notes go to the log first; the link's own line is the one shown.
+            for n in notes {
+                s.toast(ToastKind::Info, sentence(&n));
+            }
+            match unconfirmed {
+                // Never "Linked" alone when this computer doesn't count yet.
+                Some(why) => s.toast(ToastKind::Info, format!("{UNCONFIRMED} in “{}” ({why}). Retry: Settings, R", ws.name)),
+                None => {
+                    s.toast(ToastKind::Ok, format!("Linked: one of {}'s devices in “{}”", who.unwrap_or_else(|| "your".into()), ws.name))
+                }
+            }
             s.phase = Phase::Main;
             let mut fx = switch_workspace(s, ws.id);
             fx.push(Effect::LoadSettings);
@@ -601,7 +621,7 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
             match r {
                 Ok(LiveLinkStart::Posted { rid, request }) => {
                     form.link = Some(request);
-                    form.live = Some(LiveLink { rid: Some(rid), stage: LiveStage::Waiting });
+                    form.live = Some(LiveLink { rid: Some(rid), stage: LiveStage::Waiting, retrying: None });
                 }
                 // No approval mailbox on that relay: paste the request on
                 // the desktop instead (the fingerprint compare, as before).
@@ -628,7 +648,14 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
             vec![]
         }
         Msg::LiveAnswered(Ok(())) => vec![],
-        Msg::LivePerson(Ok(Some(ws))) => update(s, Msg::Linked(Ok(ws))),
+        Msg::LivePerson(Ok(Some(l))) => update(s, Msg::Linked(Ok(l))),
+        Msg::LinkConfirmed(r) => {
+            match r {
+                Ok(()) => s.toast(ToastKind::Ok, "Linked and confirmed here"),
+                Err(e) => s.toast(ToastKind::Error, e.0),
+            }
+            vec![Effect::LoadSettings]
+        }
         Msg::LivePerson(Ok(None)) => vec![],
         Msg::LivePerson(Err(e)) => {
             if let Some(f) = link_form(s)
@@ -928,6 +955,14 @@ fn upsert_proposal(s: &mut State, ws: &WorkspaceId, p: Proposal) {
 fn event(s: &mut State, e: Event) -> Vec<Effect> {
     match e {
         Event::LiveLink { rid, update } => live_event(s, &rid, update),
+        Event::LinkWaiting { until, why } => {
+            if let Some(f) = link_form(s)
+                && f.busy
+            {
+                f.link_waiting = Some((until, why));
+            }
+            vec![]
+        }
         Event::MessageAdded { workspace, message } => {
             let mut fx = vec![];
             if is_active(s, &workspace) {
@@ -1378,6 +1413,7 @@ fn key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
     }
 }
 
+#[derive(PartialEq, Eq)]
 enum FormOutcome {
     None,
     Submit,
@@ -1388,6 +1424,8 @@ enum FormOutcome {
     ShowLink,
     /// Answer a live request's question (the code, or the verified person).
     LiveAnswer(bool),
+    /// Stop waiting for the desktop's approval to arrive (Esc).
+    StopWaiting,
 }
 
 /// The fallback when no clipboard is reachable for the link request.
@@ -1397,6 +1435,9 @@ const LINK_FALLBACK: &str = "run lt --plain link-request";
 fn link_code_outcome(s: &mut State, out: FormOutcome) -> Vec<Effect> {
     if let FormOutcome::LiveAnswer(yes) = out {
         return link_form(s).map(|f| live_answer(f, yes)).unwrap_or_default();
+    }
+    if out == FormOutcome::StopWaiting {
+        return vec![Effect::CancelRedeem];
     }
     let form = match (&s.overlay, &s.phase) {
         (Some(Overlay::AddWorkspace(f)), _) | (None, Phase::Onboarding(f)) => f,
@@ -1442,7 +1483,7 @@ fn link_form(s: &mut State) -> Option<&mut WorkspaceForm> {
 /// A live request still in flight (not ended): its id.
 fn live_in_flight(f: &WorkspaceForm) -> Option<String> {
     match &f.live {
-        Some(LiveLink { rid: Some(rid), stage }) if !matches!(stage, LiveStage::Ended(_)) => Some(rid.clone()),
+        Some(LiveLink { rid: Some(rid), stage, .. }) if !matches!(stage, LiveStage::Ended(_)) => Some(rid.clone()),
         _ => None,
     }
 }
@@ -1476,8 +1517,12 @@ fn live_event(s: &mut State, rid: &str, update: LiveLinkUpdate) -> Vec<Effect> {
             }
         }
         LiveLinkUpdate::Checking => l.stage = LiveStage::Checking,
+        LiveLinkUpdate::Retrying(why) => l.retrying = why,
         LiveLinkUpdate::Verified { person, workspace } => l.stage = LiveStage::Confirm { person, workspace, yes: false, busy: false },
-        LiveLinkUpdate::Ended(e) => l.stage = LiveStage::Ended(e),
+        LiveLinkUpdate::Ended(e) => {
+            l.retrying = None;
+            l.stage = LiveStage::Ended(e);
+        }
     }
     vec![]
 }
@@ -1554,6 +1599,10 @@ fn live_key(f: &mut WorkspaceForm, k: &KeyEvent) -> Option<FormOutcome> {
 
 fn form_key(f: &mut WorkspaceForm, k: &KeyEvent) -> FormOutcome {
     if f.busy {
+        // Waiting for the desktop's approval to arrive: Esc stops it.
+        if f.link_waiting.is_some() && k.code == KeyCode::Esc {
+            return FormOutcome::StopWaiting;
+        }
         return FormOutcome::None;
     }
     if f.mode == FormMode::Link
@@ -1652,7 +1701,7 @@ fn submit_form(s: &mut State, your_name: Option<String>) -> Vec<Effect> {
             if live_in_flight(form).is_some() {
                 return vec![];
             }
-            form.live = Some(LiveLink { rid: None, stage: LiveStage::Sending });
+            form.live = Some(LiveLink { rid: None, stage: LiveStage::Sending, retrying: None });
             form.live_unavailable = false;
             form.link_checked = None;
             return vec![Effect::LinkLive(compact)];
@@ -2817,6 +2866,15 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             f.link_asked = true;
             s.overlay = Some(Overlay::AddWorkspace(f));
             vec![Effect::LinkRequest]
+        }
+        ConfirmLink => {
+            if s.settings.as_ref().is_some_and(|st| st.link_unconfirmed.is_some()) {
+                s.toast(ToastKind::Info, "Confirming the link here…");
+                vec![Effect::ConfirmLink]
+            } else {
+                s.toast(ToastKind::Info, "Nothing to confirm: the link is confirmed here");
+                vec![]
+            }
         }
         Approvals => {
             let Some(w) = ws else {

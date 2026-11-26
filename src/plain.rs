@@ -392,6 +392,10 @@ pub fn event_line(e: &Event, names: &dyn Fn(&WorkspaceId) -> String) -> Option<S
             format!("presence-done\t{}\t{}\t{}", id.0, if *ok { "ok" } else { "failed" }, esc(error.as_deref().unwrap_or("")))
         }
         Event::Sync { workspace, status } => format!("sync\t{}\t{}", esc(names(workspace)), esc(status)),
+        Event::LinkWaiting { until, why } => format!(
+            "link-arriving\t{until}\t{}",
+            esc(format!("waiting for your desktop's approval to arrive ({why}); it keeps checking until the code runs out"))
+        ),
         Event::LiveLink { rid, update } => live_line(rid, update),
         Event::RunChanged { run: r, .. } => {
             let done = r.stages.iter().filter(|s| s.status == StageStatus::Succeeded).count();
@@ -429,6 +433,10 @@ fn live_line(rid: &str, u: &LiveLinkUpdate) -> String {
             esc(workspace),
             esc(format!("link this computer as “{person}” (verified on the workspace log)? link-as yes | link-as no"))
         ),
+        LiveLinkUpdate::Retrying(Some(why)) => {
+            format!("link-retrying\t{rid}\t{}", esc(format!("the relay didn't answer ({why}): trying again")))
+        }
+        LiveLinkUpdate::Retrying(None) => format!("link-retrying\t{rid}\t{}", esc("the relay answers again")),
         LiveLinkUpdate::Ended(e) => format!("link-ended\t{rid}\t{}\t{}", esc(e.describe()), esc(e.next())),
     }
 }
@@ -743,6 +751,25 @@ async fn recovery_words(out: &Out, words: &[String], file: Option<&std::path::Pa
     }
 }
 
+/// After `linked`: a link not confirmed here yet, and anything else worth
+/// a line.
+async fn say_link_notes(out: &Out, l: &Linked) {
+    if let Some(why) = &l.unconfirmed {
+        emit(
+            out,
+            format!(
+                "link-unconfirmed\t{}\t{}",
+                esc(format!("{UNCONFIRMED} ({why})")),
+                esc("lt tries again each time it opens; make sure your desktop is online and synced")
+            ),
+        )
+        .await;
+    }
+    for n in &l.notes {
+        emit(out, format!("link-note\t{}", esc(n))).await;
+    }
+}
+
 async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line: &str) {
     let (cmd, arg) = line.split_once(' ').map(|(c, a)| (c, a.trim())).unwrap_or((line, ""));
     let say = |l: String| emit(out, l);
@@ -860,8 +887,10 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                 }
             }
             match b.redeem_link(&grant).await {
-                Ok(w) => {
+                Ok(l) => {
+                    let w = l.workspace.clone();
                     say(format!("linked\t{}\t{}\t{}", esc(&w.id), esc(&w.name), esc(&check.person_name))).await;
+                    say_link_notes(out, &l).await;
                     let mut g = s.lock().await;
                     g.ws = Some(w.id.clone());
                     g.workspaces.push(w);
@@ -923,10 +952,12 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                 return;
             }
             match b.link_live_person(&rid, yes).await {
-                Ok(Some(w)) => {
+                Ok(Some(l)) => {
                     s.lock().await.live = None;
                     let person = b.linked_person().unwrap_or_default();
+                    let w = l.workspace.clone();
                     say(format!("linked\t{}\t{}\t{}", esc(&w.id), esc(&w.name), esc(&person))).await;
+                    say_link_notes(out, &l).await;
                     let mut g = s.lock().await;
                     g.ws = Some(w.id.clone());
                     g.workspaces.push(w);
