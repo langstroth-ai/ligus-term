@@ -498,6 +498,91 @@ mod live {
         // An address that isn't one.
         assert!(laptop.b.link_live("ligusaddr1:nope").await.unwrap_err().0.contains("approval address"));
     }
+
+    /// One link brings Ana's other workspace too: her desktop offers it,
+    /// lt takes it, both certificates are on their logs, and lt links into
+    /// both as Ana (the first one opens).
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn one_link_brings_the_persons_other_workspaces() {
+        let tmp = tempfile::tempdir().unwrap();
+        let relay = serve(ligus_runtime::test_relay::router()).await;
+        let a = device(&tmp.path().join("ana"), "Ana's desktop", &relay);
+        let (ws, wsu, conn) = founded(&a, tmp.path()).await;
+        let created = a.b.create_workspace("Ana", "Beta").await.unwrap();
+        let beta = created.workspace.id.clone();
+        let betau = Uuid::parse_str(beta.as_str()).unwrap();
+        // Beta's invite is confirmed with Beta's own recovery words.
+        let words = tmp.path().join("beta-words.txt");
+        std::fs::write(&words, created.recovery_words.join(" ")).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&words, std::fs::Permissions::from_mode(0o600)).unwrap();
+        }
+        *a.words_file.lock().unwrap() = Some(words);
+        let beta_conn = {
+            let mut c = decode_workspace_invite(&a.b.create_invite(&beta, Role::Contributor).await.unwrap()).unwrap();
+            c.inv = None;
+            c.sig = None;
+            encode_workspace_invite(&c)
+        };
+        let d = desk(&a, &tmp.path().join("ana"), &relay, wsu, &conn).await;
+        let address = d.address.clone();
+        let laptop = device(&tmp.path().join("laptop"), "lt on laptop", &relay);
+        let LiveLinkStart::Posted { rid, .. } = laptop.b.link_live(&address).await.unwrap() else { panic!() };
+        let (mut session, _, req) = open(d, &laptop, &rid).await;
+
+        let svc = a.b.service().unwrap();
+        let (grant, more) = {
+            let (svc, req, conn, beta_conn) = (svc.clone(), req.clone(), conn.clone(), beta_conn.clone());
+            tokio::task::spawn_blocking(move || {
+                let mut svc = svc.lock().unwrap();
+                let now = ligus_core::flow::now_ms();
+                let grant = svc.prepare_computer_link(wsu, &req, &conn, now).unwrap();
+                let more = svc.prepare_more_computer_links(&req, &[(betau, "Beta".into(), beta_conn)], now);
+                (grant, more.into_iter().map(|(_, g)| g.unwrap()).collect::<Vec<_>>())
+            })
+            .await
+            .unwrap()
+        };
+        assert!(session.offer_with(grant, more).await.unwrap().is_empty());
+        laptop.b.link_live_code(&rid, true).await.unwrap();
+        acked(&mut session).await;
+        assert_eq!(session.acked_more().len(), 1, "lt takes the other workspace");
+        {
+            let (svc, req, conn, beta_conn) = (svc.clone(), req.clone(), conn.clone(), beta_conn.clone());
+            tokio::task::spawn_blocking(move || {
+                let mut svc = svc.lock().unwrap();
+                let now = ligus_core::flow::now_ms();
+                svc.publish_computer_link(wsu, &req, &conn, now).unwrap();
+                svc.publish_computer_link_in(betau, &req, &beta_conn, now).unwrap();
+            })
+            .await
+            .unwrap();
+        }
+        session.finish_approved_with(&[betau]).await.unwrap();
+        let v =
+            update_where(&laptop, &rid, "the verified person", |u| matches!(u, LiveLinkUpdate::Verified { .. } | LiveLinkUpdate::Ended(_)))
+                .await;
+        assert_eq!(v, LiveLinkUpdate::Verified { person: "Ana".into(), workspace: "Acme Web and Beta".into() });
+        let joined = laptop.b.link_live_person(&rid, true).await.unwrap().expect("linked");
+        assert_eq!(joined.workspace.id, ws, "the first workspace opens");
+        assert_eq!(laptop.b.linked_person().as_deref(), Some("Ana"));
+        let held: Vec<WorkspaceId> = laptop.b.workspaces().await.unwrap().into_iter().map(|w| w.id).collect();
+        assert!(held.contains(&ws) && held.contains(&beta), "{held:?}");
+        let state = ligus_runtime::computer_link::LinkState::load(&tmp.path().join("laptop")).unwrap();
+        let ana = a.b.service().unwrap().lock().unwrap().author().account_id;
+        assert_eq!((state.account_in(wsu), state.account_in(betau)), (ana, ana), "the same person in both");
+        // On Ana's desktop: still one member in Beta, and lt is one of her devices there.
+        until("lt among Ana's devices in Beta", || async {
+            let svc = a.b.service().unwrap();
+            let device = laptop.b.device_id().unwrap();
+            let mine = svc.lock().unwrap().own_devices(betau).unwrap();
+            mine.iter().any(|d| d.device_id == device && !d.revoked).then_some(())
+        })
+        .await;
+        assert_eq!(a.b.members(&beta).await.unwrap().iter().filter(|m| !m.service).count(), 1, "never a second member");
+    }
 }
 
 /// The owner's 0.3.0 report: lt joined by invite as its own member (an

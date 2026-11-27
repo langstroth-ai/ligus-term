@@ -48,6 +48,14 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   records; `retry ID` asks your desktop or phone again. `lt setup FLOW`
   says on stderr when it waits for your desktop or phone.
 - The approvals list names a device of yours asking for your passkey.
+- **Add to my devices** brings all your workspaces in one link: when your
+  desktop also adds this terminal to your other workspaces (one passkey
+  each there), lt checks each one on its own workspace log and asks once
+  whether to link as you, naming them all ("In “Acme Web, Beta and Gamma”,
+  it acts as “Ana” from then on"). Afterwards
+  each extra workspace shows a line saying it linked, or why not and how to
+  link it later. A desktop from before this release adds it to the one
+  workspace, as before. Needs the Ligus 0.5 crates.
 - The Join form says **Looks like you already use Ligus. Link this device
   instead** when this terminal is linked to your account, when you said you
   already use Ligus, or when the checked invite is for a workspace it

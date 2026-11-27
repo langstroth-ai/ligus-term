@@ -491,6 +491,28 @@ impl Inner {
         }
     }
 
+    /// A link's more workspace (after [`Self::commit_link`] linked the
+    /// first): record it, accept the certificate and name this computer
+    /// there, and sync it beside the open workspace (not made active). On a
+    /// failure that workspace goes back as [`Self::rollback_link`] does.
+    pub(crate) async fn commit_more_link(self: &Arc<Self>, p: PreparedLink, person: &ligus_core::ActorIdentity) -> Result<()> {
+        let ws = p.g.workspace_id;
+        if let Err(e) = self.record_link(person, ws) {
+            self.rollback_link(p);
+            return Err(e);
+        }
+        let label = self.cfg.device_name.clone();
+        self.write(ws, move |svc| {
+            svc.accept_device_certificate(ws)?;
+            let d = svc.device_id();
+            let _ = svc.set_device_label(ws, d, &label);
+            Ok(())
+        })?;
+        self.start_loops(ws);
+        self.emit(crate::backend::Event::WorkspacesChanged);
+        Ok(())
+    }
+
     /// Write the link record and reopen as the person.
     fn record_link(self: &Arc<Self>, person: &ligus_core::ActorIdentity, ws: Uuid) -> Result<()> {
         let mut state = link_state(&self.cfg.data_dir)?;

@@ -22,18 +22,21 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use ligus_core::match_code::MatchKind;
+use ligus_runtime::approval_mailbox::MoreGrantCheck;
 use ligus_runtime::approval_mailbox::{
     AbortReason, ApprovalAddress, CheckedGrant, ClaimView, GrantError, GrantTarget, LOG_CHECK_RETRY_MS, LogApprovalCheck, LogVerdict,
     MailboxClient, MailboxError, Outcome, RequestSpec, Requester, RequesterError, RequesterEvent, ResultBody, Signer, claim_view, hint,
     list_live, retry_log_check,
 };
 use ligus_runtime::computer_link::LinkRequest;
+use ligus_runtime::display::shown;
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
+use super::link::PreparedLink;
 use super::{Inner, lock, one_line};
 use crate::backend::model::{ApprovalKind, ApprovalRequest, Linked, LiveLinkEnd, LiveLinkStart, LiveLinkUpdate, MatchCodeView};
-use crate::backend::{BackendError, Event, Result, err};
+use crate::backend::{BackendError, Event, Result, WorkspaceId, err};
 
 /// What the person said, sent to the request's task.
 pub(crate) enum Cmd {
@@ -316,7 +319,8 @@ impl Drive {
             // The offer is acknowledged only once the person said the codes
             // match on this computer.
             if said_yes && offered && !acked {
-                if let Err(e) = self.req.ack().await {
+                // All the workspaces the desktop offers come along.
+                if let Err(e) = self.req.ack_all().await {
                     return self.end(Some(LiveLinkEnd::Refused(e.to_string()))).await;
                 }
                 acked = true;
@@ -370,7 +374,8 @@ impl Drive {
             _ => return self.end(Some(LiveLinkEnd::Refused("this computer's request keys are gone".into()))).await,
         };
         let now = ligus_core::flow::now_ms();
-        let checked = match self.req.check_grant(&r, GrantTarget::Computer { request: &self.request, ka: &ka, device_key: &key }, now) {
+        let target = GrantTarget::Computer { request: &self.request, ka: &ka, device_key: &key };
+        let checked = match self.req.check_grant(&r, target, now) {
             Ok(c) => c,
             Err(GrantError::NotApproved(Outcome::Declined)) => return self.end(Some(LiveLinkEnd::Declined)).await,
             Err(GrantError::NotApproved(Outcome::Expired)) => return self.end(Some(LiveLinkEnd::Expired)).await,
@@ -378,6 +383,7 @@ impl Drive {
             Err(GrantError::WrongRelay) => return self.end(Some(LiveLinkEnd::Refused(WRONG_RELAY.into()))).await,
             Err(e) => return self.end(Some(LiveLinkEnd::Refused(e.to_string()))).await,
         };
+        let more = self.req.check_more_grants(&checked, GrantTarget::Computer { request: &self.request, ka: &ka, device_key: &key }, now);
         let CheckedGrant::Computer { grant, .. } = &checked else {
             return self.end(Some(LiveLinkEnd::Refused("the answer isn't for a computer".into()))).await;
         };
@@ -427,6 +433,10 @@ impl Drive {
                 return self.end(Some(LiveLinkEnd::Refused(why))).await;
             }
         };
+        // The person's other workspaces the desktop added this computer to:
+        // each checked on its own log, as the same person.
+        let (extras, not_linked) = self.more(more, &person).await;
+        let workspace = names_line(&workspace, &extras);
         // Check 6: the person confirms who the log says approved it.
         self.emit(LiveLinkUpdate::Verified { person: name.clone(), workspace });
         let answer = tokio::time::timeout(CONFIRM_WAIT, async {
@@ -444,20 +454,123 @@ impl Drive {
         match answer {
             Some((true, reply)) => {
                 let linked = self.inner.commit_link(prepared, &person).await;
+                if linked.is_ok() {
+                    for (p, wsn) in extras {
+                        let ws = p.g.workspace_id;
+                        let status = match self.inner.commit_more_link(p, &person).await {
+                            Ok(()) => {
+                                format!("“{wsn}” linked: this computer is one of {}'s devices there too", shown(&person.display_name))
+                            }
+                            Err(e) => format!("“{wsn}” not linked ({}): {LINK_LATER}", e.0),
+                        };
+                        self.inner.emit(Event::Sync { workspace: WorkspaceId::new(ws.to_string()), status });
+                    }
+                    for (ws, wsn, why) in &not_linked {
+                        let status = format!("“{wsn}” not linked ({why}): {LINK_LATER}");
+                        self.inner.emit(Event::Sync { workspace: WorkspaceId::new(ws.to_string()), status });
+                    }
+                } else {
+                    for (p, _) in extras.into_iter().rev() {
+                        self.inner.rollback_link(p);
+                    }
+                }
                 // Settled (deleted from the relay) before the answer.
                 self.end(None).await;
                 let _ = reply.send(linked.map(Some));
             }
             Some((false, reply)) => {
+                for (p, _) in extras.into_iter().rev() {
+                    self.inner.rollback_link(p);
+                }
                 self.inner.rollback_link(prepared);
                 self.end(Some(LiveLinkEnd::NotLinked { person: name })).await;
                 let _ = reply.send(Ok(None));
             }
             None => {
+                for (p, _) in extras.into_iter().rev() {
+                    self.inner.rollback_link(p);
+                }
                 self.inner.rollback_link(prepared);
                 self.end(Some(LiveLinkEnd::Cancelled)).await;
             }
         }
+    }
+
+    /// The more workspaces of a link (`ligus_runtime::approval_mailbox`
+    /// "more workspaces"): each one's connection saved and pulled, and the
+    /// desktop's certificate for this computer found on its own log (retried
+    /// while it syncs), as `person`. The ones that check out, ready to
+    /// commit; the others with why.
+    #[allow(clippy::type_complexity)]
+    async fn more(
+        &self,
+        more: Vec<MoreGrantCheck>,
+        person: &ligus_core::ActorIdentity,
+    ) -> (Vec<(PreparedLink, String)>, Vec<(Uuid, String, String)>) {
+        let mut ready = Vec::new();
+        let mut not_linked = Vec::new();
+        for m in more {
+            let mut g = match m.outcome {
+                Ok(CheckedGrant::Computer { grant, .. }) => *grant,
+                Ok(_) => continue,
+                Err(GrantError::NotSent) => {
+                    not_linked.push((m.workspace_id, hint(&m.name), "your desktop didn't add this computer there".into()));
+                    continue;
+                }
+                Err(e) => {
+                    not_linked.push((m.workspace_id, hint(&m.name), e.to_string()));
+                    continue;
+                }
+            };
+            if let Some(r) = relay_override() {
+                g.conn.relay_url = r;
+            }
+            let wsn = g.conn.display_name();
+            let ws = g.workspace_id;
+            let p = match self.inner.prepare_link(g, self.device).await {
+                Ok(p) => p,
+                Err(e) => {
+                    not_linked.push((ws, wsn, e.0));
+                    continue;
+                }
+            };
+            let deadline = tokio::time::Instant::now() + Duration::from_millis(LOG_CHECK_RETRY_MS as u64);
+            let checked = loop {
+                let _ = self.inner.pull_for_link(ws).await;
+                match self.inner.check_link_on_log(&p.g) {
+                    Ok(on_log) if on_log.account_id == person.account_id && on_log.id == person.id => break Ok(()),
+                    Ok(_) => break Err("the workspace names another person".to_string()),
+                    Err(e) if waiting(&e.0) && tokio::time::Instant::now() < deadline => tokio::time::sleep(Duration::from_secs(3)).await,
+                    Err(e) => break Err(e.0),
+                }
+            };
+            match checked {
+                Ok(()) => ready.push((p, wsn)),
+                Err(why) => {
+                    self.inner.rollback_link(p);
+                    not_linked.push((ws, wsn, why));
+                }
+            }
+        }
+        (ready, not_linked)
+    }
+}
+
+/// What a workspace that didn't come along says to do.
+const LINK_LATER: &str = "link it later: palette > Link this computer to my devices, with that workspace's approval address";
+
+/// Whether check 5 is still waiting for the desktop's certificate to sync.
+fn waiting(why: &str) -> bool {
+    why.contains(ligus_runtime::computer_link::NOT_ON_RELAY_YET) || why.contains("hasn't synced")
+}
+
+/// "Acme Web", or "Acme Web, Beta and Gamma" when more come along.
+fn names_line(first: &str, extras: &[(PreparedLink, String)]) -> String {
+    let mut names: Vec<&str> = vec![first];
+    names.extend(extras.iter().map(|(_, n)| n.as_str()));
+    match names.split_last() {
+        Some((last, rest)) if !rest.is_empty() => format!("{} and {last}", rest.join(", ")),
+        _ => first.to_string(),
     }
 }
 

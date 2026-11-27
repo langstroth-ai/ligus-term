@@ -38,8 +38,9 @@ serde_json = "1.0.154"
 zeroize = "1.9.1"
 # The Ligus crates (Ligus is short for ligustica), pinned to an exact
 # commit of the ligus repo's main branch (it has the passkey hand-off: the
-# terminal asks the person's desktop or phone to confirm). Move this to the
-# ligus 0.5 release tag before lt is released.
+# terminal asks the person's desktop or phone to confirm; and one link
+# brings all the person's workspaces). Move this to the ligus 0.5 release tag
+# before lt is released.
 ligus-core = { version = "0.4.1", git = "https://github.com/langstroth-ai/ligus", rev = "80aeb851e6504f5ff1a95e82bf5ce373b495f7ad" }
 ligus-runtime = { version = "0.4.1", git = "https://github.com/langstroth-ai/ligus", rev = "80aeb851e6504f5ff1a95e82bf5ce373b495f7ad", default-features = false }
 
