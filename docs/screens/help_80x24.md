@@ -4,7 +4,7 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 
 ```text
 [NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
-┏ ┏ Help · 1-20 of 125 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─╮
+┏ ┏ Help · 1-20 of 126 · / search · esc closes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓─╮
 ┃ ┃Each chat is a room with people and agents. @ mentions an agent or a      ┃ │
 ┃ ┃person; enter on a chat opens it and puts you in the composer.            ┃ │
 ┃ ┃                                                                          ┃ │
@@ -18,13 +18,13 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 ┃ ┃  r                        Choose this chat's repo (or a new scratch repo)┃ │
 ┃ ┃  K                        Keep this chat's scratch repo as a repo        ┃ │
 ┃ ┃  L                        Lock this chat down                            ┃ │
+┃ ┃  T                        Run here this time: your waiting turn, on this ┃ │
 ┃ ┃  U                        Clear the lockdown                             ┃ │
 ┃ ┃                                                                          ┃ │
-┃ ┃Lists  here                                                               ┃ │
-┃ ┃  ↑, k                     Up                                             ┃─╯
-┃ ┃  ↓, j                     Down                                           ┃
-┃ ┃  pgup, ctrl-u             Page up                                        ┃─╮
-┃ ┃  pgdn, ctrl-d             Page down                                      ┃ │
+┃ ┃Lists  here                                                               ┃─╯
+┃ ┃  ↑, k                     Up                                             ┃
+┃ ┃  ↓, j                     Down                                           ┃─╮
+┃ ┃  pgup, ctrl-u             Page up                                        ┃ │
 ┗━┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛─╯
 / search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close         peer to peer
 ```
