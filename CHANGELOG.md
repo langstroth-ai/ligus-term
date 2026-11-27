@@ -27,6 +27,12 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   host now. Before, any name on the shared log picked
   `LIGUS_WS_SECRET_<name>` from the environment. A runtime that names an
   undeclared secret says which line to add.
+- The first start with no `host.toml` in lt's data dir writes one declaring
+  the secrets already provisioned in lt's environment
+  (`LIGUS_WS_SECRET_<name>`, names only) for each workspace this terminal is
+  in, as `ligus agent`, `ligus serve` and `ligus worker` do, so a terminal
+  that used those variables keeps working after the upgrade. It never
+  touches an existing `host.toml`; later secrets are declared by hand.
 
 ### Added
 
