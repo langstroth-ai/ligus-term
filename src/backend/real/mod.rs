@@ -251,6 +251,10 @@ impl RealBackend {
         // Its scratch repositories (`<data dir>/scratch`) are checkouts
         // agents work in, like any other: readable, as the CLI's repos dir.
         ligus_runtime::executor::configure_host(&cfg.data_dir, &[], &[cfg.data_dir.join("scratch")]);
+        // This data dir's host.toml: which workspace secrets this device may
+        // resolve (as the desktop reads its own). Without one, or with an
+        // invalid one, nothing is declared and no workspace secret resolves.
+        let _ = ligus_runtime::host_config::init_host(&cfg.data_dir);
         let secrets = ligus_runtime::secret_store::init_for_data_dir(&cfg.data_dir, None);
         let rt = tokio::runtime::Handle::try_current().map_err(|e| e.to_string())?;
         let (tx, _) = broadcast::channel(4096);
@@ -1359,7 +1363,7 @@ impl Backend for RealBackend {
                     label: r.name.clone(),
                     kind: views::runtime_kind(r.provider),
                     model: Some(r.model.clone()).filter(|m| !m.is_empty()),
-                    configured: turns::configured(&r),
+                    configured: turns::configured(&r, ws),
                     active: n == 0,
                 })
                 .chain(local)

@@ -21,6 +21,12 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   later), and finishing later leaves the key unconfirmed.
 - lt builds on a pre-release commit of the Ligus crates (the passkey
   hand-off); the release pins the Ligus 0.5 tag.
+- A workspace runtime's `--secret-ref` resolves on this terminal only when
+  `host.toml` in lt's data dir declares that name for the workspace
+  (`[workspaces."<workspace id>"] secrets = ["<name>"]`), as on every Ligus
+  host now. Before, any name on the shared log picked
+  `LIGUS_WS_SECRET_<name>` from the environment. A runtime that names an
+  undeclared secret says which line to add.
 
 ### Added
 
