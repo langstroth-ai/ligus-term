@@ -5,7 +5,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ```text
 [NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
 ┏ Proposals ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Inject the clock into checkout tests ──────────────────────────╮
-┃Inject the clock┏ Commands · 65 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓s               │
+┃Inject the clock┏ Commands · 66 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓s               │
 ┃Export orders to┃›                                                                         ┃                │
 ┃Bump the order s┃──────────────────────────────────────────────────────────────────────────┃────────────────╯
 ┃Sign-off: inject┃▶ Approve “Inject the clock into checkout tests”       A         Proposals┃────────────────╮

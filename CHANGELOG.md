@@ -36,6 +36,20 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Added
 
+- **Leave workspace** in the palette (`:` then *leave*): lt says in one line
+  what happens (the others see you as **asked to leave** until an Admin
+  removes you, and this terminal stops syncing the workspace), and that
+  leaving isn't revoking: your other devices keep their keys. `y` leaves,
+  with your passkey when your account holds one; lt then forgets the
+  workspace here. The founder, the last Owner and a terminal linked as one
+  of your devices can't leave this way, and lt says why (leave from your
+  main desktop, or ask an Admin to remove you).
+- **lt follows a rename of itself.** When you rename this terminal's
+  computer in My devices on your desktop, lt takes that name live (a toast
+  says so), keeps it in its data dir and gives it to its other workspaces,
+  instead of reverting it the next time it starts. lt's own `lt
+  device-rename` still wins when it is the newer one.
+
 - On a computer linked as one of your devices, a setup step whose change
   the workspace's rules hold for your passkey asks your own desktop or
   phone to confirm it: **Confirm on your desktop or phone:** with what the

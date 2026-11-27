@@ -65,6 +65,8 @@ pub async fn run_effect(b: Arc<dyn Backend>, fx: Effect) -> Msg {
         ),
         SetRole(w, m, r) => done("Role changed", b.set_role(&w, &m, r).await),
         RemoveMember(w, m) => done("Removed", b.remove_member(&w, &m).await),
+        LeaveCheck(w) => Msg::LeaveChecked(w.clone(), b.leave_check(&w).await),
+        LeaveWorkspace(w) => Msg::Left(w.clone(), b.leave_workspace(&w).await),
         CreateInvite(w, r) => Msg::Invite(b.create_invite(&w, r).await),
         MarkNotificationsRead => done("", b.mark_notifications_read().await),
         SetSetting(k, on) => Msg::Settings(b.set_setting(k, on).await),

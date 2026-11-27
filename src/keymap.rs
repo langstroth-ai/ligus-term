@@ -176,6 +176,7 @@ pub enum Action {
     Setup,
     CopySafetyCode,
     ConfirmLink,
+    LeaveWorkspace,
     AskOption1,
     AskOption2,
     AskOption3,
@@ -217,6 +218,13 @@ pub const BINDINGS: &[Binding] = &[
     b!(Global, Setup, "setup", "Set up: an agent, a tool, a folder, a box, a phone, an invite, a relay", ["u"]),
     b!(Global, LinkDevice, "link_device", "Link this computer to my devices", []),
     b!(Global, Approvals, "approvals", "Approval requests waiting in this workspace (read only: approve on your desktop or phone)", []),
+    b!(
+        Global,
+        LeaveWorkspace,
+        "leave_workspace",
+        "Leave this workspace (asks first; others see you as asked to leave, nothing is revoked)",
+        []
+    ),
     b!(Global, GoChats, "go_chats", "Chats", ["c", "1"]),
     b!(Global, GoWorkflows, "go_workflows", "Workflows and runs", ["f", "2"]),
     b!(Global, GoProposals, "go_proposals", "Proposals", ["p", "3"]),

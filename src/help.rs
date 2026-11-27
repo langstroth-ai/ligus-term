@@ -770,6 +770,7 @@ pub const RECORDS: &[(&str, &[&[&str]])] = &[
     ("presence-handoff", &[&["id", "code", "summary", "answers"]]),
     ("presence-handoff-stopped", &[&["id", "why", "answers"]]),
     ("sync", &[&["workspace", "status"]]),
+    ("device-renamed", &[&["name"]]),
     ("run-changed", &[&["id", "status", "name", "done"]]),
 ];
 

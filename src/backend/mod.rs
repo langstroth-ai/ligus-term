@@ -170,6 +170,11 @@ pub enum Event {
         workspace: WorkspaceId,
         status: String,
     },
+    /// This computer was renamed on its person's desktop (a synced name
+    /// newer than the one lt keeps): lt keeps that name now.
+    DeviceRenamed {
+        name: String,
+    },
 }
 
 /// Everything `lt` needs from Ligus.
@@ -347,6 +352,12 @@ pub trait Backend: Send + Sync {
     async fn members(&self, workspace: &WorkspaceId) -> Result<Vec<Member>>;
     async fn set_role(&self, workspace: &WorkspaceId, member: &MemberId, role: Role) -> Result<()>;
     async fn remove_member(&self, workspace: &WorkspaceId, member: &MemberId) -> Result<()>;
+    /// What leaving `workspace` would do; nothing is written.
+    async fn leave_check(&self, workspace: &WorkspaceId) -> Result<LeaveView>;
+    /// Leave `workspace` on your own: others see you as asked to leave
+    /// until an Admin removes you, then lt stops syncing it and forgets it
+    /// here. Revokes nothing. A refused leave changes nothing.
+    async fn leave_workspace(&self, workspace: &WorkspaceId) -> Result<()>;
 
     // ── Notifications and settings ─────────────────────────────────────
     async fn notifications(&self) -> Result<Vec<Notification>>;

@@ -2397,6 +2397,41 @@ impl Backend for FakeBackend {
         Ok(())
     }
 
+    async fn leave_check(&self, workspace: &WorkspaceId) -> Result<LeaveView> {
+        let w = self.lock();
+        let Some(ws) = w.ws.get(workspace) else { return err("no such workspace") };
+        let Some(me) = ws.members.iter().find(|m| m.id == w.you) else { return err("not a member here") };
+        let others_owner = ws.members.iter().any(|m| m.id != w.you && m.role == Role::Owner);
+        let refusal = if me.founder {
+            Some("Couldn't leave: the founder stays in the workspace".to_string())
+        } else if me.role == Role::Owner && !others_owner {
+            Some("Couldn't leave: you're the last Owner. Make someone else an Owner first".to_string())
+        } else {
+            None
+        };
+        Ok(LeaveView {
+            state: if refusal.is_some() { LeaveState::Refused } else { LeaveState::Passkey },
+            refusal,
+            line: "Others see you as asked to leave until an Admin removes you, and this device stops syncing the workspace.".into(),
+            reminder: "Leaving isn't revoking: your other devices and anything they already copied keep their keys. Revoke a lost device in My devices.".into(),
+        })
+    }
+
+    async fn leave_workspace(&self, workspace: &WorkspaceId) -> Result<()> {
+        let check = self.leave_check(workspace).await?;
+        if let Some(why) = check.refusal {
+            return err(why);
+        }
+        self.presence("memberLeft", "Leave this workspace (you're listed as asked to leave)".into(), PresenceOp::Get).await?;
+        {
+            let mut w = self.lock();
+            w.ws.remove(workspace);
+            w.order.retain(|o| o != workspace);
+        }
+        self.emit(Event::WorkspacesChanged);
+        Ok(())
+    }
+
     async fn notifications(&self) -> Result<Vec<Notification>> {
         Ok(self.lock().notifications.clone())
     }

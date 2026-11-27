@@ -798,6 +798,31 @@ impl LinkPending {
     }
 }
 
+/// What leaving a workspace would do, nothing written yet (Ligus's
+/// `MemberLeft`): the same one line and reminder as the desktop.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LeaveView {
+    pub state: LeaveState,
+    /// Why the workspace refuses it ([`LeaveState::Refused`] only).
+    pub refusal: Option<String>,
+    /// What happens, in one line.
+    pub line: String,
+    /// Leaving isn't revoking.
+    pub reminder: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LeaveState {
+    /// It can be written now.
+    Ready,
+    /// With the person's passkey.
+    Passkey,
+    /// Already asked to leave: leaving again only removes it here.
+    Left,
+    /// The founder, the last Owner, a linked computer, older rules.
+    Refused,
+}
+
 /// Where linking stands on this install (`lt link-status`).
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct LinkStatusView {
