@@ -21,6 +21,7 @@ mod asks;
 mod deploy;
 pub(crate) mod detect;
 pub mod label;
+mod leave;
 mod link;
 mod live_link;
 mod local;
@@ -1526,6 +1527,20 @@ impl Backend for RealBackend {
         let ws = ws_uuid(workspace)?;
         let member = member.0.clone();
         self.call(move |i| i.write(ws, |svc| svc.remove_member(workspace_config_session_id(ws), ws, member))).await
+    }
+
+    async fn leave_check(&self, workspace: &WorkspaceId) -> Result<LeaveView> {
+        let ws = ws_uuid(workspace)?;
+        self.call(move |i| i.leave_check(ws)).await
+    }
+
+    async fn leave_workspace(&self, workspace: &WorkspaceId) -> Result<()> {
+        let ws = ws_uuid(workspace)?;
+        self.call(move |i| i.write_leave(ws)).await?;
+        self.inner.push_now(ws).await.map_err(|e| {
+            BackendError(format!("your leave is saved here but didn't reach the relay ({}); try again when you're online", e.0))
+        })?;
+        self.call(move |i| i.forget(ws)).await
     }
 
     async fn notifications(&self) -> Result<Vec<Notification>> {

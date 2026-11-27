@@ -809,3 +809,53 @@ async fn a_waiting_link_shows_and_an_expired_one_is_cleaned_up() {
     let left = ligus_runtime::computer_link::LinkState::load(&dir).unwrap();
     assert!(left.pending.is_empty(), "dropped from {}", path.display());
 }
+
+/// Workspace model v3, 10.1 and 10.4: Ana renames her linked laptop on her
+/// desktop and the laptop's lt takes that name live (kept in its data dir,
+/// a toast), while its own rename stays its own. And a linked computer can't
+/// make Ana leave: lt says why and nothing is written.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn the_linked_computer_follows_a_rename_and_cant_leave_for_its_person() {
+    let _watchdog = watchdog("the_linked_computer_follows_a_rename_and_cant_leave_for_its_person", 420);
+    let tmp = tempfile::tempdir().unwrap();
+    let relay = serve(ligus_runtime::test_relay::router()).await;
+    let a = device(&tmp.path().join("ana"), "Ana's desktop", &relay);
+    let (ws, wsu, conn) = founded(&a, tmp.path()).await;
+    let laptop = device(&tmp.path().join("laptop"), "lt on laptop", &relay);
+    let req = laptop.b.link_request().await.unwrap();
+    let grant = approve(&a, wsu, &req.code, &conn).await;
+    redeem(&laptop, &grant).await;
+    assert_eq!(laptop.b.device().device_name, "lt on laptop");
+
+    // Ana's desktop renames it.
+    let lsvc = laptop.b.service().unwrap();
+    let laptop_id = lsvc.lock().unwrap().device_id();
+    until("the desktop to know the laptop", || async {
+        let svc = a.b.service().unwrap();
+        tokio::task::spawn_blocking(move || {
+            let mut svc = svc.lock().unwrap();
+            svc.set_device_label(wsu, laptop_id, "Ana's work laptop").ok()
+        })
+        .await
+        .unwrap()
+    })
+    .await;
+    a.b.publish_now(wsu).await.unwrap();
+    until("the laptop to take the name", || async { (laptop.b.device().device_name == "Ana's work laptop").then_some(()) }).await;
+    let kept = tmp.path().join("laptop").join(ligus_term::backend::real::label::LABEL_FILE);
+    assert_eq!(std::fs::read_to_string(&kept).unwrap().trim(), "Ana's work laptop");
+    assert!(laptop.saw(|e| matches!(e, ligus_term::backend::Event::DeviceRenamed { name } if name == "Ana's work laptop")));
+
+    // Its own rename afterwards is newer: it is not taken back.
+    assert_eq!(laptop.b.rename_this_device("Laptop").await.unwrap(), "Laptop");
+    laptop.b.publish_now(wsu).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+    assert_eq!(laptop.b.device().device_name, "Laptop");
+
+    // Leaving from the linked laptop is refused, before anything is written.
+    let check = laptop.b.leave_check(&ws).await.unwrap();
+    assert_eq!(check.state, LeaveState::Refused, "{check:?}");
+    assert!(check.refusal.as_deref().unwrap_or_default().contains("linked device"), "{check:?}");
+    assert!(laptop.b.leave_workspace(&ws).await.is_err());
+    assert!(laptop.b.workspaces().await.unwrap().iter().any(|w| w.id == ws), "still here");
+}

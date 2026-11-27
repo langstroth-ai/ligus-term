@@ -103,6 +103,7 @@ fn synonyms(a: Action) -> &'static str {
         Action::KeepScratch => "keep scratch repo repository move save publish",
         Action::CopySafetyCode => "copy fingerprint safety code clipboard",
         Action::ConfirmLink => "link confirm retry not confirmed devices certificate",
+        Action::LeaveWorkspace => "leave exit quit workspace depart remove me",
         _ => "",
     }
 }

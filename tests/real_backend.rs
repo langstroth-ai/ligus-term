@@ -920,3 +920,57 @@ async fn set_up_lets_an_agy_agent_run_local_servers() {
     assert_eq!(check(&o).map(|c| c.1).as_deref(), Some("@gem may already run local servers"), "{o:?}");
     d.b.shutdown();
 }
+
+/// Workspace model v3, 10.4: Ben leaves on his own. lt shows the one line
+/// and the reminder, writes his leave, forgets the workspace here, and Ana
+/// still has him as a member (rules 3: "asked to leave" until an Admin
+/// removes him). The founder can't leave.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_member_leaves_and_the_founder_cant() {
+    let tmp = tempfile::tempdir().unwrap();
+    let relay = serve(ligus_runtime::test_relay::router()).await;
+    let a = device(&tmp.path().join("ana"), "lt Ana", &relay);
+    let b = device(&tmp.path().join("ben"), "lt Ben", &relay);
+    let created = a.b.create_workspace("Ana", "Acme Web").await.unwrap();
+    let ws = created.workspace.id.clone();
+    let wsu = Uuid::parse_str(ws.as_str()).unwrap();
+    let words = tmp.path().join("words.txt");
+    std::fs::write(&words, created.recovery_words.join(" ")).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&words, std::fs::Permissions::from_mode(0o600)).unwrap();
+    }
+    *a.words_file.lock().unwrap() = Some(words);
+    let invite = a.b.create_invite(&ws, Role::Contributor).await.unwrap();
+    b.b.join_workspace("Ben", &invite).await.unwrap();
+    until("Ana to see Ben", || async { (a.b.members(&ws).await.unwrap().len() == 2).then_some(()) }).await;
+
+    let founder = a.b.leave_check(&ws).await.unwrap();
+    assert_eq!(founder.state, LeaveState::Refused);
+    assert!(founder.refusal.as_deref().unwrap_or_default().contains("founder"), "{founder:?}");
+
+    let check = until("Ben's membership to settle", || async {
+        let c = b.b.leave_check(&ws).await.ok()?;
+        (c.state != LeaveState::Refused).then_some(c)
+    })
+    .await;
+    assert!(check.line.contains("asked to leave"), "{check:?}");
+    assert!(check.reminder.starts_with("Leaving isn't revoking"), "{check:?}");
+    b.b.leave_workspace(&ws).await.unwrap();
+    assert!(b.b.workspaces().await.unwrap().is_empty(), "forgotten here");
+
+    until("Ana to see Ben asked to leave", || async {
+        let svc = a.b.service().unwrap();
+        tokio::task::spawn_blocking(move || {
+            let svc = svc.lock().unwrap();
+            let c = svc.load_in(wsu, workspace_config_session_id(wsu)).ok()??;
+            let ben = c.members.iter().find(|m| m.actor.display_name == "Ben")?;
+            c.left.contains_key(&ben.id).then_some(())
+        })
+        .await
+        .unwrap()
+    })
+    .await;
+    assert_eq!(a.b.members(&ws).await.unwrap().len(), 2, "still a member under rules 3");
+}

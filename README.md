@@ -191,8 +191,17 @@ or a phone) read only: approve them on your desktop or phone.
 
 A linked `lt` acts as you without your account key: a vote asks for your
 passkey in the browser, and account changes (devices, phones, passkeys, keys)
-stay on the desktop. It no longer creates workspaces or accepts invites.
-Revoke it from **My devices** on the desktop. An install that was already in
+stay on the desktop. It no longer creates workspaces or accepts invites, and
+it can't make you leave a workspace (leave from your desktop). Revoke it from
+**My devices** on the desktop. Renaming it there renames it here too: `lt`
+takes the new name live and keeps it.
+
+**Leave workspace** (palette: **leave**) says in one line what happens: the
+others see you as **asked to leave** until an Admin removes you, and this
+terminal stops syncing the workspace. Leaving isn't revoking: your other
+devices keep their keys. `y` leaves (with your passkey when your account
+holds one) and `lt` forgets the workspace here. The founder and the last
+Owner can't leave; `lt` says why. An install that was already in
 the workspace as its own member asks with a new device key, and the desktop
 then offers to remove the old member (their messages keep their name).
 
