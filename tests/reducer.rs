@@ -426,6 +426,8 @@ fn presence_sheet_browser_recovery_file_and_cancel() {
         summary: "Remove Lin".into(),
         digest_short: "abcd".into(),
         op: PresenceOp::Get,
+        handoff: None,
+        resumed: false,
     };
     update(&mut s, Msg::Event(Event::PresencePrompt(prompt.clone())));
     assert!(!s.typing_text());
@@ -448,6 +450,107 @@ fn presence_sheet_browser_recovery_file_and_cancel() {
     update(&mut s, Msg::Event(Event::PresencePrompt(PresencePrompt { id: PresenceId(8), op: PresenceOp::Create, ..prompt })));
     key(&mut s, KeyCode::Char('f'));
     assert_eq!(s.presence[0].stage, PresenceStage::Asking);
+}
+
+fn handoff_prompt(id: u64, resumed: bool) -> PresencePrompt {
+    PresencePrompt {
+        id: PresenceId(id),
+        kind: "workspaceRepoAdded".into(),
+        summary: "Add repository web".into(),
+        digest_short: "abcd".into(),
+        op: PresenceOp::Get,
+        handoff: Some("K7Q4 M9X2".into()),
+        resumed,
+    }
+}
+
+/// A passkey hand-off to the person's desktop or phone: the sheet waits on
+/// it, the browser and the words file stay one key away (choosing one ends
+/// the hand-off), Esc cancels, and an expired one asks again on enter.
+#[test]
+fn presence_handoff_sheet_waits_retries_and_falls_back() {
+    let mut s = main_state();
+    update(&mut s, Msg::Event(Event::PresencePrompt(handoff_prompt(9, false))));
+    assert_eq!(s.presence[0].stage, PresenceStage::Handoff);
+    assert_eq!(s.presence[0].handoff.as_deref(), Some("K7Q4 M9X2"));
+    assert!(key(&mut s, KeyCode::Enter).is_empty(), "enter does nothing while it waits");
+    // The words file: typing it, then back to the hand-off, still waiting.
+    key(&mut s, KeyCode::Char('f'));
+    assert!(s.typing_text());
+    key(&mut s, KeyCode::Esc);
+    assert_eq!(s.presence[0].stage, PresenceStage::Handoff);
+    // It expired: say so; enter asks again (a new code arrives).
+    update(
+        &mut s,
+        Msg::Event(Event::PresenceHandoff {
+            id: PresenceId(9),
+            update: HandoffUpdate::Stopped { why: "The request expired (15 minutes)".into() },
+        }),
+    );
+    assert_eq!(s.presence[0].stage, PresenceStage::HandoffStopped("The request expired (15 minutes)".into()));
+    assert_eq!(s.presence[0].handoff, None);
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::AnswerPresence(PresenceId(9), PresenceAnswer::Handoff)]);
+    update(&mut s, Msg::Event(Event::PresenceHandoff { id: PresenceId(9), update: HandoffUpdate::Waiting { code: "AB12 CD34".into() } }));
+    assert_eq!((s.presence[0].stage.clone(), s.presence[0].handoff.as_deref()), (PresenceStage::Handoff, Some("AB12 CD34")));
+    // The browser here instead: the hand-off ends.
+    assert_eq!(key(&mut s, KeyCode::Char('o')), vec![Effect::AnswerPresence(PresenceId(9), PresenceAnswer::Browser)]);
+    assert_eq!((s.presence[0].stage.clone(), s.presence[0].handoff.clone()), (PresenceStage::WaitingBrowser, None));
+    update(&mut s, Msg::Event(Event::PresenceDone { id: PresenceId(9), ok: false, error: Some("cancelled".into()) }));
+
+    // Esc cancels (the backend sends the cancel abort).
+    update(&mut s, Msg::Event(Event::PresencePrompt(handoff_prompt(10, false))));
+    assert_eq!(key(&mut s, KeyCode::Esc), vec![Effect::AnswerPresence(PresenceId(10), PresenceAnswer::Cancel)]);
+    // Declined there: the error is shown and the waiting list reloads.
+    let fx = update(
+        &mut s,
+        Msg::Event(Event::PresenceDone {
+            id: PresenceId(10),
+            ok: false,
+            error: Some("Declined on your other device: nothing was written".into()),
+        }),
+    );
+    assert_eq!(fx, vec![Effect::LoadPendingPresence]);
+    assert!(s.toasts.iter().any(|t| t.text.contains("Declined on your other device")), "{:?}", s.toasts);
+
+    // A resumed one offers only waiting and cancelling.
+    update(&mut s, Msg::Event(Event::PresencePrompt(handoff_prompt(11, true))));
+    assert!(key(&mut s, KeyCode::Char('o')).is_empty());
+    key(&mut s, KeyCode::Char('f'));
+    assert_eq!(s.presence[0].stage, PresenceStage::Handoff);
+    assert_eq!(key(&mut s, KeyCode::Char('c')), vec![Effect::AnswerPresence(PresenceId(11), PresenceAnswer::Cancel)]);
+    update(&mut s, Msg::Event(Event::PresenceDone { id: PresenceId(11), ok: true, error: None }));
+    assert!(s.presence.is_empty());
+}
+
+/// A hand-off left waiting when lt quit: one calm notice at start, and a
+/// row first in the Set up list (enter waits, c cancels).
+#[test]
+fn a_handoff_left_waiting_is_offered_in_set_up() {
+    let mut s = main_state();
+    let waiting = PendingPresence {
+        rid: "00ff".into(),
+        workspace: WorkspaceId::new("a"),
+        summary: "Add repository web".into(),
+        code: "K7Q4 M9X2".into(),
+        created_at: NOW,
+    };
+    let toasts = s.toasts.len();
+    update(&mut s, Msg::PendingPresence(Ok(vec![waiting.clone()])));
+    assert_eq!(s.toasts.len(), toasts + 1);
+    assert!(s.toasts.last().unwrap().text.contains("waiting for your desktop or phone"), "{:?}", s.toasts);
+    // Said once.
+    update(&mut s, Msg::PendingPresence(Ok(vec![waiting.clone()])));
+    assert_eq!(s.toasts.len(), toasts + 1);
+    let fx = key(&mut s, KeyCode::Char('u'));
+    assert!(fx.contains(&Effect::LoadPendingPresence), "{fx:?}");
+    assert_eq!(key(&mut s, KeyCode::Char('c')), vec![Effect::CancelPendingPresence("00ff".into())]);
+    assert!(s.pending_presence.is_empty());
+    update(&mut s, Msg::PendingPresence(Ok(vec![waiting])));
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::ResumePresence("00ff".into())]);
+    assert!(s.overlay.is_none(), "the hand-off sheet comes next");
+    let fx = update(&mut s, Msg::PresenceResumed(Ok("Add repository web".into())));
+    assert!(fx.contains(&Effect::LoadPendingPresence));
+    assert!(s.toasts.iter().any(|t| t.text == "Confirmed and written: Add repository web"), "{:?}", s.toasts);
 }
 
 #[test]

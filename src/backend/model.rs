@@ -665,6 +665,37 @@ pub struct PresencePrompt {
     pub digest_short: String,
     /// `get` (confirm) or `create` (register a passkey).
     pub op: PresenceOp,
+    /// Sent to the person's own desktop or phone to confirm there: the code
+    /// both show (`K7Q4 M9X2`). `None`: today's sheet (the browser, the
+    /// recovery-words file).
+    pub handoff: Option<String>,
+    /// A hand-off left waiting when lt last quit: only waiting or
+    /// cancelling it is offered (the write that asked has ended).
+    pub resumed: bool,
+}
+
+/// How a passkey hand-off to the person's other device moved on.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HandoffUpdate {
+    /// Posted (again): confirm on your desktop or phone, this code.
+    Waiting { code: String },
+    /// It ended without an answer (expired, no one confirmed in time, the
+    /// relay unreachable): nothing was written; retry or confirm here.
+    Stopped { why: String },
+}
+
+/// A passkey hand-off left waiting in this data dir (lt quit while it
+/// waited): offered on the next start.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PendingPresence {
+    /// The request's id.
+    pub rid: String,
+    pub workspace: WorkspaceId,
+    /// What it confirms, in words.
+    pub summary: String,
+    /// The code the desktop or phone shows.
+    pub code: String,
+    pub created_at: Millis,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -680,6 +711,9 @@ pub enum PresenceAnswer {
     Browser,
     /// Sign with the recovery key read from this file (24 words).
     RecoveryWordsFile(String),
+    /// Ask the person's own desktop or phone again (after a hand-off
+    /// expired or timed out).
+    Handoff,
     Cancel,
 }
 
@@ -912,6 +946,9 @@ pub enum ApprovalKind {
     Box,
     Computer,
     Phone,
+    /// A device of yours asks your desktop or phone to confirm a change
+    /// with your passkey (a terminal's passkey hand-off).
+    Presence,
 }
 
 impl ApprovalKind {
@@ -920,6 +957,7 @@ impl ApprovalKind {
             Self::Box => "box",
             Self::Computer => "computer",
             Self::Phone => "phone",
+            Self::Presence => "passkey",
         }
     }
 
@@ -931,6 +969,7 @@ impl ApprovalKind {
             Self::Box => "A box asks to join",
             Self::Computer => "A computer asks to be your device",
             Self::Phone => "A phone asks to be your device",
+            Self::Presence => "A device of yours asks for your passkey",
         }
     }
 }

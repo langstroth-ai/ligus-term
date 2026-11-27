@@ -235,8 +235,7 @@ impl Inner {
         Ok(listing
             .live
             .iter()
-            // A passkey hand-off isn't a device asking to join or link.
-            .filter(|l| l.ended.is_none() && l.kind() != MatchKind::Presence)
+            .filter(|l| l.ended.is_none())
             .map(|l| {
                 let (checking, mine, contested) = match claim_view(l, me, &classifier) {
                     ClaimView::Unclaimed => (None, false, false),
@@ -249,7 +248,7 @@ impl Inner {
                         MatchKind::Box => ApprovalKind::Box,
                         MatchKind::Computer => ApprovalKind::Computer,
                         MatchKind::Phone => ApprovalKind::Phone,
-                        MatchKind::Presence => unreachable!("hand-offs are filtered out above"),
+                        MatchKind::Presence => ApprovalKind::Presence,
                     },
                     label: hint(&l.label()),
                     at: l.put_at,

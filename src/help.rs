@@ -553,7 +553,20 @@ pub const COMMANDS: &[Cmd] = &[
         prints: "presence-done",
         example: "confirm 101 file ~/words.txt",
     },
-    Cmd { name: "cancel", usage: "cancel ID", about: "Cancel a passkey prompt.", prints: "presence-done", example: "cancel 101" },
+    Cmd {
+        name: "cancel",
+        usage: "cancel ID",
+        about: "Cancel a passkey prompt (a hand-off to your desktop or phone too: it drops it; nothing is written).",
+        prints: "presence-done",
+        example: "cancel 101",
+    },
+    Cmd {
+        name: "retry",
+        usage: "retry ID",
+        about: "Ask your desktop or phone again after a passkey hand-off stopped (presence-handoff-stopped).",
+        prints: "presence-handoff",
+        example: "retry 101",
+    },
     Cmd {
         name: "workflows",
         usage: "workflows",
@@ -754,6 +767,8 @@ pub const RECORDS: &[(&str, &[&[&str]])] = &[
     ("presence-problem", &[&["id", "error"]]),
     ("presence-url", &[&["id", "port", "address", "note"]]),
     ("presence-done", &[&["id", "result", "error"]]),
+    ("presence-handoff", &[&["id", "code", "summary", "answers"]]),
+    ("presence-handoff-stopped", &[&["id", "why", "answers"]]),
     ("sync", &[&["workspace", "status"]]),
     ("run-changed", &[&["id", "status", "name", "done"]]),
 ];
@@ -996,6 +1011,14 @@ pub fn keys_text() -> String {
         "\nPasskey prompt (fixed keys)\n  enter / o                open the browser\n  \
          f                        use a recovery-words file (confirmations only)\n  \
          esc / c                  cancel\n\
+         \nPasskey prompt sent to your desktop or phone (fixed keys)\n  \
+         o                        use the browser here instead\n  \
+         f                        use a recovery-words file instead\n  \
+         enter / r                ask again, once it stopped (expired, no answer)\n  \
+         esc / c                  cancel (your desktop or phone drops it)\n\
+         \nSet up list, a passkey confirmation left waiting\n  \
+         enter / w                wait for it again\n  \
+         c                        cancel it (nothing is written)\n\
          \nRebind in the config file (lt --print-config prints them all), per context,\n\
          by action name; an entry replaces that action's keys in that context:\n\n  \
          [keys.global]\n  quit = [\"ctrl-q\"]\n  [keys.composer]\n  newline = [\"alt-enter\", \"ctrl-j\"]\n\n\
@@ -1339,6 +1362,16 @@ A keychain password prompt on macOS, or no keychain at all (a container, CI)
   Give your name with --name:
     lt --name Ada create Northwind --out words.txt
     lt --name Ada join CODE
+
+Passkeys on a computer linked as one of your devices
+  A setup step that needs your passkey asks your own desktop or phone: the
+  sheet shows the change and a code; confirm it there with your passkey.
+  \"Declined on your other device\": Not me was chosen there; nothing was
+  written. \"The request expired\" or no answer in 10 minutes: enter asks
+  again. 3 unanswered in 15 minutes: lt stops sending more for a while; use
+  the browser (o) or the recovery-words file (f). An older relay (no approval
+  mailbox): the usual sheet. lt quit while it waited: Set up (u) lists it
+  first (enter waits again, c cancels).
 
 Passkeys with no browser (SSH, a headless box)
   Confirmations take your 24 recovery words from an owner-only file: press f

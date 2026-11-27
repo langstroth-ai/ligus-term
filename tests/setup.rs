@@ -288,7 +288,7 @@ async fn esc_cancels_cleanly() {
     let mut h = demo().await;
     open(&mut h, 0).await;
     let fx = update(&mut h.state, Msg::Key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE)));
-    assert!(fx.iter().all(|f| matches!(f, Effect::LoadSetup(_))), "nothing runs: {fx:?}");
+    assert!(fx.iter().all(|f| matches!(f, Effect::LoadSetup(_) | Effect::LoadPendingPresence)), "nothing runs: {fx:?}");
     assert!(matches!(h.state.overlay, Some(Overlay::Setup { .. })));
 
     // While running: esc is a cancel, once.

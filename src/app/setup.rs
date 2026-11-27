@@ -292,7 +292,7 @@ fn ws(s: &State) -> Option<crate::backend::model::WorkspaceId> {
 /// Open the Set up list.
 pub fn open_list(s: &mut State) -> Vec<Effect> {
     s.overlay = Some(Overlay::Setup { sel: 0 });
-    vec![Effect::LoadSetup(ws(s))]
+    vec![Effect::LoadSetup(ws(s)), Effect::LoadPendingPresence]
 }
 
 /// Open a flow's popup. The device flow is lt's Add to my devices screens.
@@ -318,8 +318,24 @@ fn close(s: &mut State, from_list: bool) -> Vec<Effect> {
 
 /// Keys in the Set up list.
 pub fn list_key(s: &mut State, k: &KeyEvent, sel: usize) -> Vec<Effect> {
+    // The passkey hand-offs left waiting come first, then the flows.
+    let waiting: Vec<String> = s.pending_presence.iter().map(|p| p.rid.clone()).collect();
     let rows: Vec<LtFlow> = s.setup_rows.iter().flatten().map(|r| r.flow).collect();
-    let n = rows.len();
+    let n = waiting.len() + rows.len();
+    if let Some(rid) = waiting.get(sel) {
+        match k.code {
+            KeyCode::Enter | KeyCode::Char('w') => {
+                s.overlay = None;
+                return vec![Effect::ResumePresence(rid.clone())];
+            }
+            KeyCode::Char('c') => {
+                s.pending_presence.retain(|p| &p.rid != rid);
+                return vec![Effect::CancelPendingPresence(rid.clone())];
+            }
+            _ => {}
+        }
+    }
+    let flow_at = |i: usize| i.checked_sub(waiting.len()).and_then(|i| rows.get(i)).copied();
     let set = |s: &mut State, i: usize| s.overlay = Some(Overlay::Setup { sel: i });
     match k.code {
         KeyCode::Esc | KeyCode::Char('q') => {
@@ -342,8 +358,8 @@ pub fn list_key(s: &mut State, k: &KeyEvent, sel: usize) -> Vec<Effect> {
             set(s, n.saturating_sub(1));
             vec![]
         }
-        KeyCode::Enter | KeyCode::Right | KeyCode::Char('l') => match rows.get(sel) {
-            Some(f) => open_flow(s, *f, true),
+        KeyCode::Enter | KeyCode::Right | KeyCode::Char('l') => match flow_at(sel) {
+            Some(f) => open_flow(s, f, true),
             None => vec![],
         },
         _ => vec![],

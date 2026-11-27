@@ -36,12 +36,28 @@ fn popup(f: &mut Frame, area: Rect, title: &str, lines: Vec<Line<'static>>, t: &
 pub fn list(f: &mut Frame, area: Rect, s: &State, sel: usize, t: &Theme) {
     let inner = (W.min(area.width)).saturating_sub(2) as usize;
     let mut lines: Vec<Line<'static>> = vec![];
+    // Passkey hand-offs left waiting when lt last quit, first.
+    let waiting = s.pending_presence.len();
+    for (i, p) in s.pending_presence.iter().enumerate() {
+        let on = i == sel;
+        let mark = Span::styled(if on { "› " } else { "  " }, t.accent());
+        // The code first: it is what to compare; the summary may be cut.
+        let text = format!("Waiting for your desktop or phone (code {}): {}", p.code, p.summary);
+        lines.push(Line::from(vec![
+            mark,
+            Span::styled("⧗ ", t.fg(t.warn)),
+            Span::styled(trunc(&text, inner.saturating_sub(4)), if on { t.selected() } else { t.text() }),
+        ]));
+    }
+    if waiting > 0 {
+        lines.push(Line::raw(""));
+    }
     match &s.setup_rows {
         None => lines.push(Line::styled("Looking at what is set up\u{2026}", t.dim())),
         Some(rows) => {
             let tw = rows.iter().map(|r| r.flow.title().width()).max().unwrap_or(0);
             for (i, r) in rows.iter().enumerate() {
-                let on = i == sel;
+                let on = i + waiting == sel;
                 let mark = Span::styled(if on { "› " } else { "  " }, t.accent());
                 let title = Span::styled(format!("{:<tw$}  ", r.flow.title()), if on { t.selected() } else { t.text() });
                 let (glyph, style) = match r.progress {
@@ -53,14 +69,18 @@ pub fn list(f: &mut Frame, area: Rect, s: &State, sel: usize, t: &Theme) {
                 let room = inner.saturating_sub(2 + tw + 2 + 2);
                 lines.push(Line::from(vec![mark, title, Span::styled(glyph, style), Span::styled(trunc(&r.detail, room), style)]));
             }
-            if let Some(r) = rows.get(sel) {
+            if let Some(r) = sel.checked_sub(waiting).and_then(|i| rows.get(i)) {
                 lines.push(Line::raw(""));
                 wrapped(&mut lines, r.flow.why(), inner, t.dim(), "");
             }
         }
     }
     lines.push(Line::raw(""));
-    lines.push(Line::styled("enter start · esc close · every flow is safe to run again", t.dim()));
+    if sel < waiting {
+        lines.push(Line::styled("enter wait · c cancel (nothing is written) · esc close", t.dim()));
+    } else {
+        lines.push(Line::styled("enter start · esc close · every flow is safe to run again", t.dim()));
+    }
     popup(f, area, "Set up", lines, t);
 }
 
