@@ -364,6 +364,7 @@ fn streaming_events_build_the_reply_and_thinking_set() {
         at: NOW,
         streaming: true,
         tools: vec![],
+        note: None,
     };
     update(&mut s, Msg::Event(Event::MessageAdded { workspace: w.clone(), message: m }));
     for d in ["a ", "b"] {
@@ -1789,6 +1790,7 @@ fn transcript_dump_and_exit_summary() {
         at: NOW - 60_000,
         streaming: false,
         tools: vec![ToolCall { name: "read_file".into(), preview: "src/a.rs".into(), ok: true, ..ToolCall::default() }],
+        note: None,
     };
     update(&mut s, Msg::Transcript(WorkspaceId::new("a"), ChatId::new("c1"), Ok(vec![m])));
     let fx = key(&mut s, KeyCode::Char('D'));

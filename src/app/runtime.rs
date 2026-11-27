@@ -52,6 +52,7 @@ pub async fn run_effect(b: Arc<dyn Backend>, fx: Effect) -> Msg {
         Send { workspace, chat, text } => Msg::Sent(b.send_message(&workspace, &chat, &text).await),
         MarkRead(w, c) => done("", b.mark_read(&w, &c).await),
         LockChat(w, c) => done("Chat locked down", b.lock_chat(&w, &c).await),
+        RunHere(w, c, m) => done("Running it here this time", b.run_turn_here(&w, &c, &m).await),
         ClearLockdown(w, c) => done("Lockdown cleared", b.clear_lockdown(&w, &c).await),
         Vote(w, p, choice) => Msg::ProposalUpdated(w.clone(), b.vote(&w, &p, choice).await),
         RequestApply(w, p, h) => Msg::ProposalUpdated(w.clone(), b.request_apply(&w, &p, &h).await),

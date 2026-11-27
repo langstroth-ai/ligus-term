@@ -375,6 +375,9 @@ fn transcript_lines(s: &State, width: usize, t: &Theme) -> Vec<Line<'static>> {
         if !text.is_empty() {
             out.extend(markdown_lines(&text, body_w, t));
         }
+        if let Some(n) = &m.note {
+            out.extend(note_lines(s, n, body_w, t));
+        }
         for a in s.asks.iter().filter(|a| a.turn.as_ref() == Some(&m.id)) {
             out.push(Line::raw(""));
             out.extend(ask_lines(s, a, body_w, t));
@@ -394,6 +397,24 @@ fn transcript_lines(s: &State, width: usize, t: &Theme) -> Vec<Line<'static>> {
         out.extend(ask_lines(s, a, body_w, t));
     }
     out
+}
+
+/// The quiet line under a message about its turn: where your message's
+/// turn waits or why it can't run (with the "Run here this time" key when it
+/// fits), or how a reply ended. Ligus's words, dimmed.
+fn note_lines(s: &State, n: &crate::backend::model::TurnNote, width: usize, t: &Theme) -> Vec<Line<'static>> {
+    use crate::backend::model::NoteKind;
+    let lead = match n.kind {
+        NoteKind::Waiting => "○ ",
+        NoteKind::HostGone | NoteKind::CantRun => "● ",
+        NoteKind::Failed | NoteKind::Canceled => "",
+    };
+    let mut text = format!("{lead}{}", n.text);
+    if n.run_here {
+        let key = s.keymap.hint(crate::keymap::Context::Chat, crate::keymap::Action::RunHere);
+        text.push_str(&format!(" · {key} Run here this time"));
+    }
+    wrap(&text, width.max(12)).into_iter().map(|l| Line::styled(l, t.dim())).collect()
 }
 
 /// A decision card, inline where the agent asked (design 7.1, 7.3). The

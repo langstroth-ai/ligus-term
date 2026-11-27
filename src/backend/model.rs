@@ -222,6 +222,33 @@ pub struct Message {
     /// Still streaming in.
     pub streaming: bool,
     pub tools: Vec<ToolCall>,
+    /// One quiet line under the message: where your message's turn waits or
+    /// why it can't run, or how a reply ended when it didn't post normally.
+    pub note: Option<TurnNote>,
+}
+
+/// A line under a message about its turn.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TurnNote {
+    pub kind: NoteKind,
+    /// The line, in Ligus's words.
+    pub text: String,
+    /// "Run here this time" runs the turn on this device, once.
+    pub run_here: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NoteKind {
+    /// The turn waits for its host (or its owner's devices).
+    Waiting,
+    /// Its host is gone, or has been offline for a while.
+    HostGone,
+    /// It can't run where it is placed, and why.
+    CantRun,
+    /// A reply that failed.
+    Failed,
+    /// A reply that was stopped or cut off.
+    Canceled,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]

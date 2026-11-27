@@ -306,7 +306,8 @@ Paths are inside the crate named in each row, at the ligus `v0.1.0` tag.
 | `chats` | `store().list_session_ids()` minus `workspace_config_session_id(ws)`; `list_channels(ws)` | |
 | `create_chat` | `ChatService::create_chat(title, ws, runtime_id)` | |
 | `transcript` | `ChatService::load(sid)?.messages` | |
-| `send_message` | `post_user_message(sid, ws, body)`; then `turn_dispatch::dispatch_target` and `runs_here_linked`; a turn that runs here is claimed (`claim_turn`) and streamed (`begin_assistant_message`, `append_chunk`, `complete_assistant_message`). A top-level turn deferred to an owner whose host isn't online elsewhere arms the **deferred-claim fallback**: after `DEFERRED_CLAIM_TIMEOUT` (25 s), if `turn_dispatch::deferred_turn_unanswered` still holds and the host still isn't online, claim it and answer here | The desktop's `arm_deferred_claim_fallback` / `run_deferred_claim_fallback`. The relay-sync gate never arms it (the sending device does) |
+| `send_message` | `post_user_message(sid, ws, body)`; then `turn_dispatch::dispatch_target` and `runs_here_linked`; a turn that runs here is claimed (`claim_turn`) and streamed (`begin_assistant_message`, `append_chunk`, `complete_assistant_message`). The binding applies this computer's host policy (`turns::binding_for`: another person's agent placed here runs only with `run_others_agents` in `host.toml`), and an agent this device can't run as it asks (`turns::agent_resolves`) isn't claimed. A turn that isn't this device's is never answered here after a wait: `transcript` adds a line under the person's own waiting message (`turns::route_notes`, from `turn_route::pending_route`) | The desktop's `send_message` and `dispatch_outcome::add_routes` |
+| `run_turn_here` | `turns::plan_run_here`: `turn_route::run_here_allowed` (the agent owner's own device, with the agent's own runtime), the access check, `claim_turn`, then the turn as above | The desktop's `run_turn_here` |
 | `mentionables` | `session.members`, `session.workspace_agents`, plus `@primary` and `@all` | |
 | `mark_read` | device-local read markers | |
 | `lock_chat` | `self_medicate(ws, chat, None, &[(LockdownSignal::Manual, "manual")])` | Viewer and above |
@@ -478,7 +479,7 @@ queue behind it: serve list and transcript reads from a second read-only
 | `deploy.rs` | The invite check, founding a deployment's workspace, box admission |
 | `workflows.rs` | Starting, driving, cancelling runs; run views; the lease |
 | `term_presence.rs` | The `PresenceProvider`: prompt events, the loopback browser hand-off for `get` and `create`, the recovery-words file |
-| `turns.rs` | The local-send and relay-sync gates (`ligus_runtime::turn_dispatch`), the claim, the deferred-claim fallback, and the turn runner (workspace runtime, else the keyless Claude Code CLI) |
+| `turns.rs` | The local-send and relay-sync gates (`ligus_runtime::turn_dispatch`) with the host policy, the claim, the waiting lines and Run here this time, this device's refused agents for its beat, and the turn runner (an agent on exactly its own runtime; the default agent on the workspace runtime, else the keyless Claude Code CLI) |
 | `watch.rs` | The change-feed translator, the sync loop per workspace (`ligus_runtime::sync_service::SyncLoop`), the presence loop (host and lease beats), and the host loop (durable heartbeat, apply on host) |
 | `views.rs` | Projections to view models; member refusals from `authz::member_action_refusal` |
 | `local.rs` | Device-local state: read markers, notifications, settings, checkouts |
@@ -491,7 +492,7 @@ the founder-signature check, founding a deployment's workspace on its
 relay, admitting a box (sealed and bearer), a worker-like box answering
 its agent's stages, workflow runs end to end (a remote stage, a gate
 approved from `lt`, a local stage), live run events, host beats (online,
-busy, agents per host), the deferred-claim fallback, chats, streamed agent
+busy, agents per host), turns never answered on the sender's device on its own and Run here this time, chats, streamed agent
 replies through both dispatch gates, proposals and diffs, votes, apply on
 a host's checkout and the checkout binding, people, lockdowns, mention
 notifications, plain mode over the real backend, and a device reopened
@@ -529,7 +530,7 @@ the shared copy:
    (`ConnectionSecrets` for the CLI's `cli` scope, `WorkspaceList` for
    clients with several workspaces). Done.
 3. **Turn dispatch**: `turn_dispatch` (`turn_runs_here`,
-   `runs_here_linked`, `dispatch_target`, the answered and deferred
+   `runs_here_linked`, `dispatch_target`, the answered
    checks), and `sync_service` (`SyncLoop`, `sync_round`, `apply_tick`).
    The turn runner is `turn_engine` (tools, worktrees, proposals,
    hand-offs), shared by the desktop, the worker and `lt`; context windows

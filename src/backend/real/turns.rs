@@ -55,7 +55,9 @@ fn responder(s: &ChatSession, target: DispatchTarget) -> Option<(Option<Workspac
     match target {
         DispatchTarget::Agent(id) => {
             let a = s.workspace_agents.iter().find(|a| a.id == id)?.clone();
-            let (rt, owner, host) = (a.runtime_id.clone(), a.owner_actor_id.clone(), a.host_id.clone());
+            // Where it is placed: a host that is gone still names that host
+            // (its turns run nowhere), never "its owner's devices".
+            let (rt, owner, host) = (a.runtime_id.clone(), a.owner_actor_id.clone(), a.as_judged().host_id.clone());
             Some((Some(a), rt, owner, host))
         }
         DispatchTarget::Primary => Some((None, s.runtime_id.clone(), s.creator_actor_id.clone(), String::new())),
@@ -64,15 +66,30 @@ fn responder(s: &ChatSession, target: DispatchTarget) -> Option<(Option<Workspac
 
 /// What the gate decided about a message.
 pub enum Gate {
-    /// Nobody answers it (no agent addressed, or someone else's to answer
-    /// on a host that is online).
+    /// Nobody answers it here: no agent addressed, or the turn is another
+    /// device's (its host's, or its owner's devices'). It is never answered
+    /// here after a wait; the sender's chat says where it waits.
     None,
     /// This device answers it (the turn is claimed).
-    Run(Plan),
-    /// Its owner's device should answer; if none has after
-    /// `DEFERRED_CLAIM_TIMEOUT`, this device may (the deferred-claim
-    /// fallback). Not claimed.
-    Defer(Plan),
+    Run(Box<Plan>),
+}
+
+/// Whether this computer runs a turn of an agent owned by `owner` placed on
+/// it: its own person's always; anyone else's only with `run_others_agents`
+/// in its `host.toml` (host-local; workers and boxes run any agent placed
+/// on them).
+pub(crate) fn runs_owner_here(local: &str, links: &ligus_core::DeviceLinks, owner: &str) -> bool {
+    owner.is_empty() || links.person(owner) == links.person(local) || ligus_runtime::host_config::host().run_others_agents
+}
+
+/// [`host_binding`] with this computer's host policy: another person's agent
+/// placed here is someone else's work unless the person opted in.
+pub(crate) fn binding_for(device: &str, local: &str, links: &ligus_core::DeviceLinks, owner: &str, host: &str) -> HostBinding {
+    let b = host_binding(host, device);
+    if b == HostBinding::ThisDevice && !runs_owner_here(local, links, owner) {
+        return HostBinding::Elsewhere;
+    }
+    b
 }
 
 /// The gate both paths share: what `message` triggers, and whether it runs
@@ -86,14 +103,14 @@ fn gate(i: &Inner, ws: Uuid, sid: Uuid, trigger: Uuid, body: &str) -> Result<Gat
     let Some(session) = session else { return Ok(Gate::None) };
     let Some(target) = dispatch_target(body, &session, local_only, &links) else { return Ok(Gate::None) };
     let Some((agent, runtime_id, owner, host)) = responder(&session, target) else { return Ok(Gate::None) };
-    let binding = host_binding(&host, &device);
-    if !runs_here_linked(local_only, &links, &session, &local, &owner, binding) {
-        // The desktop arms the fallback only for a top-level turn whose
-        // host isn't bound elsewhere and online (that host will answer).
-        let host_online = binding == HostBinding::Elsewhere && i.host_online(ws, &host);
-        if session.cascade_depth() == 0 && !host_online {
-            return Ok(Gate::Defer(Plan { ws, sid, trigger, agent, runtime_id }));
-        }
+    if !runs_here_linked(local_only, &links, &session, &local, &owner, binding_for(&device, &local, &links, &owner, &host)) {
+        return Ok(Gate::None);
+    }
+    // This device would run it, but not as the agent asks (a runtime it
+    // doesn't have, or no key): never a stand-in. The sender's chat says why.
+    if let Some(a) = &agent
+        && agent_resolves(i, ws, a).is_err()
+    {
         return Ok(Gate::None);
     }
     if access_refusal(i, ws, sid, trigger, agent.as_ref())?.is_some() {
@@ -102,7 +119,7 @@ fn gate(i: &Inner, ws: Uuid, sid: Uuid, trigger: Uuid, body: &str) -> Result<Gat
     if !i.write(ws, |svc| svc.claim_turn(sid, ws, trigger))? {
         return Ok(Gate::None);
     }
-    Ok(Gate::Run(Plan { ws, sid, trigger, agent, runtime_id }))
+    Ok(Gate::Run(Box::new(Plan { ws, sid, trigger, agent, runtime_id })))
 }
 
 /// Agent access controls (`ligus_runtime::agent_access`), checked by the
@@ -131,101 +148,6 @@ pub fn post_and_plan(i: &Inner, ws: Uuid, sid: Uuid, text: &str) -> Result<(Mess
     Ok((message, plan))
 }
 
-/// The deferred-claim fallback (the desktop's `arm_deferred_claim_fallback`):
-/// wait `deferred_timeout`; if the turn is still unanswered and unclaimed
-/// (`turn_dispatch::deferred_turn_unanswered`) and its host still isn't
-/// online elsewhere, claim it and answer here.
-pub fn arm_fallback(inner: Arc<Inner>, plan: Plan) {
-    // Armed now: a hand-driven clock fires only the fallbacks armed before it
-    // ticks.
-    let clock = inner.cfg.deferred_clock.as_ref().map(|c| (c.clone(), *c.fire.borrow()));
-    tokio::spawn(async move {
-        match &clock {
-            None => tokio::time::sleep(inner.cfg.deferred_timeout).await,
-            Some((c, armed)) => {
-                if c.fire.clone().wait_for(|t| t > armed).await.is_err() {
-                    return;
-                }
-            }
-        }
-        let trigger = plan.trigger;
-        let claimed = blocking(&inner, move |i| {
-            let (ws, sid, trigger) = (plan.ws, plan.sid, plan.trigger);
-            let (s, links) = i.read(ws, |svc| Ok((svc.load_in(ws, sid)?, svc.device_links(ws).unwrap_or_default())))?;
-            let Some(s) = s else { return Ok(None) };
-            if !ligus_runtime::turn_dispatch::deferred_turn_unanswered(&s, trigger) {
-                return Ok(None);
-            }
-            // Re-resolve who answers, as the desktop does: over the wait the
-            // agent may have been removed, moved to another host or rebound
-            // to another runtime, or the relay cleared.
-            let Some(m) = s.messages.iter().find(|m| m.id == trigger) else { return Ok(None) };
-            let Some(target) = dispatch_target(&m.body, &s, i.local_only(ws), &links) else { return Ok(None) };
-            let Some((agent, runtime_id, _, host)) = responder(&s, target) else { return Ok(None) };
-            let device = i.core()?.identity.device.id.to_string();
-            if host_binding(&host, &device) == HostBinding::Elsewhere && i.host_online(ws, &host) {
-                return Ok(None);
-            }
-            // The fallback would run the agent on this device for whoever
-            // asked: someone else's personal agent is refused here too.
-            if access_refusal(i, ws, sid, trigger, agent.as_ref())?.is_some() {
-                return Ok(None);
-            }
-            if !i.write(ws, |svc| svc.claim_turn(sid, ws, trigger))? {
-                return Ok(None);
-            }
-            Ok(Some(Plan { ws, sid, trigger, agent, runtime_id }))
-        })
-        .await;
-        if let Some((c, _)) = &clock {
-            let _ = c.settled.send((MessageId::new(trigger.to_string()), matches!(claimed, Ok(Some(_)))));
-        }
-        if let Ok(Some(plan)) = claimed
-            && let Err(e) = run_turn(&inner, &plan).await
-        {
-            tracing_like(&inner, &plan, &e.0);
-        }
-    });
-}
-
-/// A hand-driven clock for the deferred-claim fallback, for tests that must
-/// not race a wall-clock wait: with one in [`super::RealConfig`], an armed
-/// fallback waits for [`DeferredHand::fire`] instead of `deferred_timeout`,
-/// and reports what it decided to the hand.
-#[derive(Clone)]
-pub struct DeferredClock {
-    fire: tokio::sync::watch::Receiver<u64>,
-    settled: tokio::sync::mpsc::UnboundedSender<(MessageId, bool)>,
-}
-
-/// The test's side of a [`DeferredClock`].
-pub struct DeferredHand {
-    fire: tokio::sync::watch::Sender<u64>,
-    settled: tokio::sync::mpsc::UnboundedReceiver<(MessageId, bool)>,
-}
-
-impl DeferredClock {
-    pub fn manual() -> (DeferredClock, DeferredHand) {
-        let (fire_tx, fire_rx) = tokio::sync::watch::channel(0);
-        let (settled_tx, settled_rx) = tokio::sync::mpsc::unbounded_channel();
-        (DeferredClock { fire: fire_rx, settled: settled_tx }, DeferredHand { fire: fire_tx, settled: settled_rx })
-    }
-}
-
-impl DeferredHand {
-    /// The wait is over for every fallback armed so far.
-    pub fn fire(&self) {
-        self.fire.send_modify(|t| *t += 1);
-    }
-
-    /// The next fallback to decide: its trigger message, and whether this
-    /// device claimed the turn (and so answers it). `None` once the backend
-    /// is gone.
-    pub async fn settled(&mut self) -> Option<(MessageId, bool)> {
-        self.settled.recv().await
-    }
-}
-
 /// The relay-sync gate: a user message that arrived through sync, answered
 /// here when it is unanswered, unclaimed by another device, and ours.
 pub fn plan_synced(i: &Inner, ws: Uuid, sid: Uuid, trigger: Uuid) -> Result<Option<Plan>> {
@@ -235,9 +157,8 @@ pub fn plan_synced(i: &Inner, ws: Uuid, sid: Uuid, trigger: Uuid) -> Result<Opti
     }
     let Some(m) = s.messages.iter().find(|m| m.id == trigger) else { return Ok(None) };
     Ok(match gate(i, ws, sid, trigger, &m.body.clone())? {
-        Gate::Run(plan) => Some(plan),
-        // The fallback is armed by the device the message was sent from.
-        Gate::Defer(_) | Gate::None => None,
+        Gate::Run(plan) => Some(*plan),
+        Gate::None => None,
     })
 }
 
@@ -324,9 +245,46 @@ fn base_runtime(
     }
 }
 
-/// The runtime a turn runs on: the workspace runtime it names, else (when
-/// allowed) the keyless Claude Code CLI, as the desktop falls back.
+/// The runtime a turn of the chat's default agent runs on: the workspace
+/// runtime it names, else (when allowed) the keyless Claude Code CLI, as the
+/// desktop falls back for its default agent.
 pub(crate) fn runtime_for(i: &Inner, ws: Uuid, runtime_id: &str) -> Result<(ResolvedRuntime, String)> {
+    resolve(i, ws, runtime_id, true)
+}
+
+/// The runtime an agent's turn runs on: exactly the one it names (a
+/// workspace runtime, this device's own, or the workspace's `*` entry for an
+/// older agent's runtime id), never Claude Code or another model in its
+/// place.
+pub(crate) fn agent_runtime(i: &Inner, ws: Uuid, runtime_id: &str) -> Result<(ResolvedRuntime, String)> {
+    resolve(i, ws, runtime_id, false)
+}
+
+/// Whether this device can run `a` as it asks, or why not (for the chat's
+/// line and this device's beat).
+pub(crate) fn agent_resolves(i: &Inner, ws: Uuid, a: &WorkspaceAgent) -> std::result::Result<(), ligus_core::outcome::Why> {
+    use ligus_core::outcome::Why;
+    match agent_runtime(i, ws, &a.runtime_id) {
+        Ok(_) => Ok(()),
+        Err(_) if has_runtime(i, ws, &a.runtime_id) => Err(Why::NoKeyHere { source: a.runtime_id.clone() }),
+        Err(_) => Err(Why::SourceNotOffered {
+            host: String::new(),
+            source: a.runtime_id.clone(),
+            detail: format!("this device doesn't have runtime '{}'", ligus_runtime::human_presence::clean_display_name(&a.runtime_id)),
+        }),
+    }
+}
+
+/// Whether this device knows runtime `id` at all (it may still lack a key).
+fn has_runtime(i: &Inner, ws: Uuid, id: &str) -> bool {
+    super::detect::parse_local_id(id).is_some()
+        || i.read(ws, |svc| svc.list_workspace_runtimes(ws))
+            .unwrap_or_default()
+            .iter()
+            .any(|r| r.id == id || (r.id == "*" && !ligus_core::agent_run::is_full_spec_id(id)))
+}
+
+fn resolve(i: &Inner, ws: Uuid, runtime_id: &str, fallback: bool) -> Result<(ResolvedRuntime, String)> {
     let rts = i.read(ws, |svc| svc.list_workspace_runtimes(ws))?;
     // A runtime of this device (`local:…`, an agent added from "Available on
     // this device"), unless a workspace runtime has that id.
@@ -335,18 +293,22 @@ pub(crate) fn runtime_for(i: &Inner, ws: Uuid, runtime_id: &str) -> Result<(Reso
     {
         return Ok((rt, runtime_id.to_string()));
     }
-    let found = rts.iter().find(|r| r.id == runtime_id).or_else(|| rts.iter().find(|r| r.id == "*")).or(if runtime_id.is_empty() {
-        rts.first()
-    } else {
-        None
-    });
+    // The `*` entry stands in only for an older agent's runtime id, never
+    // for a run spec that names a source and model.
+    let catch_all = !ligus_core::agent_run::is_full_spec_id(runtime_id);
+    let found = rts
+        .iter()
+        .find(|r| r.id == runtime_id)
+        .or_else(|| rts.iter().find(|r| r.id == "*" && catch_all))
+        .or(if runtime_id.is_empty() && fallback { rts.first() } else { None });
     match found {
         Some(wr) => Ok((resolved(wr, ws)?, wr.id.clone())),
-        None if i.cfg.cli_fallback => Ok((
+        None if fallback && i.cfg.cli_fallback => Ok((
             base_runtime(ModelProviderKind::ClaudeCode, String::new(), String::new(), None, ligus_core::Driver::default()),
             "claude-code".into(),
         )),
-        None => Err(BackendError("no runtime answers here: add a workspace runtime".into())),
+        None if fallback => Err(BackendError("no runtime answers here: add a workspace runtime".into())),
+        None => Err(BackendError(format!("this device doesn't have runtime '{runtime_id}'"))),
     }
 }
 
@@ -480,7 +442,9 @@ fn prepare(
     agent: Option<&WorkspaceAgent>,
     runtime_id: &str,
 ) -> Result<(TurnInput, Checkout)> {
-    let (rt, rt_id) = runtime_for(i, ws, runtime_id)?;
+    // An agent runs exactly on its own runtime; only the default agent
+    // keeps the Claude Code fallback.
+    let (rt, rt_id) = if agent.is_some() { agent_runtime(i, ws, runtime_id)? } else { runtime_for(i, ws, runtime_id)? };
     let author = agent.map(|a| a.name.clone()).unwrap_or_else(|| "Ligus".into());
     let agent_id = agent.map(|a| a.id);
     let s = i.read(ws, |svc| svc.load_in(ws, sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
@@ -610,6 +574,159 @@ impl LigusHost for TermLigusHost {
     }
 }
 
+/// What this device knows about running the turn of `agent` (`None`: the
+/// chat's default agent) in `s`: whether both gates put it here, and
+/// whether it could run the agent as it asks.
+fn here_for(
+    i: &Inner,
+    ws: Uuid,
+    s: &ChatSession,
+    links: &ligus_core::DeviceLinks,
+    local: &str,
+    device: &str,
+    agent: Option<&WorkspaceAgent>,
+) -> ligus_runtime::turn_route::Here {
+    let (owner, host) = match agent {
+        Some(a) => (a.owner_actor_id.clone(), a.as_judged().host_id.clone()),
+        None => (s.creator_actor_id.clone(), String::new()),
+    };
+    let eligible = runs_here_linked(i.local_only(ws), links, s, local, &owner, binding_for(device, local, links, &owner, &host));
+    let resolves = match agent {
+        Some(a) => agent_resolves(i, ws, a),
+        None => Ok(()),
+    };
+    ligus_runtime::turn_route::Here { eligible, resolves }
+}
+
+/// Whether `m` is the person's own message (from any of their devices).
+fn written_by(core_author: &ligus_core::ActorIdentity, links: &ligus_core::DeviceLinks, m: &ligus_core::ChatMessage) -> bool {
+    let Some(a) = m.actor_identity.as_ref().filter(|_| m.role == ligus_core::MessageRole::User) else { return false };
+    a.id == core_author.id
+        || (core_author.account_id.is_some() && a.account_id == core_author.account_id)
+        || links.person(&a.id) == links.person(&core_author.id)
+}
+
+/// The waiting turns of the person's own messages in `s`, as lines under
+/// them: queued for a host that is offline, the host offline for a while or
+/// gone, or can't run and why, with whether "Run here this time" fits. Only
+/// this person's devices show them; nothing is written.
+pub(crate) fn route_notes(i: &Inner, ws: Uuid, s: &ChatSession, messages: &mut [Message]) -> Result<()> {
+    use crate::backend::model::{NoteKind, TurnNote};
+    use ligus_runtime::turn_route::{self as tr, HostFacts};
+    if i.local_only(ws) {
+        return Ok(());
+    }
+    let core = i.core()?;
+    let author = core.author.clone();
+    let device = core.identity.device.id.to_string();
+    let (facts, links) = i.read(ws, |svc| Ok((HostFacts::load(svc, ws), svc.device_links(ws).unwrap_or_default())))?;
+    let beats = i.beats(ws);
+    let now = ligus_core::Timestamp::now();
+    let online = |h: &ligus_core::WorkspaceHost| h.id == device || beats.is_online(h, &now);
+    let status = |h: &str| if h == device { ligus_runtime::host_offers::beat_status(ws) } else { beats.status_of(h) };
+    let view = facts.view(&online, &status);
+    let here = |a: Option<&WorkspaceAgent>| here_for(i, ws, s, &links, &author.id, &device, a);
+    let label = |h: &str| if h == device { "this device".to_string() } else { facts.label(h) };
+    let me = links.person(&author.id).to_string();
+    for m in s.messages.iter().filter(|m| written_by(&author, &links, m)) {
+        let Some(p) = tr::pending_route(s, m, &links, false, &here, &view, now) else { continue };
+        let agent = p.agent.as_ref();
+        let name = agent.map(|a| a.name.clone()).unwrap_or_else(|| "Ligus".into());
+        let owner_id = agent.map(|a| a.owner_actor_id.clone()).unwrap_or_else(|| s.creator_actor_id.clone());
+        let owner =
+            s.members.iter().find(|x| x.id == owner_id || x.actor.id == owner_id).map(|x| x.actor.display_name.clone()).unwrap_or_default();
+        let kind = match p.route.state() {
+            Some("queued") => NoteKind::Waiting,
+            Some("hostGone") => NoteKind::HostGone,
+            Some(_) => NoteKind::CantRun,
+            None => continue,
+        };
+        let run_here = tr::run_here_allowed(agent, &p.route, &me, &links, &here(agent).resolves).is_ok();
+        let text = tr::line(&p.route, &tr::Names { agent: &name, owner: &owner, host: &label });
+        if let Some(out) = messages.iter_mut().find(|x| x.id.as_str() == m.id.to_string()) {
+            out.note = Some(TurnNote { kind, text, run_here });
+        }
+    }
+    Ok(())
+}
+
+/// "Run here this time": the person's own message `trigger`, whose agent is
+/// theirs and waits for a host that is offline or gone, runs once on this
+/// device with the agent's own runtime. Claimed first, so the host that
+/// comes back sees it taken and doesn't answer it again.
+pub fn plan_run_here(i: &Inner, ws: Uuid, sid: Uuid, trigger: Uuid) -> Result<Plan> {
+    use ligus_runtime::turn_route::{self as tr, HostFacts};
+    let core = i.core()?;
+    let author = core.author.clone();
+    let device = core.identity.device.id.to_string();
+    let (s, facts, links) =
+        i.read(ws, |svc| Ok((svc.load_in(ws, sid)?, HostFacts::load(svc, ws), svc.device_links(ws).unwrap_or_default())))?;
+    let s = s.ok_or_else(|| BackendError("no such chat".into()))?;
+    let m = s.messages.iter().find(|m| m.id == trigger).ok_or_else(|| BackendError("that message is gone".into()))?;
+    let beats = i.beats(ws);
+    let now = ligus_core::Timestamp::now();
+    let online = |h: &ligus_core::WorkspaceHost| h.id == device || beats.is_online(h, &now);
+    let status = |h: &str| beats.status_of(h);
+    let view = facts.view(&online, &status);
+    let here = |a: Option<&WorkspaceAgent>| here_for(i, ws, &s, &links, &author.id, &device, a);
+    // Any age: the person asked now.
+    let later = ligus_core::Timestamp::from_unix_seconds(now.inner().unix_timestamp() + 3600);
+    let p = tr::pending_route(&s, m, &links, false, &here, &view, later)
+        .ok_or_else(|| BackendError("that turn is already answered or running".into()))?;
+    let agent = p.agent.clone();
+    tr::run_here_allowed(agent.as_ref(), &p.route, links.person(&author.id), &links, &here(agent.as_ref()).resolves)
+        .map_err(|why| BackendError(format!("couldn't run it here: {why}")))?;
+    if let Some(note) = access_refusal(i, ws, sid, trigger, agent.as_ref())? {
+        return Err(BackendError(note));
+    }
+    if !i.write(ws, |svc| svc.claim_turn(sid, ws, trigger))? {
+        return Err(BackendError("another device is answering it".into()));
+    }
+    let runtime_id = agent.as_ref().map(|a| a.runtime_id.clone()).unwrap_or_default();
+    Ok(Plan { ws, sid, trigger, agent, runtime_id })
+}
+
+/// The agents placed on this device that it won't run in `ws`, with why,
+/// for its beat: another person's (without the opt-in), or one whose
+/// runtime this device doesn't have or has without its key.
+pub(crate) fn host_refusals(i: &Inner, ws: Uuid) -> Vec<ligus_core::outcome::AgentRefusal> {
+    use ligus_core::outcome::{AgentRefusal, RefusalKind, Why};
+    let Ok(core) = i.core() else { return Vec::new() };
+    let (me, name) = (core.author.id.clone(), core.author.display_name.clone());
+    let device = core.identity.device.id.to_string();
+    let (agents, links) = i
+        .read(ws, |svc| {
+            let cfg = svc.load_in(ws, ligus_core::workspace_config_session_id(ws))?;
+            Ok((cfg.map(|c| c.workspace_agents).unwrap_or_default(), svc.device_links(ws).unwrap_or_default()))
+        })
+        .unwrap_or_default();
+    let name = ligus_runtime::human_presence::clean_display_name(&name);
+    agents
+        .iter()
+        .filter(|a| a.as_judged().host_id == device)
+        .filter_map(|a| {
+            if !runs_owner_here(&me, &links, &a.owner_actor_id) {
+                let why = if name.trim().is_empty() {
+                    "it runs only its own person's agents".to_string()
+                } else {
+                    format!("it runs only {name}'s agents")
+                };
+                return Some(AgentRefusal { agent_id: a.id, kind: RefusalKind::NotAllowed, why });
+            }
+            let shown = ligus_runtime::human_presence::clean_display_name(&a.runtime_id);
+            match agent_resolves(i, ws, a) {
+                Ok(()) => None,
+                Err(Why::NoKeyHere { .. }) => {
+                    Some(AgentRefusal { agent_id: a.id, kind: RefusalKind::NoKey, why: format!("it has no key for '{shown}'") })
+                }
+                Err(_) => {
+                    Some(AgentRefusal { agent_id: a.id, kind: RefusalKind::SourceNotOffered, why: format!("it doesn't have '{shown}'") })
+                }
+            }
+        })
+        .collect()
+}
+
 /// A hand-off's receiver runs here when it is this device's to answer (the
 /// same rule as a mention: its host binding, or its owner here), claimed
 /// first so no other device answers it too.
@@ -620,7 +737,10 @@ fn plan_handoff(i: &Inner, ws: Uuid, sid: Uuid, agent_id: Uuid, trigger: Uuid) -
     let (session, links) = i.read(ws, |svc| Ok((svc.load_in(ws, sid)?, svc.device_links(ws).unwrap_or_default())))?;
     let Some(session) = session else { return Ok(None) };
     let Some(agent) = session.workspace_agents.iter().find(|a| a.id == agent_id).cloned() else { return Ok(None) };
-    if !runs_here_linked(i.local_only(ws), &links, &session, &local, &agent.owner_actor_id, host_binding(&agent.host_id, &device)) {
+    let binding = binding_for(&device, &local, &links, &agent.owner_actor_id, &agent.as_judged().host_id);
+    if !runs_here_linked(i.local_only(ws), &links, &session, &local, &agent.owner_actor_id, binding)
+        || agent_resolves(i, ws, &agent).is_err()
+    {
         return Ok(None);
     }
     if access_refusal(i, ws, sid, trigger, Some(&agent))?.is_some() {
@@ -760,6 +880,22 @@ mod tests {
     use ligus_core::{ActorIdentity, ActorKind, SigningKeypair};
     use ligus_runtime::author_gate::GatePlan;
     use ligus_runtime::{ChatService, EventStore};
+
+    /// A person's own computer runs only its own person's agents placed on
+    /// it; another person's is elsewhere's work (never here) unless the
+    /// person opts in with `run_others_agents`.
+    #[test]
+    fn this_computer_runs_only_its_own_persons_agents() {
+        let links = ligus_core::DeviceLinks::default();
+        ligus_runtime::host_config::install(ligus_runtime::host_config::HostConfig::default());
+        assert_eq!(binding_for("lt", "ana", &links, "ana", "lt"), HostBinding::ThisDevice);
+        assert_eq!(binding_for("lt", "ana", &links, "ben", "lt"), HostBinding::Elsewhere);
+        assert_eq!(binding_for("lt", "ana", &links, "ben", ""), HostBinding::Unbound);
+        let opted = ligus_runtime::host_config::HostConfig { run_others_agents: true, ..Default::default() };
+        ligus_runtime::host_config::install(opted);
+        assert_eq!(binding_for("lt", "ana", &links, "ben", "lt"), HostBinding::ThisDevice);
+        ligus_runtime::host_config::install(ligus_runtime::host_config::HostConfig::default());
+    }
 
     fn claude() -> ResolvedRuntime {
         base_runtime(ModelProviderKind::ClaudeCode, String::new(), String::new(), None, ligus_core::Driver::default())

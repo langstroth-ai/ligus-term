@@ -469,6 +469,7 @@ async fn chat_streaming_reply() {
         at: ligus_term::backend::fake::DEMO_NOW,
         streaming: true,
         tools: vec![],
+        note: None,
     };
     h.send(Msg::Event(Event::MessageAdded { workspace: ws.clone(), message })).await;
     h.send(Msg::Event(Event::ToolActivity {
@@ -867,6 +868,7 @@ async fn transcript_markdown_and_tools() {
             },
             ToolCall { name: "edit_file".into(), preview: "src/checkout.rs".into(), ok: false, duration_ms: Some(120), output: String::new() },
         ],
+        note: None,
     });
     h.state.transcript.push(Message {
         id: MessageId::new("md-2"),
@@ -876,6 +878,7 @@ async fn transcript_markdown_and_tools() {
         at: DEMO_NOW - 12_000,
         streaming: true,
         tools: vec![],
+        note: None,
     });
     let screen = h.screen(W, 44);
     assert!(screen.contains("▸ run_command") && screen.contains("done 9s") && screen.contains("error 0.1s"), "{screen}");
@@ -889,6 +892,47 @@ async fn transcript_markdown_and_tools() {
     for (w, ht) in [(80, 24), (200, 50)] {
         insta::assert_snapshot!(format!("transcript_markdown_{w}x{ht}"), h.screen(w, ht));
     }
+}
+
+/// Your waiting turn's line, quiet under your message, with the key that
+/// runs it here this time; a reply that failed says so under it, with the
+/// model and host that ran it.
+#[tokio::test]
+async fn turn_lines_under_messages() {
+    use ligus_term::backend::fake::DEMO_NOW;
+    let mut h = demo().await;
+    let chat = h.state.open_chat.clone().unwrap();
+    h.state.transcript.push(Message {
+        id: MessageId::new("w-1"),
+        chat: chat.clone(),
+        author: Author::Member { id: MemberId::new("m-me"), name: "You".into() },
+        text: "@coder fix the flaky test".into(),
+        at: DEMO_NOW - 90_000,
+        streaming: false,
+        tools: vec![],
+        note: Some(TurnNote {
+            kind: NoteKind::Waiting,
+            text: "@coder runs on box-1, which is offline. It will answer when box-1 is back.".into(),
+            run_here: true,
+        }),
+    });
+    h.state.transcript.push(Message {
+        id: MessageId::new("w-2"),
+        chat,
+        author: Author::Agent { id: AgentId::new("a-coder"), handle: "coder".into(), runtime: "gw".into() },
+        text: "[error] the model didn't answer".into(),
+        at: DEMO_NOW - 30_000,
+        streaming: false,
+        tools: vec![],
+        note: Some(TurnNote { kind: NoteKind::Failed, text: "Failed · opus on box-1".into(), run_here: false }),
+    });
+    let screen = h.screen(W, 44);
+    assert!(screen.contains("which is offline") && screen.contains("T Run here this time"), "{screen}");
+    assert!(screen.contains("Failed · opus on box-1"), "{screen}");
+    // T asks the backend to run it here (the demo backend can't).
+    h.key(KeyCode::Char('T')).await;
+    let after = h.screen(W, 44);
+    assert!(after.contains("can't run a turn here"), "{after}");
 }
 
 /// `--ascii`: borders, glyphs and state chips in plain ASCII, the mark
@@ -1104,6 +1148,7 @@ async fn remote_text_cannot_reorder_or_hide_what_is_shown() {
             output: bad.into(),
             ..ToolCall::default()
         }],
+        note: None,
     };
     h.send(Msg::Event(Event::MessageAdded { workspace: ws.clone(), message })).await;
     // The tool's output too, shown with o.

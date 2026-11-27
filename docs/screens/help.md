@@ -18,9 +18,10 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 ┃                ┃  r                        Choose this chat's repo (or a new scratch repo)┃                │
 ┃                ┃  K                        Keep this chat's scratch repo as a repo        ┃                │
 ┃                ┃  L                        Lock this chat down                            ┃rovider uses.   │
-┃                ┃  U                        Clear the lockdown                             ┃                │
-┃                ┃                                                                          ┃res?”           │
-┃                ┃Lists  here                                                               ┃e chat first)   │
+┃                ┃  T                        Run here this time: your waiting turn, on this ┃                │
+┃                ┃  U                        Clear the lockdown                             ┃res?”           │
+┃                ┃                                                                          ┃e chat first)   │
+┃                ┃Lists  here                                                               ┃                │
 ┃                ┃  ↑, k                     Up                                             ┃                │
 ┃                ┃  ↓, j                     Down                                           ┃                │
 ┃                ┃  pgup, ctrl-u             Page up                                        ┃                │
@@ -28,8 +29,8 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 ┃                ┃  home, g                  First                                          ┃                │
 ┃                ┃  end, G                   Last                                           ┃                │
 ┃                ┃  enter, l, →              Open (the row's main action)                   ┃                │
-┃                ┃  ., shift-f10             Actions for this row and this view (destructive┃                │
-┃                ┃  /                        Find in this list (as you type; ↑↓ next match) ┃to review       │
+┃                ┃  ., shift-f10             Actions for this row and this view (destructive┃to review       │
+┃                ┃  /                        Find in this list (as you type; ↑↓ next match) ┃                │
 ┃                ┃                                                                          ┃                │
 ┃                ┃Anywhere                                                                  ┃                │
 ┃                ┃  ctrl-c, q                Quit (asks first while work runs here)         ┃                │
@@ -40,11 +41,10 @@ Rendered by `tests/screens.rs` (110×44, the in-memory demo backend).
 ┃                ┃  space                    Show the keys you can press here (any key then ┃                │
 ┃                ┃  !                        This session's notices and errors, in full     ┃                │
 ┃                ┃  esc                      Back (to the view you came from) / close       ┃                │
-┃                ┃  w, ctrl-w                Switch workspace                               ┃                │
-┃                ┃  +                        Create or join a workspace                     ┃────────────────╯
-┃                ┃  u                        Set up: an agent, a tool, a folder, a box, a ph┃
-┃                ┃  unbound                  Link this computer to my devices               ┃────────────────╮
-┃                ┃  unbound                  Approval requests waiting in this workspace (re┃                │
+┃                ┃  w, ctrl-w                Switch workspace                               ┃────────────────╯
+┃                ┃  +                        Create or join a workspace                     ┃
+┃                ┃  u                        Set up: an agent, a tool, a folder, a box, a ph┃────────────────╮
+┃                ┃  unbound                  Link this computer to my devices               ┃                │
 ┗━━━━━━━━━━━━━━━━┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛────────────────╯
 / search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close                    peer to peer · 1 running · demo
 ```

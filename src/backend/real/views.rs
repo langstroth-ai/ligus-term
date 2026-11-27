@@ -66,14 +66,43 @@ pub fn message(s: &ChatSession, m: &ChatMessage) -> Message {
         chat: ChatId::new(s.id.to_string()),
         author,
         text: m.body.clone(),
-        at: ms(&m.created_at),
+        // When it was posted: a reply when it finished, never before the
+        // message it answers.
+        at: ms(&s.display_at(m)),
         streaming: m.is_streaming,
+        note: outcome_note(s, m),
         tools: m
             .tool_calls
             .iter()
             .map(|c| ToolCall { name: c.name.clone(), preview: preview(&c.input_json), ok: true, ..ToolCall::default() })
             .collect(),
     }
+}
+
+/// How a finished reply ended, when it didn't post normally: "Canceled" or
+/// "Failed", with the model and host that ran it. A posted reply has none.
+pub fn outcome_note(s: &ChatSession, m: &ChatMessage) -> Option<TurnNote> {
+    use ligus_core::outcome::ReplyStatus;
+    if m.is_streaming {
+        return None;
+    }
+    let o = m.outcome.as_ref()?;
+    let (kind, label) = match o.status {
+        ReplyStatus::Failed => (NoteKind::Failed, "Failed"),
+        ReplyStatus::Canceled => (NoteKind::Canceled, "Canceled"),
+        _ => return None,
+    };
+    let host = (!o.host.is_empty()).then(|| {
+        s.workspace_hosts
+            .iter()
+            .find(|h| h.id == o.host)
+            .map(|h| ligus_runtime::human_presence::clean_display_name(&h.label))
+            .filter(|l| !l.trim().is_empty())
+            .unwrap_or_else(|| format!("host {}", o.host.get(..8).unwrap_or(&o.host)))
+    });
+    let where_: Vec<String> = [Some(o.model.clone()).filter(|m| !m.is_empty()), host].into_iter().flatten().collect();
+    let text = if where_.is_empty() { label.to_string() } else { format!("{label} · {}", where_.join(" on ")) };
+    Some(TurnNote { kind, text, run_here: false })
 }
 
 fn preview(json: &str) -> String {
@@ -83,8 +112,11 @@ fn preview(json: &str) -> String {
 
 /// The transcript: chat rows only (proposal and tool records are their own
 /// views).
+///
+/// Each message where it was posted: a reply where it finished, after
+/// anything posted while it was written, and a reply still streaming last.
 pub fn transcript(s: &ChatSession) -> Vec<Message> {
-    s.messages.iter().filter(|m| !m.superseded).map(|m| message(s, m)).collect()
+    s.transcript().into_iter().filter(|m| !m.superseded).map(|m| message(s, m)).collect()
 }
 
 /// A proposal for `me`. `can_vote` is the backend's: an open proposal you

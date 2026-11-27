@@ -28,7 +28,7 @@ use std::time::{Duration, Instant};
 use ligus_core::lease::{DEFAULT_LEASE_MS, LeaseClaimReason, LeaseScope};
 use ligus_core::workflow::{self as wf, NodeRunStatus, WorkflowNodeKind, WorkflowRun, WorkflowRunStatus};
 use ligus_core::{ActionProposal, ChatSession, MessageRole, ProposalKind, ProposalStatus, Timestamp};
-use ligus_runtime::turn_dispatch::{host_binding, runs_here_linked};
+use ligus_runtime::turn_dispatch::runs_here_linked;
 use tokio::sync::Notify;
 use uuid::Uuid;
 
@@ -410,12 +410,25 @@ fn prepare(i: &Inner, ws: Uuid, sid: Uuid, run: &WorkflowRun, node: &wf::Workflo
     let local = core.author.id.clone();
     let device = core.identity.device.id.to_string();
     let (owner, host, runtime_id, author) = match &agent {
-        Some(a) => (a.owner_actor_id.clone(), a.host_id.clone(), a.runtime_id.clone(), a.name.clone()),
+        Some(a) => (a.owner_actor_id.clone(), a.as_judged().host_id.clone(), a.runtime_id.clone(), a.name.clone()),
         None => (s.creator_actor_id.clone(), String::new(), s.runtime_id.clone(), "Ligus".to_string()),
     };
     let links = i.read(ws, |svc| svc.device_links(ws))?;
     let local_only = i.local_only(ws);
-    let here = runs_here_linked(local_only, &links, &s, &local, &owner, host_binding(&host, &device));
+    let here = runs_here_linked(local_only, &links, &s, &local, &owner, turns::binding_for(&device, &local, &links, &owner, &host));
+    // A stage this device would run but not as its agent asks fails with the
+    // reason, never on a stand-in.
+    if here
+        && let Some(a) = &agent
+        && let Err(why) = turns::agent_resolves(i, ws, a)
+    {
+        let host = |_: &str| "this device".to_string();
+        let line = ligus_runtime::turn_route::line(
+            &ligus_core::outcome::TurnRoute::Unrunnable(why),
+            &ligus_runtime::turn_route::Names { agent: &a.name, owner: "", host: &host },
+        );
+        return Err(BackendError(format!("stage '{}': {line}", node.name)));
+    }
     let tag = format!("**[Workflow · {} → {}]**", run.definition.name, node.name);
     if here {
         let posted = i.write(ws, |svc| svc.post_workflow_stage_prompt(sid, ws, format!("{tag}\n\n{rendered}"), run.id))?;

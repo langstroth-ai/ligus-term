@@ -34,6 +34,9 @@ pub fn row_menu(s: &State) -> (String, Vec<MenuItem>) {
                 if c.repo.as_ref().is_some_and(|r| r.mine) {
                     items.push(item("Keep the scratch repo as a repo…", KeepScratch, ctx, Allowed::Yes, Row));
                 }
+                if crate::app::update::run_here_message(s).is_some() {
+                    items.push(item("Run here this time", RunHere, ctx, Allowed::Yes, Row));
+                }
                 match &c.lockdown {
                     None => items.push(item("Lock this chat down", LockChat, ctx, Allowed::Yes, Row)),
                     Some(l) => items.push(item("Clear the lockdown", ClearLockdown, ctx, l.clear.clone(), Row)),

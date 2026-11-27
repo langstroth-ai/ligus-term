@@ -703,6 +703,8 @@ pub struct State {
     /// [`SessionState::Done`] or [`SessionState::Failed`]. Opening the chat
     /// clears it.
     pub turn_outcomes: HashMap<ChatId, SessionState>,
+    /// When the open chat's waiting lines are looked at again.
+    pub route_refresh_at: Millis,
     pub composer: TextBuf,
     /// Drafts kept per chat when switching.
     pub drafts: HashMap<ChatId, String>,
@@ -853,6 +855,7 @@ impl State {
             tools_expanded: false,
             thinking: HashMap::new(),
             turn_outcomes: HashMap::new(),
+            route_refresh_at: 0,
             composer: TextBuf::multi(),
             drafts: HashMap::new(),
             sent: vec![],

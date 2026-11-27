@@ -18,13 +18,13 @@ Rendered by `tests/screens.rs` (80×24, the in-memory demo backend).
 ┃ ┃  r                        Choose this chat's repo (or a new scratch repo)┃ │
 ┃ ┃  K                        Keep this chat's scratch repo as a repo        ┃ │
 ┃ ┃  L                        Lock this chat down                            ┃ │
+┃ ┃  T                        Run here this time: your waiting turn, on this ┃ │
 ┃ ┃  U                        Clear the lockdown                             ┃ │
 ┃ ┃                                                                          ┃ │
-┃ ┃Lists  here                                                               ┃ │
-┃ ┃  ↑, k                     Up                                             ┃─╯
-┃ ┃  ↓, j                     Down                                           ┃
-┃ ┃  pgup, ctrl-u             Page up                                        ┃─╮
-┃ ┃  pgdn, ctrl-d             Page down                                      ┃ │
+┃ ┃Lists  here                                                               ┃─╯
+┃ ┃  ↑, k                     Up                                             ┃
+┃ ┃  ↓, j                     Down                                           ┃─╮
+┃ ┃  pgup, ctrl-u             Page up                                        ┃ │
 ┗━┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛─╯
 / search  ↑↓ scroll  pgup/pgdn page  g/G top/end  esc close         peer to peer
 ```

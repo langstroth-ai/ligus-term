@@ -169,6 +169,7 @@ pub enum Effect {
     },
     MarkRead(WorkspaceId, ChatId),
     LockChat(WorkspaceId, ChatId),
+    RunHere(WorkspaceId, ChatId, MessageId),
     ClearLockdown(WorkspaceId, ChatId),
     Vote(WorkspaceId, ProposalId, VoteChoice),
     RequestApply(WorkspaceId, ProposalId, HostId),
@@ -349,7 +350,9 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
             s.now = now;
             s.toasts.iter_mut().for_each(|t| t.ttl = t.ttl.saturating_sub(1));
             s.toasts.retain(|t| t.ttl > 0);
-            live_tick(s)
+            let mut fx = live_tick(s);
+            fx.extend(route_refresh(s));
+            fx
         }
         Msg::Resize(w, h) => {
             s.term = (w, h);
@@ -1112,7 +1115,12 @@ fn event(s: &mut State, e: Event) -> Vec<Effect> {
             if let Some(e) = error {
                 s.toast(ToastKind::Error, e);
             }
-            vec![]
+            // The finished reply's place and how it ended (Failed, Canceled).
+            if is_active(s, &workspace) && s.open_chat.as_ref() == Some(&chat) {
+                vec![Effect::LoadTranscript(workspace, chat)]
+            } else {
+                vec![]
+            }
         }
         Event::ToolActivity { workspace, chat, message, call } => {
             if is_active(s, &workspace)
@@ -1773,6 +1781,35 @@ fn live_event(s: &mut State, rid: &str, update: LiveLinkUpdate) -> Vec<Effect> {
 }
 
 /// At zero the code is dropped (the desktop drops it too).
+/// The newest message in the open chat whose waiting turn may run here
+/// this time (its line offers it).
+pub(crate) fn run_here_message(s: &State) -> Option<&Message> {
+    s.transcript.iter().rev().find(|m| m.note.as_ref().is_some_and(|n| n.run_here))
+}
+
+/// While a message in the open chat waits for its turn (your last message
+/// unanswered, or a line under one), look again every 15 s: its line
+/// changes with time (queued, then the host reads offline) and goes when
+/// the turn runs.
+fn route_refresh(s: &mut State) -> Vec<Effect> {
+    const EVERY: Millis = 15_000;
+    let (Some(w), Some(c)) = (s.active.clone(), s.open_chat.clone()) else { return vec![] };
+    let waiting = s
+        .transcript
+        .iter()
+        .any(|m| m.note.as_ref().is_some_and(|n| matches!(n.kind, NoteKind::Waiting | NoteKind::HostGone | NoteKind::CantRun)))
+        || s.transcript
+            .iter()
+            .rev()
+            .find(|m| !matches!(m.author, Author::System))
+            .is_some_and(|m| matches!(m.author, Author::Member { .. }));
+    if !waiting || s.now < s.route_refresh_at {
+        return vec![];
+    }
+    s.route_refresh_at = s.now + EVERY;
+    vec![Effect::LoadTranscript(w, c)]
+}
+
 fn live_tick(s: &mut State) -> Vec<Effect> {
     let now = s.now;
     let Some(f) = link_form(s) else { return vec![] };
@@ -3339,6 +3376,13 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
         LockChat => match (ws, s.open_chat.clone()) {
             (Some(w), Some(c)) => vec![Effect::LockChat(w, c)],
             _ => vec![],
+        },
+        RunHere => match (ws, s.open_chat.clone(), run_here_message(s).map(|m| m.id.clone())) {
+            (Some(w), Some(c), Some(m)) => vec![Effect::RunHere(w, c, m)],
+            _ => {
+                s.toast(ToastKind::Info, "No turn in this chat waits for you to run here");
+                vec![]
+            }
         },
         ClearLockdown => {
             let Some(c) = s.open_chat_summary() else { return vec![] };
