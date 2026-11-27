@@ -328,7 +328,7 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
         }
     }
     if let Some(p) = s.presence.front() {
-        presence(f, area, p, s.presence.len(), t);
+        presence(f, area, p, s.presence.len(), super::spinner(s, t), t);
     }
 }
 
@@ -797,20 +797,64 @@ fn messages(f: &mut Frame, area: Rect, s: &State, scroll: usize, t: &Theme) {
     f.render_widget(Paragraph::new(lines), inner);
 }
 
-fn presence(f: &mut Frame, area: Rect, p: &PresenceSheet, queued: usize, t: &Theme) {
+fn presence(f: &mut Frame, area: Rect, p: &PresenceSheet, queued: usize, spin: &str, t: &Theme) {
     let create = p.prompt.op == PresenceOp::Create;
-    let title = if create { "Create a passkey" } else { "Confirm with passkey" };
-    let mut lines = vec![
-        Line::styled(p.prompt.summary.clone(), t.accent()),
-        Line::raw(""),
-        Line::from(vec![Span::styled("Event   ", t.dim()), Span::styled(p.prompt.kind.clone(), t.text())]),
-        Line::from(vec![
-            Span::styled("Digest  ", t.dim()),
-            Span::styled(p.prompt.digest_short.clone(), t.text().add_modifier(Modifier::BOLD)),
-        ]),
-        Line::raw(""),
-    ];
+    let elsewhere = matches!(p.stage, PresenceStage::Handoff | PresenceStage::HandoffStopped(_));
+    let title = if create {
+        "Create a passkey"
+    } else if elsewhere {
+        "Confirm on your desktop or phone"
+    } else {
+        "Confirm with passkey"
+    };
+    let mut lines = vec![];
+    if p.stage != PresenceStage::Handoff {
+        lines.extend([
+            Line::styled(p.prompt.summary.clone(), t.accent()),
+            Line::raw(""),
+            Line::from(vec![Span::styled("Event   ", t.dim()), Span::styled(p.prompt.kind.clone(), t.text())]),
+            Line::from(vec![
+                Span::styled("Digest  ", t.dim()),
+                Span::styled(p.prompt.digest_short.clone(), t.text().add_modifier(Modifier::BOLD)),
+            ]),
+            Line::raw(""),
+        ]);
+    }
+    // The ways to confirm here instead (none for a resumed hand-off).
+    let here_keys = |keys: &mut Vec<Span<'static>>| {
+        if !p.prompt.resumed {
+            keys.extend([Span::styled("o", t.accent()), Span::styled(" use the browser here   ", t.text())]);
+            if !create {
+                keys.extend([Span::styled("f", t.accent()), Span::styled(" use recovery-words file   ", t.text())]);
+            }
+        }
+    };
     match &p.stage {
+        PresenceStage::Handoff => {
+            let code = p.handoff.clone().unwrap_or_default();
+            lines.push(Line::from(vec![
+                Span::styled(format!("{spin} "), t.fg(t.warn)),
+                Span::styled(format!("Confirm on your desktop or phone: {} (code {code})", p.prompt.summary), t.accent()),
+            ]));
+            lines.push(Line::raw(""));
+            lines.push(Line::styled(
+                "It shows this change with the same code. Nothing is written until you confirm it there with your passkey; Not me there stops it.",
+                t.text(),
+            ));
+            lines.push(Line::raw(""));
+            let mut keys = vec![];
+            here_keys(&mut keys);
+            keys.extend([Span::styled("esc", t.accent()), Span::styled(" cancel", t.text())]);
+            lines.push(Line::from(keys));
+        }
+        PresenceStage::HandoffStopped(why) => {
+            lines.push(Line::styled(format!("{why}: nothing was written."), t.fg(t.warn)));
+            lines.push(Line::raw(""));
+            let mut keys = vec![Span::styled("enter", t.accent()), Span::styled(" ask your desktop or phone again   ", t.text())];
+            here_keys(&mut keys);
+            keys.extend([Span::styled("esc", t.accent()), Span::styled(" cancel", t.text())]);
+            lines.push(Line::from(keys));
+        }
         PresenceStage::Asking => {
             lines.push(Line::styled(
                 "Your browser opens the workspace's passkey page (ligus.ai by default). Check the digest there matches, then use Touch ID, Windows Hello, your phone or a security key.",

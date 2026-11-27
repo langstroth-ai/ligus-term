@@ -103,6 +103,12 @@ pub enum Msg {
     Edited(Result<String>),
     /// The Set up list's rows.
     SetupRows(Result<Vec<crate::setup::FlowRow>>),
+    /// The passkey hand-offs left waiting in this data dir.
+    PendingPresence(Result<Vec<PendingPresence>>),
+    /// A resumed hand-off was confirmed and written (its summary), or not.
+    PresenceResumed(Result<String>),
+    /// A waiting hand-off was cancelled from the Set up list.
+    PresenceCancelled(Result<()>),
     /// A flow's form.
     SetupForm(crate::setup::LtFlow, Result<crate::setup::SetupForm>),
     /// A flow's run finished.
@@ -176,6 +182,12 @@ pub enum Effect {
     MarkNotificationsRead,
     SetSetting(SettingKey, bool),
     AnswerPresence(PresenceId, PresenceAnswer),
+    /// The passkey hand-offs left waiting in this data dir.
+    LoadPendingPresence,
+    /// Wait for one again (and write it once confirmed).
+    ResumePresence(String),
+    /// End one (nothing is written).
+    CancelPendingPresence(String),
     InspectInvite(String),
     /// Make this computer's link request.
     LinkRequest,
@@ -351,7 +363,7 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
                 let ws = s.workspaces[0].id.clone();
                 s.active = Some(ws.clone());
                 let mut fx = load_workspace(&ws);
-                fx.extend([Effect::LoadNotifications, Effect::LoadSettings]);
+                fx.extend([Effect::LoadNotifications, Effect::LoadSettings, Effect::LoadPendingPresence]);
                 fx
             }
         }
@@ -809,10 +821,42 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
         }
         Msg::SetupRows(Ok(rows)) => {
             s.setup_rows = Some(rows);
+            let n = s.pending_presence.len() + s.setup_rows.as_ref().map_or(0, |r| r.len());
             if let Some(Overlay::Setup { sel }) = &mut s.overlay {
-                *sel = (*sel).min(s.setup_rows.as_ref().map_or(0, |r| r.len().saturating_sub(1)));
+                *sel = (*sel).min(n.saturating_sub(1));
             }
             vec![]
+        }
+        Msg::PendingPresence(Ok(list)) => {
+            // Said once, calmly, when a start finds one waiting.
+            let fresh = list.iter().any(|p| !s.pending_presence.iter().any(|q| q.rid == p.rid));
+            let first = s.pending_presence.is_empty() && fresh && s.overlay.is_none() && s.presence.is_empty();
+            s.pending_presence = list;
+            let n = s.pending_presence.len() + s.setup_rows.as_ref().map_or(0, |r| r.len());
+            if let Some(Overlay::Setup { sel }) = &mut s.overlay {
+                *sel = (*sel).min(n.saturating_sub(1));
+            }
+            if first {
+                let key = s.keymap.hint(crate::keymap::Context::Global, Action::Setup);
+                s.toast(ToastKind::Info, format!("A passkey confirmation is waiting for your desktop or phone ({key} Set up)"));
+            }
+            vec![]
+        }
+        Msg::PendingPresence(Err(_)) => vec![],
+        Msg::PresenceResumed(r) => {
+            match r {
+                Ok(summary) => s.toast(ToastKind::Ok, format!("Confirmed and written: {summary}")),
+                Err(e) if e.0 != "cancelled" => s.toast(ToastKind::Error, e.0),
+                Err(_) => {}
+            }
+            vec![Effect::LoadPendingPresence, Effect::LoadSetup(s.active.clone())]
+        }
+        Msg::PresenceCancelled(r) => {
+            match r {
+                Ok(()) => s.toast(ToastKind::Ok, "Cancelled: nothing was written"),
+                Err(e) => s.toast(ToastKind::Error, e.0),
+            }
+            vec![Effect::LoadPendingPresence]
         }
         Msg::SetupRows(Err(e)) => {
             s.toast(ToastKind::Error, format!("Couldn't list the setup flows: {e}"));
@@ -1111,7 +1155,23 @@ fn event(s: &mut State, e: Event) -> Vec<Effect> {
             vec![]
         }
         Event::PresencePrompt(p) => {
-            s.presence.push_back(PresenceSheet { prompt: p, stage: PresenceStage::Asking, error: None, remote: None });
+            s.presence.push_back(PresenceSheet::new(p));
+            vec![]
+        }
+        Event::PresenceHandoff { id, update } => {
+            if let Some(p) = s.presence.iter_mut().find(|p| p.prompt.id == id) {
+                p.error = None;
+                match update {
+                    HandoffUpdate::Waiting { code } => {
+                        p.handoff = Some(code);
+                        p.stage = PresenceStage::Handoff;
+                    }
+                    HandoffUpdate::Stopped { why } => {
+                        p.handoff = None;
+                        p.stage = PresenceStage::HandoffStopped(why);
+                    }
+                }
+            }
             vec![]
         }
         Event::PresenceProblem { id, error } => {
@@ -1131,13 +1191,21 @@ fn event(s: &mut State, e: Event) -> Vec<Effect> {
             vec![]
         }
         Event::PresenceDone { id, ok, error } => {
+            let sheet = s.presence.iter().find(|p| p.prompt.id == id);
+            let resumed = sheet.is_some_and(|p| p.prompt.resumed);
+            let elsewhere = sheet.is_some_and(|p| p.handoff.is_some() || resumed);
             s.presence.retain(|p| p.prompt.id != id);
-            if ok {
+            if ok && resumed {
+                // Its write says so when it is done ("Confirmed and written").
+            } else if ok && elsewhere {
+                s.toast(ToastKind::Ok, "Confirmed on your desktop or phone");
+            } else if ok {
                 s.toast(ToastKind::Ok, "Confirmed with your passkey");
             } else if let Some(e) = error.filter(|e| e != "cancelled") {
                 s.toast(ToastKind::Error, e);
             }
-            vec![]
+            // A hand-off that ended is no longer waiting here.
+            if elsewhere { vec![Effect::LoadPendingPresence] } else { vec![] }
         }
         // "synced", "sync failed: …", "sync off: …" are the status bar's;
         // anything else on this channel is a background failure (a turn,
@@ -1919,10 +1987,37 @@ fn presence_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
     let Some(p) = s.presence.front_mut() else { return vec![] };
     let id = p.prompt.id;
     let confirm = p.prompt.op == PresenceOp::Get;
+    // A resumed hand-off can only be waited for or cancelled: the write
+    // that asked has ended, so there is nothing here to confirm.
+    let here = !p.prompt.resumed;
     match &mut p.stage {
+        PresenceStage::Handoff | PresenceStage::HandoffStopped(_) => {
+            let stopped = matches!(p.stage, PresenceStage::HandoffStopped(_));
+            match k.code {
+                KeyCode::Esc | KeyCode::Char('c') => vec![Effect::AnswerPresence(id, PresenceAnswer::Cancel)],
+                KeyCode::Enter | KeyCode::Char('r') if stopped => {
+                    p.stage = PresenceStage::Handoff;
+                    p.error = None;
+                    vec![Effect::AnswerPresence(id, PresenceAnswer::Handoff)]
+                }
+                KeyCode::Char('o') if here => {
+                    // Confirming here ends the hand-off (the backend cancels it).
+                    p.handoff = None;
+                    p.stage = PresenceStage::WaitingBrowser;
+                    p.error = None;
+                    vec![Effect::AnswerPresence(id, PresenceAnswer::Browser)]
+                }
+                KeyCode::Char('f') if here && confirm => {
+                    p.stage = PresenceStage::EnteringPath(TextBuf::single());
+                    vec![]
+                }
+                _ => vec![],
+            }
+        }
         PresenceStage::EnteringPath(buf) => match k.code {
             KeyCode::Esc => {
-                p.stage = PresenceStage::Asking;
+                // Back to the hand-off while it still waits.
+                p.stage = if p.handoff.is_some() { PresenceStage::Handoff } else { PresenceStage::Asking };
                 vec![]
             }
             KeyCode::Enter => {
@@ -1932,6 +2027,7 @@ fn presence_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
                     return vec![];
                 }
                 p.error = None;
+                p.handoff = None;
                 p.stage = PresenceStage::WaitingBrowser;
                 vec![Effect::AnswerPresence(id, PresenceAnswer::RecoveryWordsFile(path))]
             }

@@ -25,6 +25,7 @@ mod link;
 mod live_link;
 mod local;
 mod mcp;
+mod presence_wait;
 mod scratch;
 mod setup_ops;
 mod term_presence;
@@ -108,6 +109,10 @@ pub struct RealConfig {
     /// The Ollama server detection probes and device-local Ollama agents
     /// talk to; `None` skips it.
     pub ollama_url: Option<String>,
+    /// How long a passkey hand-off waits for the person's desktop or phone.
+    pub handoff_wait: Duration,
+    /// Tests: the approval mailbox's clock (a hand-off's expiry).
+    pub mailbox_clock: Option<ligus_runtime::approval_mailbox::Clock>,
 }
 
 impl RealConfig {
@@ -128,6 +133,8 @@ impl RealConfig {
             deferred_clock: None,
             detect_env: None,
             ollama_url: Some(detect::OLLAMA_DEFAULT.into()),
+            handoff_wait: term_presence::HANDOFF_WAIT,
+            mailbox_clock: None,
         }
     }
 }
@@ -249,7 +256,8 @@ impl RealBackend {
         let (tx, _) = broadcast::channel(4096);
         let presence = Arc::new(
             TermPresence::new(tx.clone(), rt.clone(), cfg.data_dir.join("presence"), cfg.opener.clone(), cfg.presence_wait)
-                .hand_off_on(cfg.presence_port, cfg.no_browser),
+                .hand_off_on(cfg.presence_port, cfg.no_browser)
+                .handoff_wait(cfg.handoff_wait),
         );
         let list = WorkspaceList::load(&cfg.data_dir, secrets.as_ref(), SECRET_SCOPE);
         let stored_label = label::load(&cfg.data_dir);
@@ -1793,6 +1801,12 @@ impl Backend for RealBackend {
         let crate::setup::LtFlow::Engine(f) = flow else { return Ok(crate::setup::device_run(self.linked_person())) };
         let ws = workspace.map(ws_uuid).transpose()?;
         self.call(move |i| {
+            // A step's write the workspace's rules hold for your passkey goes
+            // to your own desktop or phone first, where that can run.
+            let _offer = match (dry_run, ws) {
+                (false, Some(w)) => i.handoff_ctx(w).map(|c| i.presence.offer_handoff(c)),
+                _ => None,
+            };
             let mut ops = setup_ops::RealOps::for_run(i.clone(), ws);
             Ok(crate::setup::run(f, &mut ops, &inputs, secrets, dry_run, &cancel))
         })
@@ -1801,6 +1815,20 @@ impl Backend for RealBackend {
 
     async fn answer_presence(&self, id: PresenceId, answer: PresenceAnswer) -> Result<()> {
         self.inner.presence.answer(id, answer).map_err(BackendError)
+    }
+
+    async fn pending_presence(&self) -> Result<Vec<PendingPresence>> {
+        self.call(|i| i.pending_presence()).await
+    }
+
+    async fn resume_presence(&self, rid: &str) -> Result<String> {
+        let rid = rid.to_string();
+        self.call(move |i| i.resume_presence(&rid)).await
+    }
+
+    async fn cancel_pending_presence(&self, rid: &str) -> Result<()> {
+        let rid = rid.to_string();
+        self.call(move |i| i.cancel_pending_presence(&rid)).await
     }
 }
 

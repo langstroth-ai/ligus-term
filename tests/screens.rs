@@ -1277,6 +1277,54 @@ async fn presence_without_a_browser_here() {
     snap(&h, "presence_no_browser", "Passkey sheet with no browser here: the address for another device");
 }
 
+/// A passkey hand-off to the person's desktop or phone: the sheet while it
+/// waits (the code both show), and once it expired (ask again, or confirm
+/// here).
+#[tokio::test]
+async fn presence_handoff_to_the_desktop_or_phone() {
+    let mut h = demo().await;
+    let prompt = PresencePrompt {
+        id: PresenceId(90),
+        kind: "workspaceRepoAdded".into(),
+        summary: "Add repository \u{201C}acme/web\u{201D}".into(),
+        digest_short: "3f9a0c11d2e4b5a6".into(),
+        op: PresenceOp::Get,
+        handoff: Some("K7Q4 M9X2".into()),
+        resumed: false,
+    };
+    h.send(Msg::Event(Event::PresencePrompt(prompt))).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Confirm on your desktop or phone: Add repository"), "{screen}");
+    assert!(screen.contains("K7Q4 M9X2)"), "{screen}");
+    snap(&h, "presence_handoff", "Passkey hand-off: waiting for your desktop or phone");
+    h.send(Msg::Event(Event::PresenceHandoff {
+        id: PresenceId(90),
+        update: HandoffUpdate::Stopped { why: "The request expired (15 minutes)".into() },
+    }))
+    .await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("The request expired (15 minutes): nothing was written."), "{screen}");
+    snap(&h, "presence_handoff_stopped", "Passkey hand-off: expired, ask again or confirm here");
+}
+
+/// A hand-off left waiting when lt quit: first in the Set up list.
+#[tokio::test]
+async fn setup_list_offers_a_handoff_left_waiting() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char('u')).await;
+    h.state.pending_presence = vec![PendingPresence {
+        rid: "00ff".into(),
+        workspace: WorkspaceId::new("w"),
+        summary: "Add repository \u{201C}acme/web\u{201D}".into(),
+        code: "K7Q4 M9X2".into(),
+        created_at: 0,
+    }];
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Waiting for your desktop or phone (code K7Q4 M9X2): Add repository"), "{screen}");
+    assert!(screen.contains("enter wait · c cancel"), "{screen}");
+    snap(&h, "setup_handoff_waiting", "Set up: a passkey hand-off left waiting");
+}
+
 /// The demo's release-notes chat: its scratch repo, tagged in the title,
 /// and the notice two days before the cleanup.
 async fn scratch_chat() -> Harness {

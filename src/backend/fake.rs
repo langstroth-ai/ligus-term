@@ -459,10 +459,21 @@ impl FakeBackend {
             id
         };
         let digest_short = format!("{:016x}", fnv(&format!("{kind}{summary}{}", id.0)));
-        self.emit(Event::PresencePrompt(PresencePrompt { id, kind: kind.into(), summary, digest_short, op }));
+        self.emit(Event::PresencePrompt(PresencePrompt {
+            id,
+            kind: kind.into(),
+            summary,
+            digest_short,
+            op,
+            handoff: None,
+            resumed: false,
+        }));
         let outcome = loop {
             match rx.recv().await {
                 None | Some(PresenceAnswer::Cancel) => break err("cancelled"),
+                Some(PresenceAnswer::Handoff) => {
+                    self.emit(Event::PresenceProblem { id, error: "the demo has no desktop or phone to ask".into() })
+                }
                 Some(PresenceAnswer::RecoveryWordsFile(path)) => {
                     if op == PresenceOp::Create {
                         break err("a recovery key doesn't create a passkey");

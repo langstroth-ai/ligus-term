@@ -245,6 +245,7 @@ impl Inner {
                         MatchKind::Box => ApprovalKind::Box,
                         MatchKind::Computer => ApprovalKind::Computer,
                         MatchKind::Phone => ApprovalKind::Phone,
+                        MatchKind::Presence => ApprovalKind::Presence,
                     },
                     label: hint(&l.label()),
                     at: l.put_at,

@@ -1,0 +1,28 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
+┏ Chats ━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test · 1/3 ───────────────────╮
+┃  ◆ Fix flaky check… 12m  ┃│▸ coder asks you: “Use Postgres or SQLite for     │
+┃  ◆ Migrate auth to… 50m  ┃│                  the test fixtures?”             │
+┃  Weekly release not… 1d  ┃│    1 Postgres   2 SQLite   r reply   n not now   │
+┃ ┏ Set up ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
+┃ ┃› ⧗ Waiting for your desktop or phone: Add repository “acme/web” (code K7…┃ │
+┃ ┃                                                                          ┃ │
+┃ ┃  Set up an agent    ✓ 4 agents                                           ┃ │
+┃ ┃  Connect a tool       no tools connected                                 ┃ │
+┃ ┃  Add a code folder    no repositories yet                                ┃ │
+┃ ┃  Add a box            run it on the box                                  ┃ │
+┃ ┃  Add a phone          no phone paired                                    ┃ │
+┃ ┃  Invite a person      no invites yet                                     ┃ │
+┃ ┃  Set up a relay     ✓ https://relay.langstroth.ai                        ┃ │
+┃ ┃  Add a computer       not linked to your devices                         ┃ │
+┃ ┃                                                                          ┃ │
+┃ ┃enter wait · c cancel (nothing is written) · esc close                    ┃ │
+┃ ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛─╯
+┃                          ┃
+┃                          ┃╭ Message the room ────────────────────────────────╮
+┃                          ┃│i to write · @ mentions an agent or a person      │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────╯
+i write  N new chat  tab pane  . actions  : commands  ? help        peer to peer

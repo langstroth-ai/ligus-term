@@ -8,20 +8,127 @@
 //! signs the challenge with the recovery key from a words file. A problem the
 //! person can fix (an unreadable file, words that aren't a key) is reported
 //! with [`Event::PresenceProblem`] and the prompt stays open.
+//!
+//! During a setup run ([`TermPresence::offer_handoff`]) a write the
+//! workspace's rules hold for the person's passkey goes to their own
+//! desktop or phone first (the passkey hand-off): the drafted change is
+//! posted to the workspace's approval mailbox, the sheet shows its code,
+//! and the answer comes back as the passkey's assertion over the draft's
+//! challenge ([`PresenceProvider::assert_draft`]). Only answers signed by
+//! the person's own devices count. Esc sends the cancel abort; the browser
+//! and the recovery-words file stay one key away (they end the hand-off
+//! first). A relay without the mailbox, or a change too large for it,
+//! keeps today's sheet. A hand-off left waiting when lt quits stays in
+//! `presence-pending.json` and is offered on the next start
+//! ([`TermPresence::wait_resumed`]).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use ligus_core::presence::{PresenceAssertion, RecoveryKey, b64url, unb64url};
+use ligus_core::{SessionEvent, SessionEventEnvelope};
+use ligus_runtime::approval_mailbox::{
+    self as am, MailboxClient, MailboxError, PresenceAsk, PresenceOutcome, PresenceRequester, RequesterError, Signer,
+};
 use ligus_runtime::chat_service::{PresenceProvider, PresenceRequest};
 use tokio::sync::{broadcast, mpsc};
+use uuid::Uuid;
+use zeroize::Zeroizing;
 
 use crate::backend::Event;
-use crate::backend::model::{PresenceAnswer, PresenceId, PresenceOp, PresencePrompt};
+use crate::backend::model::{HandoffUpdate, PresenceAnswer, PresenceId, PresenceOp, PresencePrompt};
 use crate::backend::presence::{self, HandOff, HandOffError, Opener};
+
+/// How long lt waits for the person's desktop or phone by default (the
+/// CLI's; the request itself lives 15 minutes).
+pub const HANDOFF_WAIT: Duration = Duration::from_secs(10 * 60);
+
+/// What a declined hand-off says (Not me, or ended on the other device).
+pub const DECLINED: &str = "Declined on your other device: nothing was written";
+
+/// What the hand-off needs, read before a setup run starts (the provider
+/// runs while the run holds the write service, so it can't read it then).
+pub(crate) struct HandoffCtx {
+    pub data_dir: PathBuf,
+    pub ws: Uuid,
+    pub relay: String,
+    pub token: Option<String>,
+    pub founder_pin: String,
+    /// The workspace key epochs this device holds (secrets).
+    pub epochs: Vec<am::EpochKey>,
+    /// This account's own devices in the workspace: the only ones whose
+    /// answer counts.
+    pub mine: HashSet<Uuid>,
+    /// This device's signing key seed (the draft's signer).
+    pub device_seed: Zeroizing<[u8; 32]>,
+    /// This computer's name, as a hint for the approver.
+    pub label: String,
+    /// Tests: the mailbox's clock.
+    pub clock: Option<am::Clock>,
+}
+
+impl HandoffCtx {
+    fn client(&self) -> MailboxClient {
+        mailbox_client(&self.relay, self.token.clone(), self.clock.clone())
+    }
+
+    fn signer(&self) -> Signer {
+        device_signer(&self.device_seed)
+    }
+}
+
+pub(crate) fn mailbox_client(relay: &str, token: Option<String>, clock: Option<am::Clock>) -> MailboxClient {
+    let c = MailboxClient::new(relay).with_auth(token);
+    match clock {
+        Some(clock) => c.with_clock(clock),
+        None => c,
+    }
+}
+
+pub(crate) fn device_signer(seed: &[u8; 32]) -> Signer {
+    Signer::Ed25519(ligus_core::crypto::SigningKeypair::from_seed(seed).expect("a 32-byte seed"))
+}
+
+/// The draft a ceremony may send to the person's other device.
+struct Elsewhere<'a> {
+    ctx: &'a HandoffCtx,
+    draft: &'a SessionEventEnvelope,
+}
+
+/// What a ceremony does once a hand-off ended.
+enum After {
+    Answer(Option<PresenceAnswer>),
+    Wait,
+    Done(Result<PresenceAssertion, String>),
+}
+
+/// Why a hand-off couldn't be posted.
+enum PostError {
+    /// Not here (no mailbox routes, the change too large to send): today's
+    /// sheet stands, unchanged.
+    Unavailable,
+    /// Something the person should know (the relay unreachable, too many
+    /// unanswered requests lately): today's sheet, with this line.
+    Problem(String),
+}
+
+/// How waiting for the other device ended.
+enum Step {
+    /// The person answered here (Esc, the browser, the words file), or the
+    /// prompt went away.
+    Here(Option<PresenceAnswer>),
+    Approved(PresenceAssertion),
+    Declined,
+    /// No answer: why; `cancel` when the request should be ended (it is
+    /// still live on the relay).
+    Stopped {
+        why: String,
+        cancel: bool,
+    },
+}
 
 pub struct TermPresence {
     tx: broadcast::Sender<Event>,
@@ -36,6 +143,23 @@ pub struct TermPresence {
     /// Show the hand-off page's address instead of opening a browser here
     /// (for a browser on another device that reaches this loopback).
     no_browser: bool,
+    /// The passkey hand-off a setup run offers, for the thread it runs on.
+    handoff: Mutex<Option<(std::thread::ThreadId, Arc<HandoffCtx>)>>,
+    /// How long a hand-off waits for the other device.
+    handoff_wait: Duration,
+    /// The hand-offs this process is waiting on (by request id): not
+    /// offered again as left waiting.
+    live: Mutex<HashSet<String>>,
+}
+
+/// While held, writes on this thread that need a passkey go to the
+/// person's desktop or phone first. Dropped: today's sheet again.
+pub(crate) struct HandoffOffer<'a>(&'a TermPresence);
+
+impl Drop for HandoffOffer<'_> {
+    fn drop(&mut self) {
+        *self.0.handoff.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    }
 }
 
 /// What a ceremony asks the browser for.
@@ -62,6 +186,41 @@ impl TermPresence {
             wait,
             port: 0,
             no_browser: false,
+            handoff: Mutex::new(None),
+            handoff_wait: HANDOFF_WAIT,
+            live: Mutex::new(HashSet::new()),
+        }
+    }
+
+    /// How long a passkey hand-off waits for the other device.
+    pub fn handoff_wait(mut self, wait: Duration) -> Self {
+        self.handoff_wait = wait;
+        self
+    }
+
+    /// Offer the passkey hand-off to writes on this thread until the
+    /// returned guard drops.
+    pub(crate) fn offer_handoff(&self, ctx: HandoffCtx) -> HandoffOffer<'_> {
+        *self.handoff.lock().unwrap_or_else(|e| e.into_inner()) = Some((std::thread::current().id(), Arc::new(ctx)));
+        HandoffOffer(self)
+    }
+
+    fn handoff_here(&self) -> Option<Arc<HandoffCtx>> {
+        let g = self.handoff.lock().unwrap_or_else(|e| e.into_inner());
+        g.as_ref().filter(|(t, _)| *t == std::thread::current().id()).map(|(_, c)| c.clone())
+    }
+
+    /// Whether this process waits on hand-off `rid` now.
+    pub(crate) fn is_live(&self, rid: &str) -> bool {
+        self.live.lock().unwrap_or_else(|e| e.into_inner()).contains(rid)
+    }
+
+    fn set_live(&self, rid: &str, on: bool) {
+        let mut l = self.live.lock().unwrap_or_else(|e| e.into_inner());
+        if on {
+            l.insert(rid.to_string());
+        } else {
+            l.remove(rid);
         }
     }
 
@@ -85,38 +244,168 @@ impl TermPresence {
     /// Confirm `req` (`navigator.credentials.get`, or the recovery key).
     /// Blocking: call it from a blocking-pool thread.
     pub fn confirm(&self, req: &PresenceRequest) -> Result<PresenceAssertion, String> {
-        self.ceremony(req, Ask::Get)
+        self.ceremony(req, Ask::Get, None)
+    }
+
+    /// Confirm the drafted `draft` (whose challenge `req` carries): on the
+    /// person's desktop or phone when a setup run offers the hand-off, else
+    /// as [`TermPresence::confirm`]. Blocking.
+    pub fn confirm_draft(&self, req: &PresenceRequest, draft: &SessionEventEnvelope) -> Result<PresenceAssertion, String> {
+        match self.handoff_here() {
+            // A passkey's registration is confirmed where it is made.
+            Some(ctx) if !matches!(draft.payload, SessionEvent::PasskeyRegistered { .. }) => {
+                self.ceremony(req, Ask::Get, Some(Elsewhere { ctx: &ctx, draft }))
+            }
+            _ => self.confirm(req),
+        }
     }
 
     /// Create a passkey over `req.challenge` (`navigator.credentials.create`).
     /// The attestation object rides in `authenticator_data`. Blocking.
     pub fn create(&self, req: &PresenceRequest, user_name: &str) -> Result<PresenceAssertion, String> {
-        self.ceremony(req, Ask::Create { user_name })
+        self.ceremony(req, Ask::Create { user_name }, None)
+    }
+
+    /// Wait again for a hand-off left waiting (`h`, resumed from the data
+    /// dir), on a sheet that offers only waiting and cancelling. Blocking.
+    pub(crate) fn wait_resumed(
+        &self,
+        req: &PresenceRequest,
+        mut h: PresenceRequester,
+        mine: &HashSet<Uuid>,
+    ) -> Result<PresenceAssertion, String> {
+        let (id, mut rx) = self.open_prompt();
+        let rid = h.rid_hex();
+        if self.is_live(&rid) {
+            self.close_prompt(id);
+            return Err("lt is already waiting for that one".into());
+        }
+        self.set_live(&rid, true);
+        self.emit(Event::PresencePrompt(PresencePrompt {
+            id,
+            kind: req.kind.clone(),
+            summary: req.summary.clone(),
+            digest_short: req.digest_short.clone(),
+            op: PresenceOp::Get,
+            handoff: Some(h.code().shown.clone()),
+            resumed: true,
+        }));
+        let outcome = self.rt.block_on(async {
+            loop {
+                match self.wait_handoff(&mut h, mine, &mut rx).await {
+                    Step::Here(None | Some(PresenceAnswer::Cancel)) => {
+                        end_handoff(&mut h, true).await;
+                        return Err("cancelled".to_string());
+                    }
+                    // Nothing else to confirm it with here.
+                    Step::Here(Some(_)) => {}
+                    Step::Approved(a) => {
+                        end_handoff(&mut h, false).await;
+                        return Ok(a);
+                    }
+                    Step::Declined => {
+                        end_handoff(&mut h, false).await;
+                        return Err(DECLINED.to_string());
+                    }
+                    Step::Stopped { why, cancel } => {
+                        end_handoff(&mut h, cancel).await;
+                        return Err(format!("{why}: nothing was written"));
+                    }
+                }
+            }
+        });
+        self.set_live(&rid, false);
+        self.close_prompt(id);
+        self.emit(Event::PresenceDone { id, ok: outcome.is_ok(), error: outcome.as_ref().err().cloned() });
+        outcome
+    }
+
+    fn open_prompt(&self) -> (PresenceId, mpsc::UnboundedReceiver<PresenceAnswer>) {
+        let id = PresenceId(self.next.fetch_add(1, Ordering::Relaxed));
+        let (tx, rx) = mpsc::unbounded_channel();
+        self.pending.lock().unwrap_or_else(|e| e.into_inner()).insert(id, tx);
+        (id, rx)
+    }
+
+    fn close_prompt(&self, id: PresenceId) {
+        self.pending.lock().unwrap_or_else(|e| e.into_inner()).remove(&id);
     }
 
     fn emit(&self, e: Event) {
         let _ = self.tx.send(e);
     }
 
-    fn ceremony(&self, req: &PresenceRequest, ask: Ask<'_>) -> Result<PresenceAssertion, String> {
-        let id = PresenceId(self.next.fetch_add(1, Ordering::Relaxed));
-        let (tx, mut rx) = mpsc::unbounded_channel();
-        self.pending.lock().unwrap_or_else(|e| e.into_inner()).insert(id, tx);
+    fn ceremony(&self, req: &PresenceRequest, ask: Ask<'_>, elsewhere: Option<Elsewhere<'_>>) -> Result<PresenceAssertion, String> {
+        let (id, mut rx) = self.open_prompt();
         let op = match ask {
             Ask::Get => PresenceOp::Get,
             Ask::Create { .. } => PresenceOp::Create,
         };
+        // Ask the person's other device first; when it can't be asked here,
+        // today's sheet (with the reason, when there is one to tell).
+        let mut hand = None;
+        let mut note = None;
+        if let Some(e) = &elsewhere {
+            match self.rt.block_on(post(e.ctx, e.draft, &req.summary)) {
+                Ok(h) => {
+                    self.set_live(&h.rid_hex(), true);
+                    hand = Some(h);
+                }
+                Err(PostError::Unavailable) => {}
+                Err(PostError::Problem(p)) => note = Some(p),
+            }
+        }
         self.emit(Event::PresencePrompt(PresencePrompt {
             id,
             kind: req.kind.clone(),
             summary: req.summary.clone(),
             digest_short: req.digest_short.clone(),
             op,
+            handoff: hand.as_ref().map(|h| h.code().shown.clone()),
+            resumed: false,
         }));
-        let outcome = self.rt.block_on(self.run(id, req, &ask, &mut rx));
-        self.pending.lock().unwrap_or_else(|e| e.into_inner()).remove(&id);
+        if let Some(n) = note {
+            self.emit(Event::PresenceProblem { id, error: n });
+        }
+        let outcome = self.rt.block_on(self.run(id, req, &ask, &mut rx, hand, elsewhere.as_ref()));
+        self.close_prompt(id);
         self.emit(Event::PresenceDone { id, ok: outcome.is_ok(), error: outcome.as_ref().err().cloned() });
         outcome
+    }
+
+    /// Wait on hand-off `h` until its answer, an answer here, or the wait's
+    /// end. Only results and aborts signed by `mine` count (the requester
+    /// checks the assertion names the draft's challenge).
+    async fn wait_handoff(
+        &self,
+        h: &mut PresenceRequester,
+        mine: &HashSet<Uuid>,
+        rx: &mut mpsc::UnboundedReceiver<PresenceAnswer>,
+    ) -> Step {
+        let deadline = Instant::now() + self.handoff_wait;
+        let is_mine = |d: Uuid| mine.contains(&d);
+        loop {
+            let left = deadline.saturating_duration_since(Instant::now());
+            if left.is_zero() {
+                return Step::Stopped { why: "No one confirmed it on your desktop or phone in time".into(), cancel: true };
+            }
+            tokio::select! {
+                a = rx.recv() => return Step::Here(a),
+                r = h.poll(left.as_secs().clamp(1, am::MAX_WAIT_SECS), &is_mine) => match r {
+                    Ok(None) => {}
+                    Ok(Some(PresenceOutcome::Approved { assertion, .. })) => return Step::Approved(assertion),
+                    Ok(Some(PresenceOutcome::Declined { .. } | PresenceOutcome::Aborted { .. })) => return Step::Declined,
+                    Ok(Some(PresenceOutcome::Expired)) => return Step::Stopped { why: "The request expired (15 minutes)".into(), cancel: false },
+                    Err(RequesterError::Mailbox(m)) if m.retryable() => {
+                        tokio::select! {
+                            a = rx.recv() => return Step::Here(a),
+                            _ = tokio::time::sleep(Duration::from_secs(3).min(left)) => {}
+                        }
+                    }
+                    Err(e) => return Step::Stopped { why: format!("Couldn't reach your desktop or phone: {}", one_line(&e.to_string())), cancel: true },
+                },
+            }
+        }
     }
 
     async fn run(
@@ -125,20 +414,72 @@ impl TermPresence {
         req: &PresenceRequest,
         ask: &Ask<'_>,
         rx: &mut mpsc::UnboundedReceiver<PresenceAnswer>,
+        mut hand: Option<PresenceRequester>,
+        elsewhere: Option<&Elsewhere<'_>>,
     ) -> Result<PresenceAssertion, String> {
-        let mut next = rx.recv().await;
+        // An answer to act on before waiting for the next one.
+        let mut next: Option<Option<PresenceAnswer>> = None;
         loop {
-            match next.take() {
-                None | Some(PresenceAnswer::Cancel) => return Err("cancelled".into()),
-                Some(PresenceAnswer::RecoveryWordsFile(path)) => {
-                    match self.recovery(req, ask, &path) {
-                        Ok(a) => return Ok(a),
-                        Err(Fatal(e)) => return Err(e),
-                        // Stay on the sheet so the person can fix it.
-                        Err(Fixable(e)) => self.emit(Event::PresenceProblem { id, error: e }),
+            let answer = match next.take() {
+                Some(a) => a,
+                None => match (hand.as_mut(), elsewhere) {
+                    (Some(h), Some(e)) => {
+                        let step = self.wait_handoff(h, &e.ctx.mine, rx).await;
+                        let rid = h.rid_hex();
+                        let after = match step {
+                            // Confirming here (or cancelling) ends the hand-off first.
+                            Step::Here(a) => {
+                                end_handoff(h, true).await;
+                                After::Answer(a)
+                            }
+                            Step::Approved(a) => {
+                                end_handoff(h, false).await;
+                                After::Done(Ok(a))
+                            }
+                            Step::Declined => {
+                                end_handoff(h, false).await;
+                                After::Done(Err(DECLINED.to_string()))
+                            }
+                            Step::Stopped { why, cancel } => {
+                                end_handoff(h, cancel).await;
+                                self.emit(Event::PresenceHandoff { id, update: HandoffUpdate::Stopped { why } });
+                                After::Wait
+                            }
+                        };
+                        self.set_live(&rid, false);
+                        hand = None;
+                        match after {
+                            After::Answer(a) => a,
+                            After::Wait => rx.recv().await,
+                            After::Done(done) => return done,
+                        }
                     }
-                    next = rx.recv().await;
-                }
+                    _ => rx.recv().await,
+                },
+            };
+            match answer {
+                None | Some(PresenceAnswer::Cancel) => return Err("cancelled".into()),
+                Some(PresenceAnswer::Handoff) => match elsewhere {
+                    Some(e) => match post(e.ctx, e.draft, &req.summary).await {
+                        Ok(h) => {
+                            self.set_live(&h.rid_hex(), true);
+                            self.emit(Event::PresenceHandoff { id, update: HandoffUpdate::Waiting { code: h.code().shown.clone() } });
+                            hand = Some(h);
+                        }
+                        Err(PostError::Unavailable) => self.emit(Event::PresenceHandoff {
+                            id,
+                            update: HandoffUpdate::Stopped { why: "Your desktop or phone can't be asked through this relay".into() },
+                        }),
+                        Err(PostError::Problem(p)) => self.emit(Event::PresenceHandoff { id, update: HandoffUpdate::Stopped { why: p } }),
+                    },
+                    None => self.emit(Event::PresenceProblem { id, error: "this one can't be sent to your desktop or phone".into() }),
+                },
+                Some(PresenceAnswer::RecoveryWordsFile(path)) => match self.recovery(req, ask, &path) {
+                    Ok(a) => return Ok(a),
+                    Err(Fatal(e)) => return Err(e),
+                    // Stay on the sheet so the person can fix it.
+                    Err(Fixable(e)) => self.emit(Event::PresenceProblem { id, error: e }),
+                },
                 Some(PresenceAnswer::Browser) => {
                     let mut interrupt = None;
                     let show = ShowUrl { tx: self.tx.clone(), id, port: self.port };
@@ -155,12 +496,9 @@ impl TermPresence {
                     .await;
                     match r {
                         Ok(h) => return assertion(req, ask, h),
-                        Err(HandOffError::Cancelled) => next = interrupt,
-                        Err(e) => {
-                            // The person can retry, or use the recovery words.
-                            self.emit(Event::PresenceProblem { id, error: e.to_string() });
-                            next = rx.recv().await;
-                        }
+                        Err(HandOffError::Cancelled) => next = Some(interrupt),
+                        // The person can retry, or use the recovery words.
+                        Err(e) => self.emit(Event::PresenceProblem { id, error: e.to_string() }),
                     }
                 }
             }
@@ -175,6 +513,47 @@ impl TermPresence {
         let key = RecoveryKey::from_words(&words.join(" ")).map_err(|e| Fixable(format!("those words aren't a recovery key: {}", e.0)))?;
         // The recovery key signs the very challenge requested.
         Ok(key.assert(&req.challenge))
+    }
+}
+
+/// End a hand-off: `cancel` posts the cancel abort first (the other device
+/// drops it); then the request is deleted and its pending entry removed.
+async fn end_handoff(h: &mut PresenceRequester, cancel: bool) {
+    if cancel {
+        let _ = h.cancel().await;
+    }
+    let _ = h.settle().await;
+}
+
+fn one_line(s: &str) -> String {
+    s.lines().next().unwrap_or_default().to_string()
+}
+
+/// Post the drafted change to the person's own devices through the
+/// workspace's approval mailbox.
+async fn post(ctx: &HandoffCtx, draft: &SessionEventEnvelope, summary: &str) -> Result<PresenceRequester, PostError> {
+    let client = ctx.client();
+    let address = match am::current_address(&client, ctx.ws, &ctx.founder_pin, &ctx.epochs).await {
+        Ok(a) => a,
+        Err(MailboxError::NoRoutes) => return Err(PostError::Unavailable),
+        Err(e) => {
+            return Err(PostError::Problem(format!(
+                "Couldn't reach your desktop or phone through the relay ({})",
+                one_line(&e.to_string())
+            )));
+        }
+    };
+    let signer = ctx.signer();
+    // Too large for the mailbox, or a change this build can't send.
+    let Ok(ask) = PresenceAsk::new(&ctx.label, &signer.public_key(), draft) else { return Err(PostError::Unavailable) };
+    match PresenceRequester::post(client, &address, signer, ask, summary, Some(&ctx.data_dir)).await {
+        Ok(r) => Ok(r),
+        Err(RequesterError::Mailbox(MailboxError::NoRoutes | MailboxError::TooLarge)) => Err(PostError::Unavailable),
+        Err(RequesterError::TooManyDead) => Err(PostError::Problem(
+            "3 requests to your desktop or phone ended unanswered in the last 15 minutes, so lt isn't sending more for now: confirm here instead"
+                .into(),
+        )),
+        Err(e) => Err(PostError::Problem(format!("Couldn't ask your desktop or phone ({})", one_line(&e.to_string())))),
     }
 }
 
@@ -260,6 +639,10 @@ pub struct Provider(pub Arc<TermPresence>);
 impl PresenceProvider for Provider {
     fn assert(&self, req: &PresenceRequest) -> Result<PresenceAssertion, String> {
         self.0.confirm(req)
+    }
+
+    fn assert_draft(&self, req: &PresenceRequest, draft: &SessionEventEnvelope) -> Result<PresenceAssertion, String> {
+        self.0.confirm_draft(req, draft)
     }
 }
 

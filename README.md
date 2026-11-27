@@ -701,7 +701,7 @@ The default keys (all can be rebound, see [Configure](#configure)):
 | Notifications | `M` mark all read |
 | Settings | `enter` / `t` toggle · `D` link to my devices |
 | A code to paste elsewhere (link request, invite, admission, fingerprint) | `c` copy · `o` show it alone on the screen (`ctrl-y` copies on the link form while you paste) |
-| Passkey prompt | `enter` open the browser · `f` use a recovery-words file · `esc` cancel |
+| Passkey prompt | `enter` open the browser · `f` use a recovery-words file · `esc` cancel · sent to your desktop or phone: `o` use the browser here instead · `f` the recovery-words file · `enter` ask again once it stopped · `esc` cancel (it drops there too) |
 
 Every view follows one layout: a list of one-line rows (who or what each
 is, then one muted status), the selected row's detail beside it when there
@@ -789,6 +789,33 @@ uses the same hand-off as the desktop: it opens your browser to the
 workspace's passkey page (`https://ligus.ai/presence` by default) and waits
 for the result on a one-time loopback address. The sheet shows what you're
 authorizing and a digest to compare with the browser.
+
+**On a computer linked as one of your devices** (Add to my devices), a
+setup step whose change the workspace's rules hold for your passkey (adding
+a code folder, for one) asks your own
+desktop or phone first. The sheet says **Confirm on your desktop or phone:**
+with what the step changes and a code (`K7Q4 M9X2`); your desktop shows the
+same change with the same code, and you confirm it there with your passkey.
+The step then goes on and writes it. **Not me** there writes nothing and lt
+says **Declined on your other device: nothing was written**. `esc` cancels
+(your desktop drops the request); `o` (the browser here) and `f` (the
+recovery-words file) end the request and confirm here instead. A request
+lives 15 minutes, and lt waits up to 10: then it says so, and `enter` asks
+again with a new code. Only an answer signed by one of your own devices
+counts, and only for this change. After 3 requests in 15 minutes end
+without a confirmation, lt stops sending more for a while and shows the
+usual sheet. A relay without the approval mailbox (an older relay), a
+change too large to send, or no other device of yours in the workspace:
+the usual sheet below, unchanged.
+
+Quit lt while a request waits and it stays in the data dir
+(`presence-pending.json`, readable only by you). The next start says
+**A passkey confirmation is waiting for your desktop or phone**; the Set up
+list (`u`) shows it first: `enter` waits for it again (confirmed, it is
+written), `c` cancels it. Run the setup flow again afterwards: it skips
+what is done. `lt setup FLOW` prints the same lines on stderr while it
+waits, and plain mode prints `presence-handoff` records (`retry ID` asks
+again after `presence-handoff-stopped`, `cancel ID` ends it).
 
 No browser (an SSH session, a headless box)? Press `f` and give the path to
 a file holding your 24 recovery words, the same file the `ligus` CLI's

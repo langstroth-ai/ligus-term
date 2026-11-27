@@ -599,13 +599,21 @@ fn draw_status(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
 /// A session state's glyph; working spins one frame per tick (one
 /// spinner cell per running item, nothing else moves).
 pub(crate) fn state_glyph(s: &State, st: crate::backend::model::SessionState, t: &Theme) -> &'static str {
-    const SPIN: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-    const SPIN_ASCII: [&str; 4] = ["|", "/", "-", "\\"];
     if st == crate::backend::model::SessionState::Working && !s.reduce_motion {
-        let frame = (s.now / 250).rem_euclid(10) as usize;
-        return if t.ascii { SPIN_ASCII[frame % 4] } else { SPIN[frame] };
+        return spinner(s, t);
     }
     st.glyph(t.ascii)
+}
+
+/// One spinner cell, a frame per tick (a still glyph with reduced motion).
+pub(crate) fn spinner(s: &State, t: &Theme) -> &'static str {
+    const SPIN: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+    const SPIN_ASCII: [&str; 4] = ["|", "/", "-", "\\"];
+    if s.reduce_motion {
+        return if t.ascii { "*" } else { "⧗" };
+    }
+    let frame = (s.now / 250).rem_euclid(10) as usize;
+    if t.ascii { SPIN_ASCII[frame % 4] } else { SPIN[frame] }
 }
 
 /// `--ascii` borders: `+`, `-` and `|`.

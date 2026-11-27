@@ -19,9 +19,29 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 - The recovery key screen after creating a workspace can't be closed by
   accident: `esc` or ctrl-c asks **Finish later?** (Keep going / Finish
   later), and finishing later leaves the key unconfirmed.
+- lt builds on a pre-release commit of the Ligus crates (the passkey
+  hand-off); the release pins the Ligus 0.5 tag.
 
 ### Added
 
+- On a computer linked as one of your devices, a setup step whose change
+  the workspace's rules hold for your passkey asks your own desktop or
+  phone to confirm it: **Confirm on your desktop or phone:** with what the
+  step changes and a code both screens show, and a spinner while it waits.
+  Confirmed there with your passkey, the step goes on and writes it; **Not
+  me** there writes nothing (**Declined on your other device: nothing was
+  written**). `esc` cancels it on both sides; `o` (the browser) and `f` (the
+  recovery-words file) still confirm here instead. An expired request (15
+  minutes) or no answer in 10 minutes says so, and `enter` asks again. Only
+  answers signed by your own devices count. An older relay without the
+  approval mailbox keeps the usual passkey sheet.
+- A confirmation still waiting when lt quit is offered on the next start:
+  a notice, and the first row of the Set up list (`enter` waits for it
+  again and writes it once confirmed, `c` cancels it).
+- Plain mode prints `presence-handoff` and `presence-handoff-stopped`
+  records; `retry ID` asks your desktop or phone again. `lt setup FLOW`
+  says on stderr when it waits for your desktop or phone.
+- The approvals list names a device of yours asking for your passkey.
 - The Join form says **Looks like you already use Ligus. Link this device
   instead** when this terminal is linked to your account, when you said you
   already use Ligus, or when the checked invite is for a workspace it

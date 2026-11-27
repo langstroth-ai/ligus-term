@@ -198,6 +198,43 @@ offers two ways out:
 Both can be chosen while the browser is already open: the loopback wait is
 cancelled.
 
+### The hand-off to the person's desktop or phone
+
+A computer linked as one of the person's devices has no passkey of its
+own, so during a setup run (`RealBackend::setup_run`) the provider offers
+the passkey hand-off of the Ligus wire (code-match wire, section 8) to the
+writes on the run's thread (`TermPresence::offer_handoff`; the context is
+read before the run, since the run holds the write service):
+
+1. `ChatService` calls `PresenceProvider::assert_draft` with the drafted
+   envelope. The provider asks the workspace's approval address for the
+   current mailbox (`current_address`) and posts a `presence` request
+   (`PresenceRequester::post`, signed by this device's key, the draft
+   verbatim). No mailbox routes, a draft over 4 KiB, a passkey
+   registration, or no other device of this account in the workspace:
+   today's sheet, unchanged.
+2. The sheet (`PresenceStage::Handoff`) shows the summary and the code
+   derived from the request; the desktop or phone shows the same.
+3. It long-polls for the answer, counting only results and aborts signed by
+   this account's own devices (`ChatService::my_device_ids`) and only an
+   assertion that names the draft's challenge. Approved: the assertion goes
+   into the stamp, the envelope is re-signed and authorized again as the
+   fold would (a replayed or swapped confirmation fails there). Declined or
+   ended there: the write fails, nothing stored. Esc, `o` or `f`: the
+   cancel abort is posted first. Expired (15 minutes) or the wait over
+   (`RealConfig::handoff_wait`, 10 minutes): `PresenceStage::HandoffStopped`,
+   and `PresenceAnswer::Handoff` posts a new request.
+4. Every end settles the request (deleted on the relay, its entry removed
+   from `presence-pending.json`). Three ended unconfirmed in 15 minutes
+   stop new posts (`approval-dead.json`, the Ligus limit).
+
+An entry still in `presence-pending.json` at start (lt quit while it
+waited) is listed by `Backend::pending_presence` when this device asked it
+for a workspace it has, and resumed by `Backend::resume_presence`
+(`PresenceRequester::resume`, refused for another device's key or another
+relay than the workspace's); confirmed, it is committed with
+`presence_draft_of` and `commit_presence`, as `ligus handoff wait` does.
+
 ## Wiring to the Ligus crates
 
 ### Dependency
