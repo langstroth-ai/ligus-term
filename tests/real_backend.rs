@@ -713,23 +713,35 @@ async fn the_device_name_is_chosen_once_and_kept() {
     a.b.shutdown();
 }
 
-/// A stub `agy` in a temporary `PATH`: `models` takes `delay` seconds,
-/// counts itself in `calls`, prints to both streams and exits `code`.
-fn stub_agy(bin: &std::path::Path, delay: &str, out: &str, code: i32) -> std::path::PathBuf {
+/// A stub `agy` in a temporary `PATH`: `models` counts itself in `calls`,
+/// then waits until the gate file (`bin/open`) exists, prints to both
+/// streams and exits `code`. `open` creates the gate up front. Returns
+/// `(calls, gate)`.
+fn stub_agy(bin: &std::path::Path, open: bool, out: &str, code: i32) -> (std::path::PathBuf, std::path::PathBuf) {
     use std::os::unix::fs::PermissionsExt;
     std::fs::create_dir_all(bin).unwrap();
     let calls = bin.join("calls");
+    let gate = bin.join("open");
+    if open {
+        std::fs::write(&gate, "").unwrap();
+    }
     let p = bin.join("agy");
     std::fs::write(
         &p,
         format!(
-            "#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'agy 1.0.0'; exit 0; fi\nif [ \"$1\" = models ]; then echo x >> '{}'; sleep {delay}; printf '{out}'; echo 'stderr noise' >&2; exit {code}; fi\nexit 9\n",
-            calls.display()
+            "#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'agy 1.0.0'; exit 0; fi\nif [ \"$1\" = models ]; then echo x >> '{}'; while [ ! -e '{}' ]; do sleep 0.02; done; printf '{out}'; echo 'stderr noise' >&2; exit {code}; fi\nexit 9\n",
+            calls.display(),
+            gate.display()
         ),
     )
     .unwrap();
     std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
-    calls
+    (calls, gate)
+}
+
+/// How many times the stub's `agy models` has started.
+fn agy_calls(calls: &std::path::Path) -> usize {
+    std::fs::read_to_string(calls).map(|s| s.lines().count()).unwrap_or(0)
 }
 
 /// The Antigravity harness's sign-in is checked with `agy models` off the
@@ -762,22 +774,30 @@ async fn the_antigravity_sign_in_is_checked_in_the_background() {
         o.checks.iter().find(|c| c.id == "agent.harness.signed-in").map(|c| (c.status, c.detail.clone()))
     };
 
-    // ── Signed in: the form doesn't wait for it.
+    // ── Signed in: the form doesn't wait for it. `agy models` is held at
+    // its gate until the form is read, so the form can only come back (and
+    // say "checking") without waiting for the answer.
+    let models = "gemini-3-pro\\tGemini 3 Pro\\ngemini-3-flash\\tGemini 3 Flash\\n";
     let bin = tmp.path().join("bin");
-    let calls = stub_agy(&bin, "1", "gemini-3-pro\\tGemini 3 Pro\\ngemini-3-flash\\tGemini 3 Flash\\n", 0);
+    let (calls, gate) = stub_agy(&bin, false, models, 0);
     let env = ligus_runtime::cli_detect::DetectEnv { path: bin.clone().into_os_string(), home: home.clone(), vars: Default::default() };
     let d = device_with(&tmp.path().join("ana"), "lt Ana", &relay, |c| c.detect_env = Some(env));
     let ws = d.b.create_workspace("Ana", "Acme Web").await.unwrap().workspace.id;
-    let started = std::time::Instant::now();
     let f = d.b.setup_form(Some(&ws), LtFlow::Engine(FlowId::Agent), SetupInputs::new()).await.unwrap();
-    assert!(started.elapsed() < Duration::from_millis(900), "the form waited for agy: {:?}", started.elapsed());
     assert_eq!(hint(&f), "checking sign-in…");
+    // A second form while the check is still held: still checking, and no
+    // second `agy models`.
+    eventually("the check starts", || agy_calls(&calls) == 1).await;
+    let f = d.b.setup_form(Some(&ws), LtFlow::Engine(FlowId::Agent), SetupInputs::new()).await.unwrap();
+    assert_eq!(hint(&f), "checking sign-in…");
+    assert!(!d.saw(|e| matches!(e, Event::SetupFactsChanged)), "the check reported back before agy answered");
+    std::fs::write(&gate, "").unwrap();
     eventually("the check reports back", || d.saw(|e| matches!(e, Event::SetupFactsChanged))).await;
     let f = d.b.setup_form(Some(&ws), LtFlow::Engine(FlowId::Agent), SetupInputs::new()).await.unwrap();
     assert_eq!(hint(&f), "signed in");
     // Two forms, one check: the answer is reused. (Listing the harness's
     // models, once one is picked, runs `agy models` on its own.)
-    assert_eq!(std::fs::read_to_string(&calls).unwrap().lines().count(), 1, "the answer is reused");
+    assert_eq!(agy_calls(&calls), 1, "the answer is reused");
     let o =
         d.b.setup_run(
             Some(&ws),
@@ -796,14 +816,18 @@ async fn the_antigravity_sign_in_is_checked_in_the_background() {
     }
     d.b.shutdown();
 
-    // ── A run with no answer yet waits for the check.
+    // ── A run with no answer yet waits for the check: it is still going
+    // while `agy models` is held, and passes once agy answers.
+    let held = tmp.path().join("held");
+    let (calls, gate) = stub_agy(&held, false, models, 0);
     let d = device_with(&tmp.path().join("ana2"), "lt Ana", &relay, |c| {
         c.detect_env =
-            Some(ligus_runtime::cli_detect::DetectEnv { path: bin.clone().into_os_string(), home: home.clone(), vars: Default::default() })
+            Some(ligus_runtime::cli_detect::DetectEnv { path: held.clone().into_os_string(), home: home.clone(), vars: Default::default() })
     });
     let ws = d.b.create_workspace("Ana", "Acme Web").await.unwrap().workspace.id;
-    let o =
-        d.b.setup_run(
+    let b = d.b.clone();
+    let run = tokio::spawn(async move {
+        b.setup_run(
             Some(&ws),
             LtFlow::Engine(FlowId::Agent),
             inputs(&[("harness", "antigravity"), ("name", "agy")]),
@@ -812,7 +836,14 @@ async fn the_antigravity_sign_in_is_checked_in_the_background() {
             CancelFlag::default(),
         )
         .await
-        .unwrap();
+        .unwrap()
+    });
+    if confined {
+        eventually("the run starts the check", || agy_calls(&calls) >= 1).await;
+        assert!(!run.is_finished(), "the run didn't wait for agy");
+    }
+    std::fs::write(&gate, "").unwrap();
+    let o = run.await.unwrap();
     if confined {
         assert_eq!(sign_in(&o).map(|s| s.0), Some(CheckStatus::Ok), "{o:?}");
     }
@@ -820,7 +851,7 @@ async fn the_antigravity_sign_in_is_checked_in_the_background() {
 
     // ── A check that fails keeps the warning.
     let bad = tmp.path().join("bad");
-    stub_agy(&bad, "0", "something broke\\n", 3);
+    stub_agy(&bad, true, "something broke\\n", 3);
     let d = device_with(&tmp.path().join("ana3"), "lt Ana", &relay, |c| {
         c.detect_env =
             Some(ligus_runtime::cli_detect::DetectEnv { path: bad.clone().into_os_string(), home: home.clone(), vars: Default::default() })
@@ -862,7 +893,7 @@ async fn set_up_lets_an_agy_agent_run_local_servers() {
     let home = tmp.path().join("home");
     std::fs::create_dir_all(&home).unwrap();
     let bin = tmp.path().join("bin");
-    stub_agy(&bin, "0", "gemini-3-pro\\tGemini 3 Pro\\n", 0);
+    stub_agy(&bin, true, "gemini-3-pro\\tGemini 3 Pro\\n", 0);
     let env = ligus_runtime::cli_detect::DetectEnv { path: bin.clone().into_os_string(), home: home.clone(), vars: Default::default() };
     let d = device_with(&tmp.path().join("ana"), "lt Ana", &relay, |c| c.detect_env = Some(env));
     let ws = d.b.create_workspace("Ana", "Acme Web").await.unwrap().workspace.id;
