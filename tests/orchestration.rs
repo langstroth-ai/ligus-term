@@ -818,18 +818,32 @@ async fn a_host_beat_counts_only_in_its_own_workspace() {
     let a = device(&tmp.path().join("ana"), "lt Ana", &relay);
     let yard = a.b.create_workspace("Ana", "Acme Web").await.unwrap().workspace.id;
     let yard_u = Uuid::parse_str(yard.as_str()).unwrap();
-    // A worker of the Acme Web, last seen long ago: offline.
-    let worker = Uuid::new_v4().to_string();
+    // A worker of the Acme Web that never beats: offline. Readers count a
+    // host record only when the device it names signed it, so the worker is
+    // an admitted box that registers its own host.
+    let bx = Arc::new(BoxDevice::new(&tmp.path().join("box")));
+    let admission = a.b.admit_box(&yard, Some(&bx.join_request().encode())).await.unwrap();
+    let conn = bx.redeem(&admission.code);
+    until("the box to pull the workspace", || {
+        let bx = bx.clone();
+        let mut e = bx.engine(&conn);
+        async move {
+            box_sync(&mut e, &bx.db()).await;
+            bx.service().load_in(yard_u, workspace_config_session_id(yard_u)).unwrap().map(|_| ())
+        }
+    })
+    .await;
+    let worker = bx.device().to_string();
     {
-        let worker = worker.clone();
-        on_service(&a, move |svc| {
-            let mut h = WorkspaceHost::new(worker, ligus_core::HostKind::Worker, "far box".to_string());
-            h.last_seen = Timestamp::epoch();
-            svc.ensure_host(yard_u, h).unwrap();
-        })
-        .await;
+        let mut svc = bx.service();
+        svc.ensure_self_member(workspace_config_session_id(yard_u), yard_u).unwrap();
+        let mut h = WorkspaceHost::new(worker.clone(), ligus_core::HostKind::Worker, "far box".to_string());
+        h.last_seen = Timestamp::epoch();
+        svc.ensure_host(yard_u, h).unwrap();
     }
+    box_sync(&mut bx.engine(&conn), &bx.db()).await;
     let offline = |hosts: Vec<Host>, id: &str| hosts.iter().find(|h| h.id.as_str() == id).map(|h| !h.online);
+    until("Ana to see the box's host", || async { offline(a.b.hosts(&yard).await.unwrap(), &worker) }).await;
     assert_eq!(offline(a.b.hosts(&yard).await.unwrap(), &worker), Some(true));
     // Another workspace on the same device, whose key someone else holds.
     let spec =

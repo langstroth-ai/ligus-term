@@ -75,7 +75,8 @@ commands (N is a number from the last list, or an id):
                        secrets only as @FILE here; lt help setup has every flag
   confirm ID           answer a passkey prompt in the browser
   confirm ID file PATH answer it with a recovery-words file
-  cancel ID            cancel a passkey prompt
+  cancel ID            cancel a passkey prompt (a hand-off to your desktop or phone too)
+  retry ID             ask your desktop or phone again after a hand-off stopped
   wait [SECS]          wait until events go quiet (default up to 30 s)
   help [COMMAND|TOPIC] / quit   (topics: quickstart keys plain agents kubernetes troubleshooting env)";
 
@@ -282,6 +283,7 @@ pub const COMMANDS: &[&str] = &[
     "settings",
     "confirm",
     "cancel",
+    "retry",
     "workflows",
     "runs",
     "run",
@@ -368,10 +370,26 @@ pub fn event_line(e: &Event, names: &dyn Fn(&WorkspaceId) -> String) -> Option<S
             format!("proposal-changed\t{}\t{}\t{}/{}\t{}", esc(&p.id), p.status.label(), p.approvals, p.quorum, esc(&p.title))
         }
         Event::Notification(n) => format!("notification\t{}\t{}", esc(names(&n.workspace)), esc(&n.text)),
+        Event::PresencePrompt(p) if p.handoff.is_some() => {
+            let how = if p.resumed {
+                format!("confirm on your desktop or phone; or: cancel {}", p.id.0)
+            } else {
+                format!("confirm on your desktop or phone; or here: confirm {0} | confirm {0} file PATH | cancel {0}", p.id.0)
+            };
+            format!("presence-handoff\t{}\t{}\t{}\t{how}", p.id.0, esc(p.handoff.as_deref().unwrap_or_default()), esc(&p.summary))
+        }
         Event::PresencePrompt(p) => {
             let how = if p.op == PresenceOp::Get { "confirm ID | confirm ID file PATH | cancel ID" } else { "confirm ID | cancel ID" };
             format!("presence\t{}\t{}\t{}\t{}\t{how}", p.id.0, esc(&p.kind), esc(&p.digest_short), esc(&p.summary))
         }
+        Event::PresenceHandoff { id, update: HandoffUpdate::Waiting { code } } => {
+            format!("presence-handoff\t{}\t{}\t-\tasked again: confirm on your desktop or phone; or: cancel {}", id.0, esc(code), id.0)
+        }
+        Event::PresenceHandoff { id, update: HandoffUpdate::Stopped { why } } => format!(
+            "presence-handoff-stopped\t{0}\t{1}\tnothing was written: retry {0} | confirm {0} | confirm {0} file PATH | cancel {0}",
+            id.0,
+            esc(why)
+        ),
         Event::PresenceProblem { id, error } => format!("presence-problem\t{}\t{}", id.0, esc(error)),
         // The address can answer a passkey creation, so it goes to the
         // person's terminal, never to stdout (often a log or a pipe).
@@ -520,6 +538,9 @@ where
     // Events print as they come; `last_event` lets `wait` see quiet.
     let last_event = Arc::new(std::sync::Mutex::new(tokio::time::Instant::now()));
     let presence_answer = opts.presence.clone().or_else(|| one_shot.then_some(PresenceAnswer::Browser));
+    // A hand-off to the person's desktop or phone is waited for, unless a
+    // recovery-words file was given; one-shot gives up when it stops.
+    let explicit = opts.presence.is_some();
     let ev_task = {
         let (out, backend, session, last) = (out.clone(), backend.clone(), session.clone(), last_event.clone());
         let presence_answer = presence_answer.clone();
@@ -558,14 +579,26 @@ where
                 // passkey prompts it raises (answered as the options say).
                 if let Event::PresencePrompt(p) = &e
                     && let Some(a) = presence_answer.clone()
+                    && (p.handoff.is_none() || explicit)
+                    && !p.resumed
                 {
                     let answer = if p.op == PresenceOp::Create { PresenceAnswer::Browser } else { a };
                     let _ = backend.answer_presence(p.id, answer).await;
                 }
+                if let Event::PresenceHandoff { id, update: HandoffUpdate::Stopped { .. } } = &e
+                    && one_shot
+                {
+                    let answer = if explicit { presence_answer.clone().unwrap_or(PresenceAnswer::Cancel) } else { PresenceAnswer::Cancel };
+                    let _ = backend.answer_presence(*id, answer).await;
+                }
                 let quiet = one_shot
                     && !matches!(
                         e,
-                        Event::PresencePrompt(_) | Event::PresenceProblem { .. } | Event::PresenceUrl { .. } | Event::PresenceDone { .. }
+                        Event::PresencePrompt(_)
+                            | Event::PresenceProblem { .. }
+                            | Event::PresenceUrl { .. }
+                            | Event::PresenceHandoff { .. }
+                            | Event::PresenceDone { .. }
                     );
                 if !quiet && let Some(line) = event_line(&e, &name_of) {
                     emit(&out, line).await;
@@ -1100,7 +1133,9 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
                 say(rec).await;
             }
         }
-        _ if ws.is_none() && cmd != "notifications" && cmd != "settings" && cmd != "confirm" && cmd != "cancel" => need_ws().await,
+        _ if ws.is_none() && cmd != "notifications" && cmd != "settings" && cmd != "confirm" && cmd != "cancel" && cmd != "retry" => {
+            need_ws().await
+        }
         "admit" => {
             let (request, file) = take_out(arg);
             // A bearer code carries the workspace key: it goes to an
@@ -1820,11 +1855,12 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
             }
             Err(e) => fail(e.0).await,
         },
-        "confirm" | "cancel" => {
+        "confirm" | "cancel" | "retry" => {
             let mut parts = arg.split_whitespace();
             let Some(id) = parts.next().and_then(|i| i.parse::<u64>().ok()) else { return fail(format!("usage: {cmd} ID")).await };
             let answer = match (cmd, parts.next()) {
                 ("cancel", _) => PresenceAnswer::Cancel,
+                ("retry", _) => PresenceAnswer::Handoff,
                 (_, Some("file")) => PresenceAnswer::RecoveryWordsFile(parts.collect::<Vec<_>>().join(" ")),
                 _ => PresenceAnswer::Browser,
             };

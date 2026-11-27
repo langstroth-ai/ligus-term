@@ -1,0 +1,28 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+[NA]+1• │ Chats Flows Props Agents Hosts Memory People Notifs 1 Setup  Northwin…
+┏ Chats ━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test · 1/3 ───────────────────╮
+┃  ◆ Fix flaky check… 12m  ┃│▸ coder asks you: “Use Postgres or SQLite for     │
+┃  ◆ Migrate auth to… 50m  ┃│                  the test fixtures?”             │
+┃  Weekly release not… 1d  ┃│    1 Postgres   2 SQLite   r reply   n not now   │
+┃                          ┃│    coder decides what to do next. No new         │
+┃                          ┃│    permission.                                   │
+┃    ┏ Confirm on your desktop or phone ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓    │
+┃    ┃⠋ Confirm on your desktop or phone: Add repository “acme/web” (code ┃    │
+┃    ┃K7Q4 M9X2)                                                          ┃    │
+┃    ┃                                                                    ┃    │
+┃    ┃It shows this change with the same code. Nothing is written until   ┃lo  │
+┃    ┃you confirm it there with your passkey; Not me there stops it.      ┃    │
+┃    ┃                                                                    ┃    │
+┃    ┃o use the browser here   f use recovery-words file   esc cancel     ┃    │
+┃    ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛    │
+┃                          ┃│    Next, after the question above                │
+┃                          ┃│  ◆ proposal “Sign-o…” · open 0/1 · p to review   │
+┃                          ┃╰──────────────────────────────────────────────────╯
+┃                          ┃
+┃                          ┃╭ Message the room ────────────────────────────────╮
+┃                          ┃│i to write · @ mentions an agent or a person      │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰──────────────────────────────────────────────────╯
+i write  N new chat  tab pane  . actions  : commands  ? help        peer to peer

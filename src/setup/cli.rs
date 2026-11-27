@@ -391,7 +391,10 @@ pub async fn run(
         let _ = write!(out, "{}", flow_help(&form));
         return 0;
     }
-    match b.setup_run(ws.as_ref(), flow, p.inputs, p.secrets, p.dry_run, CancelFlag::default()).await {
+    let watch = handoff_lines(b.clone());
+    let ran = b.setup_run(ws.as_ref(), flow, p.inputs, p.secrets, p.dry_run, CancelFlag::default()).await;
+    watch.abort();
+    match ran {
         Ok(o) => {
             let _ = if json || p.json { writeln!(out, "{}", o.json) } else { write!(out, "{}", clean_text(&outcome_text(&o))) };
             o.exit
@@ -401,6 +404,34 @@ pub async fn run(
             exit::FAILED
         }
     }
+}
+
+/// While a one-shot run waits on the person's desktop or phone to confirm
+/// a step with their passkey, say so on stderr (the CLI's lines); when the
+/// hand-off stops unanswered, end it (nothing is written).
+fn handoff_lines(b: Arc<dyn Backend>) -> tokio::task::JoinHandle<()> {
+    use crate::backend::Event;
+    use crate::backend::model::{HandoffUpdate, PresenceAnswer};
+    use futures::StreamExt;
+    let mut events = b.events();
+    tokio::spawn(async move {
+        while let Some(e) = events.next().await {
+            match e {
+                Event::PresencePrompt(p) if p.handoff.is_some() => {
+                    eprintln!("Confirm on your desktop or phone: {} (code {})", p.summary, p.handoff.unwrap_or_default());
+                    eprintln!(
+                        "Waiting for your desktop or phone (Ctrl-C stops waiting here; lt offers it again when it next starts)\u{2026}"
+                    );
+                }
+                Event::PresenceHandoff { id, update: HandoffUpdate::Stopped { why } } => {
+                    eprintln!("{why}: nothing was written");
+                    let _ = b.answer_presence(id, PresenceAnswer::Cancel).await;
+                }
+                Event::PresenceDone { ok: true, .. } => eprintln!("Confirmed."),
+                _ => {}
+            }
+        }
+    })
 }
 
 /// Interactive plain mode's `setup [FLOW flags…]`: the records to print

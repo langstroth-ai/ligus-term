@@ -241,10 +241,11 @@ pub fn plan_synced(i: &Inner, ws: Uuid, sid: Uuid, trigger: Uuid) -> Result<Opti
     })
 }
 
-/// Whether a workspace runtime can be dispatched here (its key resolves, or
-/// it needs none).
-pub fn configured(r: &WorkspaceRuntime) -> bool {
-    !needs_key(r.provider, &r.endpoint) || ligus_runtime::resolve_workspace_credential(&r.credential).is_some()
+/// Whether a workspace runtime of workspace `ws` can be dispatched here (its
+/// key resolves, or it needs none). A secret resolves only when this data
+/// dir's `host.toml` declares its name for `ws`.
+pub fn configured(r: &WorkspaceRuntime, ws: Uuid) -> bool {
+    !needs_key(r.provider, &r.endpoint) || ligus_runtime::resolve_workspace_credential(&r.credential, ws).is_some()
 }
 
 fn needs_key(p: ModelProviderKind, endpoint: &str) -> bool {
@@ -258,9 +259,19 @@ fn needs_key(p: ModelProviderKind, endpoint: &str) -> bool {
     ) && !ligus_core::endpoint::endpoint_is_local_server(endpoint)
 }
 
-fn resolved(wr: &WorkspaceRuntime) -> Result<ResolvedRuntime> {
-    let api_key = ligus_runtime::resolve_workspace_credential(&wr.credential);
+fn resolved(wr: &WorkspaceRuntime, ws: Uuid) -> Result<ResolvedRuntime> {
+    let api_key = ligus_runtime::resolve_workspace_credential(&wr.credential, ws);
     if api_key.is_none() && needs_key(wr.provider, &wr.endpoint) {
+        // A host resolves only the secret names its host.toml declares for
+        // this workspace, never one a string on the log picks.
+        if let Some(name) = ligus_runtime::undeclared_secret(&wr.credential, ws) {
+            return Err(BackendError(format!(
+                "the runtime '{}' uses secret '{name}', which this device hasn't declared for this workspace; \
+                 add it to {} in the data dir: [workspaces.\"{ws}\"] secrets = [\"{name}\"]",
+                wr.name,
+                ligus_runtime::host_config::HOST_CONFIG_FILE
+            )));
+        }
         return Err(BackendError(format!("the runtime '{}' has no key on this device", wr.name)));
     }
     let mut rt = base_runtime(wr.provider, wr.model.clone(), wr.endpoint.clone(), api_key, wr.driver);
@@ -330,7 +341,7 @@ pub(crate) fn runtime_for(i: &Inner, ws: Uuid, runtime_id: &str) -> Result<(Reso
         None
     });
     match found {
-        Some(wr) => Ok((resolved(wr)?, wr.id.clone())),
+        Some(wr) => Ok((resolved(wr, ws)?, wr.id.clone())),
         None if i.cfg.cli_fallback => Ok((
             base_runtime(ModelProviderKind::ClaudeCode, String::new(), String::new(), None, ligus_core::Driver::default()),
             "claude-code".into(),

@@ -106,6 +106,8 @@ pub struct Device {
     pub events: Arc<Mutex<Vec<Event>>>,
     /// A recovery-words file to answer `joinApproved` prompts with.
     pub words_file: Arc<Mutex<Option<PathBuf>>>,
+    /// Set: no prompt is answered on its own (the test answers).
+    pub manual: Arc<std::sync::atomic::AtomicBool>,
 }
 
 pub fn device(dir: &Path, name: &str, relay: &str) -> Device {
@@ -127,11 +129,17 @@ pub fn device_with(dir: &Path, name: &str, relay: &str, tune: impl FnOnce(&mut R
     let b = RealBackend::open(cfg).unwrap();
     let events = Arc::new(Mutex::new(Vec::new()));
     let words_file: Arc<Mutex<Option<PathBuf>>> = Arc::new(Mutex::new(None));
+    let manual = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let mut stream = b.events();
-    let (b2, ev, wf) = (b.clone(), events.clone(), words_file.clone());
+    let (b2, ev, wf, man) = (b.clone(), events.clone(), words_file.clone(), manual.clone());
     tokio::spawn(async move {
         while let Some(e) = stream.next().await {
-            if let Event::PresencePrompt(p) = &e {
+            // A passkey hand-off to the person's desktop or phone waits for
+            // the test to play that device (or to answer it here).
+            if let Event::PresencePrompt(p) = &e
+                && p.handoff.is_none()
+                && !man.load(std::sync::atomic::Ordering::SeqCst)
+            {
                 // The invite is confirmed with the recovery words; every
                 // other prompt with the (software) passkey in the browser.
                 let answer = match (p.kind.as_str(), wf.lock().unwrap().clone()) {
@@ -144,7 +152,7 @@ pub fn device_with(dir: &Path, name: &str, relay: &str, tune: impl FnOnce(&mut R
             ev.lock().unwrap().push(e);
         }
     });
-    Device { b, events, words_file }
+    Device { b, events, words_file, manual }
 }
 
 impl Device {

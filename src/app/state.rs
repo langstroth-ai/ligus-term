@@ -356,6 +356,12 @@ pub enum PresenceStage {
     Asking,
     WaitingBrowser,
     EnteringPath(TextBuf),
+    /// Waiting for the person's own desktop or phone to confirm it (the
+    /// code is [`PresenceSheet::handoff`]).
+    Handoff,
+    /// The hand-off ended without an answer (why, in one line): nothing
+    /// was written; ask again, or confirm here.
+    HandoffStopped(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -366,6 +372,17 @@ pub struct PresenceSheet {
     /// No browser here: the page's address for another device's browser,
     /// and the loopback port that browser must reach.
     pub remote: Option<(String, u16)>,
+    /// The code of the hand-off waiting on the person's desktop or phone,
+    /// while it waits (none once they chose to confirm here instead).
+    pub handoff: Option<String>,
+}
+
+impl PresenceSheet {
+    pub fn new(prompt: PresencePrompt) -> Self {
+        let handoff = prompt.handoff.clone();
+        let stage = if handoff.is_some() { PresenceStage::Handoff } else { PresenceStage::Asking };
+        PresenceSheet { prompt, stage, error: None, remote: None, handoff }
+    }
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -661,6 +678,9 @@ pub struct State {
     pub overlay: Option<Overlay>,
     /// Passkey prompts, oldest first; the first is on screen.
     pub presence: VecDeque<PresenceSheet>,
+    /// Passkey hand-offs left waiting when lt last quit (the Set up list
+    /// offers them first).
+    pub pending_presence: Vec<PendingPresence>,
 
     pub chats: Vec<ChatSummary>,
     pub chat_sel: Sel,
@@ -820,6 +840,7 @@ impl State {
             focus: Focus::List,
             overlay: None,
             presence: VecDeque::new(),
+            pending_presence: Vec::new(),
             chats: vec![],
             chat_sel: Sel::default(),
             open_chat: None,

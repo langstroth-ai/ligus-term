@@ -11,9 +11,9 @@ cargo build --locked
 ```
 
 The Ligus crates are git dependencies on `langstroth-ai/ligus`, pinned to
-a release tag (`tag = ...` in `Cargo.toml`), or until Ligus 0.4.0 is cut to
-an exact commit of its code-match approval branch (`rev = ...`). Cargo
-fetches them, so no sibling checkout is needed.
+a release tag (`tag = ...` in `Cargo.toml`), or between releases to an
+exact commit (`rev = ...`; today the passkey hand-off's, until Ligus 0.5 is
+tagged). Cargo fetches them, so no sibling checkout is needed.
 
 Rust 1.91 or newer, edition 2024. The binary is `target/debug/lt`.
 
@@ -41,6 +41,7 @@ What the tests cover:
 | `tests/cli.rs` | The `lt` binary: `--version`, plain mode on a pipe, refusals, the data dir |
 | `tests/setup.rs` | Guided setup in the full-screen app over the demo backend (the real engine): the Set up list, a flow per field type, a failed check with its fix, a person's hand-off, cancel, dry run, empty states, and a secret that never reaches the screen, `Debug`, the effects or the log |
 | `tests/real_backend.rs` | The real backend: two devices through the in-process test relay (create, invite, join, chat, streamed replies through both dispatch gates, proposals, vote, apply on host, people, hosts, lockdown), a chat's scratch repo (made, set, kept), a device reopened from disk, and agent runtimes found on the device (stub `claude` and `codex` on a temporary `PATH`, a fake Ollama) and added as agents |
+| `tests/real_handoff.rs` | The passkey hand-off over the real backend: a linked computer's setup step confirmed on the person's desktop (an approver stub on the test relay's mailbox), a stranger's answer and a replayed confirmation refused, Not me, Esc's cancel abort, expiry and asking again, a hand-off left waiting resumed (and not on another device), cancelled, and an older relay's fallback to the usual sheet |
 | `tests/real_link.rs` | Add to my devices over the real backend: a fresh install and an install already in the workspace link as a person's device (request, the desktop's grant with a passkey, the approver check, redeem), post as the person, single use, and the refusals of a linked install |
 | `tests/orchestration.rs` | Orchestration over the real backend: founding a deployment's workspace, admitting a worker-like box, a workflow run end to end (a stage on the box, a gate approved from `lt`, a local stage), host beats, the invite-signature check, the deferred-claim fallback, the checkout binding, one-shot plain mode, and that DM invites and people's presence beats are ignored |
 | `tests/support/` | Helpers for the two above: file secrets, the relay, a fake model, the software passkey, devices |

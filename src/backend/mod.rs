@@ -128,6 +128,11 @@ pub enum Event {
         id: PresenceId,
         error: String,
     },
+    /// A passkey hand-off to the person's own desktop or phone moved on.
+    PresenceHandoff {
+        id: PresenceId,
+        update: HandoffUpdate,
+    },
     /// That ceremony ended.
     PresenceDone {
         id: PresenceId,
@@ -345,6 +350,21 @@ pub trait Backend: Send + Sync {
     // ── Presence ───────────────────────────────────────────────────────
     /// Answer a [`Event::PresencePrompt`].
     async fn answer_presence(&self, id: PresenceId, answer: PresenceAnswer) -> Result<()>;
+    /// The passkey hand-offs left waiting in this data dir (lt quit while
+    /// one waited for the person's desktop or phone).
+    async fn pending_presence(&self) -> Result<Vec<PendingPresence>> {
+        Ok(vec![])
+    }
+    /// Wait for one again: a hand-off sheet ([`Event::PresencePrompt`] with
+    /// `resumed`), then, once confirmed, write it. The summary, when
+    /// written.
+    async fn resume_presence(&self, _rid: &str) -> Result<String> {
+        err("nothing is waiting here")
+    }
+    /// End one (the desktop or phone drops it; nothing is written).
+    async fn cancel_pending_presence(&self, _rid: &str) -> Result<()> {
+        Ok(())
+    }
 
     // ── Guided setup (`ligus_runtime::setup`) ──────────────────────────
     /// The Set up list for `workspace` (or before there is one): each flow
