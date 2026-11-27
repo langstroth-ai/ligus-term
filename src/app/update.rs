@@ -1164,6 +1164,10 @@ fn event(s: &mut State, e: Event) -> Vec<Effect> {
         }
         Event::WorkspacesChanged => vec![Effect::LoadWorkspaces],
         Event::SetupFactsChanged => crate::app::setup::refresh(s),
+        Event::SetupConfirming { step, of, what } => {
+            crate::app::setup::confirming(s, step, of, &what);
+            vec![]
+        }
         Event::WorkflowsChanged { workspace } if is_active(s, &workspace) => vec![Effect::LoadWorkflows(workspace)],
         Event::RunChanged { workspace, run } => {
             upsert_run(s, &workspace, run);

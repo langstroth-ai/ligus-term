@@ -1,0 +1,36 @@
+---
+source: tests/setup.rs
+expression: screen
+---
+[NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
+┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test · 1/3 ─────────────────────────────────────────────╮
+┃  ◆ Fix flaky checkout … 12m  ┃│  The checkout test fails about one run in ten. Can we stop it reading the  │
+┃  ◆ Migrate auth to pas… 50m  ┃│  wall clock?                                                               │
+┃  Weekly release notes    1d  ┃│                                                                            │
+┃                              ┃│@coder  via claude-code · on build-box  38m                                 │
+┃                              ┃│  Yes. The payment tests already use a fake clock, so it's a small change.  │
+┃                              ┃│  I'll propose it.                                                          │
+┃                ┏ Add an agent · 2 of 5 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                │
+┃                ┃What answers                                                              ┃                │
+┃                ┃› ● Claude Code                                   signed in · this comp…  ┃· p to review   │
+┃                ┃  ○ Codex                                         not signed in · this …  ┃                │
+┃                ┃  ○ GitHub Copilot CLI                            not installed           ┃                │
+┃                ┃  ○ Google Antigravity CLI                        signed in · this comp…  ┃rovider uses.   │
+┃                ┃  ○ Aider                                         not in lt yet           ┃                │
+┃                ┃  ○ Pi                                            not in lt yet           ┃res?”           │
+┃                ┃  ○ gw-home (OpenAI API)                          offered by build-box    ┃e chat first)   │
+┃                ┃  ○ A model server (Ollama or OpenAI-compatible)  this computer           ┃                │
+┃                ┃  A coding CLI signed in on this device or a host, a model gateway or     ┃                │
+┃                ┃  hosted API a host offers, or a model server. Hosts list what they can   ┃                │
+┃                ┃  run; their keys and addresses stay on them.                             ┃                │
+┃                ┃                                                                          ┃                │
+┃                ┃enter next · tab next field · shift-tab back · esc cancel                 ┃                │
+┃                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                │
+┃                              ┃│    Next, after the question above                                          │
+┃                              ┃│  ◆ proposal “Sign-off: inject a fake clock” · open 0/1 · p to review       │
+┃                              ┃╰────────────────────────────────────────────────────────────────────────────╯
+┃                              ┃
+┃                              ┃╭ Message the room ──────────────────────────────────────────────────────────╮
+┃                              ┃│i to write · @ mentions an agent or a person                                │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────────────────╯
+i write  N new chat  tab pane  . actions  : commands  ? help                   peer to peer · 1 running · demo

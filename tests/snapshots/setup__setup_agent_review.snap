@@ -11,20 +11,20 @@ expression: screen
 ┃                              ┃│  Yes. The payment tests already use a fake clock, so it's a small change.  │
 ┃                              ┃│  I'll propose it.                                                          │
 ┃                              ┃│                                                                            │
-┃                              ┃│  ✓ Ada answered Fake clock · 37m                                           │
-┃                ┏ Set up an agent ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓· p to review   │
-┃                ┃Ready to run                                                              ┃                │
-┃                ┃  Harness          Claude Code                                            ┃                │
-┃                ┃  Name             helper                                                 ┃rovider uses.   │
-┃                ┃  Model            sonnet                                                 ┃                │
+┃                ┏ Add an agent ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                │
+┃                ┃Ready to run                                                              ┃· p to review   │
+┃                ┃  Name             helper                                                 ┃                │
+┃                ┃  What answers     Claude Code                                            ┃                │
+┃                ┃  Model            sonnet                                                 ┃rovider uses.   │
+┃                ┃  Runs on          This device                                            ┃                │
 ┃                ┃  Run a test turn  yes                                                    ┃res?”           │
 ┃                ┃                                                                          ┃e chat first)   │
+┃                ┃Turns run on this device while Ligus is open.                             ┃                │
+┃                ┃                                                                          ┃                │
 ┃                ┃[ ] dry run  checks and validates, writes nothing                         ┃                │
 ┃                ┃                                                                          ┃                │
-┃                ┃enter run · d dry run · shift-tab back · esc cancel                       ┃                │
+┃                ┃enter Add @helper · d dry run · shift-tab back · esc cancel               ┃                │
 ┃                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                │
-┃                              ┃│    │ cargo test -p checkout --features fake-clock                          │
-┃                              ┃│    in /srv/northwind                                                       │
 ┃                              ┃│    coder describes it as: Run the checkout tests                           │
 ┃                              ┃│    Next, after the question above                                          │
 ┃                              ┃│  ◆ proposal “Sign-off: inject a fake clock” · open 0/1 · p to review       │

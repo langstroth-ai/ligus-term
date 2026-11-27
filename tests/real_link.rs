@@ -768,7 +768,9 @@ async fn a_removed_member_is_told_why_and_what_to_do() {
     let lt = device(&tmp.path().join("lt"), "lt", &relay);
     lt.b.join_workspace("zaz", &invite).await.unwrap();
     until("lt to see the chat", || async { lt.b.chats(&ws).await.unwrap().iter().any(|c| c.id == chat.id).then_some(()) }).await;
-    let zaz = a.b.members(&ws).await.unwrap().into_iter().find(|m| m.name == "zaz").unwrap();
+    // lt seeing the chat doesn't mean Ana's sync has seen zaz join yet: wait
+    // (bounded) until she does, rather than look once.
+    let zaz = until("Ana to see zaz", || async { a.b.members(&ws).await.ok()?.into_iter().find(|m| m.name == "zaz") }).await;
     a.b.remove_member(&ws, &zaz.id).await.unwrap();
     until("lt to see itself removed", || async { (!lt.b.members(&ws).await.unwrap().iter().any(|m| m.name == "zaz")).then_some(()) }).await;
     let e = lt.b.send_message(&ws, &chat.id, "still here?").await.unwrap_err();

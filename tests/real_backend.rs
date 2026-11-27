@@ -545,9 +545,10 @@ async fn setup_flows_run_on_a_real_device() {
     } else {
         assert_eq!(o.exit, 3, "no agent sandbox here: {o:?}");
     }
-    // lt can't run Aider: a usage error before anything.
-    let o = run(FlowId::Agent, inputs(&[("harness", "aider"), ("name", "a2")]), false).await.unwrap();
+    // lt can't run Aider on this device: a usage error before anything.
+    let o = run(FlowId::Agent, inputs(&[("source", "aider"), ("name", "a2")]), false).await.unwrap();
     assert_eq!(o.exit, 2, "{o:?}");
+    assert!(o.checks.iter().any(|c| c.id == "agent.input.source"), "{o:?}");
 
     // A git checkout becomes a workspace repository bound here.
     let repo = tmp.path().join("web");
@@ -760,7 +761,7 @@ async fn the_antigravity_sign_in_is_checked_in_the_background() {
     std::fs::create_dir_all(&home).unwrap();
     let hint = |f: &ligus_term::setup::SetupForm| {
         f.fields()
-            .find(|f| f.id == "harness")
+            .find(|f| f.id == "source")
             .and_then(|f| match &f.kind {
                 FieldType::Choice(o) => o.iter().find(|o| o.value == "antigravity").and_then(|o| o.hint.clone()),
                 _ => None,
@@ -793,11 +794,12 @@ async fn the_antigravity_sign_in_is_checked_in_the_background() {
     assert!(!d.saw(|e| matches!(e, Event::SetupFactsChanged)), "the check reported back before agy answered");
     std::fs::write(&gate, "").unwrap();
     eventually("the check reports back", || d.saw(|e| matches!(e, Event::SetupFactsChanged))).await;
+    assert_eq!(agy_calls(&calls), 1, "no model listing while the check was under way");
     let f = d.b.setup_form(Some(&ws), LtFlow::Engine(FlowId::Agent), SetupInputs::new()).await.unwrap();
-    assert_eq!(hint(&f), "signed in");
-    // Two forms, one check: the answer is reused. (Listing the harness's
-    // models, once one is picked, runs `agy models` on its own.)
-    assert_eq!(agy_calls(&calls), 1, "the answer is reused");
+    assert_eq!(hint(&f), "signed in · this computer");
+    // The answer is reused: no second check. (agy is the source this form
+    // starts from, and listing its models runs `agy models` once more.)
+    assert_eq!(agy_calls(&calls), 2, "the answer is reused");
     let o =
         d.b.setup_run(
             Some(&ws),

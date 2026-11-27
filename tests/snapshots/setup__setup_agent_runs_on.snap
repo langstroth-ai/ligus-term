@@ -8,25 +8,25 @@ expression: screen
 ┃  ◆ Migrate auth to pas… 50m  ┃│  wall clock?                                                               │
 ┃  Weekly release notes    1d  ┃│                                                                            │
 ┃                              ┃│@coder  via claude-code · on build-box  38m                                 │
-┃                ┏ Set up an agent · 1 of 4 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ small change.  │
-┃                ┃An agent answers when you @mention it. It runs one harness (Claude Code,  ┃                │
-┃                ┃Codex, Copilot, Antigravity, Aider, Pi or a local model) inside this      ┃                │
-┃                ┃device's agent sandbox.                                                   ┃                │
-┃                ┃                                                                          ┃· p to review   │
-┃                ┃Harness                                                                   ┃                │
-┃                ┃› ● Claude Code                                signed in                  ┃                │
-┃                ┃  ○ Codex                                      not signed in              ┃rovider uses.   │
-┃                ┃  ○ GitHub Copilot CLI                         not installed              ┃                │
-┃                ┃  ○ Google Antigravity CLI                     signed in                  ┃res?”           │
-┃                ┃  ○ Aider                                      not in lt yet              ┃e chat first)   │
-┃                ┃  ○ Pi                                         not in lt yet              ┃                │
-┃                ┃  ○ Local model (Ollama or OpenAI-compatible)                             ┃                │
-┃                ┃  ○ Model gateway on a host                    not in lt yet              ┃                │
-┃                ┃  The coding CLI or model the agent runs. It must be installed and signed ┃                │
-┃                ┃  in on this device.                                                      ┃                │
+┃                              ┃│  Yes. The payment tests already use a fake clock, so it's a small change.  │
+┃                              ┃│  I'll propose it.                                                          │
+┃                              ┃│                                                                            │
+┃                              ┃│  ✓ Ada answered Fake clock · 37m                                           │
+┃                              ┃│  ◆ proposal “Inject the clock into checkout t…” · open 1/2 · p to review   │
+┃                ┏ Add an agent · 4 of 5 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                │
+┃                ┃Runs on                                                                   ┃                │
+┃                ┃› ● This device  this computer · signed in                                ┃rovider uses.   │
+┃                ┃  Turns run on this device while Ligus is open.                           ┃                │
+┃                ┃  Where its turns run: this device for a CLI signed in here; the host that┃res?”           │
+┃                ┃  offers a gateway or holds a key. On the command line: here, or a host's ┃e chat first)   │
+┃                ┃  id or name.                                                             ┃                │
 ┃                ┃                                                                          ┃                │
 ┃                ┃enter next · tab next field · shift-tab back · esc cancel                 ┃                │
 ┃                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                │
+┃                              ┃│    │ cargo test -p checkout --features fake-clock                          │
+┃                              ┃│    in /srv/northwind                                                       │
+┃                              ┃│    coder describes it as: Run the checkout tests                           │
+┃                              ┃│    Next, after the question above                                          │
 ┃                              ┃│  ◆ proposal “Sign-off: inject a fake clock” · open 0/1 · p to review       │
 ┃                              ┃╰────────────────────────────────────────────────────────────────────────────╯
 ┃                              ┃

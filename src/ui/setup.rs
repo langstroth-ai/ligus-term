@@ -276,6 +276,9 @@ pub fn flow(f: &mut Frame, area: Rect, s: &State, w: &Wizard, t: &Theme) {
                                 ]));
                             }
                         }
+                        if let Some(n) = &fd.note {
+                            wrapped(&mut lines, n, width, t.dim(), "  ");
+                        }
                         if on && !fd.help.is_empty() {
                             wrapped(&mut lines, &fd.help, width, t.dim(), "  ");
                         }
@@ -323,6 +326,13 @@ pub fn flow(f: &mut Frame, area: Rect, s: &State, w: &Wizard, t: &Theme) {
                     Span::styled(trunc(&v, width.saturating_sub(lw + 4)), t.text()),
                 ]));
             }
+            if let Some(n) = w.form.iter().flat_map(|f| f.fields()).filter(|f| f.applies(&inputs)).find_map(|f| f.note.clone()) {
+                lines.push(Line::raw(""));
+                wrapped(&mut lines, &n, width, t.dim(), "");
+            }
+            if w.form.as_ref().is_some_and(|f| f.confirmations > 1) {
+                wrapped(&mut lines, "Asks for your passkey twice: once for the model source, once for the agent.", width, t.dim(), "");
+            }
             lines.push(Line::raw(""));
             let x = if w.dry_run { "[x]" } else { "[ ]" };
             lines.push(Line::from(vec![
@@ -330,7 +340,8 @@ pub fn flow(f: &mut Frame, area: Rect, s: &State, w: &Wizard, t: &Theme) {
                 Span::styled("  checks and validates, writes nothing", t.dim()),
             ]));
             lines.push(Line::raw(""));
-            let go = if w.dry_run { "enter check" } else { "enter run" };
+            let action = w.form.as_ref().and_then(|f| f.action.clone()).map(|a| format!("enter {a}"));
+            let go = if w.dry_run { "enter check".to_string() } else { action.unwrap_or_else(|| "enter run".into()) };
             format!("{go} · d dry run · shift-tab back · esc cancel")
         }
         Stage::Running => {
@@ -338,6 +349,9 @@ pub fn flow(f: &mut Frame, area: Rect, s: &State, w: &Wizard, t: &Theme) {
                 lines.push(Line::styled("Stopping after this step; its own writes are undone\u{2026}", t.fg(t.warn)));
             } else {
                 lines.push(Line::styled(if w.dry_run { "Checking\u{2026}" } else { "Running\u{2026}" }, t.text()));
+                if let Some(c) = &w.confirming {
+                    wrapped(&mut lines, c, width, t.accent(), "");
+                }
             }
             "esc stop".into()
         }

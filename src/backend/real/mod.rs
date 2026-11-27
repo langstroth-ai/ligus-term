@@ -233,6 +233,32 @@ fn uuid_of(s: &str, what: &str) -> Result<Uuid> {
     Uuid::parse_str(s).map_err(|_| BackendError(format!("no such {what}")))
 }
 
+/// The one-time move to declared secrets: with no `host.toml` in
+/// `data_dir` yet, write one declaring `names` (the `LIGUS_WS_SECRET_<name>`
+/// variables in lt's environment) for each of the workspaces in
+/// `workspaces`, as `ligus` does for the workspace it serves. Never over an
+/// existing file; with no names or no workspaces nothing is written (a later
+/// start seeds). Returns whether it wrote.
+pub(crate) fn seed_host_secrets(
+    data_dir: &std::path::Path,
+    workspaces: &[Uuid],
+    names: &[String],
+) -> std::result::Result<bool, ligus_runtime::host_config::HostConfigError> {
+    use ligus_runtime::host_config as hc;
+    let Some((first, rest)) = workspaces.split_first() else { return Ok(false) };
+    if !hc::seed_declarations(data_dir, *first, names)? {
+        return Ok(false);
+    }
+    if !rest.is_empty() {
+        let mut cfg = hc::HostConfig::load(data_dir)?;
+        for ws in rest {
+            cfg.workspaces.insert(ws.to_string(), hc::WorkspaceDecl { secrets: names.to_vec(), providers: Vec::new() });
+        }
+        cfg.save(data_dir)?;
+    }
+    Ok(true)
+}
+
 impl RealBackend {
     /// Open the device in `cfg.data_dir` (must run inside a tokio runtime).
     pub fn open(cfg: RealConfig) -> std::result::Result<Self, String> {
@@ -252,11 +278,17 @@ impl RealBackend {
         // Its scratch repositories (`<data dir>/scratch`) are checkouts
         // agents work in, like any other: readable, as the CLI's repos dir.
         ligus_runtime::executor::configure_host(&cfg.data_dir, &[], &[cfg.data_dir.join("scratch")]);
+        let secrets = ligus_runtime::secret_store::init_for_data_dir(&cfg.data_dir, None);
+        let list = WorkspaceList::load(&cfg.data_dir, secrets.as_ref(), SECRET_SCOPE);
         // This data dir's host.toml: which workspace secrets this device may
         // resolve (as the desktop reads its own). Without one, or with an
         // invalid one, nothing is declared and no workspace secret resolves.
+        // The first start with no host.toml declares the secrets already
+        // provisioned in lt's environment, as `ligus agent`, serve and
+        // worker do, so an upgrade keeps working.
+        let ids: Vec<Uuid> = list.workspaces.iter().map(|w| w.id()).collect();
+        let _ = seed_host_secrets(&cfg.data_dir, &ids, &ligus_runtime::host_config::env_secret_names());
         let _ = ligus_runtime::host_config::init_host(&cfg.data_dir);
-        let secrets = ligus_runtime::secret_store::init_for_data_dir(&cfg.data_dir, None);
         let rt = tokio::runtime::Handle::try_current().map_err(|e| e.to_string())?;
         let (tx, _) = broadcast::channel(4096);
         let presence = Arc::new(
@@ -264,7 +296,6 @@ impl RealBackend {
                 .hand_off_on(cfg.presence_port, cfg.no_browser)
                 .handoff_wait(cfg.handoff_wait),
         );
-        let list = WorkspaceList::load(&cfg.data_dir, secrets.as_ref(), SECRET_SCOPE);
         let stored_label = label::load(&cfg.data_dir);
         let inner = Arc::new(Inner {
             local: Mutex::new(LocalState::load(&cfg.data_dir)),
@@ -2239,6 +2270,66 @@ mod tests {
         let returned_while_locked = holder.join().unwrap();
         b.shutdown();
         assert!(returned_while_locked, "start_loops waited on the write lock");
+    }
+
+    /// The first start with no host.toml declares the provisioned secret
+    /// names for every workspace this device is in, once; never over an
+    /// existing file, and nothing without names or workspaces.
+    #[test]
+    fn seeds_host_secrets_once() {
+        use ligus_runtime::host_config::{HostConfig, path_in};
+        let (a, b) = (Uuid::new_v4(), Uuid::new_v4());
+        let names = vec!["team-claude".to_string()];
+        let none = tempfile::tempdir().unwrap();
+        assert!(!seed_host_secrets(none.path(), &[], &names).unwrap(), "no workspaces yet: a later start seeds");
+        assert!(!seed_host_secrets(none.path(), &[a], &[]).unwrap(), "nothing provisioned");
+        assert!(!path_in(none.path()).exists());
+        let dir = tempfile::tempdir().unwrap();
+        assert!(seed_host_secrets(dir.path(), &[a, b], &names).unwrap());
+        let cfg = HostConfig::load(dir.path()).unwrap();
+        assert!(cfg.declares_secret(a, "team-claude") && cfg.declares_secret(b, "team-claude"));
+        assert!(!seed_host_secrets(dir.path(), &[a], &["other".into()]).unwrap(), "never over an existing file");
+        assert!(!HostConfig::load(dir.path()).unwrap().declares_secret(a, "other"));
+    }
+
+    /// Opening the device seeds host.toml from lt's environment, and the
+    /// installed host config resolves the name afterwards.
+    #[tokio::test]
+    async fn opening_seeds_host_toml_from_the_environment() {
+        // SAFETY: tests in this binary only ever set these to one value each.
+        unsafe {
+            std::env::set_var("LIGUS_SECRET_BACKEND", "file");
+            std::env::set_var("LIGUS_WS_SECRET_lt-seed-test", "decoy");
+        }
+        let tmp = tempfile::tempdir().unwrap();
+        let data = tmp.path().join("dev");
+        ligus_runtime::private_file::ensure_private_dir(&data).unwrap();
+        let conn = WorkspaceConn {
+            name: "W".into(),
+            relay_url: String::new(),
+            room: random_token(32),
+            key: Some(random_token(24)),
+            icon: None,
+            dm_account: None,
+            founder_actor_id: None,
+            fk: None,
+            inv: None,
+            ek: Vec::new(),
+            sig: None,
+        };
+        let ws = conn.id();
+        {
+            let store = ligus_runtime::secret_store::init_for_data_dir(&data, None);
+            let mut list = WorkspaceList::default();
+            list.upsert(SavedWorkspace::from_conn(&conn, None));
+            list.save(&data, store.as_ref(), SECRET_SCOPE).unwrap();
+        }
+        let b = RealBackend::open(RealConfig::new(data.clone())).unwrap();
+        b.shutdown();
+        let cfg = ligus_runtime::host_config::HostConfig::load(&data).unwrap();
+        assert!(cfg.declares_secret(ws, "lt-seed-test"), "{cfg:?}");
+        let text = std::fs::read_to_string(ligus_runtime::host_config::path_in(&data)).unwrap();
+        assert!(!text.contains("decoy"), "names only, never values");
     }
 
     /// Shutting down stops the turns running here, and a turn that starts

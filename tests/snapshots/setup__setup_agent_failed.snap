@@ -13,7 +13,7 @@ expression: screen
 ┃                              ┃│                                                                            │
 ┃                              ┃│  ✓ Ada answered Fake clock · 37m                                           │
 ┃                              ┃│  ◆ proposal “Inject the clock into checkout t…” · open 1/2 · p to review   │
-┃                ┏ Set up an agent ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                │
+┃                ┏ Add an agent ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                │
 ┃                ┃Stopped                                                                   ┃                │
 ┃                ┃                                                                          ┃rovider uses.   │
 ┃                ┃✓ agent sandbox  seatbelt                                                 ┃                │

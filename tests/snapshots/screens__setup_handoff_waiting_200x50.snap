@@ -23,7 +23,7 @@ expression: screen
 ┃                              ┃│               coder asks you┏ Set up ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                     ││                                      │
 ┃                              ┃│                 Allow once l┃› ⧗ Waiting for your desktop or phone (code K7Q4 M9X2): Add repository “a…┃                     ││                                      │
 ┃                              ┃│                 │ cargo test┃                                                                          ┃                     ││                                      │
-┃                              ┃│                 in /srv/nort┃  Set up an agent    ✓ 4 agents                                           ┃                     ││                                      │
+┃                              ┃│                 in /srv/nort┃  Add an agent       ✓ 4 agents                                           ┃                     ││                                      │
 ┃                              ┃│                 coder descri┃  Connect a tool       no tools connected                                 ┃                     ││                                      │
 ┃                              ┃│                 Next, after ┃  Add a code folder    no repositories yet                                ┃                     ││                                      │
 ┃                              ┃│               ◆ proposal “Si┃  Add a box            run it on the box                                  ┃                     ││                                      │
