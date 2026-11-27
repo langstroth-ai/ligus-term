@@ -125,6 +125,15 @@ async fn world() -> World {
         mine.contains(&desk).then_some(())
     })
     .await;
+    // And the desktop knows the laptop as one of hers (it checks the asking
+    // device on its own log).
+    let lap = laptop.b.device_id().unwrap();
+    until("the desktop to see the laptop as Ana's", || async {
+        let svc = a.b.service().unwrap();
+        let ok = tokio::task::spawn_blocking(move || svc.lock().unwrap().is_my_device(wsu, lap).unwrap()).await.unwrap();
+        ok.then_some(())
+    })
+    .await;
     World { tmp, relay, clock, no_mailbox, no_delete, a, laptop, ws, wsu, conn, ek, key, handled: Default::default() }
 }
 

@@ -21,7 +21,7 @@ expression: screen
 ┃                              ┃│                 coder decides what to do next. No new permission.                                                            ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│               coder asks you┏ Set up ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                     ││                                      │
-┃                              ┃│                 Allow once l┃› ⧗ Waiting for your desktop or phone: Add repository “acme/web” (code K7…┃                     ││                                      │
+┃                              ┃│                 Allow once l┃› ⧗ Waiting for your desktop or phone (code K7Q4 M9X2): Add repository “a…┃                     ││                                      │
 ┃                              ┃│                 │ cargo test┃                                                                          ┃                     ││                                      │
 ┃                              ┃│                 in /srv/nort┃  Set up an agent    ✓ 4 agents                                           ┃                     ││                                      │
 ┃                              ┃│                 coder descri┃  Connect a tool       no tools connected                                 ┃                     ││                                      │

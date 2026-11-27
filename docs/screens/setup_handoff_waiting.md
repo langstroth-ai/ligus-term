@@ -13,7 +13,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                              ┃│  I'll propose it.                                                          │
 ┃                              ┃│                                                                            │
 ┃                ┏ Set up ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                │
-┃                ┃› ⧗ Waiting for your desktop or phone: Add repository “acme/web” (code K7…┃· p to review   │
+┃                ┃› ⧗ Waiting for your desktop or phone (code K7Q4 M9X2): Add repository “a…┃· p to review   │
 ┃                ┃                                                                          ┃                │
 ┃                ┃  Set up an agent    ✓ 4 agents                                           ┃                │
 ┃                ┃  Connect a tool       no tools connected                                 ┃rovider uses.   │
