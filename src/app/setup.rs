@@ -69,6 +69,9 @@ pub struct Wizard {
     /// Where each secret was typed for (the origin it would go to): one
     /// typed for one server or relay never goes to another.
     pub secret_for: BTreeMap<String, String>,
+    /// While running: the passkey confirmation being asked for ("Confirm 1
+    /// of 2: Add @coder"), when the run asks for more than one.
+    pub confirming: Option<String>,
 }
 
 impl Wizard {
@@ -92,12 +95,46 @@ impl Wizard {
             stopping: false,
             seen: BTreeSet::new(),
             secret_for: BTreeMap::new(),
+            confirming: None,
         }
     }
 
     /// A form arrived (the first, or a refresh with the values so far):
     /// fill in defaults for fields not seen yet, keep what was entered.
     pub fn set_form(&mut self, form: SetupForm) {
+        // A choice whose options changed (Runs on, after another source was
+        // picked) starts again from its default.
+        let before: BTreeMap<String, Vec<String>> = self
+            .form
+            .iter()
+            .flat_map(|f| f.fields())
+            .map(|f| (f.id.clone(), f.kind.options().iter().map(|o| o.value.clone()).collect()))
+            .collect();
+        let old_default: BTreeMap<String, String> =
+            self.form.iter().flat_map(|f| f.fields()).map(|f| (f.id.clone(), f.default.clone().unwrap_or_default())).collect();
+        for f in form.fields() {
+            match &f.kind {
+                FieldType::Choice(opts) => {
+                    let now: Vec<String> = opts.iter().map(|o| o.value.clone()).collect();
+                    if before.get(&f.id).is_some_and(|b| *b != now) {
+                        self.cursor.remove(&f.id);
+                    }
+                }
+                // A suggestion left at its old default (a model, when another
+                // source was picked) follows the new one.
+                FieldType::Suggest(_) | FieldType::Text => {
+                    let new = f.default.clone().unwrap_or_default();
+                    if let (Some(old), Some(buf)) = (old_default.get(&f.id), self.texts.get_mut(&f.id))
+                        && *old != new
+                        && buf.text.trim() == old.trim()
+                    {
+                        *buf = TextBuf::with(&new);
+                        self.cursor.remove(&f.id);
+                    }
+                }
+                _ => {}
+            }
+        }
         for f in form.fields() {
             match &f.kind {
                 FieldType::Text | FieldType::Path | FieldType::Suggest(_) => {
@@ -453,6 +490,7 @@ pub fn flow_key(s: &mut State, k: &KeyEvent) -> Vec<Effect> {
             }
             KeyCode::Enter => {
                 w.stage = Stage::Running;
+                w.confirming = None;
                 w.cancel = CancelFlag::default();
                 let inputs = w.inputs();
                 let secrets = w.take_secrets();
@@ -667,6 +705,16 @@ pub fn completed(s: &mut State, field: &str, c: Completion) {
     }
 }
 
+/// A run is about to ask for the passkey: confirmation `step` of `of`.
+pub fn confirming(s: &mut State, step: usize, of: usize, what: &str) {
+    if let Some(Overlay::SetupFlow(w)) = s.overlay.as_mut()
+        && w.stage == Stage::Running
+        && of > 1
+    {
+        w.confirming = Some(crate::setup::shown(&format!("Confirm {step} of {of}: {what}")));
+    }
+}
+
 /// A run finished.
 pub fn ran(s: &mut State, flow: LtFlow, r: crate::backend::Result<SetupOutcome>) -> Vec<Effect> {
     let Some(Overlay::SetupFlow(w)) = s.overlay.as_mut() else { return vec![] };
@@ -676,6 +724,7 @@ pub fn ran(s: &mut State, flow: LtFlow, r: crate::backend::Result<SetupOutcome>)
     match r {
         Ok(o) => {
             let wrote = o.exit == 0 && !o.dry_run;
+            w.confirming = None;
             w.stage = Stage::Done(o);
             if wrote && let Some(ws) = s.active.clone() {
                 return vec![

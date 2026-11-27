@@ -105,6 +105,19 @@ pub fn parse(args: &[String], form: Option<&SetupForm>, mut secret_src: SecretSo
                     Some((n, v)) => (n, Some(v.to_string())),
                     None => (&a[2..], None),
                 };
+                if fname == "agent" && matches!(name, "harness" | "gateway") {
+                    // The older spellings of --source (--harness H, --gateway G):
+                    // the engine reads them as --source.
+                    let v = match inline {
+                        Some(v) => v,
+                        None => {
+                            i += 1;
+                            args.get(i - 1).cloned().ok_or_else(|| Usage(format!("--{name} needs a value")))?
+                        }
+                    };
+                    p.inputs.insert(name.to_string(), v);
+                    continue;
+                }
                 let Some(f) = form.fields().find(|f| f.id == name) else {
                     return Err(Usage(format!("lt setup {fname} has no flag --{}: lt setup {fname} --help lists them", shown(name))));
                 };
@@ -285,7 +298,7 @@ pub fn all_help() -> String {
         "Guided setup (lt setup)\n\n  \
          lt setup                 the flows and what is done on this device (--json: ligus.checks.v1)\n  \
          lt setup FLOW [flags]    run one; --dry-run checks and writes nothing; --json prints one document\n\n  \
-         In the full-screen app u (or the palette: Set up an agent, Connect a tool, ...) opens the list;\n  \
+         In the full-screen app u (or the palette: Add an agent, Connect a tool, ...) opens the list;\n  \
          enter runs a flow one step per screen; esc cancels (a running flow undoes its own writes);\n  \
          d toggles a dry run. Secrets (a token, an admission code) are masked, kept only in memory and\n  \
          never printed or logged; on the command line they take - (stdin) or @FILE (owner-only).\n\n",
