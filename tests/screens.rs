@@ -55,9 +55,73 @@ fn snap_at(name: &str, title: &str, w: u16, h: u16, screen: String) {
     insta::assert_snapshot!(name, screen);
 }
 
+/// The first run's first question, before a name; the longer
+/// explanation behind ?.
+#[tokio::test]
+async fn onboarding_first_question() {
+    let mut h = Harness::new(false).await;
+    let screen = h.screen(W, H);
+    assert!(
+        screen.contains("Is this your first device with Ligus?")
+            && screen.contains("› [ Yes, start here ]")
+            && screen.contains("I already use Ligus on another device"),
+        "{screen}"
+    );
+    assert!(!screen.contains("Your name"), "the question comes before a name: {screen}");
+    snap(&h, "onboarding_start", "First run: is this your first device with Ligus?");
+    h.key(KeyCode::Char('?')).await;
+    assert!(h.screen(W, H).contains("acts as you"), "{}", h.screen(W, H));
+    assert!(h.screen(80, 24).contains("Is this your first device"), "fits 80x24");
+}
+
+/// "I already use Ligus": straight to linking, no name, no other mode.
+#[tokio::test]
+async fn onboarding_existing_account_links_only() {
+    let h = Harness::existing_account(FakeBackend::new(Harness::cfg())).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Link this computer") && screen.contains("Add a computer"), "{screen}");
+    assert!(!screen.contains("Your name") && !screen.contains("Join with an invite") && !screen.contains("(•) Create"), "{screen}");
+    assert!(screen.contains("esc back"), "{screen}");
+    snap(&h, "onboarding_existing_account", "First run: I already use Ligus (link this computer)");
+}
+
+/// The recovery key's only way out before it is written down: Finish later?
+#[tokio::test]
+async fn recovery_key_finish_later() {
+    let mut h = Harness::first_device().await;
+    h.chars("Mara").await;
+    h.key(KeyCode::Tab).await;
+    h.key(KeyCode::Tab).await;
+    h.key(KeyCode::Enter).await;
+    h.key(KeyCode::Enter).await; // the (simulated) browser
+    let screen = h.screen(W, H);
+    assert!(screen.contains("“Mara's workspace” is ready") && screen.contains("esc finish later"), "{screen}");
+    h.key(KeyCode::Esc).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Finish later?") && screen.contains("Keep going") && screen.contains("shown only now"), "{screen}");
+    snap(&h, "recovery_finish_later", "The recovery key: Finish later?");
+}
+
+/// The Join form's hint when this person said they already use Ligus.
+#[tokio::test]
+async fn join_hints_link_instead() {
+    let mut h = Harness::new(false).await;
+    h.key(KeyCode::Down).await;
+    h.key(KeyCode::Enter).await;
+    h.key(KeyCode::Esc).await; // back to the question
+    h.key(KeyCode::Up).await;
+    h.key(KeyCode::Enter).await;
+    h.chars("Mara").await;
+    h.key(KeyCode::Tab).await;
+    h.key(KeyCode::Char('j')).await;
+    let screen = h.screen(W, H);
+    assert!(screen.contains("Looks like you already use Ligus. Link this device instead: ctrl-l"), "{screen}");
+    snap(&h, "onboarding_join_hint", "Join: the hint to link this device instead");
+}
+
 #[tokio::test]
 async fn onboarding_first_run() {
-    let h = Harness::new(false).await;
+    let h = Harness::first_device().await;
     snap(&h, "onboarding", "First run: create or join");
 }
 
@@ -67,7 +131,7 @@ async fn onboarding_first_run() {
 #[tokio::test]
 async fn onboarding_splash_by_terminal_size() {
     const MARK: [char; 3] = ['▀', '▄', '█'];
-    let h = Harness::new(false).await;
+    let h = Harness::first_device().await;
     let wide = h.screen(W, H);
     assert!(wide.contains(MARK), "{wide}");
     let narrow = h.screen(80, H);
@@ -85,7 +149,7 @@ async fn onboarding_splash_by_terminal_size() {
 #[tokio::test]
 async fn onboarding_splash_mono() {
     use ligus_term::theme::Theme;
-    let h = Harness::new(false).await;
+    let h = Harness::first_device().await;
     let mut term = ratatui::Terminal::new(ratatui::backend::TestBackend::new(W, H)).unwrap();
     term.draw(|f| ligus_term::ui::draw(f, &h.state, &Theme::MONO)).unwrap();
     let buf = term.backend().buffer();
@@ -99,7 +163,7 @@ async fn onboarding_splash_mono() {
 
 #[tokio::test]
 async fn onboarding_join_with_invite() {
-    let mut h = Harness::new(false).await;
+    let mut h = Harness::first_device().await;
     h.chars("Mara").await;
     h.key(KeyCode::Tab).await;
     h.key(KeyCode::Right).await;
@@ -114,10 +178,7 @@ async fn onboarding_join_with_invite() {
 /// approved the desktop's code, then linked (one of Alex's devices).
 #[tokio::test]
 async fn onboarding_add_to_my_devices() {
-    let mut h = Harness::new(false).await;
-    h.key(KeyCode::Tab).await;
-    h.key(KeyCode::Char('a')).await;
-    h.key(KeyCode::Tab).await;
+    let mut h = Harness::existing_account(FakeBackend::new(Harness::cfg())).await;
     let screen = h.screen(W, H);
     assert!(screen.contains("7F3A-91C0-77DE-0B14-5E62") && screen.contains("Add a computer"), "{screen}");
     assert!(!screen.contains("Your name"), "the person's name comes from the desktop: {screen}");
@@ -144,10 +205,7 @@ async fn onboarding_add_to_my_devices_live() {
     use ligus_term::app::state::{FormMode, Phase};
     use ligus_term::backend::fake::{DEMO_ADDRESS, DEMO_NOW, FakeConfig};
     let slow = FakeConfig { browser_delay: std::time::Duration::from_secs(3600), ..Harness::cfg() };
-    let mut h = Harness::with(FakeBackend::new(slow)).await;
-    h.key(KeyCode::Tab).await;
-    h.key(KeyCode::Char('a')).await;
-    h.key(KeyCode::Tab).await;
+    let mut h = Harness::existing_account(FakeBackend::new(slow)).await;
     let screen = h.screen(W, H);
     assert!(screen.contains("Copy its approval address") && screen.contains("Older desktop?"), "{screen}");
     h.send(Msg::Paste(DEMO_ADDRESS.into())).await;
@@ -195,10 +253,7 @@ async fn onboarding_add_to_my_devices_live() {
 #[tokio::test]
 async fn onboarding_add_to_my_devices_live_mismatch() {
     use ligus_term::backend::fake::DEMO_ADDRESS;
-    let mut h = Harness::new(false).await;
-    h.key(KeyCode::Tab).await;
-    h.key(KeyCode::Char('a')).await;
-    h.key(KeyCode::Tab).await;
+    let mut h = Harness::existing_account(FakeBackend::new(Harness::cfg())).await;
     h.send(Msg::Paste(DEMO_ADDRESS.into())).await;
     h.key(KeyCode::Enter).await;
     // The demo desktop opens it at once here.
@@ -246,7 +301,7 @@ async fn palette_link_this_computer() {
 /// The first run's fourth choice: look around in the demo first.
 #[tokio::test]
 async fn onboarding_demo_choice() {
-    let mut h = Harness::new(false).await;
+    let mut h = Harness::first_device().await;
     h.key(KeyCode::Tab).await;
     h.key(KeyCode::Left).await;
     let screen = h.screen(W, H);
@@ -256,7 +311,7 @@ async fn onboarding_demo_choice() {
 
 #[tokio::test]
 async fn onboarding_connect_a_deployment() {
-    let mut h = Harness::new(false).await;
+    let mut h = Harness::first_device().await;
     h.chars("Mara").await;
     h.key(KeyCode::Tab).await;
     h.key(KeyCode::Char('d')).await;
@@ -334,7 +389,7 @@ async fn bind_a_checkout() {
 
 #[tokio::test]
 async fn onboarding_error_without_a_name() {
-    let mut h = Harness::new(false).await;
+    let mut h = Harness::first_device().await;
     h.key(KeyCode::Tab).await;
     h.key(KeyCode::Tab).await;
     h.chars("Northwind").await;
@@ -344,7 +399,7 @@ async fn onboarding_error_without_a_name() {
 
 #[tokio::test]
 async fn passkey_create_then_recovery_key() {
-    let mut h = Harness::new(false).await;
+    let mut h = Harness::first_device().await;
     h.chars("Mara").await;
     h.key(KeyCode::Tab).await;
     h.key(KeyCode::Tab).await;
@@ -993,7 +1048,7 @@ async fn chat_layout_by_width() {
 /// above it when the pane has room.
 #[tokio::test]
 async fn empty_chat_splash() {
-    let mut h = Harness::new(false).await;
+    let mut h = Harness::first_device().await;
     h.chars("Mara").await;
     h.key(KeyCode::Tab).await;
     h.key(KeyCode::Tab).await;

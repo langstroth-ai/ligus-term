@@ -133,13 +133,19 @@ The binary is `lt`.
 
 ```sh
 lt --demo          # explore with sample workspaces (keeps nothing on disk)
-lt                 # first run: your name, then create, join or connect a workspace
+lt                 # first run: first device with Ligus, or one you already use?
 lt --plain         # line mode for screen readers and scripts
 lt --print-config  # a config file with every default
 lt help            # everything below, from the binary
 ```
 
-On the first run, "Look around first" opens the demo
+The first run asks one question first: **Is this your first device with
+Ligus?** **Yes, start here** asks your name and makes your workspace;
+**I already use Ligus on another device** goes straight to linking this
+terminal as one of your devices (below), with no name and nothing new made.
+`esc` goes back to the question.
+
+On the first device's path, "Look around first" opens the demo
 without creating anything; quit it and run `lt` again to set up. In a new
 workspace, the empty chat shows a getting-started list read from the
 workspace itself (add an agent, invite someone, connect a box, start a
@@ -152,7 +158,7 @@ invite always makes a **new member**, and you would show up as two people with
 your name. Add this terminal to your devices instead, and it acts as you (your
 name, your role, your chats):
 
-1. First run: choose **Add to my devices**. In an install you already use,
+1. First run: answer **I already use Ligus on another device**. In an install you already use,
    press **D** in Settings or People (they say **This terminal is its own
    member** while it is), or type **link** in the palette (`:`).
 2. On your desktop: **Settings > Profile > My devices > Add a computer**, and
@@ -231,10 +237,17 @@ Tests check that every flag, plain-mode command, record and environment
 variable `lt` reads appears in this help, and that the key table matches
 the keymap.
 
-On first run `lt` asks for your name, then lets you **create a workspace**
-(no server needed), **join one** by pasting an invite code, or **connect a
-deployment** (below). Creating or connecting asks for a passkey and then
-shows your 24-word **recovery key** once: write it down.
+On first run, after **Yes, start here**, `lt` asks for your name, then lets
+you **create a workspace** (no server needed; left unnamed, it is called
+"Your name's workspace"), **join one** by pasting an invite code, or
+**connect a deployment** (below). Creating or connecting asks for a passkey
+and then shows your 24-word **recovery key** once: write it down. Leaving
+that screen before you have (`esc`, or ctrl-c) asks **Finish later?** first.
+
+When `lt` is linked to your account, or you said you already use Ligus, the
+Join form says **Looks like you already use Ligus. Link this device
+instead** (`ctrl-l` switches to linking), and also when the checked invite
+is for a workspace `lt` already has. It is a hint: joining still works.
 
 A workspace created without a relay stays on this device. To invite others,
 set `LT_RELAY_URL` to a relay before creating it (invites carry the relay,

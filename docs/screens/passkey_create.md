@@ -16,7 +16,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
           ▄▀▀▄▄   ▄▄┏ Create a passkey ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓              ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀┃Create a Ligus passkey for “Acme Web”                               ┃              ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀┃                                                                    ┃eployment     ┃
-        ▀▀▀▀▀▀▀▀ ▀▀▀┃Event   passkeyRegistered                                           ┃o)            ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀┃Event   passkeyRegistered                                           ┃              ┃
      ▄▀▀▀▄▄▀▀▄▄▀▀▀▄▄┃Digest  acb329c140f4de86                                            ┃              ┃
     ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀┃                                                                    ┃              ┃
     ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀┃Your browser opens the workspace's passkey page (ligus.ai by        ┃vite someone. ┃

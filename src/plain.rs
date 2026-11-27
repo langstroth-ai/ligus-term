@@ -508,7 +508,7 @@ where
     }));
     if !one_shot {
         if st.workspaces.is_empty() {
-            emit(&out, "first-run\tset your name with: name TEXT; then: create NAME or join CODE".into()).await;
+            emit(&out, "first-run\tfirst device with Ligus? set your name with: name TEXT; then: create NAME or join CODE. Already use Ligus on another device? link-request (no name needed)".into()).await;
         } else {
             for (i, w) in st.workspaces.iter().enumerate() {
                 emit(&out, ws_line(i, w)).await;
@@ -777,7 +777,7 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
     let ws = { s.lock().await.ws.clone() };
     let need_ws = || async {
         if ws.is_none() {
-            fail("no workspace yet: create NAME or join CODE".into()).await;
+            fail("no workspace yet: on a first device, create NAME or join CODE; already use Ligus elsewhere? link-request".into()).await;
         }
     };
     match cmd {
@@ -1722,7 +1722,12 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
             }
         }
         "access" => {
-            let Some(w) = ws.clone() else { return fail("no workspace yet: create NAME or join CODE".into()).await };
+            let Some(w) = ws.clone() else {
+                return fail(
+                    "no workspace yet: on a first device, create NAME or join CODE; already use Ligus elsewhere? link-request".into(),
+                )
+                .await;
+            };
             let mut parts = arg.split_whitespace();
             let (which, to) = (parts.next().unwrap_or(""), parts.next().unwrap_or(""));
             let everyone = match to {
@@ -1865,7 +1870,7 @@ mod tests {
     fn errors_map_to_the_exit_code_table() {
         for (msg, code) in [
             ("usage: gate RUN approve|reject", 2),
-            ("no workspace yet: create NAME or join CODE", 3),
+            ("no workspace yet: on a first device, create NAME or join CODE; already use Ligus elsewhere? link-request", 3),
             ("open a chat first: open N", 3),
             ("cancelled", 4),
             ("no chat 9", 5),

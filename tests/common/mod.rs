@@ -39,6 +39,21 @@ impl Harness {
         Self::with(fake).await
     }
 
+    /// A first run past its first question, on "Yes, start here".
+    pub async fn first_device() -> Harness {
+        let mut h = Self::new(false).await;
+        h.key(KeyCode::Enter).await;
+        h
+    }
+
+    /// A first run past its first question, on "I already use Ligus".
+    pub async fn existing_account(fake: FakeBackend) -> Harness {
+        let mut h = Self::with(fake).await;
+        h.key(KeyCode::Down).await;
+        h.key(KeyCode::Enter).await;
+        h
+    }
+
     /// The fake backend's settings for tests.
     pub fn cfg() -> FakeConfig {
         FakeConfig {

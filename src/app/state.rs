@@ -76,10 +76,45 @@ pub enum Focus {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Phase {
     Loading,
+    /// First run, before anything else: is this the person's first device
+    /// with Ligus, or do they already use it elsewhere?
+    Start(StartFork),
     Onboarding(WorkspaceForm),
     /// The recovery words, shown once after creating a workspace.
     Recovery(Created),
     Main,
+}
+
+/// The first-run question: "Is this your first device with Ligus?"
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StartFork {
+    /// "Yes, start here" is selected (the default); else "I already use
+    /// Ligus on another device".
+    pub first: bool,
+    /// The longer explanation, shown with `?`.
+    pub about: bool,
+    /// This device has no name yet (the first-device path asks for one).
+    pub ask_name: bool,
+}
+
+impl StartFork {
+    pub fn new(ask_name: bool) -> Self {
+        Self { first: true, about: false, ask_name }
+    }
+}
+
+/// Which way the workspace form was opened.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum FormRoute {
+    /// "+" later, or the palette: every mode.
+    #[default]
+    Any,
+    /// First run, "Yes, start here": a name, then create, join, connect or
+    /// the demo. Linking lives on the other path.
+    FirstDevice,
+    /// First run, "I already use Ligus": linking only. No name is asked and
+    /// nothing can create or join a workspace from here.
+    ExistingAccount,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -165,6 +200,12 @@ pub struct WorkspaceForm {
     /// Redeeming a pasted code: the desktop's approval hasn't arrived yet,
     /// and lt keeps checking until this time (ms) for this reason.
     pub link_waiting: Option<(Millis, String)>,
+    /// Which way the form was opened (first run's two paths, or "+").
+    pub route: FormRoute,
+    /// Joining with an invite here probably makes a second you: this
+    /// install is linked, or the person said they already use Ligus. The
+    /// Join form then suggests linking instead (a hint, never a refusal).
+    pub link_hint: bool,
 }
 
 /// A live link request, as the form shows it.
@@ -231,7 +272,29 @@ impl WorkspaceForm {
             live: None,
             live_unavailable: false,
             link_waiting: None,
+            route: FormRoute::Any,
+            link_hint: false,
         }
+    }
+
+    /// First run, "Yes, start here".
+    pub fn first_device(ask_name: bool) -> Self {
+        Self { route: FormRoute::FirstDevice, ..Self::new(ask_name) }
+    }
+
+    /// First run, "I already use Ligus on another device": straight to
+    /// Add to my devices, with no name and no other mode.
+    pub fn existing_account() -> Self {
+        Self { route: FormRoute::ExistingAccount, ..Self::linking(false) }
+    }
+
+    /// Show "Looks like you already use Ligus" on the Join form: this
+    /// install is linked or the person said so, or the checked invite is
+    /// for a workspace this install already has.
+    pub fn shows_link_hint(&self) -> bool {
+        self.mode == FormMode::Join
+            && self.route != FormRoute::ExistingAccount
+            && (self.link_hint || self.checked.as_ref().is_some_and(|(i, c)| *i == self.invite.text.trim() && c.already_joined))
     }
 
     /// The form opened on Add to my devices (the palette's Link this
@@ -244,6 +307,9 @@ impl WorkspaceForm {
     }
     pub fn fields(&self) -> Vec<FormField> {
         let mut f = vec![];
+        if self.route == FormRoute::ExistingAccount {
+            return vec![FormField::Value];
+        }
         if self.ask_name && self.mode != FormMode::Link {
             f.push(FormField::Name);
         }
@@ -582,6 +648,12 @@ pub struct State {
     pub now: Millis,
     pub phase: Phase,
     pub your_name: Option<String>,
+    /// The person answered the first-run question with "I already use
+    /// Ligus": an invite opened here later suggests linking instead.
+    pub chose_existing: bool,
+    /// The recovery key screen asks "Finish later?" (its only way out
+    /// before the words are confirmed).
+    pub finish_later: bool,
     pub workspaces: Vec<WorkspaceSummary>,
     pub active: Option<WorkspaceId>,
     pub view: View,
@@ -740,6 +812,8 @@ impl State {
             now,
             phase: Phase::Loading,
             your_name: None,
+            chose_existing: false,
+            finish_later: false,
             workspaces: vec![],
             active: None,
             view: View::Chats,
@@ -884,6 +958,18 @@ impl State {
         self.members.get(self.member_sel.index)
     }
 
+    /// An invite opened here probably makes a second you: this install is
+    /// linked, or the person said they already use Ligus.
+    pub fn suggests_linking(&self) -> bool {
+        self.chose_existing || self.settings.as_ref().is_some_and(|st| st.linked_to.is_some())
+    }
+
+    /// The "+" form (create, join, connect or link), with the Join form's
+    /// "link this device instead" hint when it applies.
+    pub fn add_workspace_form(&self) -> WorkspaceForm {
+        WorkspaceForm { link_hint: self.suggests_linking(), ..WorkspaceForm::new(false) }
+    }
+
     /// This install is its own member of the active workspace (not linked
     /// as someone's device), and someone else is in it too: Settings says
     /// so and offers Link to my devices.
@@ -998,6 +1084,7 @@ impl State {
             Some(_) => false,
             None => match &self.phase {
                 Phase::Onboarding(f) => f.field != FormField::Mode,
+                Phase::Start(_) => false,
                 Phase::Main => self.view == View::Chats && self.focus == Focus::Composer,
                 _ => false,
             },

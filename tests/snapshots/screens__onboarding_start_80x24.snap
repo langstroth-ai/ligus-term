@@ -1,0 +1,21 @@
+---
+source: tests/screens.rs
+expression: screen
+---
+
+
+
+
+
+
+    ┏ Welcome to Ligus ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃Ligus is short for ligustica, the Italian honeybee.                   ┃
+    ┃                                                                      ┃
+    ┃Is this your first device with Ligus?                                 ┃
+    ┃                                                                      ┃
+    ┃› [ Yes, start here ]                                                 ┃
+    ┃  [ I already use Ligus on another device ]                           ┃
+    ┃                                                                      ┃
+    ┃↑↓ choose · enter continue · ? more · esc quit                        ┃
+    ┃                                                                      ┃
+    ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛

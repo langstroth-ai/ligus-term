@@ -7,30 +7,30 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 
 
 
-                                 ┏ Welcome to Ligus ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+
+
+                                 ┏ Link this computer ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
                                  ┃Ligus is short for ligustica, the Italian honeybee.                   ┃
                                  ┃This terminal is its own Ligus device, with its own keys.             ┃
-                                 ┃Safety code    4821 0937 5512  (compare it with people you invite)    ┃
                                  ┃Once in: : opens every command, ? shows every key.                    ┃
-                                 ┃                                                                      ┃
-          ▄▀▀▄▄   ▄▄▀▀▄          ┃  ( ) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃
-        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  (•) Add to my devices   ( ) Look around first (the demo)            ┃
-        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
+          ▄▀▀▄▄   ▄▄▀▀▄          ┃                                                                      ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  Waiting for your desktop…                                           ┃
-     ▄▀▀▀▄▄▀▀▄▄▀▀▀▄▄▀▀▄▄▀▀▀▄     ┃  It shows up in My devices there by itself.                          ┃
-    ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃                                                                      ┃
-    ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃  Older desktop? Paste this request there (c copies it):              ┃
-     ▀▀▀▀▀▀▄▄▀▀▀▀▀▀▀▄▄▀▀▀▀▀▀     ┃  Fingerprint    7F3A-91C0-77DE-0B14-5E62                             ┃
-        ▄▄▀▀▀▀▀▄ ▄▀▀▀▀▀▄▄        ┃  liguslink1:eyJ2IjoxLCJkZXZpY2VJZCI6ImRlbW8iLCJsYWJlbCI6Imx0IG9uIHR  ┃
-        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  oaXMgbWFjaGluZSJ9                                                   ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  It shows up in My devices there by itself.                          ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
-          ▀▀▀▀▀   ▀▀▀▀▀          ┃› From desktop   ligusaddr1:eyJ2IjoxLCJyZWxheSI6Imh0dHBzOi8vcmVsYX…   ┃
-                                 ┃                                                                      ┃
-                                 ┃                                                                      ┃
+     ▄▀▀▀▄▄▀▀▄▄▀▀▀▄▄▀▀▄▄▀▀▀▄     ┃  Older desktop? Paste this request there (c copies it):              ┃
+    ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃  Fingerprint    7F3A-91C0-77DE-0B14-5E62                             ┃
+    ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃  liguslink1:eyJ2IjoxLCJkZXZpY2VJZCI6ImRlbW8iLCJsYWJlbCI6Imx0IG9uIHR  ┃
+     ▀▀▀▀▀▀▄▄▀▀▀▀▀▀▀▄▄▀▀▀▀▀▀     ┃  oaXMgbWFjaGluZSJ9                                                   ┃
+        ▄▄▀▀▀▀▀▄ ▄▀▀▀▀▀▄▄        ┃                                                                      ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃› From desktop   ligusaddr1:eyJ2IjoxLCJyZWxheSI6Imh0dHBzOi8vcmVsYX…   ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
+          ▀▀▀▀▀   ▀▀▀▀▀          ┃                                                                      ┃
                                  ┃                                                                      ┃
                                  ┃c copy the request · o full screen · esc end the request              ┃
                                  ┃                                                                      ┃
                                  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
 
 
 

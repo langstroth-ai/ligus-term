@@ -4,6 +4,30 @@ All notable changes to `lt`, the Ligus terminal app (Ligus is short for
 ligustica). Versions follow [semver](https://semver.org); releases are on
 [GitHub](https://github.com/langstroth-ai/ligus-term/releases).
 
+## Unreleased
+
+### Changed
+
+- The first run asks one question before anything else: **Is this your
+  first device with Ligus?** **Yes, start here** asks your name, then makes
+  your workspace (left unnamed, it is "Your name's workspace"), or joins,
+  connects or opens the demo. **I already use Ligus on another device**
+  goes straight to linking this terminal as one of your devices: no name is
+  asked, and nothing on that path can create or join a workspace, so you
+  never end up as a second person with your name. `esc` goes back to the
+  question; `?` explains the two answers.
+- The recovery key screen after creating a workspace can't be closed by
+  accident: `esc` or ctrl-c asks **Finish later?** (Keep going / Finish
+  later), and finishing later leaves the key unconfirmed.
+
+### Added
+
+- The Join form says **Looks like you already use Ligus. Link this device
+  instead** when this terminal is linked to your account, when you said you
+  already use Ligus, or when the checked invite is for a workspace it
+  already has; `ctrl-l` switches to linking. It is only a hint: joining
+  still works.
+
 ## v0.4.1
 
 lt on the Ligus 0.4.1 crates: a device name that stays put, Antigravity's

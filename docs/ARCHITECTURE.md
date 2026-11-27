@@ -38,7 +38,8 @@ both and checks).
   in-memory `fake`, and `presence` (the browser hand-off and the
   recovery-words file).
 - **`app::state`**: everything on screen, as plain data: the phase (loading,
-  onboarding, recovery key, main), the active workspace and view, focus,
+  the first-run question, onboarding, recovery key, main), the active
+  workspace and view, focus,
   lists and selections, the composer, overlays, the passkey sheets, toasts.
 - **`app::update`**: the reducer. It takes a `Msg` (a key, a paste, a tick,
   a backend event, or an effect's result), changes `State`, and returns the

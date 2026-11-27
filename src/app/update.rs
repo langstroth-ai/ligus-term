@@ -344,7 +344,7 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
             s.your_name = st.your_name.clone();
             s.workspaces = st.workspaces;
             if s.workspaces.is_empty() {
-                s.phase = Phase::Onboarding(WorkspaceForm::new(st.your_name.is_none()));
+                s.phase = Phase::Start(StartFork::new(st.your_name.is_none()));
                 vec![Effect::LoadSettings]
             } else {
                 s.phase = Phase::Main;
@@ -1307,6 +1307,11 @@ fn paste(s: &mut State, text: &str) -> Vec<Effect> {
             if on_code && !f.busy && (f.mode == FormMode::Link || text.contains(crate::link_code::GRANT_PREFIX)) {
                 match crate::link_code::grant_in(text) {
                     crate::link_code::Pasted::Grant(g) => {
+                        // A desktop's code on the first device's path: it
+                        // is the other path (linking, nothing made).
+                        if f.route == FormRoute::FirstDevice {
+                            f.route = FormRoute::ExistingAccount;
+                        }
                         f.mode = FormMode::Link;
                         f.field = FormField::Value;
                         f.grant.set(&g);
@@ -1369,6 +1374,11 @@ fn key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
     // Ctrl-C quits whatever has focus: at once, unless this device is
     // driving work, which asks first; a second ctrl-c then quits.
     if k.code == KeyCode::Char('c') && k.modifiers.contains(KeyModifiers::CONTROL) {
+        // The recovery key's screen asks "Finish later?" first.
+        if matches!(s.phase, Phase::Recovery(_)) && !s.finish_later && s.presence.is_empty() && s.overlay.is_none() {
+            s.finish_later = true;
+            return vec![];
+        }
         let asking = matches!(s.overlay, Some(Overlay::Confirm { action: ConfirmAction::Quit, .. }));
         if asking || !s.presence.is_empty() || !matches!(s.phase, Phase::Main) {
             s.quit = true;
@@ -1385,20 +1395,44 @@ fn key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
     }
     match s.phase.clone() {
         Phase::Loading => vec![],
+        Phase::Start(_) => start_key(s, &k),
         Phase::Onboarding(_) => {
             let Phase::Onboarding(f) = &mut s.phase else { unreachable!() };
             let your = f.name.text.trim().to_string();
             match form_key(f, &k) {
                 FormOutcome::Submit => submit_form(s, Some(your)),
                 FormOutcome::Cancel if live_in_flight(f).is_some() => live_stop(f),
+                // Back to the first question: nothing was made.
+                FormOutcome::Cancel if f.route != FormRoute::Any => {
+                    let fork = StartFork { first: f.route == FormRoute::FirstDevice, about: false, ask_name: f.ask_name };
+                    s.phase = Phase::Start(fork);
+                    vec![]
+                }
                 FormOutcome::Cancel => {
                     s.quit = true;
                     vec![]
                 }
+                FormOutcome::LinkInstead => link_instead(s),
                 FormOutcome::None => link_effects(f),
                 out => link_code_outcome(s, out),
             }
         }
+        Phase::Recovery(c) if s.finish_later => match k.code {
+            // Keep going: back to the words.
+            KeyCode::Enter | KeyCode::Esc | KeyCode::Char('k') => {
+                s.finish_later = false;
+                vec![]
+            }
+            // Finish later: the words stay unconfirmed.
+            KeyCode::Char('f') => {
+                s.finish_later = false;
+                s.phase = Phase::Main;
+                let mut fx = switch_workspace(s, c.workspace.id);
+                fx.push(Effect::LoadNotifications);
+                fx
+            }
+            _ => vec![],
+        },
         Phase::Recovery(c) => match k.code {
             KeyCode::Enter | KeyCode::Char('y') => {
                 s.phase = Phase::Main;
@@ -1406,6 +1440,10 @@ fn key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
                 fx.extend(switch_workspace(s, c.workspace.id));
                 fx.push(Effect::LoadNotifications);
                 fx
+            }
+            KeyCode::Esc | KeyCode::Char('q') => {
+                s.finish_later = true;
+                vec![]
             }
             _ => vec![],
         },
@@ -1426,6 +1464,80 @@ enum FormOutcome {
     LiveAnswer(bool),
     /// Stop waiting for the desktop's approval to arrive (Esc).
     StopWaiting,
+    /// The Join form's hint: link this device instead (ctrl-l).
+    LinkInstead,
+}
+
+/// The first-run question: arrows choose, Enter goes, `?` explains, Esc
+/// quits.
+fn start_key(s: &mut State, k: &KeyEvent) -> Vec<Effect> {
+    let Phase::Start(fork) = &mut s.phase else { return vec![] };
+    match k.code {
+        KeyCode::Up
+        | KeyCode::Down
+        | KeyCode::Left
+        | KeyCode::Right
+        | KeyCode::Tab
+        | KeyCode::BackTab
+        | KeyCode::Char('j')
+        | KeyCode::Char('k') => {
+            fork.first = !fork.first;
+            vec![]
+        }
+        KeyCode::Char('1') | KeyCode::Char('y') => {
+            fork.first = true;
+            vec![]
+        }
+        KeyCode::Char('2') | KeyCode::Char('a') => {
+            fork.first = false;
+            vec![]
+        }
+        KeyCode::Char('?') => {
+            fork.about = !fork.about;
+            vec![]
+        }
+        KeyCode::Esc | KeyCode::Char('q') => {
+            s.quit = true;
+            vec![]
+        }
+        KeyCode::Enter => {
+            let fork = *fork;
+            if fork.first {
+                let mut f = WorkspaceForm::first_device(fork.ask_name);
+                f.link_hint = s.suggests_linking();
+                s.phase = Phase::Onboarding(f);
+                vec![]
+            } else {
+                s.chose_existing = true;
+                let mut f = WorkspaceForm::existing_account();
+                f.ask_name = fork.ask_name;
+                f.link_asked = true;
+                s.phase = Phase::Onboarding(f);
+                vec![Effect::LinkRequest]
+            }
+        }
+        _ => vec![],
+    }
+}
+
+/// The Join form's hint taken: Add to my devices instead. On the first
+/// run that is the "I already use Ligus" path; on "+" the Link mode.
+fn link_instead(s: &mut State) -> Vec<Effect> {
+    s.chose_existing = true;
+    if let (None, Phase::Onboarding(f)) = (&s.overlay, &s.phase)
+        && f.route == FormRoute::FirstDevice
+    {
+        let mut f = WorkspaceForm::existing_account();
+        f.link_asked = true;
+        s.phase = Phase::Onboarding(f);
+        return vec![Effect::LinkRequest];
+    }
+    let Some(Overlay::AddWorkspace(f)) = &mut s.overlay else { return vec![] };
+    f.mode = FormMode::Link;
+    f.field = FormField::Value;
+    f.error = None;
+    f.checked = None;
+    link_effects(f)
 }
 
 /// The fallback when no clipboard is reachable for the link request.
@@ -1614,6 +1726,7 @@ fn form_key(f: &mut WorkspaceForm, k: &KeyEvent) -> FormOutcome {
     let i = fields.iter().position(|x| *x == f.field).unwrap_or(0);
     match k.code {
         KeyCode::Esc => return FormOutcome::Cancel,
+        KeyCode::Char('l') if k.modifiers.contains(KeyModifiers::CONTROL) && f.shows_link_hint() => return FormOutcome::LinkInstead,
         // A link code never holds a `?` (base64url): it opens the longer
         // explanation instead.
         KeyCode::Char('?') if f.mode == FormMode::Link => f.link_about = !f.link_about,
@@ -1647,6 +1760,15 @@ fn form_key(f: &mut WorkspaceForm, k: &KeyEvent) -> FormOutcome {
                     KeyCode::Char('a') => Some(FormMode::Link),
                     KeyCode::Char('d') => Some(FormMode::Connect),
                     _ => None,
+                };
+                // The first device's path leaves linking to the other path.
+                let mode = match mode {
+                    Some(FormMode::Link) if f.route == FormRoute::FirstDevice => match k.code {
+                        KeyCode::Right | KeyCode::Char(' ') | KeyCode::Char('l') => Some(FormMode::Link.next()),
+                        KeyCode::Left | KeyCode::Char('h') => Some(FormMode::Link.prev()),
+                        _ => None,
+                    },
+                    m => m,
                 };
                 // The demo is offered on the first run only.
                 let mode = match mode {
@@ -1730,7 +1852,11 @@ fn submit_form(s: &mut State, your_name: Option<String>) -> Vec<Effect> {
         form.field = FormField::Name;
         return vec![];
     }
-    let value = form.value().text.trim().to_string();
+    let mut value = form.value().text.trim().to_string();
+    // The first workspace is made for the person: an empty name is theirs.
+    if value.is_empty() && form.mode == FormMode::Create && form.route == FormRoute::FirstDevice && !your_name.is_empty() {
+        value = first_workspace_name(&your_name);
+    }
     if form.mode == FormMode::Connect {
         let spec = DeploymentSpec {
             name: value,
@@ -1782,6 +1908,11 @@ fn submit_form(s: &mut State, your_name: Option<String>) -> Vec<Effect> {
             _ => vec![Effect::InspectInvite(value)],
         },
     }
+}
+
+/// The first workspace's name when the person leaves it empty.
+pub fn first_workspace_name(your_name: &str) -> String {
+    format!("{}'s workspace", your_name.trim())
 }
 
 fn presence_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
@@ -2039,7 +2170,7 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
                     vec![]
                 }
                 KeyCode::Char('+') => {
-                    s.overlay = Some(Overlay::AddWorkspace(WorkspaceForm::new(false)));
+                    s.overlay = Some(Overlay::AddWorkspace(s.add_workspace_form()));
                     vec![]
                 }
                 KeyCode::Enter | KeyCode::Char('l') => {
@@ -2063,6 +2194,7 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
                 s.overlay = None;
                 vec![]
             }
+            FormOutcome::LinkInstead => link_instead(s),
             FormOutcome::None => link_effects(f),
             out => link_code_outcome(s, out),
         },
@@ -2854,7 +2986,7 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             vec![]
         }
         AddWorkspace => {
-            s.overlay = Some(Overlay::AddWorkspace(WorkspaceForm::new(false)));
+            s.overlay = Some(Overlay::AddWorkspace(s.add_workspace_form()));
             vec![]
         }
         LinkDevice => {

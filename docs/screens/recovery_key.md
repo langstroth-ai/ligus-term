@@ -7,7 +7,6 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 
 
 
-
                  ┏ “Acme Web” is ready ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
                  ┃Write down your recovery key.                                             ┃
                  ┃It stands in for a lost passkey: without it, a sole owner who loses their ┃
@@ -26,6 +25,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
                  ┃Invite code  fake-invite:Acme-Web                                         ┃
                  ┃                                                                          ┃
                  ┃Press enter when you've written them down.                                ┃
+                 ┃esc finish later                                                          ┃
                  ┃                                                                          ┃
                  ┃                                                                          ┃
                  ┃                                                                          ┃
