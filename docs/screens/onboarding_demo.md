@@ -16,7 +16,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
           ▄▀▀▄▄   ▄▄▀▀▄          ┃  Your name      how others see you                                   ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃› ( ) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃
-        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  ( ) Add to my devices   (•) Look around first (the demo)            ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  (•) Look around first (the demo)                                    ┃
      ▄▀▀▀▄▄▀▀▄▄▀▀▀▄▄▀▀▄▄▀▀▀▄     ┃                                                                      ┃
     ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃  Opens lt --demo: sample workspaces, chats, agents and proposals in  ┃
     ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃memory.                                                               ┃
@@ -26,7 +26,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
           ▀▀▀▀▀   ▀▀▀▀▀          ┃                                                                      ┃
                                  ┃                                                                      ┃
-                                 ┃tab next · ←→ choose · enter continue · esc quit                      ┃
+                                 ┃tab next · ←→ choose · enter continue · esc back                      ┃
                                  ┃                                                                      ┃
                                  ┃                                                                      ┃
                                  ┃                                                                      ┃

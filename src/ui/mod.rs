@@ -57,8 +57,9 @@ pub fn draw(f: &mut Frame, s: &State, t: &Theme) {
             let p = Paragraph::new(Line::styled("Starting Ligus…", t.dim())).centered();
             f.render_widget(p, center(area, 30, 1));
         }
+        Phase::Start(fork) => onboarding::draw_start(f, area, fork, t),
         Phase::Onboarding(form) => onboarding::draw_form(f, area, s, form, t, true),
-        Phase::Recovery(c) => onboarding::draw_recovery(f, area, c, t),
+        Phase::Recovery(c) => onboarding::draw_recovery(f, area, c, s.finish_later, t),
         Phase::Main => draw_main(f, area, s, t),
     }
     overlays::draw(f, area, s, t);

@@ -1,5 +1,7 @@
-//! First run: your name, then create a workspace or join one with an
-//! invite; then the recovery key, shown once. The same form is the "+"
+//! First run: one question first (is this your first device with Ligus?).
+//! A first device gives its name, then creates a workspace or joins one
+//! with an invite; then the recovery key, shown once. A person who already
+//! uses Ligus goes straight to Add to my devices. The same form is the "+"
 //! overlay later (without the name).
 
 use ratatui::Frame;
@@ -10,7 +12,7 @@ use ratatui::widgets::{Clear, Paragraph, Wrap};
 
 use super::{center, pane, splash};
 use crate::app::input::TextBuf;
-use crate::app::state::{FormField, FormMode, LiveStage, State, WorkspaceForm};
+use crate::app::state::{FormField, FormMode, FormRoute, LiveStage, StartFork, State, WorkspaceForm};
 use crate::backend::model::{Created, InviteTrust, LinkRequestView, MatchCodeView, Millis};
 use crate::theme::Theme;
 
@@ -66,9 +68,52 @@ fn with_splash(f: &mut Frame, area: Rect, w: u16, h: u16, first_run: bool, t: &T
     r
 }
 
+/// The first-run question, before a name: two answers, the first one the
+/// default; the longer explanation behind `?`.
+pub fn draw_start(f: &mut Frame, area: Rect, fork: &StartFork, t: &Theme) {
+    let about: &[&str] = &[
+        "Yes: you give your name and get a workspace of your own here.",
+        "Already use Ligus: this computer becomes one of your devices and",
+        "acts as you. You aren't asked for a name and nothing new is made.",
+        "An invite would add a second you to the workspace instead.",
+    ];
+    let h = if fork.about { 12 + about.len() as u16 } else { 11 };
+    let r = with_splash(f, area, 72, h, true, t);
+    f.render_widget(Clear, r);
+    let block = pane("Welcome to Ligus", true, t);
+    let inner = block.inner(r);
+    f.render_widget(block, r);
+    let mut lines: Vec<Line> = vec![
+        Line::styled("Ligus is short for ligustica, the Italian honeybee.", t.dim()),
+        Line::raw(""),
+        Line::styled("Is this your first device with Ligus?", t.accent().add_modifier(Modifier::BOLD)),
+        Line::raw(""),
+    ];
+    let choice = |label: &'static str, on: bool| {
+        let style = if on { t.selected().add_modifier(Modifier::BOLD) } else { t.text() };
+        Line::from(vec![Span::styled(if on { "› " } else { "  " }, t.accent()), Span::styled(format!("[ {label} ]"), style)])
+    };
+    lines.push(choice("Yes, start here", fork.first));
+    lines.push(choice("I already use Ligus on another device", !fork.first));
+    lines.push(Line::raw(""));
+    if fork.about {
+        for l in about {
+            lines.push(Line::styled(*l, t.dim()));
+        }
+        lines.push(Line::raw(""));
+    }
+    lines.push(Line::styled("↑↓ choose · enter continue · ? more · esc quit", t.dim()));
+    f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
+}
+
 pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: &Theme, first_run: bool) {
     let connect = form.mode == FormMode::Connect;
     let link = form.mode == FormMode::Link;
+    // "I already use Ligus": linking only, so no name and no mode rows.
+    let link_only = form.route == FormRoute::ExistingAccount;
+    // The first workspace is made for the person: left empty, it is theirs.
+    let yours = (form.route == FormRoute::FirstDevice && !form.name.text.trim().is_empty())
+        .then(|| crate::app::update::first_workspace_name(&form.name.text));
     // Add to my devices: as many rows as its section has.
     let link_w = 72.min(area.width).saturating_sub(22) as usize;
     let link_rows = if link {
@@ -78,17 +123,24 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
     } else {
         0
     };
-    let h = match (first_run, connect, link) {
-        (true, _, true) => 15 + link_rows,
-        (false, _, true) => 10 + link_rows,
-        (true, true, _) => 26,
-        (true, false, _) => 24,
-        (false, true, _) => 19,
-        (false, false, _) => 17,
-    };
+    let hint_row = u16::from(form.shows_link_hint());
+    let h = hint_row
+        + match (first_run, connect, link) {
+            (true, _, true) if link_only => 11 + link_rows,
+            (true, _, true) => 15 + link_rows,
+            (false, _, true) => 10 + link_rows,
+            (true, true, _) => 26,
+            (true, false, _) => 24,
+            (false, true, _) => 19,
+            (false, false, _) => 17,
+        };
     let r = with_splash(f, area, 72, h, first_run, t);
     f.render_widget(Clear, r);
-    let title = if first_run { "Welcome to Ligus" } else { "Add a workspace" };
+    let title = match (first_run, link_only) {
+        (true, true) => "Link this computer",
+        (true, false) => "Welcome to Ligus",
+        (false, _) => "Add a workspace",
+    };
     let block = pane(title, true, t);
     let inner = block.inner(r);
     f.render_widget(block, r);
@@ -97,11 +149,13 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
     if first_run {
         lines.push(Line::styled("Ligus is short for ligustica, the Italian honeybee.", t.dim()));
         lines.push(Line::styled("This terminal is its own Ligus device, with its own keys.", t.text()));
-        lines.push(Line::from(vec![
-            Span::styled("Safety code    ", t.dim()),
-            Span::styled(s.device.safety_code.clone(), t.accent()),
-            Span::styled("  (compare it with people you invite)", t.dim()),
-        ]));
+        if !link_only {
+            lines.push(Line::from(vec![
+                Span::styled("Safety code    ", t.dim()),
+                Span::styled(s.device.safety_code.clone(), t.accent()),
+                Span::styled("  (compare it with people you invite)", t.dim()),
+            ]));
+        }
         lines.push(Line::from(vec![
             Span::styled("Once in: ", t.dim()),
             Span::styled(s.keymap.hint(crate::keymap::Context::Global, crate::keymap::Action::Palette), t.accent()),
@@ -121,25 +175,36 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
         let style = if on { t.accent() } else { t.text() };
         Span::styled(format!("{mark}{label}"), style)
     };
-    lines.push(Line::from(vec![
-        Span::styled(if mode_focus { "› " } else { "  " }, t.accent()),
-        opt("Create", form.mode == FormMode::Create),
-        Span::raw("   "),
-        opt("Join with an invite", form.mode == FormMode::Join),
-        Span::raw("   "),
-        opt("Connect a deployment", form.mode == FormMode::Connect),
-    ]));
-    let mut second = vec![Span::raw("  "), opt("Add to my devices", link)];
-    if first_run {
-        second.push(Span::raw("   "));
-        second.push(opt("Look around first (the demo)", form.mode == FormMode::Demo));
+    if !link_only {
+        lines.push(Line::from(vec![
+            Span::styled(if mode_focus { "› " } else { "  " }, t.accent()),
+            opt("Create", form.mode == FormMode::Create),
+            Span::raw("   "),
+            opt("Join with an invite", form.mode == FormMode::Join),
+            Span::raw("   "),
+            opt("Connect a deployment", form.mode == FormMode::Connect),
+        ]));
+        let mut second = vec![Span::raw("  ")];
+        // The first device's path leaves linking to the other answer.
+        if form.route != FormRoute::FirstDevice {
+            second.push(opt("Add to my devices", link));
+        }
+        if first_run {
+            if second.len() > 1 {
+                second.push(Span::raw("   "));
+            }
+            second.push(opt("Look around first (the demo)", form.mode == FormMode::Demo));
+        }
+        lines.push(Line::from(second));
+        lines.push(Line::raw(""));
     }
-    lines.push(Line::from(second));
-    lines.push(Line::raw(""));
     let vf = form.field == FormField::Value;
     match form.mode {
         FormMode::Create => {
-            lines.push(field_line("Workspace name", &form.ws_name, vf, w, "e.g. Northwind API", t));
+            match &yours {
+                Some(name) => lines.push(field_line("Workspace name", &form.ws_name, vf, w, name, t)),
+                None => lines.push(field_line("Workspace name", &form.ws_name, vf, w, "e.g. Northwind API", t)),
+            }
             lines.push(Line::styled("  No server needed: it lives on this device until you invite someone.", t.dim()));
         }
         FormMode::Join => {
@@ -159,6 +224,12 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
                     lines.push(Line::styled(format!("  Relay {}", c.relay_url), t.dim()));
                 }
                 None => lines.push(Line::styled("  Enter checks who it's from (its founder's signature); enter again joins.", t.dim())),
+            }
+            if form.shows_link_hint() {
+                lines.push(Line::from(vec![
+                    Span::styled("  Looks like you already use Ligus. Link this device instead: ", t.text()),
+                    Span::styled("ctrl-l", t.accent()),
+                ]));
             }
         }
         FormMode::Link => draw_link(&mut lines, form, vf, w, s.now, t),
@@ -208,7 +279,11 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
         lines.push(Line::raw(""));
     }
     lines.push(Line::raw(""));
-    let esc = if first_run { "quit" } else { "close" };
+    let esc = match (first_run, form.route) {
+        (true, FormRoute::Any) => "quit",
+        (true, _) => "back",
+        (false, _) => "close",
+    };
     let hints = if link { link_hints(form, esc) } else { format!("tab next · ←→ choose · enter continue · esc {esc}") };
     lines.push(Line::styled(hints, t.dim()));
     f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
@@ -413,8 +488,11 @@ fn link_hints(form: &WorkspaceForm, esc: &str) -> String {
     }
 }
 
-pub fn draw_recovery(f: &mut Frame, area: Rect, c: &Created, t: &Theme) {
-    let r = center(area, 76, 22);
+pub fn draw_recovery(f: &mut Frame, area: Rect, c: &Created, finish_later: bool, t: &Theme) {
+    if finish_later {
+        return draw_finish_later(f, area, c, t);
+    }
+    let r = center(area, 76, 23);
     f.render_widget(Clear, r);
     let title = format!("“{}” is ready", c.workspace.name);
     let block = pane(&title, true, t);
@@ -452,5 +530,34 @@ pub fn draw_recovery(f: &mut Frame, area: Rect, c: &Created, t: &Theme) {
     }
     lines.push(Line::raw(""));
     lines.push(Line::styled("Press enter when you've written them down.", t.accent()));
+    lines.push(Line::styled("esc finish later", t.dim()));
+    f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
+}
+
+/// Leaving the recovery key before it is written down asks first: the
+/// only way out of the first run's Secure step half-done.
+fn draw_finish_later(f: &mut Frame, area: Rect, c: &Created, t: &Theme) {
+    let r = center(area, 72, 11);
+    f.render_widget(Clear, r);
+    let block = pane("Finish later?", true, t);
+    let inner = block.inner(r);
+    f.render_widget(block, r);
+    let lines = vec![
+        Line::styled(
+            format!(
+                "Until the recovery key for “{}” is written down, losing your passkey locks you out of the changes that need it: who's in the workspace, their roles, devices and keys.",
+                c.workspace.name
+            ),
+            t.text(),
+        ),
+        Line::styled(
+            "These words are shown only now. You can make a new recovery key later from the desktop app (Settings, Passkeys & keys).",
+            t.dim(),
+        ),
+        Line::raw(""),
+        buttons("Keep going", "Finish later", true, t),
+        Line::raw(""),
+        Line::styled("enter keep going · f finish later", t.dim()),
+    ];
     f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
 }

@@ -143,6 +143,7 @@ fn main_state() -> State {
 fn empty_startup_is_first_run_and_asks_for_a_name() {
     let mut s = state();
     update(&mut s, Msg::Startup(Ok(StartupState { your_name: None, workspaces: vec![] })));
+    key(&mut s, KeyCode::Enter); // "Yes, start here"
     let Phase::Onboarding(f) = &s.phase else { panic!("{:?}", s.phase) };
     assert!(f.ask_name);
     assert_eq!(f.field, FormField::Name);
@@ -160,6 +161,7 @@ fn empty_startup_is_first_run_and_asks_for_a_name() {
 fn create_then_recovery_then_main() {
     let mut s = state();
     update(&mut s, Msg::Startup(Ok(StartupState { your_name: None, workspaces: vec![] })));
+    key(&mut s, KeyCode::Enter); // "Yes, start here"
     typed(&mut s, "Mara");
     key(&mut s, KeyCode::Tab);
     key(&mut s, KeyCode::Tab);
@@ -181,6 +183,7 @@ fn create_then_recovery_then_main() {
 fn a_cancelled_passkey_returns_to_the_form_with_a_message() {
     let mut s = state();
     update(&mut s, Msg::Startup(Ok(StartupState { your_name: Some("M".into()), workspaces: vec![] })));
+    key(&mut s, KeyCode::Enter); // "Yes, start here"
     key(&mut s, KeyCode::Tab);
     typed(&mut s, "X");
     key(&mut s, KeyCode::Enter);
@@ -194,6 +197,7 @@ fn a_cancelled_passkey_returns_to_the_form_with_a_message() {
 fn pasting_on_the_mode_row_switches_to_join() {
     let mut s = state();
     update(&mut s, Msg::Startup(Ok(StartupState { your_name: Some("M".into()), workspaces: vec![] })));
+    key(&mut s, KeyCode::Enter); // "Yes, start here"
     update(&mut s, Msg::Paste("  code-123456789  \n".into()));
     let Phase::Onboarding(f) = &s.phase else { panic!() };
     assert_eq!(f.mode, FormMode::Join);
@@ -221,6 +225,7 @@ fn check(trust: InviteTrust) -> InviteCheck {
 fn a_mismatched_invite_is_refused_before_joining() {
     let mut s = state();
     update(&mut s, Msg::Startup(Ok(StartupState { your_name: Some("M".into()), workspaces: vec![] })));
+    key(&mut s, KeyCode::Enter); // "Yes, start here"
     update(&mut s, Msg::Paste("code-forged-12345".into()));
     assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::InspectInvite("code-forged-12345".into())]);
     update(&mut s, Msg::InviteChecked("code-forged-12345".into(), Ok(check(InviteTrust::Mismatch))));
@@ -236,6 +241,7 @@ fn a_mismatched_invite_is_refused_before_joining() {
 fn connect_mode_founds_a_deployments_workspace() {
     let mut s = state();
     update(&mut s, Msg::Startup(Ok(StartupState { your_name: Some("M".into()), workspaces: vec![] })));
+    key(&mut s, KeyCode::Enter); // "Yes, start here"
     key(&mut s, KeyCode::Char('d'));
     let Phase::Onboarding(f) = &s.phase else { panic!() };
     assert_eq!(f.mode, FormMode::Connect);
@@ -1539,6 +1545,7 @@ fn mouse_on_proposals() {
 fn first_run_can_look_around_in_the_demo() {
     let mut s = state();
     update(&mut s, Msg::Startup(Ok(StartupState { your_name: None, workspaces: vec![] })));
+    key(&mut s, KeyCode::Enter); // "Yes, start here"
     key(&mut s, KeyCode::Tab);
     key(&mut s, KeyCode::Left);
     assert!(matches!(&s.phase, Phase::Onboarding(f) if f.mode == FormMode::Demo));
@@ -2456,4 +2463,205 @@ fn live_link_shows_its_retries() {
     assert_eq!(retrying(&s), None);
     let Some(LiveStage::Ended(e)) = stage(&s) else { panic!() };
     assert!(e.describe().contains("couldn't be reached (502)"), "{}", e.describe());
+}
+
+// ── The first-run question ────────────────────────────────────────────
+
+fn first_run() -> State {
+    let mut s = state();
+    update(&mut s, Msg::Startup(Ok(StartupState { your_name: None, workspaces: vec![] })));
+    s
+}
+
+/// The first run asks one question before a name, "Yes, start here"
+/// selected; `?` explains, and Esc quits.
+#[test]
+fn first_run_asks_first_device_or_not_before_a_name() {
+    let mut s = first_run();
+    let Phase::Start(fork) = &s.phase else { panic!("{:?}", s.phase) };
+    assert!(fork.first && !fork.about && fork.ask_name);
+    key(&mut s, KeyCode::Char('?'));
+    assert!(matches!(&s.phase, Phase::Start(f) if f.about));
+    key(&mut s, KeyCode::Down);
+    assert!(matches!(&s.phase, Phase::Start(f) if !f.first));
+    key(&mut s, KeyCode::Up);
+    assert!(matches!(&s.phase, Phase::Start(f) if f.first));
+    key(&mut s, KeyCode::Esc);
+    assert!(s.quit);
+}
+
+/// "Yes, start here": the name, then Create; linking isn't on this path,
+/// and an empty workspace name is the person's own.
+#[test]
+fn first_device_asks_a_name_and_makes_their_workspace() {
+    let mut s = first_run();
+    assert!(key(&mut s, KeyCode::Enter).is_empty());
+    let Phase::Onboarding(f) = &s.phase else { panic!() };
+    assert_eq!((f.route, f.mode, f.field), (FormRoute::FirstDevice, FormMode::Create, FormField::Name));
+    typed(&mut s, "Mara");
+    key(&mut s, KeyCode::Tab);
+    // The mode row cycles past Add to my devices, both ways.
+    for _ in 0..6 {
+        key(&mut s, KeyCode::Right);
+        assert!(matches!(&s.phase, Phase::Onboarding(f) if f.mode != FormMode::Link));
+    }
+    for _ in 0..6 {
+        key(&mut s, KeyCode::Left);
+        assert!(matches!(&s.phase, Phase::Onboarding(f) if f.mode != FormMode::Link));
+    }
+    key(&mut s, KeyCode::Char('a'));
+    assert!(matches!(&s.phase, Phase::Onboarding(f) if f.mode != FormMode::Link));
+    key(&mut s, KeyCode::Char('c'));
+    key(&mut s, KeyCode::Tab);
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::CreateWorkspace { your_name: "Mara".into(), name: "Mara's workspace".into() }]);
+}
+
+/// Esc on either path goes back to the question, with the same answer
+/// selected; nothing was made.
+#[test]
+fn esc_goes_back_to_the_question() {
+    let mut s = first_run();
+    key(&mut s, KeyCode::Enter);
+    assert!(key(&mut s, KeyCode::Esc).is_empty());
+    assert!(matches!(&s.phase, Phase::Start(f) if f.first) && !s.quit);
+    key(&mut s, KeyCode::Down);
+    key(&mut s, KeyCode::Enter);
+    assert!(key(&mut s, KeyCode::Esc).is_empty());
+    assert!(matches!(&s.phase, Phase::Start(f) if !f.first) && !s.quit);
+}
+
+/// "I already use Ligus" goes straight to Add to my devices (its request
+/// made at once), with no name, and nothing on that path can create or
+/// join a workspace: the device ends linked or not at all.
+#[test]
+fn already_using_ligus_only_links_and_never_creates_a_member() {
+    let mut s = first_run();
+    key(&mut s, KeyCode::Down);
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::LinkRequest]);
+    assert!(s.chose_existing);
+    let Phase::Onboarding(f) = &s.phase else { panic!() };
+    assert_eq!((f.route, f.mode, f.field), (FormRoute::ExistingAccount, FormMode::Link, FormField::Value));
+    assert_eq!(f.fields(), vec![FormField::Value], "no name, no mode row");
+    let makes_a_member = |fx: &[Effect]| {
+        fx.iter().any(|e| {
+            matches!(
+                e,
+                Effect::CreateWorkspace { .. } | Effect::JoinWorkspace { .. } | Effect::ConnectDeployment { .. } | Effect::InspectInvite(_)
+            )
+        })
+    };
+    let mut all = vec![];
+    // Every mode key, Tab and arrows, then Enter: still linking.
+    for code in [KeyCode::Tab, KeyCode::BackTab, KeyCode::Up, KeyCode::Down, KeyCode::Left, KeyCode::Right] {
+        all.extend(key(&mut s, code));
+    }
+    for c in ['c', 'j', 'd', 'a', ' '] {
+        all.extend(key(&mut s, KeyCode::Char(c)));
+    }
+    all.extend(key(&mut s, KeyCode::Enter));
+    // An invite pasted here is not joined.
+    let Phase::Onboarding(f) = &mut s.phase else { panic!() };
+    f.grant.take();
+    all.extend(update(&mut s, Msg::Paste("fake-invite:Acme-Web".into())));
+    all.extend(key(&mut s, KeyCode::Enter));
+    all.extend(key(&mut s, KeyCode::Enter));
+    assert!(!makes_a_member(&all), "{all:?}");
+    let Phase::Onboarding(f) = &s.phase else { panic!() };
+    assert_eq!((f.route, f.mode), (FormRoute::ExistingAccount, FormMode::Link));
+    // A linking failure stays on the form; it never falls back to creating.
+    update(&mut s, Msg::Linked(Err(BackendError("the relay didn't answer".into()))));
+    assert!(matches!(&s.phase, Phase::Onboarding(f) if f.route == FormRoute::ExistingAccount));
+}
+
+/// A desktop's code pasted on the first device's path is the other path.
+#[test]
+fn a_pasted_grant_on_the_first_device_path_links_instead() {
+    let mut s = first_run();
+    key(&mut s, KeyCode::Enter);
+    key(&mut s, KeyCode::Tab);
+    assert_eq!(update(&mut s, Msg::Paste("ligusgrant1:abc".into())), vec![Effect::InspectLink("ligusgrant1:abc".into())]);
+    assert!(matches!(&s.phase, Phase::Onboarding(f) if f.route == FormRoute::ExistingAccount && f.mode == FormMode::Link));
+}
+
+fn created() -> Created {
+    Created { workspace: ws("new", Role::Owner), recovery_words: vec!["amber".into(); 24], invite: None }
+}
+
+/// The recovery key isn't closed half-done: Esc (or ctrl-c) asks "Finish
+/// later?"; Keep going returns to the words, other keys do nothing, and
+/// Finish later goes on without confirming them.
+#[test]
+fn the_recovery_key_leaves_only_through_finish_later() {
+    let mut s = first_run();
+    key(&mut s, KeyCode::Enter);
+    update(&mut s, Msg::Created(Ok(created())));
+    for code in [KeyCode::Tab, KeyCode::Char('x'), KeyCode::Char('f'), KeyCode::Left] {
+        assert!(key(&mut s, code).is_empty());
+        assert!(matches!(s.phase, Phase::Recovery(_)) && !s.finish_later);
+    }
+    key(&mut s, KeyCode::Esc);
+    assert!(s.finish_later && matches!(s.phase, Phase::Recovery(_)));
+    for code in [KeyCode::Tab, KeyCode::Char('x'), KeyCode::Char('y')] {
+        assert!(key(&mut s, code).is_empty());
+        assert!(s.finish_later);
+    }
+    key(&mut s, KeyCode::Enter);
+    assert!(!s.finish_later && matches!(s.phase, Phase::Recovery(_)), "Keep going");
+    // ctrl-c asks first too; a second one quits.
+    mods(&mut s, KeyCode::Char('c'), KeyModifiers::CONTROL);
+    assert!(s.finish_later && !s.quit);
+    key(&mut s, KeyCode::Char('k'));
+    assert!(!s.finish_later);
+    key(&mut s, KeyCode::Esc);
+    let fx = key(&mut s, KeyCode::Char('f'));
+    assert_eq!(s.phase, Phase::Main);
+    assert!(!fx.iter().any(|e| matches!(e, Effect::ConfirmRecovery(_))), "the words stay unconfirmed: {fx:?}");
+    assert!(fx.contains(&Effect::LoadChats(WorkspaceId::new("new"))));
+}
+
+/// The Join form hints "link this device instead" when the person said
+/// they already use Ligus, or the invite is for a workspace already here.
+/// Joining still works; ctrl-l takes the hint.
+#[test]
+fn the_invite_guard_is_a_hint_and_never_blocks() {
+    // Not shown by default.
+    let mut s = first_run();
+    key(&mut s, KeyCode::Enter);
+    typed(&mut s, "M");
+    key(&mut s, KeyCode::Tab);
+    key(&mut s, KeyCode::Char('j'));
+    assert!(matches!(&s.phase, Phase::Onboarding(f) if !f.shows_link_hint()));
+    // An invite for a workspace this install already has.
+    key(&mut s, KeyCode::Tab);
+    typed(&mut s, "code-123456789");
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::InspectInvite("code-123456789".into())]);
+    let mut c = check(InviteTrust::Known);
+    c.already_joined = true;
+    update(&mut s, Msg::InviteChecked("code-123456789".into(), Ok(c)));
+    assert!(matches!(&s.phase, Phase::Onboarding(f) if f.shows_link_hint()));
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::JoinWorkspace { your_name: "M".into(), invite: "code-123456789".into() }]);
+
+    // Said "I already use Ligus", came back and chose Join: the hint, and
+    // ctrl-l goes to the linking path.
+    let mut s = first_run();
+    key(&mut s, KeyCode::Down);
+    key(&mut s, KeyCode::Enter);
+    key(&mut s, KeyCode::Esc);
+    key(&mut s, KeyCode::Up);
+    key(&mut s, KeyCode::Enter);
+    typed(&mut s, "M");
+    key(&mut s, KeyCode::Tab);
+    key(&mut s, KeyCode::Char('j'));
+    assert!(matches!(&s.phase, Phase::Onboarding(f) if f.shows_link_hint()));
+    assert_eq!(mods(&mut s, KeyCode::Char('l'), KeyModifiers::CONTROL), vec![Effect::LinkRequest]);
+    assert!(matches!(&s.phase, Phase::Onboarding(f) if f.route == FormRoute::ExistingAccount));
+
+    // "+" on a linked install: the hint on Join, and ctrl-l is Link mode.
+    let mut s = main_state();
+    update(&mut s, Msg::Settings(Ok(settings(Some("Alex")))));
+    key(&mut s, KeyCode::Char('+'));
+    key(&mut s, KeyCode::Char('j'));
+    assert!(matches!(&s.overlay, Some(Overlay::AddWorkspace(f)) if f.shows_link_hint()));
+    assert_eq!(mods(&mut s, KeyCode::Char('l'), KeyModifiers::CONTROL), vec![Effect::LinkRequest]);
+    assert!(matches!(&s.overlay, Some(Overlay::AddWorkspace(f)) if f.mode == FormMode::Link));
 }

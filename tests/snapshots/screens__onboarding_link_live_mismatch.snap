@@ -7,24 +7,22 @@ expression: screen
 
 
 
-                                 ┏ Welcome to Ligus ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+
+
+                                 ┏ Link this computer ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
                                  ┃Ligus is short for ligustica, the Italian honeybee.                   ┃
-                                 ┃This terminal is its own Ligus device, with its own keys.             ┃
-                                 ┃Safety code    4821 0937 5512  (compare it with people you invite)    ┃
-          ▄▀▀▄▄   ▄▄▀▀▄          ┃Once in: : opens every command, ? shows every key.                    ┃
+          ▄▀▀▄▄   ▄▄▀▀▄          ┃This terminal is its own Ligus device, with its own keys.             ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃Once in: : opens every command, ? shows every key.                    ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
-        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  ( ) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃
-        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  (•) Add to my devices   ( ) Look around first (the demo)            ┃
-     ▄▀▀▀▄▄▀▀▄▄▀▀▀▄▄▀▀▄▄▀▀▀▄     ┃                                                                      ┃
-    ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃  ✗ Request didn't match. Nothing was granted.                        ┃
-    ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃  Someone may have tried to intercept it. Check the computer you're   ┃
-     ▀▀▀▀▀▀▄▄▀▀▀▀▀▀▀▄▄▀▀▀▀▀▀     ┃  adding, start again on a trusted network, and tell an Admin if it   ┃
-        ▄▄▀▀▀▀▀▄ ▄▀▀▀▀▀▄▄        ┃  happens twice.                                                      ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  ✗ Request didn't match. Nothing was granted.                        ┃
+     ▄▀▀▀▄▄▀▀▄▄▀▀▀▄▄▀▀▄▄▀▀▀▄     ┃  Someone may have tried to intercept it. Check the computer you're   ┃
+    ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃  adding, start again on a trusted network, and tell an Admin if it   ┃
+    ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃  happens twice.                                                      ┃
+     ▀▀▀▀▀▀▄▄▀▀▀▀▀▀▀▄▄▀▀▀▀▀▀     ┃                                                                      ┃
+        ▄▄▀▀▀▀▀▄ ▄▀▀▀▀▀▄▄        ┃› From desktop   ligusaddr1:eyJ2IjoxLCJyZWxheSI6Imh0dHBzOi8vcmVsYX…   ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
-        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃› From desktop   ligusaddr1:eyJ2IjoxLCJyZWxheSI6Imh0dHBzOi8vcmVsYX…   ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
           ▀▀▀▀▀   ▀▀▀▀▀          ┃                                                                      ┃
-                                 ┃                                                                      ┃
-                                 ┃                                                                      ┃
-                                 ┃enter start again · esc quit                                          ┃
+                                 ┃enter start again · esc back                                          ┃
                                  ┃                                                                      ┃
                                  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛

@@ -6,7 +6,6 @@ expression: screen
 
 
 
-
                  ┏ “Acme Web” is ready ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
                  ┃Write down your recovery key.                                             ┃
                  ┃It stands in for a lost passkey: without it, a sole owner who loses their ┃
@@ -25,6 +24,7 @@ expression: screen
                  ┃Invite code  fake-invite:Acme-Web                                         ┃
                  ┃                                                                          ┃
                  ┃Press enter when you've written them down.                                ┃
+                 ┃esc finish later                                                          ┃
                  ┃                                                                          ┃
                  ┃                                                                          ┃
                  ┃                                                                          ┃

@@ -16,7 +16,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
           ▄▀▀▄▄   ▄▄▀▀▄          ┃  Your name      Mara                                                 ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  ( ) Create   (•) Join with an invite   ( ) Connect a deployment     ┃
-        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  ( ) Add to my devices   ( ) Look around first (the demo)            ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  ( ) Look around first (the demo)                                    ┃
      ▄▀▀▀▄▄▀▀▄▄▀▀▀▄▄▀▀▄▄▀▀▀▄     ┃                                                                      ┃
     ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃› Invite code    fake-invite:Acme-Web▏                                ┃
     ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃  Enter checks who it's from (its founder's signature); enter again   ┃
@@ -24,7 +24,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
         ▄▄▀▀▀▀▀▄ ▄▀▀▀▀▀▄▄        ┃                                                                      ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
-          ▀▀▀▀▀   ▀▀▀▀▀          ┃tab next · ←→ choose · enter continue · esc quit                      ┃
+          ▀▀▀▀▀   ▀▀▀▀▀          ┃tab next · ←→ choose · enter continue · esc back                      ┃
                                  ┃                                                                      ┃
                                  ┃                                                                      ┃
                                  ┃                                                                      ┃

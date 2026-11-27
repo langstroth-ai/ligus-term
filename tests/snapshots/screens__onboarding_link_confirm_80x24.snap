@@ -2,14 +2,10 @@
 source: tests/screens.rs
 expression: screen
 ---
-    ┏ Welcome to Ligus ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┏ Link this computer ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
     ┃Ligus is short for ligustica, the Italian honeybee.                   ┃
     ┃This terminal is its own Ligus device, with its own keys.             ┃
-    ┃Safety code    4821 0937 5512  (compare it with people you invite)    ┃
     ┃Once in: : opens every command, ? shows every key.                    ┃
-    ┃                                                                      ┃
-    ┃  ( ) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃
-    ┃  (•) Add to my devices   ( ) Look around first (the demo)            ┃
     ┃                                                                      ┃
     ┃  Make this computer one of your devices.                             ┃
     ┃                                                                      ┃
@@ -25,4 +21,8 @@ expression: screen
     ┃› From desktop   ligusgrant1:demo-grant-from-the-desktop▏             ┃
     ┃  Approved by Alex's desktop 2C41-88E0-1B9D-04AF-6E73                 ┃
     ┃  for “Northwind API”. Is that you?                                   ┃
+    ┃                                                                      ┃
+    ┃                                                                      ┃
+    ┃                                                                      ┃
+    ┃enter link · esc no                                                   ┃
     ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛

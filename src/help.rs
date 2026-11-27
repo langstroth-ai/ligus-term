@@ -836,9 +836,9 @@ Already in a workspace on your desktop? Don't invite yourself: an invite always
 makes a new member, and you would show up twice. Add this computer to your
 devices instead; it then acts as you (your name, your role, your chats).
 
-1. In lt: first run, choose Add to my devices. In an install you already use,
-   press D in Settings or People (they say \"This terminal is its own member\"
-   while it is), or type link in the palette (:).
+1. In lt: first run, answer I already use Ligus on another device. In an
+   install you already use, press D in Settings or People (they say \"This
+   terminal is its own member\" while it is), or type link in the palette (:).
 2. On your desktop: Settings > Profile > My devices > Add a computer. Copy its
    approval address (ligusaddr1:..., not a secret) and paste it into lt.
 3. Your desktop shows the request by itself. When it opens it, both screens
@@ -918,7 +918,7 @@ pub fn after_long_help() -> String {
     s.push_str(EXIT_CODES);
     s.push_str(
         "\n\nExamples:\n  lt --demo                          explore with sample workspaces (keeps nothing)\n  \
-         lt                                 first run: your name, then create, join or connect\n  \
+         lt                                 first run: first device, or one you already use?\n  \
          lt --plain --json agents           one command, JSON Lines out\n  \
          lt --plain run 1 \"fix the tests\"   start workflow 1 and follow it to the end\n  \
          lt help quickstart                 the first steps\n  \

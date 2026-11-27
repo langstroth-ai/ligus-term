@@ -16,14 +16,14 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
           ▄▀▀▄▄   ▄▄▀▀▄          ┃› Your name      ▏                                                    ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  (•) Create   ( ) Join with an invite   ( ) Connect a deployment     ┃
-        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  ( ) Add to my devices   ( ) Look around first (the demo)            ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  ( ) Look around first (the demo)                                    ┃
      ▄▀▀▀▄▄▀▀▄▄▀▀▀▄▄▀▀▄▄▀▀▀▄     ┃                                                                      ┃
     ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃  Workspace name Northwind                                            ┃
     ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃  No server needed: it lives on this device until you invite someone. ┃
      ▀▀▀▀▀▀▄▄▀▀▀▀▀▀▀▄▄▀▀▀▀▀▀     ┃                                                                      ┃
         ▄▄▀▀▀▀▀▄ ▄▀▀▀▀▀▄▄        ┃  ✗ Tell us your name first                                           ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
-        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃tab next · ←→ choose · enter continue · esc quit                      ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃tab next · ←→ choose · enter continue · esc back                      ┃
           ▀▀▀▀▀   ▀▀▀▀▀          ┃                                                                      ┃
                                  ┃                                                                      ┃
                                  ┃                                                                      ┃

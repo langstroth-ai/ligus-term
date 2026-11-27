@@ -1,0 +1,38 @@
+# Join: the hint to link this device instead
+
+Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
+
+```text
+
+
+
+                                 ┏ Welcome to Ligus ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+                                 ┃Ligus is short for ligustica, the Italian honeybee.                   ┃
+                                 ┃This terminal is its own Ligus device, with its own keys.             ┃
+                                 ┃Safety code    4821 0937 5512  (compare it with people you invite)    ┃
+                                 ┃Once in: : opens every command, ? shows every key.                    ┃
+                                 ┃                                                                      ┃
+          ▄▀▀▄▄   ▄▄▀▀▄          ┃  Your name      Mara                                                 ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃› ( ) Create   (•) Join with an invite   ( ) Connect a deployment     ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  ( ) Look around first (the demo)                                    ┃
+     ▄▀▀▀▄▄▀▀▄▄▀▀▀▄▄▀▀▄▄▀▀▀▄     ┃                                                                      ┃
+    ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃  Invite code    paste the code you were sent                         ┃
+    ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃  Enter checks who it's from (its founder's signature); enter again   ┃
+     ▀▀▀▀▀▀▄▄▀▀▀▀▀▀▀▄▄▀▀▀▀▀▀     ┃joins.                                                                ┃
+        ▄▄▀▀▀▀▀▄ ▄▀▀▀▀▀▄▄        ┃  Looks like you already use Ligus. Link this device instead: ctrl-l  ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃                                                                      ┃
+          ▀▀▀▀▀   ▀▀▀▀▀          ┃                                                                      ┃
+                                 ┃tab next · ←→ choose · enter continue · esc back                      ┃
+                                 ┃                                                                      ┃
+                                 ┃                                                                      ┃
+                                 ┃                                                                      ┃
+                                 ┃                                                                      ┃
+                                 ┃                                                                      ┃
+                                 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+
+
+```
