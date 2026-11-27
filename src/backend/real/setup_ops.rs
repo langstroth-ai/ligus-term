@@ -29,8 +29,8 @@ use ligus_runtime::mcp::McpServerSpec;
 use ligus_runtime::model_catalog::ModelList;
 use ligus_runtime::setup::validate::{origin, same_origin};
 use ligus_runtime::setup::{
-    AgentFact, FolderFact, HarnessFact, HostFact, InviteFact, McpFact, OpsError, OpsResult, ProbeFact, RepoFact, RuntimeFact, RuntimeSpec,
-    SetupOps, Surface, TestTurn, service,
+    AgentFact, FolderFact, HarnessFact, HostFact, HostSourceFact, InviteFact, McpFact, OpsError, OpsResult, ProbeFact, RepoFact,
+    RuntimeFact, RuntimeSpec, SetupOps, Surface, TestTurn, service,
 };
 use uuid::Uuid;
 use zeroize::Zeroizing;
@@ -45,6 +45,8 @@ pub(crate) struct RealOps {
     env: DetectEnv,
     /// Runtimes "defined" during this run: the engine's id → lt's `local:` id.
     defined: HashMap<String, String>,
+    /// Workspace runtimes this run wrote (for its undo).
+    shared_defined: std::collections::HashSet<String>,
     /// Tool tokens this run saved (by server id).
     tokens_put: std::collections::HashSet<String>,
     /// A run (not a form) waits for a sign-in check still under way.
@@ -53,6 +55,9 @@ pub(crate) struct RealOps {
     /// harnesses while one form is built sees the same answer, so a check
     /// that ends mid-form can't leave it saying "sign-in unknown".
     agy_seen: std::cell::OnceCell<Option<(LoginState, String)>>,
+    /// Model lists read while building one form or run, by harness and
+    /// endpoint: the engine asks more than once, a CLI lists once.
+    models_seen: std::cell::RefCell<HashMap<(String, String), ModelList>>,
 }
 
 /// What the Antigravity harness shows while `agy models` runs.
@@ -143,9 +148,11 @@ impl RealOps {
             ws,
             env,
             defined: HashMap::new(),
+            shared_defined: Default::default(),
             tokens_put: Default::default(),
             wait_for_checks: false,
             agy_seen: Default::default(),
+            models_seen: Default::default(),
         }
     }
 
@@ -239,29 +246,25 @@ impl SetupOps for RealOps {
         if harness == "local" && ligus_runtime::setup::validate::url_problem(endpoint).is_some() {
             return ModelList::none("type a model name");
         }
-        service::models(harness, endpoint, &self.env)
+        // A form whose agy sign-in check is still under way doesn't start a
+        // second `agy models` for the list: it asks again when the check
+        // reports back.
+        if harness == "antigravity" && !self.wait_for_checks && matches!(self.agy_seen.get(), Some(None)) {
+            return ModelList::none(CHECKING);
+        }
+        let key = (harness.to_string(), endpoint.to_string());
+        if let Some(l) = self.models_seen.borrow().get(&key) {
+            return l.clone();
+        }
+        let l = service::models(harness, endpoint, &self.env);
+        self.models_seen.borrow_mut().insert(key, l.clone());
+        l
     }
     fn runtimes(&self) -> Vec<RuntimeFact> {
         let ollama = self.ollama();
-        let mut out: Vec<RuntimeFact> = self.read(|svc, ws| {
-            let keyless = svc
-                .list_workspace_runtimes(ws)
-                .unwrap_or_default()
-                .into_iter()
-                .filter(|r| matches!(r.credential, ligus_core::WorkspaceCredential::None));
-            keyless
-                .filter(|r| r.gateway.trim().is_empty())
-                .filter_map(|r| {
-                    let h = service::harness_of(r.provider, false)?;
-                    Some(RuntimeFact {
-                        id: r.id.clone(),
-                        harness: h.into(),
-                        model: r.model.clone(),
-                        endpoint: if h == "local" { r.endpoint.clone() } else { String::new() },
-                    })
-                })
-                .collect()
-        });
+        // The workspace's runtimes (other hosts can run them; a hosted API's
+        // names a secret reference, never a key).
+        let mut out: Vec<RuntimeFact> = self.read(service::workspace_runtimes);
         // The device-local runtimes this workspace's agents already name.
         for a in self.agents() {
             if out.iter().any(|r| r.id == a.runtime_id) {
@@ -271,12 +274,27 @@ impl SetupOps for RealOps {
                 && let Some(h) = service::harness_of(p, false)
             {
                 let endpoint = if h == "local" { ollama.clone() } else { String::new() };
-                out.push(RuntimeFact { id: a.runtime_id.clone(), harness: h.into(), model, endpoint });
+                out.push(RuntimeFact {
+                    id: a.runtime_id.clone(),
+                    harness: h.into(),
+                    model,
+                    endpoint,
+                    shared: false,
+                    secret_ref: String::new(),
+                    provider: ligus_runtime::host_offers::harness_name(p),
+                });
             }
         }
         out
     }
     fn add_runtime(&mut self, spec: &RuntimeSpec) -> OpsResult<()> {
+        if spec.shared {
+            // Another host runs it: a workspace runtime (names and a secret
+            // reference only), with the passkey on a shared workspace.
+            self.write(|svc, ws| service::add_workspace_runtime(svc, ws, spec))?;
+            self.shared_defined.insert(spec.id.clone());
+            return Ok(());
+        }
         if !crate::setup::LT_HARNESSES.contains(&spec.harness.as_str()) {
             return Err(OpsError::Failed(format!("lt doesn't run {} agents yet", spec.harness)));
         }
@@ -293,8 +311,28 @@ impl SetupOps for RealOps {
         Ok(())
     }
     fn remove_runtime(&mut self, id: &str) -> OpsResult<()> {
+        if self.shared_defined.remove(id) {
+            return self.write(|svc, ws| svc.remove_workspace_runtime(ws, id).map_err(OpsError::from));
+        }
         self.defined.remove(id);
         Ok(())
+    }
+    fn host_sources(&self) -> Vec<HostSourceFact> {
+        let Some(ws) = self.ws else { return Vec::new() };
+        let beats = self.inner.beats(ws);
+        let now = ligus_core::Timestamp::now();
+        self.read(|svc, ws| service::host_sources(svc, ws, |id| beats.status_of(id), |h| beats.is_online(h, &now)))
+    }
+    fn this_device_label(&self) -> String {
+        "this computer".into()
+    }
+    fn passkey_writes(&self) -> bool {
+        // A shared workspace holds agents and workspace runtimes for the
+        // author's passkey (lt asks the desktop or phone for it).
+        self.relay_url().is_some() && self.my_role().is_some()
+    }
+    fn confirming(&mut self, step: usize, of: usize, what: &str) {
+        self.inner.emit(Event::SetupConfirming { step, of, what: what.to_string() });
     }
     fn agents(&self) -> Vec<AgentFact> {
         self.read(service::agents)
@@ -308,6 +346,18 @@ impl SetupOps for RealOps {
         self.inner.add_agent_here(ws, name, rt).map_err(|e| {
             if e.0.contains("only") || e.0.contains("Viewer") || e.0.contains("not allowed") { OpsError::Refused(e.0) } else { failed(e.0) }
         })
+    }
+    fn add_agent_placed(&mut self, name: &str, runtime_id: &str, host_id: &str) -> OpsResult<Uuid> {
+        if host_id.is_empty() {
+            return self.add_agent(name, runtime_id);
+        }
+        // On a host: one record carrying its name, runtime and host.
+        let rt = self.defined.get(runtime_id).cloned().unwrap_or_else(|| runtime_id.to_string());
+        let id = self.write(|svc, ws| service::add_agent_placed(svc, ws, name, &rt, host_id))?;
+        if let Some(ws) = self.ws {
+            self.inner.emit(Event::AgentsChanged { workspace: WorkspaceId::new(ws.to_string()) });
+        }
+        Ok(id)
     }
     fn local_servers(&self, agent_id: Uuid) -> bool {
         self.read(|svc, ws| service::local_servers(svc, ws, agent_id))

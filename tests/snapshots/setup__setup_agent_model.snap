@@ -13,12 +13,12 @@ expression: screen
 ┃                              ┃│                                                                            │
 ┃                              ┃│  ✓ Ada answered Fake clock · 37m                                           │
 ┃                              ┃│  ◆ proposal “Inject the clock into checkout t…” · open 1/2 · p to review   │
-┃                              ┃│                                                                            │
-┃                ┏ Set up an agent · 3 of 4 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                │
-┃                ┃Model                                                                     ┃rovider uses.   │
-┃                ┃› sonnet                                                                  ┃                │
-┃                ┃  ↑↓ sonnet  opus  haiku                                                  ┃res?”           │
-┃                ┃  Leave it empty for the harness's own default.                           ┃e chat first)   │
+┃                ┏ Add an agent · 3 of 5 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                │
+┃                ┃Model                                                                     ┃                │
+┃                ┃› sonnet                                                                  ┃rovider uses.   │
+┃                ┃  ↑↓ sonnet  opus  haiku                                                  ┃                │
+┃                ┃  The model this agent uses. For a coding CLI, empty is the CLI's own     ┃res?”           │
+┃                ┃  default.                                                                ┃e chat first)   │
 ┃                ┃                                                                          ┃                │
 ┃                ┃enter next · tab next field · shift-tab back · esc cancel                 ┃                │
 ┃                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                │

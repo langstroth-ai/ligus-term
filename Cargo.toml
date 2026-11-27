@@ -37,12 +37,12 @@ uuid = { version = "1.29.1", features = ["v4"] }
 serde_json = "1.0.154"
 zeroize = "1.9.1"
 # The Ligus crates (Ligus is short for ligustica), pinned to an exact
-# commit of the ligus repo's main branch (it has the passkey hand-off: the
-# terminal asks the person's desktop or phone to confirm; and one link
-# brings all the person's workspaces). Move this to the ligus 0.5 release tag
-# before lt is released.
-ligus-core = { version = "0.4.1", git = "https://github.com/langstroth-ai/ligus", rev = "80aeb851e6504f5ff1a95e82bf5ce373b495f7ad" }
-ligus-runtime = { version = "0.4.1", git = "https://github.com/langstroth-ai/ligus", rev = "80aeb851e6504f5ff1a95e82bf5ce373b495f7ad", default-features = false }
+# commit of the ligus repo (it has the passkey hand-off, one link for all the
+# person's workspaces, and the one-step Add an agent form). This commit is on
+# the one-step agent branch: move it to that PR's merge commit on ligus main
+# before this merges, and to the ligus 0.5 release tag before lt is released.
+ligus-core = { version = "0.4.1", git = "https://github.com/langstroth-ai/ligus", rev = "4248de5a3e579f22bd25c3c1254d4c2c40a96ae0" }
+ligus-runtime = { version = "0.4.1", git = "https://github.com/langstroth-ai/ligus", rev = "4248de5a3e579f22bd25c3c1254d4c2c40a96ae0", default-features = false }
 
 # poll(2) on stdin for the terminal's background colour (OSC 11).
 [target.'cfg(unix)'.dependencies]
@@ -53,7 +53,7 @@ insta = "1.48.0"
 tempfile = "3.27.0"
 # The in-process mock relay two test devices sync through (the same commit
 # as above).
-ligus-runtime = { version = "0.4.1", git = "https://github.com/langstroth-ai/ligus", rev = "80aeb851e6504f5ff1a95e82bf5ce373b495f7ad", default-features = false, features = ["test-relay"] }
+ligus-runtime = { version = "0.4.1", git = "https://github.com/langstroth-ai/ligus", rev = "4248de5a3e579f22bd25c3c1254d4c2c40a96ae0", default-features = false, features = ["test-relay"] }
 axum = "0.8.9"
 
 [profile.release]

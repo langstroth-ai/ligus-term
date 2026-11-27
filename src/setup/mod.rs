@@ -35,6 +35,9 @@ pub use ligus_runtime::setup::{Progress, StepKind, exit};
 /// engine offers Aider, Pi and model gateways too; lt shows them disabled.
 pub const LT_HARNESSES: &[&str] = &["claude-code", "codex", "copilot", "antigravity", "local"];
 
+/// The coding CLIs the engine offers as sources (their ids).
+const ENGINE_CLIS: &[&str] = &["claude-code", "codex", "copilot", "antigravity", "aider", "pi"];
+
 /// Why a harness isn't offered here.
 pub const NOT_IN_LT: &str = "not in lt yet";
 /// A harness whose sign-in is being checked (`agy models`) right now.
@@ -220,6 +223,9 @@ pub struct SetupField {
     pub help: String,
     /// Shown only when another field has one of these values.
     pub when: Option<(String, Vec<String>)>,
+    /// One quiet line under it, for the values so far ("Turns run on
+    /// box-1. When it's offline, @coder waits.").
+    pub note: Option<String>,
 }
 
 impl SetupField {
@@ -250,6 +256,10 @@ pub struct SetupForm {
     /// A preflight check failed: the flow can't run here as things are.
     pub blocked: bool,
     pub steps: Vec<SetupStep>,
+    /// The one button's words ("Add @coder").
+    pub action: Option<String>,
+    /// How many passkey confirmations the run asks for (2: "Confirm 1 of 2").
+    pub confirmations: usize,
 }
 
 impl SetupForm {
@@ -433,6 +443,7 @@ fn field(f: &engine::Field) -> SetupField {
         default: f.default.clone(),
         help: f.help.to_string(),
         when: f.when.as_ref().map(|(k, v)| (k.to_string(), v.iter().map(|s| s.to_string()).collect())),
+        note: f.note.as_deref().map(shown),
     }
 }
 
@@ -457,7 +468,30 @@ fn check(flow: FlowId, c: &Check) -> SetupCheck {
     c
 }
 
-/// A flow's form, with the harnesses lt can't run disabled.
+/// The agent flow's source the inputs name (`--harness` and `--gateway`
+/// are its older spellings).
+fn source_input(inputs: &SetupInputs) -> Option<String> {
+    let get = |k: &str| inputs.get(k).map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
+    get("source").or_else(|| match (get("harness"), get("gateway")) {
+        (Some(h), Some(g)) if h == "gateway" => Some(format!("gateway:{g}")),
+        (None, Some(g)) => Some(format!("gateway:{g}")),
+        (h, _) => h,
+    })
+}
+
+/// A coding CLI the engine offers that lt can't run on this device (Aider,
+/// Pi): it can still run on a host that offers it.
+fn cli_not_here(value: &str) -> bool {
+    ENGINE_CLIS.contains(&value) && !LT_HARNESSES.contains(&value)
+}
+
+/// The hosts (other than this device) that list a CLI, by its id.
+fn cli_hosts(ops: &dyn SetupOps) -> Vec<String> {
+    ops.host_sources().into_iter().filter(|h| !h.this_device && h.kind == "cli").map(|h| h.name).collect()
+}
+
+/// A flow's form, with the sources lt can't run here disabled and the
+/// places an agent can't run hidden.
 pub fn form(flow: FlowId, ops: &dyn SetupOps, inputs: &SetupInputs) -> SetupForm {
     let f = engine::form(flow, ops, &engine_inputs(inputs));
     let mut steps: Vec<SetupStep> = f
@@ -473,23 +507,48 @@ pub fn form(flow: FlowId, ops: &dyn SetupOps, inputs: &SetupInputs) -> SetupForm
         .collect();
     if flow == FlowId::Agent {
         let checking: Vec<String> = ops.harnesses().into_iter().filter(|h| h.login_detail == CHECKING_SIGN_IN).map(|h| h.id).collect();
-        for fd in steps.iter_mut().flat_map(|s| s.fields.iter_mut()).filter(|f| f.id == "harness") {
-            if let FieldType::Choice(opts) = &mut fd.kind {
-                for o in opts.iter_mut().filter(|o| !LT_HARNESSES.contains(&o.value.as_str())) {
-                    o.disabled = true;
-                    o.hint = Some(NOT_IN_LT.into());
-                }
-                // A sign-in check still under way says so, not "unknown".
-                for o in opts.iter_mut() {
-                    if checking.contains(&o.value) {
-                        o.hint = Some(CHECKING_SIGN_IN.into());
+        let elsewhere = cli_hosts(ops);
+        let picked = source_input(inputs)
+            .or_else(|| steps.iter().flat_map(|s| s.fields.iter()).find(|f| f.id == "source").and_then(|f| f.default.clone()))
+            .unwrap_or_default();
+        for fd in steps.iter_mut().flat_map(|s| s.fields.iter_mut()) {
+            match (fd.id.as_str(), &mut fd.kind) {
+                ("source", FieldType::Choice(opts)) => {
+                    // A CLI lt can't run here, and no host offers: not here.
+                    for o in opts.iter_mut().filter(|o| cli_not_here(&o.value) && !elsewhere.contains(&o.value)) {
+                        o.disabled = true;
+                        o.hint = Some(NOT_IN_LT.into());
+                    }
+                    // A sign-in check still under way says so, not "unknown".
+                    for o in opts.iter_mut() {
+                        if checking.contains(&o.value) {
+                            o.hint = Some(CHECKING_SIGN_IN.into());
+                        }
                     }
                 }
+                ("runs-on", FieldType::Choice(opts)) => {
+                    // Only where it can run: the engine marks the rest.
+                    opts.retain(|o| !o.disabled && !(o.value == HERE && cli_not_here(&picked)));
+                    if fd.default.as_deref() == Some(HERE) && cli_not_here(&picked) {
+                        fd.default = None;
+                    }
+                }
+                _ => {}
             }
         }
     }
-    SetupForm { flow: LtFlow::Engine(flow), preflight: f.preflight.iter().map(|c| check(flow, c)).collect(), blocked: f.blocked, steps }
+    SetupForm {
+        flow: LtFlow::Engine(flow),
+        preflight: f.preflight.iter().map(|c| check(flow, c)).collect(),
+        blocked: f.blocked,
+        steps,
+        action: f.action.as_deref().map(shown),
+        confirmations: f.confirmations,
+    }
 }
+
+/// `--runs-on here`: this device.
+pub const HERE: &str = "here";
 
 /// lt's document: the engine's, named as lt's.
 fn lt_json(mut d: serde_json::Value) -> serde_json::Value {
@@ -507,19 +566,31 @@ pub fn run(
     dry_run: bool,
     cancel: &CancelFlag,
 ) -> SetupOutcome {
-    // A harness lt can't run is a usage error here, before anything.
+    // A CLI lt can't run, on this device, is a usage error here, before
+    // anything (on a host that offers it, it runs there).
     if flow == FlowId::Agent
-        && let Some(h) = inputs.get("harness").map(|h| h.trim()).filter(|h| !h.is_empty() && !LT_HARNESSES.contains(h))
+        && let Some(h) = source_input(inputs).filter(|h| cli_not_here(h))
+        && match inputs.get("runs-on").map(|v| v.trim()).filter(|v| !v.is_empty()) {
+            Some(v) => v == HERE,
+            None => !cli_hosts(ops).contains(&h),
+        }
     {
         let mut r = Report::new("setup agent");
-        r.add(
-            Check::fail("agent.input.harness", "harness", format!("lt doesn't run {h} agents yet"))
-                .fix(format!("pick one of {} here, or run ligus setup agent (or the desktop) for {h}", LT_HARNESSES.join(", "))),
-        );
+        r.add(Check::fail("agent.input.source", "what answers", format!("lt doesn't run {h} agents on this device yet")).fix(format!(
+            "pick one of {} here, a host that offers {h} (--runs-on), or run ligus setup agent (or the desktop) for {h}",
+            LT_HARNESSES.join(", ")
+        )));
         return outcome_of(LtFlow::Engine(flow), &r, exit::USAGE, false, dry_run, BTreeMap::new(), flow);
     }
+    let mut inputs = engine_inputs(inputs);
+    // A toggle left off is off: the engine's default (a test turn for the
+    // first agent) is what the popup starts from, not what a run without
+    // the flag does.
+    if flow == FlowId::Agent && inputs.get("test-turn").is_none() {
+        inputs.set("test-turn", "false");
+    }
     let opts = RunOpts { dry_run, driver: Driver::Person, cancel: Some(cancel.arc()) };
-    let o = engine::run(flow, ops, &engine_inputs(inputs), &secrets.into_engine(), &opts);
+    let o = engine::run(flow, ops, &inputs, &secrets.into_engine(), &opts);
     let json = lt_json(o.to_json(dry_run));
     SetupOutcome {
         flow: LtFlow::Engine(flow),
@@ -596,6 +667,8 @@ pub fn device_form() -> SetupForm {
         flow: LtFlow::Device,
         preflight: vec![],
         blocked: false,
+        action: None,
+        confirmations: 0,
         steps: device::STEPS
             .iter()
             .map(|(id, title, person)| SetupStep {

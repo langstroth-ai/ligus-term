@@ -558,16 +558,18 @@ everywhere.
   one of your devices; `enter` opens Add to my devices (your desktop's
   approval address, the code to compare, the person to confirm). `lt setup device` says the same
   and hands the steps to those screens (exit 4 until it is linked).
-- Agents run on Claude Code, Codex, the Copilot CLI, the Antigravity CLI or
-  a local model; Aider, Pi and model gateways are shown but are set up from
-  the desktop or `ligus setup agent`.
+- Add an agent is one form: its name, what answers (a coding CLI here or on
+  a host, a model gateway or hosted API a host offers, a model server), the
+  model from that source's list, and where it runs (this computer for a CLI
+  signed in here, the one host that offers a gateway). Aider and Pi run on
+  a host that offers them, not on this computer.
 
 On the command line, `lt setup` lists the flows and `lt setup FLOW` runs
 one, with the engine's field ids as flags, as `ligus setup` takes them:
 
 ```sh
 lt setup                                   # what is done (--json: ligus.checks.v1)
-lt setup agent --harness codex --name fixer --test-turn
+lt setup agent --name fixer --source codex --test-turn
 lt setup tool --id issues --kind url --url https://mcp.example.com/v1 --token - < token.txt
 lt setup folder --path ~/src/web --dry-run
 lt setup invite --json                     # exit 4: create it where the code is shown

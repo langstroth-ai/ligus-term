@@ -119,6 +119,13 @@ pub enum Event {
     /// What the setup flows know about this device changed (a harness's
     /// sign-in check finished): an open setup form asks again.
     SetupFactsChanged,
+    /// A setup run is about to ask for the passkey: confirmation `step` of
+    /// `of`, for `what` ("Add @coder").
+    SetupConfirming {
+        step: usize,
+        of: usize,
+        what: String,
+    },
     Notification(Notification),
     /// The backend needs a passkey (or the recovery key) to go on.
     PresencePrompt(PresencePrompt),

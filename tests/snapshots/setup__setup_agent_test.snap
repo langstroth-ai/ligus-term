@@ -14,7 +14,7 @@ expression: screen
 ┃                              ┃│  ✓ Ada answered Fake clock · 37m                                           │
 ┃                              ┃│  ◆ proposal “Inject the clock into checkout t…” · open 1/2 · p to review   │
 ┃                              ┃│                                                                            │
-┃                ┏ Set up an agent · 4 of 4 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                │
+┃                ┏ Add an agent · 5 of 5 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                │
 ┃                ┃Test                                                                      ┃rovider uses.   │
 ┃                ┃Run a test turn                                                           ┃                │
 ┃                ┃› [x] space switches                                                      ┃res?”           │

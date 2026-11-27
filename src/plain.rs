@@ -425,7 +425,8 @@ pub fn event_line(e: &Event, names: &dyn Fn(&WorkspaceId) -> String) -> Option<S
         | Event::HostsChanged { .. }
         | Event::AgentsChanged { .. }
         | Event::WorkspacesChanged
-        | Event::SetupFactsChanged => {
+        | Event::SetupFactsChanged
+        | Event::SetupConfirming { .. } => {
             return None;
         }
     })
