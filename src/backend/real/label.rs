@@ -40,6 +40,12 @@ pub fn load(data_dir: &Path) -> Option<String> {
     (!s.is_empty()).then_some(s)
 }
 
+/// When the kept name was last written (the file's time), if there is one:
+/// a synced rename made later on the person's desktop replaces it.
+pub fn stored_at(data_dir: &Path) -> Option<std::time::SystemTime> {
+    std::fs::metadata(data_dir.join(LABEL_FILE)).ok()?.modified().ok()
+}
+
 /// Keep `label` as this data dir's name (written whole, then moved in).
 pub fn store(data_dir: &Path, label: &str) -> std::io::Result<()> {
     let tmp = data_dir.join(format!("{LABEL_FILE}.tmp"));

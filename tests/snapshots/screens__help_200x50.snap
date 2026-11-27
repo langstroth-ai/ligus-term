@@ -45,6 +45,7 @@ expression: screen
 ┃                              ┃│                             ┃  u                        Set up: an agent, a tool, a folder, a box, a ph┃                     ││                                      │
 ┃                              ┃│                             ┃  unbound                  Link this computer to my devices               ┃                     ││                                      │
 ┃                              ┃│                             ┃  unbound                  Approval requests waiting in this workspace (re┃                     ││                                      │
+┃                              ┃│                             ┃  unbound                  Leave this workspace (asks first; others see yo┃                     ││                                      │
 ┃                              ┃│                             ┃  c, 1                     Chats                                          ┃                     ││                                      │
 ┃                              ┃╰─────────────────────────────┃  f, 2                     Workflows and runs                             ┃─────────────────────╯│                                      │
 ┃                              ┃                              ┃  p, 3                     Proposals                                      ┃                      │                                      │

@@ -11,7 +11,7 @@ expression: screen
 ┃                              ┃│  Yes. The payment tests already use a fake clock, so it's a small change.  │
 ┃                              ┃│  I'll propose it.                                                          │
 ┃                ┏ Set up ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                │
-┃                ┃› Set up an agent    ✓ 4 agents                                           ┃                │
+┃                ┃› Add an agent       ✓ 4 agents                                           ┃                │
 ┃                ┃  Connect a tool       no tools connected                                 ┃· p to review   │
 ┃                ┃  Add a code folder    no repositories yet                                ┃                │
 ┃                ┃  Add a box            run it on the box                                  ┃                │
@@ -20,9 +20,9 @@ expression: screen
 ┃                ┃  Set up a relay     ✓ https://relay.langstroth.ai                        ┃res?”           │
 ┃                ┃  Add a computer       not linked to your devices                         ┃e chat first)   │
 ┃                ┃                                                                          ┃                │
-┃                ┃An agent answers when you @mention it. It runs one harness (Claude Code,  ┃                │
-┃                ┃Codex, Copilot, Antigravity, Aider, Pi or a local model) inside this      ┃                │
-┃                ┃device's agent sandbox.                                                   ┃                │
+┃                ┃An agent answers when you @mention it. It runs a coding CLI (Claude Code, ┃                │
+┃                ┃Codex, Copilot, Antigravity, Aider, Pi), a model gateway or hosted API a  ┃                │
+┃                ┃host offers, or a model server, on this device or on a host you choose.   ┃                │
 ┃                ┃                                                                          ┃                │
 ┃                ┃enter start · esc close · every flow is safe to run again                 ┃                │
 ┃                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                │

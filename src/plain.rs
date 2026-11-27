@@ -410,6 +410,7 @@ pub fn event_line(e: &Event, names: &dyn Fn(&WorkspaceId) -> String) -> Option<S
             format!("presence-done\t{}\t{}\t{}", id.0, if *ok { "ok" } else { "failed" }, esc(error.as_deref().unwrap_or("")))
         }
         Event::Sync { workspace, status } => format!("sync\t{}\t{}", esc(names(workspace)), esc(status)),
+        Event::DeviceRenamed { name } => format!("device-renamed\t{}", esc(name)),
         Event::LinkWaiting { until, why } => format!(
             "link-arriving\t{until}\t{}",
             esc(format!("waiting for your desktop's approval to arrive ({why}); it keeps checking until the code runs out"))
@@ -425,7 +426,8 @@ pub fn event_line(e: &Event, names: &dyn Fn(&WorkspaceId) -> String) -> Option<S
         | Event::HostsChanged { .. }
         | Event::AgentsChanged { .. }
         | Event::WorkspacesChanged
-        | Event::SetupFactsChanged => {
+        | Event::SetupFactsChanged
+        | Event::SetupConfirming { .. } => {
             return None;
         }
     })

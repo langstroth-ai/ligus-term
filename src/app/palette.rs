@@ -107,6 +107,7 @@ fn synonyms(a: Action) -> &'static str {
         Action::KeepScratch => "keep scratch repo repository move save publish",
         Action::CopySafetyCode => "copy fingerprint safety code clipboard",
         Action::ConfirmLink => "link confirm retry not confirmed devices certificate",
+        Action::LeaveWorkspace => "leave exit quit workspace depart remove me",
         _ => "",
     }
 }
@@ -153,7 +154,7 @@ pub fn items(s: &State) -> Vec<Item> {
         let label = if views.contains(&b.action) { format!("Go to {}", b.help) } else { short(b.help).to_string() };
         out.push(Item { label, key: keys(s, Context::Global, b.action), scope: "Anywhere".into(), target: Target::Action(b.action) });
     }
-    // The setup flows by name: "Set up an agent", "Connect a tool", …
+    // The setup flows by name: "Add an agent", "Connect a tool", …
     for f in crate::setup::LtFlow::engine_flows() {
         out.push(Item { label: f.title().into(), key: String::new(), scope: "Set up".into(), target: Target::Setup(f) });
     }

@@ -49,6 +49,20 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Added
 
+- **Leave workspace** in the palette (`:` then *leave*): lt says in one line
+  what happens (the others see you as **asked to leave** until an Admin
+  removes you, and this terminal stops syncing the workspace), and that
+  leaving isn't revoking: your other devices keep their keys. `y` leaves,
+  with your passkey when your account holds one; lt then forgets the
+  workspace here. The founder, the last Owner and a terminal linked as one
+  of your devices can't leave this way, and lt says why (leave from your
+  main desktop, or ask an Admin to remove you).
+- **lt follows a rename of itself.** When you rename this terminal's
+  computer in My devices on your desktop, lt takes that name live (a toast
+  says so), keeps it in its data dir and gives it to its other workspaces,
+  instead of reverting it the next time it starts. lt's own `lt
+  device-rename` still wins when it is the newer one.
+
 - A message of yours whose turn doesn't run gets one dim line under it:
   "@coder runs on box-1, which is offline. It will answer when box-1 is
   back.", or that the host was removed, or that it can't run there and why

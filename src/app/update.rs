@@ -78,6 +78,10 @@ pub enum Msg {
     /// A join request read (no passkey yet): the request and its fingerprint.
     JoinRequestChecked(String, Result<JoinRequestCheck>),
     Admitted(Result<BoxAdmission>),
+    /// What leaving a workspace would do (the confirmation's text).
+    LeaveChecked(WorkspaceId, Result<LeaveView>),
+    /// The workspace was left (and forgotten here), or why not.
+    Left(WorkspaceId, Result<()>),
     Workflows(WorkspaceId, Result<Vec<Workflow>>),
     Runs(WorkspaceId, Result<Vec<Run>>),
     RunUpdated(WorkspaceId, Result<Run>),
@@ -179,6 +183,10 @@ pub enum Effect {
     SetAgentAccess(WorkspaceId, AgentId, bool),
     SetRole(WorkspaceId, MemberId, Role),
     RemoveMember(WorkspaceId, MemberId),
+    /// Ask what leaving would do (nothing written).
+    LeaveCheck(WorkspaceId),
+    /// Leave on your own, then forget the workspace here.
+    LeaveWorkspace(WorkspaceId),
     CreateInvite(WorkspaceId, Role),
     MarkNotificationsRead,
     SetSetting(SettingKey, bool),
@@ -700,6 +708,53 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
             }
             vec![]
         }
+        Msg::LeaveChecked(ws, Ok(v)) => {
+            let name = s.workspaces.iter().find(|w| w.id == ws).map(|w| w.name.clone()).unwrap_or_else(|| "this workspace".into());
+            match v.state {
+                LeaveState::Refused => {
+                    let why = v.refusal.unwrap_or_else(|| "this workspace doesn't let you leave from here".into());
+                    s.toast(ToastKind::Error, format!("{why}. Leave from your main desktop, or ask an Admin to remove you"));
+                }
+                state => {
+                    let yes = if state == LeaveState::Passkey { "leave (your passkey confirms it)" } else { "leave" };
+                    confirm(
+                        s,
+                        &format!("Leave \u{201c}{name}\u{201d}?"),
+                        format!("{} {}", v.line, v.reminder),
+                        yes,
+                        ConfirmAction::LeaveWorkspace(ws),
+                    );
+                }
+            }
+            vec![]
+        }
+        Msg::LeaveChecked(_, Err(e)) => {
+            s.toast(ToastKind::Error, e.0);
+            vec![]
+        }
+        Msg::Left(ws, Ok(())) => {
+            let name = s.workspaces.iter().find(|w| w.id == ws).map(|w| w.name.clone()).unwrap_or_default();
+            s.workspaces.retain(|w| w.id != ws);
+            s.toast(ToastKind::Ok, format!("Left \u{201c}{name}\u{201d}: others see you as asked to leave"));
+            if s.active.as_ref() != Some(&ws) {
+                return vec![Effect::LoadWorkspaces];
+            }
+            match s.workspaces.first().map(|w| w.id.clone()) {
+                Some(next) => {
+                    let mut fx = switch_workspace(s, next);
+                    fx.push(Effect::LoadWorkspaces);
+                    fx
+                }
+                None => {
+                    s.active = None;
+                    vec![Effect::Startup]
+                }
+            }
+        }
+        Msg::Left(_, Err(e)) => {
+            s.toast(ToastKind::Error, format!("Couldn't leave: {}", e.0));
+            vec![]
+        }
         Msg::Admitted(r) => {
             match (&mut s.overlay, r) {
                 (Some(Overlay::AdmitBox { busy, result, .. }), Ok(a)) => {
@@ -1117,6 +1172,10 @@ fn event(s: &mut State, e: Event) -> Vec<Effect> {
         }
         Event::WorkspacesChanged => vec![Effect::LoadWorkspaces],
         Event::SetupFactsChanged => crate::app::setup::refresh(s),
+        Event::SetupConfirming { step, of, what } => {
+            crate::app::setup::confirming(s, step, of, &what);
+            vec![]
+        }
         Event::WorkflowsChanged { workspace } if is_active(s, &workspace) => vec![Effect::LoadWorkflows(workspace)],
         Event::RunChanged { workspace, run } => {
             upsert_run(s, &workspace, run);
@@ -1218,6 +1277,12 @@ fn event(s: &mut State, e: Event) -> Vec<Effect> {
         // "synced", "sync failed: …", "sync off: …" are the status bar's;
         // anything else on this channel is a background failure (a turn,
         // a workflow, an apply) worth a toast.
+        // Renamed on the person's desktop: lt keeps that name now.
+        Event::DeviceRenamed { name } => {
+            s.device.device_name = name.clone();
+            s.toast(ToastKind::Info, format!("This computer is now called {name} (renamed on your desktop)"));
+            vec![Effect::LoadSettings]
+        }
         Event::Sync { workspace, status } => {
             if status.starts_with("sync") {
                 s.sync_status.insert(workspace, status);
@@ -2577,6 +2642,10 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
                 (ConfirmAction::Reject(p), Some(w)) => vec![Effect::Vote(w, p, VoteChoice::Reject)],
                 (ConfirmAction::RejectGate { run, stage }, Some(w)) => vec![Effect::DecideGate(w, run, stage, false)],
                 (ConfirmAction::AllowAsk { chat, ask }, Some(w)) => vec![Effect::AnswerAsk(w, chat, ask, AskReply::Option(0))],
+                (ConfirmAction::LeaveWorkspace(w), _) => {
+                    s.toast(ToastKind::Info, "Leaving…");
+                    vec![Effect::LeaveWorkspace(w)]
+                }
                 (_, None) => vec![],
             }
         }
@@ -3148,6 +3217,13 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             };
             s.overlay = Some(Overlay::Approvals { list: None });
             vec![Effect::LoadApprovals(w)]
+        }
+        LeaveWorkspace => {
+            let Some(w) = ws else {
+                s.toast(ToastKind::Info, "Open a workspace first");
+                return vec![];
+            };
+            vec![Effect::LeaveCheck(w)]
         }
         GoChats => go(s, View::Chats),
         GoProposals => go(s, View::Proposals),

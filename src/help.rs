@@ -664,7 +664,7 @@ pub const COMMANDS: &[Cmd] = &[
                 @FILE (owner-only); one-shot (lt setup ...) it also takes - for stdin and prints one ligus.checks.v1 \
                 document with --json. A step only a person can do ends the run with exit 4 and says where.",
         prints: "setup, check, next, setup-done",
-        example: "lt setup agent --harness claude-code --name helper --test-turn",
+        example: "lt setup agent --name helper --source claude-code --test-turn",
     },
     Cmd {
         name: "wait",
@@ -770,6 +770,7 @@ pub const RECORDS: &[(&str, &[&[&str]])] = &[
     ("presence-handoff", &[&["id", "code", "summary", "answers"]]),
     ("presence-handoff-stopped", &[&["id", "why", "answers"]]),
     ("sync", &[&["workspace", "status"]]),
+    ("device-renamed", &[&["name"]]),
     ("run-changed", &[&["id", "status", "name", "done"]]),
 ];
 

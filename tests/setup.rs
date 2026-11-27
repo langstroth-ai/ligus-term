@@ -84,7 +84,7 @@ async fn the_list_shows_each_flow_and_what_is_done() {
     let mut h = demo().await;
     h.key(KeyCode::Char('u')).await;
     let s = h.screen(W, H);
-    for t in ["Set up an agent", "Connect a tool", "Add a code folder", "Add a box", "Add a phone", "Invite a person", "Set up a relay"] {
+    for t in ["Add an agent", "Connect a tool", "Add a code folder", "Add a box", "Add a phone", "Invite a person", "Set up a relay"] {
         assert!(s.contains(t), "{t}\n{s}");
     }
     assert!(s.contains("4 agents") && s.contains("✓"), "{s}");
@@ -104,38 +104,98 @@ async fn the_palette_opens_a_flow_by_name() {
     assert!(!wizard(&h).from_list);
 }
 
-/// An agent, step by step: a choice (the harness, with sign-in hints and
-/// lt's limits), text (the name), a suggestion (the model), a toggle (the
-/// test turn), the review, then done.
+/// An agent, step by step: text (the name), a choice (what answers, with
+/// sign-in hints and lt's limits), a suggestion (the model), where it runs
+/// (with its one line), a toggle (the test turn), the review with the one
+/// button's words, then done.
 #[tokio::test]
 async fn an_agent_step_by_step() {
     let mut h = demo().await;
     open(&mut h, 0).await;
     assert_eq!(wizard(&h).stage, Stage::Fill);
-    let s = h.screen(W, H);
-    assert!(s.contains("Claude Code") && s.contains("signed in"), "{s}");
-    assert!(s.contains("not in lt yet"), "Aider, Pi and gateways are shown disabled: {s}");
-    snap(&h, "setup_agent_harness", "Set up an agent: the harness");
-    h.key(KeyCode::Enter).await;
     h.chars("helper").await;
-    snap(&h, "setup_agent_name", "Set up an agent: its name");
+    snap(&h, "setup_agent_name", "Add an agent: its name");
+    h.key(KeyCode::Enter).await;
+    let s = h.screen(W, H);
+    assert!(s.contains("Claude Code") && s.contains("signed in · this comp"), "{s}");
+    assert!(s.contains("not in lt yet"), "Aider and Pi are shown disabled: {s}");
+    assert!(s.contains("gw-home (OpenAI API)") && s.contains("offered by build-box"), "a box's gateway: {s}");
+    snap(&h, "setup_agent_source", "Add an agent: what answers");
     h.key(KeyCode::Enter).await;
     h.key(KeyCode::Down).await;
     assert_eq!(wizard(&h).inputs().get("model").map(String::as_str), Some("sonnet"), "↓ takes a suggestion");
-    snap(&h, "setup_agent_model", "Set up an agent: a model (suggestions)");
+    snap(&h, "setup_agent_model", "Add an agent: a model (suggestions)");
+    h.key(KeyCode::Enter).await;
+    assert_eq!(wizard(&h).inputs().get("runs-on").map(String::as_str), Some("here"));
+    assert!(h.screen(W, H).contains("Turns run on this device while Ligus is open."));
+    snap(&h, "setup_agent_runs_on", "Add an agent: where it runs");
     h.key(KeyCode::Enter).await;
     h.key(KeyCode::Char(' ')).await;
-    snap(&h, "setup_agent_test", "Set up an agent: a test turn (a toggle)");
+    snap(&h, "setup_agent_test", "Add an agent: a test turn (a toggle)");
     h.key(KeyCode::Enter).await;
     assert_eq!(wizard(&h).stage, Stage::Review);
-    snap(&h, "setup_agent_review", "Set up an agent: ready to run");
+    assert!(h.screen(W, H).contains("enter Add @helper"), "the one button's words");
+    snap(&h, "setup_agent_review", "Add an agent: ready to run");
     h.key(KeyCode::Enter).await;
     let Stage::Done(o) = &wizard(&h).stage else { panic!("{:?}", wizard(&h).stage) };
     assert_eq!(o.exit, 0, "{o:?}");
-    snap(&h, "setup_agent_done", "Set up an agent: done");
+    snap(&h, "setup_agent_done", "Add an agent: done");
     assert!(h.state.agents.iter().any(|a| a.handle == "helper"), "the agents list reloaded");
     h.key(KeyCode::Enter).await;
     assert!(matches!(h.state.overlay, Some(Overlay::Setup { .. })), "back to the list it came from");
+}
+
+/// A gateway a box offers: its own models (auto first), Runs on is the box
+/// with its one line, and one agent is written placed on it.
+#[tokio::test]
+async fn a_gateway_on_a_box_in_one_step() {
+    let mut h = demo().await;
+    open(&mut h, 0).await;
+    h.chars("builder").await;
+    h.key(KeyCode::Enter).await;
+    // The CLIs come first; the gateway after them.
+    while wizard(&h).inputs().get("source").map(String::as_str) != Some("gateway:gw-home") {
+        h.key(KeyCode::Down).await;
+    }
+    h.key(KeyCode::Enter).await;
+    assert_eq!(wizard(&h).inputs().get("model").map(String::as_str), Some("auto"), "the gateway's first model");
+    assert!(h.screen(W, H).contains("qwen3-coder"));
+    h.key(KeyCode::Enter).await;
+    assert_eq!(wizard(&h).inputs().get("runs-on").map(String::as_str), Some("h-build-box"), "the one host that offers it");
+    let s = h.screen(W, H);
+    assert!(s.contains("Turns run on build-box. When it's offline, @builder waits."), "{s}");
+    assert!(!s.contains("This device"), "a gateway never runs here: {s}");
+    h.key(KeyCode::Enter).await;
+    h.key(KeyCode::Enter).await;
+    assert_eq!(wizard(&h).stage, Stage::Review);
+    assert!(h.screen(W, H).contains("enter Add @builder"));
+    h.key(KeyCode::Enter).await;
+    finished(&mut h).await;
+    let Stage::Done(o) = &wizard(&h).stage else { panic!("{:?}", wizard(&h).stage) };
+    assert_eq!(o.exit, 0, "{o:?}");
+    let ws = h.state.active.clone().unwrap();
+    let agents = h.backend.agents(&ws).await.unwrap();
+    let builder: Vec<_> = agents.iter().filter(|a| a.handle == "builder").collect();
+    assert_eq!(builder.len(), 1, "one agent");
+    assert_eq!(builder[0].host.as_ref().map(|h| h.as_str()), Some("h-build-box"), "placed on the box");
+}
+
+/// A passkey run that takes two confirmations says which one it is.
+#[tokio::test]
+async fn a_run_says_which_confirmation_it_asks_for() {
+    let mut h = demo().await;
+    let mut w = Wizard::new(LtFlow::Engine(FlowId::Agent), false);
+    w.stage = Stage::Running;
+    h.state.overlay = Some(Overlay::SetupFlow(Box::new(w)));
+    let ev = |step, of| ligus_term::backend::Event::SetupConfirming { step, of, what: "Add @coder".into() };
+    update(&mut h.state, Msg::Event(ev(2, 2)));
+    assert!(h.screen(W, H).contains("Confirm 2 of 2: Add @coder"));
+    // One confirmation needs no count.
+    let mut w = Wizard::new(LtFlow::Engine(FlowId::Agent), false);
+    w.stage = Stage::Running;
+    h.state.overlay = Some(Overlay::SetupFlow(Box::new(w)));
+    update(&mut h.state, Msg::Event(ev(1, 1)));
+    assert!(!h.screen(W, H).contains("Confirm 1 of 1"));
 }
 
 /// A failed check shows its fix line; `r` goes back to the steps with the
@@ -144,18 +204,23 @@ async fn an_agent_step_by_step() {
 async fn a_failed_check_shows_its_fix() {
     let mut h = demo().await;
     open(&mut h, 0).await;
-    h.key(KeyCode::Down).await; // Codex: installed, not signed in
-    h.key(KeyCode::Enter).await;
     h.chars("coder2").await;
-    for _ in 0..3 {
-        h.key(KeyCode::Enter).await;
+    h.key(KeyCode::Enter).await;
+    h.key(KeyCode::Down).await; // Codex: installed here, not signed in
+    h.key(KeyCode::Enter).await;
+    h.key(KeyCode::Enter).await;
+    // Codex is signed in on the box, so Runs on starts there: pick here.
+    while wizard(&h).inputs().get("runs-on").map(String::as_str) != Some("here") {
+        h.key(KeyCode::Up).await;
     }
+    h.key(KeyCode::Enter).await;
+    h.key(KeyCode::Enter).await;
     h.key(KeyCode::Enter).await;
     let Stage::Done(o) = &wizard(&h).stage else { panic!("{:?}", wizard(&h).stage) };
     assert_eq!(o.exit, 3);
     let s = h.screen(W, H);
     assert!(s.contains("Stopped") && s.contains("fix: run `codex login`"), "{s}");
-    snap(&h, "setup_agent_failed", "Set up an agent: a failed check and its fix");
+    snap(&h, "setup_agent_failed", "Add an agent: a failed check and its fix");
     h.key(KeyCode::Char('r')).await;
     assert_eq!(wizard(&h).stage, Stage::Fill);
     assert_eq!(wizard(&h).inputs().get("name").map(String::as_str), Some("coder2"));
@@ -318,9 +383,8 @@ async fn esc_cancels_cleanly() {
 async fn a_dry_run_writes_nothing() {
     let mut h = demo().await;
     open(&mut h, 0).await;
-    h.key(KeyCode::Enter).await;
     h.chars("dryrun").await;
-    for _ in 0..3 {
+    for _ in 0..5 {
         h.key(KeyCode::Enter).await;
     }
     h.key(KeyCode::Char('d')).await;

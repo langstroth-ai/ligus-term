@@ -10,17 +10,17 @@ expression: screen
 ┃                              ┃│@coder  via claude-code · on build-box  38m                                 │
 ┃                              ┃│  Yes. The payment tests already use a fake clock, so it's a small change.  │
 ┃                              ┃│  I'll propose it.                                                          │
-┃                              ┃│                                                                            │
-┃                ┏ Set up an agent ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                │
-┃                ┃Done                                                                      ┃· p to review   │
-┃                ┃                                                                          ┃                │
+┃                ┏ Add an agent ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                │
+┃                ┃Done                                                                      ┃                │
+┃                ┃                                                                          ┃· p to review   │
 ┃                ┃✓ agent sandbox  seatbelt                                                 ┃                │
-┃                ┃✓ Claude Code    installed 2.1.3                                          ┃rovider uses.   │
-┃                ┃✓ sign-in        signed in (credentials found)                            ┃                │
-┃                ┃✓ name           @helper                                                  ┃res?”           │
-┃                ┃✓ model          sonnet                                                   ┃e chat first)   │
+┃                ┃✓ Claude Code    installed 2.1.3                                          ┃                │
+┃                ┃✓ sign-in        signed in (credentials found)                            ┃rovider uses.   │
+┃                ┃✓ name           @helper                                                  ┃                │
+┃                ┃✓ model          sonnet                                                   ┃res?”           │
+┃                ┃✓ runs on        this computer                                            ┃e chat first)   │
 ┃                ┃✓ runtime        defined 'claude-code-sonnet'                             ┃                │
-┃                ┃✓ agent          @helper created                                          ┃                │
+┃                ┃✓ agent          @helper created, runs on this computer                   ┃                │
 ┃                ┃✓ test turn      answered in 840 ms                                       ┃                │
 ┃                ┃                                                                          ┃                │
 ┃                ┃enter close                                                               ┃                │

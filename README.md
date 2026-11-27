@@ -191,8 +191,17 @@ or a phone) read only: approve them on your desktop or phone.
 
 A linked `lt` acts as you without your account key: a vote asks for your
 passkey in the browser, and account changes (devices, phones, passkeys, keys)
-stay on the desktop. It no longer creates workspaces or accepts invites.
-Revoke it from **My devices** on the desktop. An install that was already in
+stay on the desktop. It no longer creates workspaces or accepts invites, and
+it can't make you leave a workspace (leave from your desktop). Revoke it from
+**My devices** on the desktop. Renaming it there renames it here too: `lt`
+takes the new name live and keeps it.
+
+**Leave workspace** (palette: **leave**) says in one line what happens: the
+others see you as **asked to leave** until an Admin removes you, and this
+terminal stops syncing the workspace. Leaving isn't revoking: your other
+devices keep their keys. `y` leaves (with your passkey when your account
+holds one) and `lt` forgets the workspace here. The founder and the last
+Owner can't leave; `lt` says why. An install that was already in
 the workspace as its own member asks with a new device key, and the desktop
 then offers to remove the old member (their messages keep their name).
 
@@ -558,16 +567,18 @@ everywhere.
   one of your devices; `enter` opens Add to my devices (your desktop's
   approval address, the code to compare, the person to confirm). `lt setup device` says the same
   and hands the steps to those screens (exit 4 until it is linked).
-- Agents run on Claude Code, Codex, the Copilot CLI, the Antigravity CLI or
-  a local model; Aider, Pi and model gateways are shown but are set up from
-  the desktop or `ligus setup agent`.
+- Add an agent is one form: its name, what answers (a coding CLI here or on
+  a host, a model gateway or hosted API a host offers, a model server), the
+  model from that source's list, and where it runs (this computer for a CLI
+  signed in here, the one host that offers a gateway). Aider and Pi run on
+  a host that offers them, not on this computer.
 
 On the command line, `lt setup` lists the flows and `lt setup FLOW` runs
 one, with the engine's field ids as flags, as `ligus setup` takes them:
 
 ```sh
 lt setup                                   # what is done (--json: ligus.checks.v1)
-lt setup agent --harness codex --name fixer --test-turn
+lt setup agent --name fixer --source codex --test-turn
 lt setup tool --id issues --kind url --url https://mcp.example.com/v1 --token - < token.txt
 lt setup folder --path ~/src/web --dry-run
 lt setup invite --json                     # exit 4: create it where the code is shown

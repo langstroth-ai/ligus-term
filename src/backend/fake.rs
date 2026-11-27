@@ -2399,6 +2399,41 @@ impl Backend for FakeBackend {
         Ok(())
     }
 
+    async fn leave_check(&self, workspace: &WorkspaceId) -> Result<LeaveView> {
+        let w = self.lock();
+        let Some(ws) = w.ws.get(workspace) else { return err("no such workspace") };
+        let Some(me) = ws.members.iter().find(|m| m.id == w.you) else { return err("not a member here") };
+        let others_owner = ws.members.iter().any(|m| m.id != w.you && m.role == Role::Owner);
+        let refusal = if me.founder {
+            Some("Couldn't leave: the founder stays in the workspace".to_string())
+        } else if me.role == Role::Owner && !others_owner {
+            Some("Couldn't leave: you're the last Owner. Make someone else an Owner first".to_string())
+        } else {
+            None
+        };
+        Ok(LeaveView {
+            state: if refusal.is_some() { LeaveState::Refused } else { LeaveState::Passkey },
+            refusal,
+            line: "Others see you as asked to leave until an Admin removes you, and this device stops syncing the workspace.".into(),
+            reminder: "Leaving isn't revoking: your other devices and anything they already copied keep their keys. Revoke a lost device in My devices.".into(),
+        })
+    }
+
+    async fn leave_workspace(&self, workspace: &WorkspaceId) -> Result<()> {
+        let check = self.leave_check(workspace).await?;
+        if let Some(why) = check.refusal {
+            return err(why);
+        }
+        self.presence("memberLeft", "Leave this workspace (you're listed as asked to leave)".into(), PresenceOp::Get).await?;
+        {
+            let mut w = self.lock();
+            w.ws.remove(workspace);
+            w.order.retain(|o| o != workspace);
+        }
+        self.emit(Event::WorkspacesChanged);
+        Ok(())
+    }
+
     async fn notifications(&self) -> Result<Vec<Notification>> {
         Ok(self.lock().notifications.clone())
     }
@@ -2773,8 +2808,8 @@ impl FakeOps {
 }
 
 use ligus_runtime::setup::{
-    AgentFact, FolderFact, HarnessFact, McpFact, OpsError, OpsResult, ProbeFact, RepoFact, RuntimeFact, RuntimeSpec, SandboxFact, SetupOps,
-    Surface, TestTurn,
+    AgentFact, FolderFact, HarnessFact, HostSourceFact, McpFact, OpsError, OpsResult, ProbeFact, RepoFact, RuntimeFact, RuntimeSpec,
+    SandboxFact, SetupOps, Surface, TestTurn,
 };
 
 impl SetupOps for FakeOps {
@@ -2855,13 +2890,25 @@ impl SetupOps for FakeOps {
                     let (p, model) = crate::backend::real::detect::parse_local_id(r.id.as_str())?;
                     let h = ligus_runtime::setup::service::harness_of(p, false)?;
                     let endpoint = if h == "local" { "http://localhost:11434".to_string() } else { String::new() };
-                    Some(RuntimeFact { id: r.id.0.clone(), harness: h.into(), model, endpoint })
+                    Some(RuntimeFact {
+                        id: r.id.0.clone(),
+                        harness: h.into(),
+                        model,
+                        endpoint,
+                        provider: ligus_runtime::host_offers::harness_name(p),
+                        ..Default::default()
+                    })
                 })
                 .collect()
         })
         .unwrap_or_default()
     }
     fn add_runtime(&mut self, spec: &RuntimeSpec) -> OpsResult<()> {
+        if spec.shared {
+            // A workspace runtime another host runs: the demo keeps its id.
+            self.defined.insert(spec.id.clone(), spec.id.clone());
+            return Ok(());
+        }
         let p = ligus_runtime::setup::service::provider_of(&spec.harness)
             .ok_or_else(|| OpsError::Failed(format!("lt doesn't run {} agents", spec.harness)))?;
         self.defined.insert(spec.id.clone(), crate::backend::real::detect::local_id(p, Some(&spec.model)));
@@ -2883,7 +2930,42 @@ impl SetupOps for FakeOps {
     fn member_names(&self) -> Vec<String> {
         self.with(|w| w.members.iter().map(|m| m.name.clone()).collect()).unwrap_or_default()
     }
+    /// The demo's always-on boxes offer Codex (signed in) and the gw-home
+    /// gateway (auto and a coding model).
+    fn host_sources(&self) -> Vec<HostSourceFact> {
+        self.with(|w| {
+            w.hosts
+                .iter()
+                .filter(|h| h.kind == HostKind::Worker)
+                .flat_map(|h| {
+                    let o = |name: &str, kind: &str, wire: &str, models: &[&str]| HostSourceFact {
+                        host_id: h.id.0.clone(),
+                        host_label: h.label.clone(),
+                        host_kind: "worker".into(),
+                        online: h.online,
+                        build: "0.5.0".into(),
+                        name: name.into(),
+                        kind: kind.into(),
+                        harness: if kind == "cli" { "codex".into() } else { String::new() },
+                        wire: wire.into(),
+                        ready: Some(true),
+                        models: models.iter().map(|m| m.to_string()).collect(),
+                        complete: !models.is_empty(),
+                        ..Default::default()
+                    };
+                    [o("codex", "cli", "", &[]), o("gw-home", "gateway", "openai", &["auto", "qwen3-coder"])]
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+    }
+    fn this_device_label(&self) -> String {
+        "this computer".into()
+    }
     fn add_agent(&mut self, name: &str, runtime_id: &str) -> OpsResult<uuid::Uuid> {
+        self.add_agent_placed(name, runtime_id, "")
+    }
+    fn add_agent_placed(&mut self, name: &str, runtime_id: &str, host_id: &str) -> OpsResult<uuid::Uuid> {
         let local = self.defined.get(runtime_id).cloned().unwrap_or_else(|| runtime_id.to_string());
         let id = {
             let mut w = self.b.lock();
@@ -2904,7 +2986,8 @@ impl SetupOps for FakeOps {
                     active: false,
                 });
             }
-            ws.agents.push(Agent { access: "owner".into(), shared: false, can_manage: true, ..agent(&id, name, &local, None, None) });
+            let host = (!host_id.is_empty()).then_some(host_id);
+            ws.agents.push(Agent { access: "owner".into(), shared: false, can_manage: true, ..agent(&id, name, &local, host, None) });
             id
         };
         self.changed(|workspace| Event::AgentsChanged { workspace });

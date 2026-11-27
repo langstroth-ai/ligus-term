@@ -182,6 +182,10 @@ fn diff(inner: &Inner, batch: HashMap<Uuid, (Uuid, bool)>) -> Vec<(Uuid, Uuid, U
             d.wake.notify_one();
         }
         if sid == workspace_config_session_id(ws) {
+            // A rename of this computer on the person's desktop.
+            if synced {
+                inner.follow_synced_label(ws, &s);
+            }
             let o = old.map(|o| o.config).unwrap_or_default();
             if o.0 != new.config.0 {
                 inner.emit(Event::MembersChanged { workspace: wsid.clone() });

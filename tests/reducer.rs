@@ -2770,3 +2770,59 @@ fn the_invite_guard_is_a_hint_and_never_blocks() {
     assert_eq!(mods(&mut s, KeyCode::Char('l'), KeyModifiers::CONTROL), vec![Effect::LinkRequest]);
     assert!(matches!(&s.overlay, Some(Overlay::AddWorkspace(f)) if f.mode == FormMode::Link));
 }
+
+fn leave_view(state: LeaveState, refusal: Option<&str>) -> LeaveView {
+    LeaveView {
+        state,
+        refusal: refusal.map(String::from),
+        line: "Others see you as asked to leave until an Admin removes you, and this device stops syncing the workspace.".into(),
+        reminder: "Leaving isn't revoking: your other devices and anything they already copied keep their keys.".into(),
+    }
+}
+
+#[test]
+fn leaving_asks_with_one_line_then_forgets_the_workspace() {
+    let mut s = main_state();
+    let a = WorkspaceId::new("a");
+    // The palette's Leave workspace asks the backend first.
+    use ligus_term::app::palette::{Target, filtered};
+    key(&mut s, KeyCode::Char(':'));
+    typed(&mut s, "leave workspace");
+    let items = filtered(&s, "leave workspace");
+    assert_eq!(items[0].target, Target::Action(ligus_term::keymap::Action::LeaveWorkspace), "{items:?}");
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::LeaveCheck(a.clone())]);
+    update(&mut s, Msg::LeaveChecked(a.clone(), Ok(leave_view(LeaveState::Passkey, None))));
+    match &s.overlay {
+        Some(Overlay::Confirm { title, question, yes, action }) => {
+            assert_eq!(title, "Leave \u{201c}WS a\u{201d}?");
+            assert!(question.contains("asked to leave") && question.contains("Leaving isn't revoking"), "{question}");
+            assert!(yes.contains("passkey"));
+            assert_eq!(action, &ConfirmAction::LeaveWorkspace(a.clone()));
+        }
+        other => panic!("{other:?}"),
+    }
+    assert_eq!(key(&mut s, KeyCode::Char('y')), vec![Effect::LeaveWorkspace(a.clone())]);
+    let fx = update(&mut s, Msg::Left(a.clone(), Ok(())));
+    assert!(!s.workspaces.iter().any(|w| w.id == a));
+    assert_eq!(s.active, Some(WorkspaceId::new("b")), "on to the next workspace");
+    assert!(fx.contains(&Effect::LoadWorkspaces));
+}
+
+#[test]
+fn a_refused_leave_says_why_and_asks_nothing() {
+    let mut s = main_state();
+    let a = WorkspaceId::new("a");
+    update(&mut s, Msg::LeaveChecked(a.clone(), Ok(leave_view(LeaveState::Refused, Some("Couldn't leave: you're the last Owner")))));
+    assert!(s.overlay.is_none());
+    assert!(s.toasts.iter().any(|t| t.text.contains("last Owner") && t.kind == ToastKind::Error), "{:?}", s.toasts);
+    update(&mut s, Msg::Left(a.clone(), Err(BackendError("offline".into()))));
+    assert!(s.workspaces.iter().any(|w| w.id == a), "kept on a failure");
+}
+
+#[test]
+fn a_rename_on_the_desktop_shows_here() {
+    let mut s = main_state();
+    let fx = update(&mut s, Msg::Event(Event::DeviceRenamed { name: "Ana's work laptop".into() }));
+    assert_eq!(s.device.device_name, "Ana's work laptop");
+    assert_eq!(fx, vec![Effect::LoadSettings]);
+}

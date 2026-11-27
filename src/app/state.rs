@@ -563,6 +563,8 @@ pub enum ConfirmAction {
         chat: ChatId,
         ask: AskId,
     },
+    /// Leave this workspace on your own.
+    LeaveWorkspace(WorkspaceId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
