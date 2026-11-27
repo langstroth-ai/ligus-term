@@ -49,6 +49,10 @@ pub(crate) struct RealOps {
     tokens_put: std::collections::HashSet<String>,
     /// A run (not a form) waits for a sign-in check still under way.
     wait_for_checks: bool,
+    /// A form's one read of the Antigravity sign-in: every look at the
+    /// harnesses while one form is built sees the same answer, so a check
+    /// that ends mid-form can't leave it saying "sign-in unknown".
+    agy_seen: std::cell::OnceCell<Option<(LoginState, String)>>,
 }
 
 /// What the Antigravity harness shows while `agy models` runs.
@@ -134,7 +138,15 @@ fn failed(e: impl std::fmt::Display) -> OpsError {
 impl RealOps {
     pub(crate) fn new(inner: Arc<Inner>, ws: Option<Uuid>) -> Self {
         let env = inner.cfg.detect_env.clone().unwrap_or_else(detect::process_env);
-        RealOps { inner, ws, env, defined: HashMap::new(), tokens_put: Default::default(), wait_for_checks: false }
+        RealOps {
+            inner,
+            ws,
+            env,
+            defined: HashMap::new(),
+            tokens_put: Default::default(),
+            wait_for_checks: false,
+            agy_seen: Default::default(),
+        }
     }
 
     /// For a run: harness facts wait for a sign-in check under way, so its
@@ -204,9 +216,14 @@ impl SetupOps for RealOps {
         // Antigravity keeps its sign-in in the keychain: `agy models` says
         // (read-only, no quota), checked off the UI thread ([`AgyCheck`]).
         if let Some(f) = facts.iter_mut().find(|f| f.id == "antigravity" && f.installed) {
-            let inner = self.inner.clone();
-            let on_done = move || inner.emit(Event::SetupFactsChanged);
-            match self.inner.agy.result(&self.env, self.wait_for_checks, on_done) {
+            let ask = || {
+                let inner = self.inner.clone();
+                let on_done = move || inner.emit(Event::SetupFactsChanged);
+                self.inner.agy.result(&self.env, self.wait_for_checks, on_done)
+            };
+            // A run asks every time (it waits for the answer); a form asks once.
+            let answer = if self.wait_for_checks { ask() } else { self.agy_seen.get_or_init(ask).clone() };
+            match answer {
                 Some((login, detail)) => {
                     f.login = login;
                     f.login_detail = detail;
