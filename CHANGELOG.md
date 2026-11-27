@@ -8,6 +8,19 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Changed
 
+- A turn that isn't this terminal's (an agent on another host, or someone
+  else's agent while their devices are away) is never answered here after
+  a wait any more; its line says where it waits. Only **Run here this
+  time**, on the agent's owner's own device, runs it here.
+- This terminal runs only your own agents placed on it. An agent someone
+  else placed here doesn't run unless `run_others_agents = true` is in
+  `host.toml` in lt's data dir; its sender's chat says so (lt's beat now
+  carries the reason, signed by this device).
+- An agent whose runtime this terminal doesn't have, or has without its key,
+  no longer runs on Claude Code or the workspace's `*` runtime in its
+  place: its turn says it can't run here. The `*` runtime still stands in
+  for an older agent's runtime id, never for a run spec that names a source
+  and model. The chat's default agent keeps its fallback.
 - The first run asks one question before anything else: **Is this your
   first device with Ligus?** **Yes, start here** asks your name, then makes
   your workspace (left unnamed, it is "Your name's workspace"), or joins,
@@ -35,6 +48,17 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
   touches an existing `host.toml`; later secrets are declared by hand.
 
 ### Added
+
+- A message of yours whose turn doesn't run gets one dim line under it:
+  "@coder runs on box-1, which is offline. It will answer when box-1 is
+  back.", or that the host was removed, or that it can't run there and why
+  ("it runs only Ben's agents", "it doesn't have 'codex-pro'"). When the
+  agent is yours and this terminal can run it, the line ends with **T Run
+  here this time**: `T` (or the chat's `.` menu) runs that one turn here,
+  once. A reply that was stopped or cut off reads **Canceled**, one that
+  failed **Failed**, with the model and host that ran it.
+- On the chat, a reply shows where and when it finished: after anything
+  posted while it was written, at its completion's time.
 
 - On a computer linked as one of your devices, a setup step whose change
   the workspace's rules hold for your passkey asks your own desktop or

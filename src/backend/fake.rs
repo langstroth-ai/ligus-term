@@ -552,6 +552,7 @@ impl FakeBackend {
                     at,
                     streaming: true,
                     tools: vec![],
+                    note: None,
                 };
                 if let Ok(wsd) = w.ws(&ws) {
                     wsd.messages.entry(chat.clone()).or_default().push(m.clone());
@@ -797,7 +798,7 @@ fn member(id: &str, name: &str, role: Role, founder: bool, service: bool) -> Mem
 }
 
 fn msg(id: &str, chat: &str, author: Author, text: &str, at: Millis) -> Message {
-    Message { id: MessageId::new(id), chat: ChatId::new(chat), author, text: text.into(), at, streaming: false, tools: vec![] }
+    Message { id: MessageId::new(id), chat: ChatId::new(chat), author, text: text.into(), at, streaming: false, tools: vec![], note: None }
 }
 
 fn human(id: &str, name: &str) -> Author {
@@ -1905,6 +1906,7 @@ impl Backend for FakeBackend {
                 at,
                 streaming: false,
                 tools: vec![],
+                note: None,
             };
             ws.messages.entry(chat.clone()).or_default().push(m.clone());
             let lower = text.to_lowercase();

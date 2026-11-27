@@ -252,6 +252,12 @@ pub trait Backend: Send + Sync {
     async fn transcript(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<Vec<Message>>;
     /// Post a message; agent replies arrive as events.
     async fn send_message(&self, workspace: &WorkspaceId, chat: &ChatId, text: &str) -> Result<Message>;
+    /// "Run here this time": your own message whose agent (yours) waits for
+    /// a host that is offline or gone runs once on this device. The reply
+    /// arrives as events.
+    async fn run_turn_here(&self, _workspace: &WorkspaceId, _chat: &ChatId, _message: &MessageId) -> Result<()> {
+        Err(BackendError("this backend can't run a turn here".into()))
+    }
     async fn mentionables(&self, workspace: &WorkspaceId) -> Result<Vec<Mentionable>>;
     async fn mark_read(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<()>;
     /// Any member may lock a chat down.

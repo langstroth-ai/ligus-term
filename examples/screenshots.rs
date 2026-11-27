@@ -647,6 +647,7 @@ async fn stream_reply(h: &mut Harness) {
         at: ligus_term::backend::fake::DEMO_NOW,
         streaming: true,
         tools: vec![],
+        note: None,
     };
     h.send(Msg::Event(Event::MessageAdded { workspace: ws.clone(), message })).await;
     for (name, preview) in [("read_file", "src/checkout.rs"), ("edit_file", "src/checkout.rs")] {

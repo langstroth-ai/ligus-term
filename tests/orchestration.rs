@@ -19,8 +19,6 @@ use std::time::Duration;
 
 /// The longest a test waits for a fallback's decision: only a hung test
 /// gets there.
-const SETTLE: Duration = Duration::from_secs(60);
-
 use ligus_core::workflow::{GateRejectPolicy, WorkflowDefinition, WorkflowNode, WorkflowNodeKind};
 use ligus_core::{ModelProviderKind, Timestamp, WorkspaceAgent, WorkspaceHost, WorkspaceRuntime, workspace_config_session_id};
 use ligus_runtime::box_admission::{self, JoinRequest};
@@ -29,7 +27,6 @@ use ligus_runtime::secret_store::StoreKeyVault;
 use ligus_runtime::workspace_invite::{WorkspaceConn, decode_workspace_invite, encode_workspace_invite};
 use ligus_runtime::{ChatService, EventStore, IdentityStore, RelayClient, StoredIdentity, SyncEngine};
 use ligus_term::backend::model::*;
-use ligus_term::backend::real::DeferredClock;
 use ligus_term::backend::{Backend, Event};
 use support::*;
 use uuid::Uuid;
@@ -491,34 +488,38 @@ async fn invites_are_checked_before_joining() {
     b.b.shutdown();
 }
 
-/// The deferred-claim fallback: a turn deferred to its agent's owner, whose
-/// device never answers, is answered here once the wait is over. And people's
-/// presence beats (online, typing) from other devices change nothing.
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn a_deferred_turn_nobody_answers_is_answered_here() {
-    let tmp = tempfile::tempdir().unwrap();
-    let relay = serve(ligus_runtime::test_relay::router()).await;
-    let model = fake_model().await;
-    let a = device(&tmp.path().join("ana"), "lt Ana", &relay);
-    let (clock, mut hand) = DeferredClock::manual();
-    let b = device_with(&tmp.path().join("ben"), "lt Ben", &relay, |c| c.deferred_clock = Some(clock));
+/// Ana founds a workspace with a keyless `gw` runtime on the fake model and
+/// her agent `coder` (open to everyone when `open`, placed on `host`), and
+/// Ben joins. Returns (workspace, chat, the agent's id).
+async fn ana_and_ben(
+    tmp: &Path,
+    a: &Device,
+    b: &Device,
+    model: String,
+    open: bool,
+    host: Option<String>,
+) -> (WorkspaceId, ChatSummary, Uuid) {
     let created = a.b.create_workspace("Ana", "Acme Web").await.unwrap();
     let ws = created.workspace.id.clone();
     let wsu = Uuid::parse_str(ws.as_str()).unwrap();
-    on_service(&a, move |svc| {
+    let coder = on_service(a, move |svc| {
         let mut rt = WorkspaceRuntime::new("gw", "Lab gateway", ModelProviderKind::Custom, "test-model");
         rt.endpoint = model;
         svc.add_workspace_runtime(wsu, rt).unwrap();
         let mut agent = WorkspaceAgent::new("coder", "gw");
         agent.owner_actor_id = svc.author().id.clone();
-        // Open to everyone: the fallback runs it for Ben on his device.
-        // `the_fallback_never_runs_someone_elses_personal_agent` covers the
-        // default.
-        agent.access = ligus_core::agent::ACCESS_EVERYONE.into();
+        if open {
+            agent.access = ligus_core::agent::ACCESS_EVERYONE.into();
+        }
+        if let Some(h) = host {
+            agent.place(&h);
+        }
+        let id = agent.id;
         svc.add_agent(workspace_config_session_id(wsu), wsu, agent).unwrap();
+        id
     })
     .await;
-    let words = tmp.path().join("words.txt");
+    let words = tmp.join("words.txt");
     std::fs::write(&words, created.recovery_words.join(" ")).unwrap();
     #[cfg(unix)]
     {
@@ -535,97 +536,138 @@ async fn a_deferred_turn_nobody_answers_is_answered_here() {
         (c && ag).then_some(())
     })
     .await;
-
-    // Someone else's device publishes people's presence (online, typing in
-    // this chat), sealed as the desktop does: lt reads none of it.
-    {
-        let conn = decode_workspace_invite(&invite).unwrap();
-        let ring = ligus_runtime::keyring::KeyringEngine::passphrase(wsu, ligus_core::derive_workspace_key(conn.key.as_deref().unwrap()));
-        let beat = ligus_runtime::human_presence::HumanBeat {
-            device_id: Uuid::new_v4().to_string(),
-            actor_id: "someone".into(),
-            name: "Someone".into(),
-            session_id: chat.id.0.clone(),
-            typing: true,
-            ts: ligus_runtime::human_presence::now_ms(),
-        };
-        let _ = ligus_runtime::human_presence::publish_human_beat(&RelayClient::new(&relay), &conn.room, &ring, &beat).await;
-    }
-
-    // Ana's device goes away; Ben asks her agent. The turn is hers, so Ben's
-    // device defers to it; nobody answers, so after the wait Ben's does.
-    a.b.shutdown();
-    let sent = b.b.send_message(&ws, &chat.id, "@coder is the build under 3 minutes?").await.unwrap();
-    tokio::time::sleep(Duration::from_millis(800)).await;
-    let early = b.b.transcript(&ws, &chat.id).await.unwrap();
-    assert!(!early.iter().any(|m| matches!(m.author, Author::Agent { .. })), "answered before the deferral ran out");
-    hand.fire();
-    let decided = tokio::time::timeout(SETTLE, hand.settled()).await.expect("the fallback never decided");
-    assert_eq!(decided, Some((sent.id.clone(), true)), "the fallback didn't claim the turn");
-    let reply = until("the fallback reply on Ben's device", || async {
-        let t = b.b.transcript(&ws, &chat.id).await.unwrap();
-        t.into_iter().find(|m| matches!(&m.author, Author::Agent { handle, .. } if handle == "coder") && !m.streaming)
-    })
-    .await;
-    assert_eq!(reply.text, "Hello from the agent.");
-    assert!(reply.at >= sent.at);
-    // People's beats never became events: only agents think, nobody types.
-    assert!(!b.saw(|e| matches!(e, Event::Thinking { agent, .. } if !agent.starts_with('@'))));
-    b.b.shutdown();
+    (ws, chat, coder)
 }
 
-/// Agent access controls: the deferred-claim fallback would run the agent
-/// on the sender's device, for the sender. Someone else's personal agent
-/// ("Only me", the default) is refused there like anywhere: Ben's device
-/// answers with the note once the wait is over, and no model runs.
+/// A turn that is someone else's is never answered on the sender's device
+/// on its own, however long it waits: Ana's agent (open to everyone, or
+/// only hers) while Ana's device is away. Nothing runs, nothing is written
+/// for it, and people's presence beats from other devices change nothing.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn the_fallback_never_runs_someone_elses_personal_agent() {
+async fn a_turn_for_someone_elses_device_is_never_answered_here() {
+    for open in [true, false] {
+        let tmp = tempfile::tempdir().unwrap();
+        let relay = serve(ligus_runtime::test_relay::router()).await;
+        let (model, calls) = fake_model_counted().await;
+        let a = device(&tmp.path().join("ana"), "lt Ana", &relay);
+        let b = device(&tmp.path().join("ben"), "lt Ben", &relay);
+        let (ws, chat, _) = ana_and_ben(tmp.path(), &a, &b, model, open, None).await;
+        let wsu = Uuid::parse_str(ws.as_str()).unwrap();
+        // Someone else's device publishes people's presence (online, typing
+        // in this chat), sealed as the desktop does: lt reads none of it.
+        {
+            let invite = a.b.create_invite(&ws, Role::Contributor).await.unwrap();
+            let conn = decode_workspace_invite(&invite).unwrap();
+            let ring =
+                ligus_runtime::keyring::KeyringEngine::passphrase(wsu, ligus_core::derive_workspace_key(conn.key.as_deref().unwrap()));
+            let beat = ligus_runtime::human_presence::HumanBeat {
+                device_id: Uuid::new_v4().to_string(),
+                actor_id: "someone".into(),
+                name: "Someone".into(),
+                session_id: chat.id.0.clone(),
+                typing: true,
+                ts: ligus_runtime::human_presence::now_ms(),
+            };
+            let _ = ligus_runtime::human_presence::publish_human_beat(&RelayClient::new(&relay), &conn.room, &ring, &beat).await;
+        }
+        a.b.shutdown();
+        b.b.send_message(&ws, &chat.id, "@coder is the build under 3 minutes?").await.unwrap();
+        // Well past the old half-minute wait's test setting (2 s).
+        tokio::time::sleep(Duration::from_secs(4)).await;
+        let t = b.b.transcript(&ws, &chat.id).await.unwrap();
+        assert!(!t.iter().any(|m| matches!(m.author, Author::Agent { .. })), "answered on the sender's device: {t:?}");
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0, "no model call");
+        assert!(!b.saw(|e| matches!(e, Event::Thinking { agent, .. } if !agent.starts_with('@'))));
+        b.b.shutdown();
+    }
+}
+
+/// "Run here this time": Ana's agent is placed on a host that is gone, so
+/// her message reads "was removed" with the action, and nothing runs on its
+/// own. Asked, it runs once on this device; asked again, it says the turn
+/// is already answered.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn run_here_this_time_runs_a_waiting_turn_once() {
     let tmp = tempfile::tempdir().unwrap();
     let relay = serve(ligus_runtime::test_relay::router()).await;
     let (model, calls) = fake_model_counted().await;
     let a = device(&tmp.path().join("ana"), "lt Ana", &relay);
-    let b = device_with(&tmp.path().join("ben"), "lt Ben", &relay, |c| c.deferred_timeout = Duration::from_secs(2));
-    let created = a.b.create_workspace("Ana", "Acme Web").await.unwrap();
-    let ws = created.workspace.id.clone();
-    let wsu = Uuid::parse_str(ws.as_str()).unwrap();
-    on_service(&a, move |svc| {
-        let mut rt = WorkspaceRuntime::new("gw", "Lab gateway", ModelProviderKind::Custom, "test-model");
-        rt.endpoint = model;
-        svc.add_workspace_runtime(wsu, rt).unwrap();
-        let mut agent = WorkspaceAgent::new("coder", "gw");
-        agent.owner_actor_id = svc.author().id.clone();
-        svc.add_agent(workspace_config_session_id(wsu), wsu, agent).unwrap();
+    let b = device(&tmp.path().join("ben"), "lt Ben", &relay);
+    let (ws, chat, _) = ana_and_ben(tmp.path(), &a, &b, model, false, Some(Uuid::new_v4().to_string())).await;
+    let sent = a.b.send_message(&ws, &chat.id, "@coder fix the flaky test").await.unwrap();
+    let note = until("the waiting line under Ana's message", || async {
+        let t = a.b.transcript(&ws, &chat.id).await.unwrap();
+        t.into_iter().find(|m| m.id == sent.id).and_then(|m| m.note)
     })
     .await;
-    let words = tmp.path().join("words.txt");
-    std::fs::write(&words, created.recovery_words.join(" ")).unwrap();
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&words, std::fs::Permissions::from_mode(0o600)).unwrap();
-    }
-    *a.words_file.lock().unwrap() = Some(words);
-    let invite = a.b.create_invite(&ws, Role::Contributor).await.unwrap();
-    b.b.join_workspace("Ben", &invite).await.unwrap();
-    let chat = a.b.create_chat(&ws, "Flaky tests").await.unwrap();
-    until("Ben to see the chat and the agent", || async {
-        let c = b.b.chats(&ws).await.unwrap().into_iter().any(|c| c.id == chat.id);
-        let ag = b.b.agents(&ws).await.unwrap().into_iter().any(|x| x.handle == "coder");
-        (c && ag).then_some(())
-    })
-    .await;
-    a.b.shutdown();
-    b.b.send_message(&ws, &chat.id, "@coder is the build under 3 minutes?").await.unwrap();
-    let note = until("the refusal on Ben's device", || async {
-        let t = b.b.transcript(&ws, &chat.id).await.unwrap();
+    assert_eq!(note.kind, NoteKind::HostGone);
+    assert!(note.text.contains("was removed from the workspace. Choose where @coder runs."), "{}", note.text);
+    assert!(note.run_here, "Ana's own agent, and this device runs gw");
+    // Ben's device shows no line for Ana's message, and neither runs it.
+    let tb = b.b.transcript(&ws, &chat.id).await.unwrap();
+    assert!(tb.iter().all(|m| m.note.is_none()), "{tb:?}");
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0, "nothing ran on its own");
+
+    a.b.run_turn_here(&ws, &chat.id, &sent.id).await.unwrap();
+    let reply = until("the reply on Ana's device", || async {
+        let t = a.b.transcript(&ws, &chat.id).await.unwrap();
         t.into_iter().find(|m| matches!(&m.author, Author::Agent { handle, .. } if handle == "coder") && !m.streaming)
     })
     .await;
-    assert_eq!(note.text, "coder is only available to its owner.");
-    tokio::time::sleep(Duration::from_millis(500)).await;
-    assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0, "no model call");
-    let t = b.b.transcript(&ws, &chat.id).await.unwrap();
+    assert_eq!(reply.text, "Hello from the agent.");
+    assert!(reply.note.is_none(), "posted normally");
+    let again = a.b.run_turn_here(&ws, &chat.id, &sent.id).await.unwrap_err();
+    assert!(again.0.contains("already answered"), "{again}");
+    let t = a.b.transcript(&ws, &chat.id).await.unwrap();
     assert_eq!(t.iter().filter(|m| matches!(m.author, Author::Agent { .. })).count(), 1, "answered once: {t:?}");
+    assert!(t.iter().find(|m| m.id == sent.id).unwrap().note.is_none(), "the line goes once it's answered");
+    assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+    a.b.shutdown();
+    b.b.shutdown();
+}
+
+/// This computer runs only its own person's agents: Ana's agent placed on
+/// Ben's lt never runs there, and Ben's beat says so, so Ana's message
+/// reads "can't run on lt Ben: it runs only Ben's agents".
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_computer_runs_only_its_own_persons_agents() {
+    let tmp = tempfile::tempdir().unwrap();
+    let relay = serve(ligus_runtime::test_relay::router()).await;
+    let (model, calls) = fake_model_counted().await;
+    let a = device(&tmp.path().join("ana"), "lt Ana", &relay);
+    let b = device(&tmp.path().join("ben"), "lt Ben", &relay);
+    let (ws, chat, _) = ana_and_ben(tmp.path(), &a, &b, model, true, None).await;
+    let wsu = Uuid::parse_str(ws.as_str()).unwrap();
+    let ben_device = on_service(&b, |svc| svc.device_id().to_string()).await;
+    let bd = ben_device.clone();
+    until("Ben's host record on Ana's device", || async {
+        let bd = bd.clone();
+        on_service(&a, move |svc| svc.list_hosts(wsu).unwrap_or_default().iter().any(|h| h.id == bd)).await.then_some(())
+    })
+    .await;
+    // Ana (an Owner) adds an agent of hers placed on Ben's computer.
+    let bd = ben_device.clone();
+    on_service(&a, move |svc| {
+        let mut agent = WorkspaceAgent::new("helper", "gw");
+        agent.owner_actor_id = svc.author().id.clone();
+        agent.access = ligus_core::agent::ACCESS_EVERYONE.into();
+        agent.place(&bd);
+        svc.add_agent(workspace_config_session_id(wsu), wsu, agent).unwrap();
+    })
+    .await;
+    until("Ben to see helper", || async { b.b.agents(&ws).await.unwrap().into_iter().any(|x| x.handle == "helper").then_some(()) }).await;
+    let sent = a.b.send_message(&ws, &chat.id, "@helper fix the flaky test").await.unwrap();
+    let note = until("Ana's line from Ben's beat", || async {
+        let t = a.b.transcript(&ws, &chat.id).await.unwrap();
+        t.into_iter().find(|m| m.id == sent.id).and_then(|m| m.note).filter(|n| n.kind == NoteKind::CantRun)
+    })
+    .await;
+    assert_eq!(note.text, "@helper can't run on lt Ben: it runs only Ben's agents.");
+    // Her own agent, and her device runs gw: she may run it here instead.
+    assert!(note.run_here);
+    assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0, "Ben's lt never ran it");
+    a.b.shutdown();
     b.b.shutdown();
 }
 
@@ -693,89 +735,6 @@ async fn a_held_workspace_is_never_rejoined_from_another_invite() {
     stray.sig = None;
     assert!(b.b.join_workspace("Ben", &encode_workspace_invite(&stray)).await.is_err());
     assert!(!b.b.workspaces().await.unwrap().iter().any(|w| w.name == stray.name && w.id != created.workspace.id));
-    a.b.shutdown();
-    b.b.shutdown();
-}
-
-/// The deferred-claim fallback re-resolves who answers when it fires, as
-/// the desktop's does: an agent removed while the turn waited isn't run.
-///
-/// Deterministic: the fallback's wait is a hand-driven clock, fired only
-/// once the removal has reached Ben, and each fallback reports its decision
-/// (a second agent's turn, left in place, shows the fallback still answers).
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn the_fallback_re_resolves_its_responder_when_it_fires() {
-    let tmp = tempfile::tempdir().unwrap();
-    let relay = serve(ligus_runtime::test_relay::router()).await;
-    let model = fake_model().await;
-    let a = device(&tmp.path().join("ana"), "lt Ana", &relay);
-    let (clock, mut hand) = DeferredClock::manual();
-    let b = device_with(&tmp.path().join("ben"), "lt Ben", &relay, |c| c.deferred_clock = Some(clock));
-    let created = a.b.create_workspace("Ana", "Acme Web").await.unwrap();
-    let ws = created.workspace.id.clone();
-    let wsu = Uuid::parse_str(ws.as_str()).unwrap();
-    // Ana's agents live on workers that are offline: nobody answers them,
-    // so Ben's device would after the wait.
-    let coder = on_service(&a, move |svc| {
-        let mut rt = WorkspaceRuntime::new("gw", "Lab gateway", ModelProviderKind::Custom, "test-model");
-        rt.endpoint = model;
-        svc.add_workspace_runtime(wsu, rt).unwrap();
-        let mut ids = vec![];
-        for name in ["coder", "scout"] {
-            let mut agent = WorkspaceAgent::new(name, "gw");
-            agent.owner_actor_id = svc.author().id.clone();
-            agent.access = ligus_core::agent::ACCESS_EVERYONE.into();
-            agent.host_id = Uuid::new_v4().to_string();
-            ids.push(agent.id);
-            svc.add_agent(workspace_config_session_id(wsu), wsu, agent).unwrap();
-        }
-        ids[0]
-    })
-    .await;
-    let words = tmp.path().join("words.txt");
-    std::fs::write(&words, created.recovery_words.join(" ")).unwrap();
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&words, std::fs::Permissions::from_mode(0o600)).unwrap();
-    }
-    *a.words_file.lock().unwrap() = Some(words);
-    let invite = a.b.create_invite(&ws, Role::Contributor).await.unwrap();
-    b.b.join_workspace("Ben", &invite).await.unwrap();
-    let chat = a.b.create_chat(&ws, "Flaky tests").await.unwrap();
-    let has = |agents: &[Agent], h: &str| agents.iter().any(|x| x.handle == h);
-    until("Ben to see the chat and the agents", || async {
-        let c = b.b.chats(&ws).await.unwrap().into_iter().any(|c| c.id == chat.id);
-        let ag = b.b.agents(&ws).await.unwrap();
-        (c && has(&ag, "coder") && has(&ag, "scout")).then_some(())
-    })
-    .await;
-
-    let to_coder = b.b.send_message(&ws, &chat.id, "@coder is the build under 3 minutes?").await.unwrap();
-    let to_scout = b.b.send_message(&ws, &chat.id, "@scout any new advisories?").await.unwrap();
-    // While the turns wait, Ana removes the coder.
-    on_service(&a, move |svc| svc.remove_agent(workspace_config_session_id(wsu), wsu, coder).unwrap()).await;
-    until("Ben to see the coder gone", || async { (!has(&b.b.agents(&ws).await.unwrap(), "coder")).then_some(()) }).await;
-    // The wait is over: both fallbacks fire and decide.
-    hand.fire();
-    let mut decided = std::collections::HashMap::new();
-    while decided.len() < 2 {
-        let (trigger, claimed) =
-            tokio::time::timeout(SETTLE, hand.settled()).await.expect("a fallback never decided").expect("the backend went away");
-        decided.insert(trigger, claimed);
-    }
-    assert_eq!(decided.get(&to_coder.id), Some(&false), "the fallback claimed a removed agent's turn");
-    assert_eq!(decided.get(&to_scout.id), Some(&true), "the fallback didn't claim the scout's turn");
-    let agent_replies = |t: &[Message], h: &str| {
-        t.iter().filter(|m| matches!(&m.author, Author::Agent { handle, .. } if handle == h)).cloned().collect::<Vec<_>>()
-    };
-    until("the scout's fallback to answer", || async {
-        let t = b.b.transcript(&ws, &chat.id).await.unwrap();
-        agent_replies(&t, "scout").iter().any(|m| !m.streaming).then_some(())
-    })
-    .await;
-    let t = b.b.transcript(&ws, &chat.id).await.unwrap();
-    assert!(agent_replies(&t, "coder").is_empty(), "a removed agent answered: {t:?}");
     a.b.shutdown();
     b.b.shutdown();
 }

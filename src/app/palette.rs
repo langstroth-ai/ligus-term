@@ -77,6 +77,10 @@ fn subject(s: &State, a: Action) -> Option<Option<String>> {
             WorkflowItem::Def(_) => return None,
         },
         LockChat | ClearLockdown | Compose | ChatRepo => Some(s.open_chat_summary()?.title.clone()),
+        RunHere => {
+            crate::app::update::run_here_message(s)?;
+            Some(s.open_chat_summary()?.title.clone())
+        }
         KeepScratch => Some(s.open_chat_summary()?.repo.as_ref().filter(|r| r.mine)?.name.clone()),
         _ => None,
     })

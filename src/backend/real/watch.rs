@@ -455,7 +455,7 @@ async fn presence_loop(
     mut stop: tokio::sync::watch::Receiver<bool>,
 ) {
     use ligus_core::lease::{DEFAULT_LEASE_MS, LeaseScope};
-    use ligus_runtime::host_presence::{fetch_host_beats, publish_host_beat};
+    use ligus_runtime::host_presence::{fetch_beats, publish_beat};
     use ligus_runtime::lease_presence::{LeaseBeat, publish_lease_beat};
     let ws = saved.id();
     let wsid = WorkspaceId::new(ws.to_string());
@@ -493,20 +493,27 @@ async fn presence_loop(
                     })
                     .collect()
             };
-            Some((device, ring, leases))
+            // This device's beat, signed by it, with the agents placed here
+            // it won't run and why (another person's without the opt-in, a
+            // runtime it doesn't have): their senders' chats read it.
+            ligus_runtime::host_offers::set_refused_agents(ws, super::turns::host_refusals(&i, ws));
+            let (beat, verifier) = i.read(ws, |svc| Ok((svc.signed_beat(ws, Vec::new()), svc.beat_verifier(ws)))).ok()?;
+            Some((device, ring, leases, beat, verifier))
         })
         .await
         .ok()
         .flatten();
-        if let Some((device, ring, leases)) = prepared {
+        if let Some((device, ring, leases, beat, verifier)) = prepared {
             let device = device.to_string();
             inner.beats(ws).record(&device, ligus_core::Timestamp::now().inner().unix_timestamp());
-            let _ = publish_host_beat(&relay, &room, &ring, &device).await;
+            let _ = publish_beat(&relay, &room, &ring, &beat).await;
             for beat in &leases {
                 let _ = publish_lease_beat(&relay, &room, &ring, beat).await;
             }
-            if let Ok(beats) = fetch_host_beats(&relay, &room, &ring).await {
-                inner.beats(ws).merge(beats);
+            // Every host's beat, its signed status (readiness, refusals)
+            // kept only when its own device signed it.
+            if let Ok(beats) = fetch_beats(&relay, &room, &ring).await {
+                inner.beats(ws).merge_beats(beats, verifier);
             }
             let i = inner.clone();
             let now_online = tokio::task::spawn_blocking(move || {

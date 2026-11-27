@@ -59,7 +59,6 @@ use super::{Backend, BackendError, Event, Result, err};
 use local::LocalState;
 pub use local::SECRET_SCOPE;
 use term_presence::{Provider, TermPresence};
-pub use turns::{DeferredClock, DeferredHand};
 
 /// The database file under the data dir (the CLI's name).
 pub const DB_FILE: &str = "ligus.db";
@@ -96,12 +95,6 @@ pub struct RealConfig {
     pub beat_every: Duration,
     /// How long a workflow stage waits for its agent's host to reply.
     pub stage_timeout: Duration,
-    /// How long a turn deferred to its owner's device waits before this
-    /// device may answer it (the deferred-claim fallback).
-    pub deferred_timeout: Duration,
-    /// Tests: a hand-driven clock the deferred-claim fallback waits on
-    /// instead of `deferred_timeout`.
-    pub deferred_clock: Option<DeferredClock>,
     /// What runtime detection reads (`PATH`, home, credential markers);
     /// `None` reads this process's ([`detect::process_env`]). Tests point it
     /// at a temporary `PATH` of stub CLIs.
@@ -129,8 +122,6 @@ impl RealConfig {
             cli_fallback: true,
             beat_every: Duration::from_secs(ligus_runtime::host_presence::HOST_BEAT_EVERY_SECS as u64),
             stage_timeout: Duration::from_secs(300),
-            deferred_timeout: ligus_runtime::turn_dispatch::DEFERRED_CLAIM_TIMEOUT,
-            deferred_clock: None,
             detect_env: None,
             ollama_url: Some(detect::OLLAMA_DEFAULT.into()),
             handoff_wait: term_presence::HANDOFF_WAIT,
@@ -1150,7 +1141,9 @@ impl Backend for RealBackend {
         let (ws, sid) = (ws_uuid(workspace)?, uuid_of(chat.as_str(), "chat")?);
         self.call(move |i| {
             let s = i.read(ws, |svc| svc.load_in(ws, sid))?.ok_or_else(|| BackendError("no such chat".into()))?;
-            Ok(views::transcript(&s))
+            let mut out = views::transcript(&s);
+            turns::route_notes(i, ws, &s, &mut out)?;
+            Ok(out)
         })
         .await
     }
@@ -1162,12 +1155,19 @@ impl Backend for RealBackend {
             return err("nothing to send");
         }
         let (message, gate) = self.call(move |i| turns::post_and_plan(i, ws, sid, &text)).await?;
-        match gate {
-            turns::Gate::Run(plan) => turns::spawn_turn(self.inner.clone(), plan),
-            turns::Gate::Defer(plan) => turns::arm_fallback(self.inner.clone(), plan),
-            turns::Gate::None => {}
+        // A turn that isn't this device's is never answered here after a
+        // wait: the transcript says where it waits (`turns::route_notes`).
+        if let turns::Gate::Run(plan) = gate {
+            turns::spawn_turn(self.inner.clone(), *plan);
         }
         Ok(message)
+    }
+
+    async fn run_turn_here(&self, workspace: &WorkspaceId, chat: &ChatId, message: &MessageId) -> Result<()> {
+        let (ws, sid, trigger) = (ws_uuid(workspace)?, uuid_of(chat.as_str(), "chat")?, uuid_of(message.as_str(), "message")?);
+        let plan = self.call(move |i| turns::plan_run_here(i, ws, sid, trigger)).await?;
+        turns::spawn_turn(self.inner.clone(), plan);
+        Ok(())
     }
 
     async fn mentionables(&self, workspace: &WorkspaceId) -> Result<Vec<Mentionable>> {
@@ -2141,12 +2141,6 @@ impl Inner {
     /// The host beats read from `ws`'s room (a shared handle).
     pub(crate) fn beats(&self, ws: Uuid) -> ligus_runtime::HostPresence {
         lock(&self.beats).entry(ws).or_default().clone()
-    }
-
-    /// Whether `host` (a host id) has a heartbeat inside the online window.
-    pub(crate) fn host_online(&self, ws: Uuid, host: &str) -> bool {
-        let now = Timestamp::now();
-        self.read(ws, |svc| svc.list_hosts(ws)).unwrap_or_default().iter().any(|h| h.id == host && self.beats(ws).is_online(h, &now))
     }
 
     /// Bind (or unbind) the checkout this device applies `workspace`'s
