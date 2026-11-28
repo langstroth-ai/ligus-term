@@ -329,7 +329,62 @@ fn ws(s: &State) -> Option<crate::backend::model::WorkspaceId> {
 /// Open the Set up list.
 pub fn open_list(s: &mut State) -> Vec<Effect> {
     s.overlay = Some(Overlay::Setup { sel: 0 });
-    vec![Effect::LoadSetup(ws(s)), Effect::LoadPendingPresence]
+    vec![Effect::LoadSetup(ws(s)), Effect::LoadChecklist(ws(s)), Effect::LoadPendingPresence]
+}
+
+/// Open Set up Ligus's Clean up (from the list, `x`).
+pub fn open_cleanup(s: &mut State) -> Vec<Effect> {
+    s.overlay = Some(Overlay::Cleanup { sel: 0, confirming: false });
+    vec![Effect::LoadChecklist(ws(s))]
+}
+
+/// Keys in Clean up. Nothing changes without the confirm (`y`), and a
+/// removal from the workspace is the desktop's (its own passkey).
+pub fn cleanup_key(s: &mut State, k: &KeyEvent, sel: usize, confirming: bool) -> Vec<Effect> {
+    let items: Vec<crate::setup::CleanupItem> = s.setup_checklist.as_ref().map(|c| c.cleanup.clone()).unwrap_or_default();
+    let set = |s: &mut State, sel: usize, confirming: bool| s.overlay = Some(Overlay::Cleanup { sel, confirming });
+    if confirming {
+        return match k.code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => match items.get(sel) {
+                Some(i) if i.action.id == crate::setup::CleanupActionId::RemoveFromView => {
+                    set(s, sel, false);
+                    vec![Effect::SetupHide(i.key.clone())]
+                }
+                _ => {
+                    set(s, sel, false);
+                    vec![]
+                }
+            },
+            _ => {
+                // Anything else, esc and n among them, keeps it.
+                set(s, sel, false);
+                vec![]
+            }
+        };
+    }
+    match k.code {
+        KeyCode::Esc | KeyCode::Char('q') | KeyCode::Left | KeyCode::Char('h') => open_list(s),
+        KeyCode::Up | KeyCode::Char('k') => {
+            set(s, sel.saturating_sub(1), false);
+            vec![]
+        }
+        KeyCode::Down | KeyCode::Char('j') => {
+            set(s, (sel + 1).min(items.len().saturating_sub(1)), false);
+            vec![]
+        }
+        KeyCode::Enter => match items.get(sel) {
+            Some(i) if i.action.id == crate::setup::CleanupActionId::RemoveFromView => {
+                set(s, sel, true);
+                vec![]
+            }
+            Some(_) => {
+                s.toast(crate::app::state::ToastKind::Info, crate::setup::REMOVE_ON_DESKTOP.to_string());
+                vec![]
+            }
+            None => vec![],
+        },
+        _ => vec![],
+    }
 }
 
 /// Open a flow's popup. The device flow is lt's Add to my devices screens.
@@ -399,6 +454,7 @@ pub fn list_key(s: &mut State, k: &KeyEvent, sel: usize) -> Vec<Effect> {
             Some(f) => open_flow(s, f, true),
             None => vec![],
         },
+        KeyCode::Char('x') if s.setup_checklist.as_ref().is_some_and(|c| !c.cleanup.is_empty()) => open_cleanup(s),
         _ => vec![],
     }
 }

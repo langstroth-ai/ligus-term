@@ -6,6 +6,17 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ## Unreleased
 
+### Added
+
+- **Set up Ligus** leads the Set up list (`u`) and `lt setup`: one line
+  each for you, your passkey, this terminal's name, your devices, your
+  phone, a box, the agents, the workspace's rules and Clean up, the same
+  rows as the Ligus desktop, `ligus setup` and the phone's Health. Never
+  set up reads grey, never red. `x` opens Clean up, where **Remove from
+  view** hides a leftover on this terminal after a confirm; removing one
+  from the workspace is done on your desktop with your passkey. `lt setup
+  --json` carries the rows under `checklist`.
+
 ### Changed
 
 - A turn that isn't this terminal's (an agent on another host, or someone

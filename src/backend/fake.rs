@@ -134,6 +134,8 @@ struct MemberRec {
 }
 
 struct World {
+    /// Clean up keys removed from view (Set up Ligus).
+    setup_hidden: Vec<String>,
     your_name: Option<String>,
     you: MemberId,
     order: Vec<WorkspaceId>,
@@ -226,6 +228,7 @@ impl FakeBackend {
     pub fn new(cfg: FakeConfig) -> Self {
         let (tx, _) = broadcast::channel(4096);
         let world = World {
+            setup_hidden: Vec::new(),
             your_name: None,
             you: MemberId::new("m-you"),
             order: vec![],
@@ -2737,6 +2740,31 @@ impl Backend for FakeBackend {
     async fn setup_status(&self, workspace: Option<&WorkspaceId>) -> Result<Vec<crate::setup::FlowRow>> {
         let ops = FakeOps::new(self, workspace);
         Ok(crate::setup::rows(&ops, Some(crate::setup::device_row(self.linked_person()))))
+    }
+
+    async fn setup_checklist(&self, workspace: Option<&WorkspaceId>) -> Result<Option<crate::setup::Checklist>> {
+        use ligus_runtime::setup::checklist::{self, Facts, fixture};
+        if workspace.is_none() {
+            return Ok(None);
+        }
+        // The shared fixture every surface renders, with this demo's hidden keys.
+        let Ok(mut facts) = serde_json::from_str::<Facts>(fixture::SETTLED_TEAM_FACTS) else {
+            return err("the demo checklist didn't load");
+        };
+        facts.hidden = self.lock().setup_hidden.clone();
+        Ok(Some(checklist::checklist(&facts)))
+    }
+
+    async fn setup_hide(&self, key: &str) -> Result<()> {
+        if !key.contains(':') {
+            return err("not a Clean up key (kind:id)");
+        }
+        let mut w = self.lock();
+        let h = &mut w.setup_hidden;
+        if !h.iter().any(|k| k == key) {
+            h.push(key.to_string());
+        }
+        Ok(())
     }
 
     async fn setup_form(

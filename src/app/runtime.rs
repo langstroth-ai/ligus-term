@@ -115,6 +115,11 @@ pub async fn run_effect(b: Arc<dyn Backend>, fx: Effect) -> Msg {
         // terminal); anywhere else there is no terminal to lend it.
         EditDraft(_) => Msg::Edited(Err(crate::backend::BackendError("the editor runs only in the full-screen app".into()))),
         LoadSetup(w) => Msg::SetupRows(b.setup_status(w.as_ref()).await),
+        LoadChecklist(w) => Msg::SetupChecklist(b.setup_checklist(w.as_ref()).await),
+        SetupHide(key) => {
+            let r = b.setup_hide(&key).await;
+            Msg::SetupHidden(key, r)
+        }
         SetupForm(w, flow, inputs) => Msg::SetupForm(flow, b.setup_form(w.as_ref(), flow, inputs).await),
         SetupRun { workspace, flow, inputs, secrets, dry_run, cancel } => {
             Msg::SetupRan(flow, b.setup_run(workspace.as_ref(), flow, inputs, secrets, dry_run, cancel).await)

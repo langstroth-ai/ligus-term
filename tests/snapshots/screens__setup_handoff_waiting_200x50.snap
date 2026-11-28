@@ -15,18 +15,23 @@ expression: screen
 ┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│             Ada  12m                                                                                                         ││                                      │
 ┃                              ┃│               @Mara can you review the timeout? 30 seconds is what the provider uses.                                        ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│             ▸ coder asks you: “Use Postgres or SQLite for the test fixtures?”                                                ││                                      │
-┃                              ┃│                 1 Postgres   2 SQLite   r reply   n not now   (tab to the chat first)                                        ││                                      │
-┃                              ┃│                 coder decides what to do next. No new permission.                                                            ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│               coder asks you┏ Set up ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                     ││                                      │
-┃                              ┃│                 Allow once l┃› ⧗ Waiting for your desktop or phone (code K7Q4 M9X2): Add repository “a…┃                     ││                                      │
-┃                              ┃│                 │ cargo test┃                                                                          ┃                     ││                                      │
-┃                              ┃│                 in /srv/nort┃  Add an agent       ✓ 4 agents                                           ┃                     ││                                      │
-┃                              ┃│                 coder descri┃  Connect a tool       no tools connected                                 ┃                     ││                                      │
-┃                              ┃│                 Next, after ┃  Add a code folder    no repositories yet                                ┃                     ││                                      │
-┃                              ┃│               ◆ proposal “Si┃  Add a box            run it on the box                                  ┃                     ││                                      │
+┃                              ┃│                             ┏ Set up ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                     ││                                      │
+┃                              ┃│             ▸ coder asks you┃› ⧗ Waiting for your desktop or phone (code K7Q4 M9X2): Add repository “a…┃                     ││                                      │
+┃                              ┃│                 1 Postgres  ┃                                                                          ┃                     ││                                      │
+┃                              ┃│                 coder decide┃  ✓ You          Ana · picture                                            ┃                     ││                                      │
+┃                              ┃│                             ┃  ✓ Passkey      2 passkeys · recovery key                                ┃                     ││                                      │
+┃                              ┃│               coder asks you┃  ✓ This device  Ana's MacBook                                            ┃                     ││                                      │
+┃                              ┃│                 Allow once l┃  • My devices   this Mac, build-1, old-laptop · 1 ap…  ligus devices list┃                     ││                                      │
+┃                              ┃│                 │ cargo test┃  ✓ Phone        Ana's iPhone · push on                                   ┃                     ││                                      │
+┃                              ┃│                 in /srv/nort┃  ✓ Box          box-1 · 0.4.1 (0.5.0 out)  ligus-local upgrade on the box┃                     ││                                      │
+┃                              ┃│                 coder descri┃  ✓ Agents       @coder on box-1 · @reviewer on your devices              ┃                     ││                                      │
+┃                              ┃│                 Next, after ┃  ✓ Workspace    Team · rules 3 · Upgrade available  on your desktop      ┃                     ││                                      │
+┃                              ┃│               ◆ proposal “Si┃  • Clean up     1 member who asked to leave · 1 device never finished…  x┃                     ││                                      │
+┃                              ┃│                             ┃                                                                          ┃                     ││                                      │
+┃                              ┃│                             ┃  Add an agent       ✓ 4 agents                                           ┃                     ││                                      │
+┃                              ┃│                             ┃  Connect a tool       no tools connected                                 ┃                     ││                                      │
+┃                              ┃│                             ┃  Add a code folder    no repositories yet                                ┃                     ││                                      │
+┃                              ┃│                             ┃  Add a box            run it on the box                                  ┃                     ││                                      │
 ┃                              ┃│                             ┃  Add a phone          no phone paired                                    ┃                     ││                                      │
 ┃                              ┃│                             ┃  Invite a person      no invites yet                                     ┃                     ││                                      │
 ┃                              ┃│                             ┃  Set up a relay     ✓ https://relay.langstroth.ai                        ┃                     ││                                      │
@@ -34,11 +39,6 @@ expression: screen
 ┃                              ┃│                             ┃                                                                          ┃                     ││                                      │
 ┃                              ┃│                             ┃enter wait · c cancel (nothing is written) · esc close                    ┃                     ││                                      │
 ┃                              ┃│                             ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                     ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
-┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │
 ┃                              ┃│                                                                                                                              ││                                      │

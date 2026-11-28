@@ -394,6 +394,12 @@ pub trait Backend: Send + Sync {
     /// The Set up list for `workspace` (or before there is one): each flow
     /// and what is done (cheap: no network, no probes).
     async fn setup_status(&self, workspace: Option<&WorkspaceId>) -> Result<Vec<FlowRow>>;
+    /// The "Set up Ligus" checklist for `workspace` (cheap and local: no
+    /// network); `None` before there is a workspace.
+    async fn setup_checklist(&self, workspace: Option<&WorkspaceId>) -> Result<Option<crate::setup::Checklist>>;
+    /// Clean up's Remove from view: hide `key` (`kind:id`) on this device
+    /// only; nothing in the workspace changes.
+    async fn setup_hide(&self, key: &str) -> Result<()>;
     /// A flow's form for these values so far (a harness's models fill in
     /// once it is chosen).
     async fn setup_form(&self, workspace: Option<&WorkspaceId>, flow: LtFlow, inputs: SetupInputs) -> Result<SetupForm>;
