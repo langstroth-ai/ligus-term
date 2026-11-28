@@ -392,8 +392,11 @@ fn link_code(
                 if let Some(r) = &v.relay {
                     lines.push(Line::styled(format!("with the relay {r}."), t.text()));
                 }
-                let left = ((v.expires_at - s.now as i64) / 60_000).max(0) + 1;
-                lines.push(Line::styled(format!("It works once, for about {left} more minute{}.", if left == 1 { "" } else { "s" }), t.dim()));
+                let left = ((v.expires_at - s.now) / 60_000).max(0) + 1;
+                lines.push(Line::styled(
+                    format!("It works once, for about {left} more minute{}.", if left == 1 { "" } else { "s" }),
+                    t.dim(),
+                ));
                 let relay = v.relay.as_ref().map(|r| format!(" --relay {r}")).unwrap_or_default();
                 lines.push(Line::styled(format!("In a terminal: ligus devices request --code {}{relay}", v.code), t.dim()));
                 lines.push(Line::styled("Then approve its request on your desktop or phone.", t.dim()));

@@ -1019,7 +1019,9 @@ pub enum LinkCodeState {
     Expired,
     /// The relay has no short codes: give the new device the approval
     /// address instead (when the relay has a mailbox).
-    NoRoutes { address: Option<String> },
+    NoRoutes {
+        address: Option<String>,
+    },
     Failed(String),
 }
 

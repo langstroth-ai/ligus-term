@@ -43,8 +43,8 @@ use super::{Inner, lock, one_line};
 use crate::backend::model::{
     ApprovalKind, ApprovalRequest, LinkCodeState, LinkCodeView, Linked, LiveLinkEnd, LiveLinkStart, LiveLinkUpdate, MatchCodeView,
 };
-use ligus_runtime::approval_mailbox::{CodeState, LinkCodeOffer};
 use crate::backend::{BackendError, Event, Result, WorkspaceId, err};
+use ligus_runtime::approval_mailbox::{CodeState, LinkCodeOffer};
 
 /// What the person said, sent to the request's task.
 pub(crate) enum Cmd {
@@ -172,7 +172,9 @@ fn code_error(e: MailboxError, relay: &str) -> BackendError {
     let host = relay.split("://").nth(1).unwrap_or(relay).trim_end_matches('/').to_string();
     BackendError(match e {
         MailboxError::NoRoutes => {
-            format!("{host} has no short codes yet: paste the approval address your desktop shows instead (Add a computer > Other ways to link)")
+            format!(
+                "{host} has no short codes yet: paste the approval address your desktop shows instead (Add a computer > Other ways to link)"
+            )
         }
         MailboxError::CodeUnknown => format!(
             "no device is showing that code on {host}: check it, or get a new one on your desktop (with your own relay, type its address after the code)"
@@ -336,13 +338,21 @@ impl Inner {
         let Some(relay) = saved.relay().map(str::to_string) else { return err("this workspace has no relay: a new device can't reach it") };
         let src = self.key_source(&saved)?;
         let epochs = self.read(ws, move |svc| svc.approval_epoch_keys(ws, &src))?;
-        let pin = self.read(ws, move |svc| svc.founder_pin_hex(ws))?.ok_or_else(|| BackendError("this workspace has no founder pin here yet".into()))?;
+        let pin = self
+            .read(ws, move |svc| svc.founder_pin_hex(ws))?
+            .ok_or_else(|| BackendError("this workspace has no founder pin here yet".into()))?;
         let client = MailboxClient::new(&relay).with_auth(saved.secrets.token.clone());
         let offer = match LinkCodeOffer::post(&client, ws, &pin, &epochs).await {
             Ok(o) => o,
             Err(MailboxError::NoRoutes) => {
                 let address = ligus_runtime::approval_mailbox::current_address(&client, ws, &pin, &epochs).await.ok().map(|a| a.encode());
-                return Ok(LinkCodeView { code: String::new(), relay: None, expires_at: 0, state: LinkCodeState::NoRoutes { address }, notice: None });
+                return Ok(LinkCodeView {
+                    code: String::new(),
+                    relay: None,
+                    expires_at: 0,
+                    state: LinkCodeState::NoRoutes { address },
+                    notice: None,
+                });
             }
             Err(e) => return Err(BackendError(e.to_string())),
         };
@@ -381,17 +391,19 @@ impl Inner {
                 Ok(CodeState::Reposted) => (LinkCodeState::Live, Some("The relay restarted; the code works again.".to_string()), false),
                 Ok(CodeState::Used) => (LinkCodeState::Used, None, true),
                 Ok(CodeState::Expired) => (LinkCodeState::Expired, None, true),
-                Err(e) if e.retryable() => (LinkCodeState::Live, Some(format!("Can't reach the relay right now ({e}). Still trying…")), false),
+                Err(e) if e.retryable() => {
+                    (LinkCodeState::Live, Some(format!("Can't reach the relay right now ({e}). Still trying…")), false)
+                }
                 Err(e) => (LinkCodeState::Failed(e.to_string()), None, true),
             };
             trouble = notice.as_deref().is_some_and(|n| n.starts_with("Can't reach"));
             if !current(&self) {
                 return;
             }
-            if matches!(state, LinkCodeState::Used) {
-                if let Some(s) = lock(&self.shown_code).as_mut() {
-                    s.used = true;
-                }
+            if matches!(state, LinkCodeState::Used)
+                && let Some(s) = lock(&self.shown_code).as_mut()
+            {
+                s.used = true;
             }
             self.emit(Event::LinkCode(code_view(&o, state, notice)));
             if done {

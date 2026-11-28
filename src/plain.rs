@@ -950,7 +950,10 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
             }
             let address: String = arg.split_whitespace().collect();
             if address.is_empty() {
-                return fail("usage: link-to CODE|ADDRESS (K7Q-4MX or ligusaddr1:..., from your desktop's My devices > Add a computer)".into()).await;
+                return fail(
+                    "usage: link-to CODE|ADDRESS (K7Q-4MX or ligusaddr1:..., from your desktop's My devices > Add a computer)".into(),
+                )
+                .await;
             }
             match b.link_live(&address).await {
                 Ok(LiveLinkStart::Posted { rid, request: r }) => {

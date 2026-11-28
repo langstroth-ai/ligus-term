@@ -601,7 +601,9 @@ mod live {
 
         // The laptop's relay is Ana's (its config): the code alone is enough.
         let laptop = device(&tmp.path().join("laptop"), "lt on laptop", &relay);
-        let LiveLinkStart::Posted { rid, .. } = laptop.b.link_live(&shown.code.to_lowercase()).await.unwrap() else { panic!("no mailbox?") };
+        let LiveLinkStart::Posted { rid, .. } = laptop.b.link_live(&shown.code.to_lowercase()).await.unwrap() else {
+            panic!("no mailbox?")
+        };
         until("the request in the mailbox", || async {
             list_live(&d.client, std::slice::from_ref(&d.ek)).await.unwrap().live.into_iter().find(|l| l.rid_hex() == rid)
         })

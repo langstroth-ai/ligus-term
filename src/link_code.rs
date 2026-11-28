@@ -156,7 +156,10 @@ mod tests {
     #[test]
     fn a_short_code_is_read_alone_or_with_its_relay() {
         assert_eq!(super::short_code_in(" k7q-4mx "), Some(("K7Q4MX".into(), None)));
-        assert_eq!(super::short_code_in("K7Q 4MX https://relay.example.org/"), Some(("K7Q4MX".into(), Some("https://relay.example.org".into()))));
+        assert_eq!(
+            super::short_code_in("K7Q 4MX https://relay.example.org/"),
+            Some(("K7Q4MX".into(), Some("https://relay.example.org".into())))
+        );
         assert_eq!(super::short_code_in("K7Q4MX http://127.0.0.1:9"), Some(("K7Q4MX".into(), Some("http://127.0.0.1:9".into()))));
         for t in ["", "K7Q4M", "ligusaddr1:abc", "ligusgrant1:abc", "K7Q4MX https://a b", "https://relay.example.org"] {
             assert_eq!(super::short_code_in(t), None, "{t:?}");
