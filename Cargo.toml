@@ -41,10 +41,11 @@ zeroize = "1.9.1"
 # terminal asks the person's desktop or phone to confirm; one link brings all
 # the person's workspaces; the one-step Add an agent form; member exits:
 # leaving a workspace, synced renames of this computer; and the dispatch
-# outcome: where a turn waits and how a reply ended). Move this to the ligus
-# 0.5 release tag before lt is released.
-ligus-core = { version = "0.4.1", git = "https://github.com/langstroth-ai/ligus", rev = "27d4c106cb876bfcce29cd813a3a6934c1e700a8" }
-ligus-runtime = { version = "0.4.1", git = "https://github.com/langstroth-ai/ligus", rev = "27d4c106cb876bfcce29cd813a3a6934c1e700a8", default-features = false }
+# outcome: where a turn waits and how a reply ended; the local lists as
+# tables, from that pull request's branch until it merges, then main's
+# merge commit). Move this to the ligus 0.5 release tag before lt is released.
+ligus-core = { version = "0.4.1", git = "https://github.com/langstroth-ai/ligus", rev = "afb7dff09e37e91a517235a606e2de6139f5509b" }
+ligus-runtime = { version = "0.4.1", git = "https://github.com/langstroth-ai/ligus", rev = "afb7dff09e37e91a517235a606e2de6139f5509b", default-features = false }
 
 # poll(2) on stdin for the terminal's background colour (OSC 11).
 [target.'cfg(unix)'.dependencies]
@@ -55,7 +56,7 @@ insta = "1.48.0"
 tempfile = "3.27.0"
 # The in-process mock relay two test devices sync through (the same commit
 # as above).
-ligus-runtime = { version = "0.4.1", git = "https://github.com/langstroth-ai/ligus", rev = "27d4c106cb876bfcce29cd813a3a6934c1e700a8", default-features = false, features = ["test-relay"] }
+ligus-runtime = { version = "0.4.1", git = "https://github.com/langstroth-ai/ligus", rev = "afb7dff09e37e91a517235a606e2de6139f5509b", default-features = false, features = ["test-relay"] }
 axum = "0.8.9"
 
 [profile.release]

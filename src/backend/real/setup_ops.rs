@@ -435,7 +435,7 @@ impl SetupOps for RealOps {
         // lt applies proposals in one checkout per workspace: this one,
         // when none is set yet.
         let ws = WorkspaceId::new(self.ws()?.to_string());
-        let has = lock(&self.inner.local).checkouts.contains_key(ws.as_str());
+        let has = self.inner.workspace_folder(self.ws()?).is_some();
         if !has {
             self.inner.bind(&ws, Some(std::path::Path::new(&abs))).map_err(|e| failed(e.0))?;
         }

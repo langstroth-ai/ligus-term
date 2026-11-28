@@ -468,7 +468,7 @@ fn prepare(
     };
     // The repo gate: a chat with a repo runs only in this device's checkout
     // of it; one without, in the checkout bound for the workspace (if any).
-    let legacy = super::lock(&i.local).checkouts.get(&ws.to_string()).map(std::path::PathBuf::from);
+    let legacy = i.workspace_folder(ws);
     let checkout = {
         let core = i.core()?;
         core.svc.lock().unwrap_or_else(|e| e.into_inner()).set_trusted_founder(i.founder(ws));
