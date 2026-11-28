@@ -164,6 +164,8 @@ pub(crate) struct Inner {
     turn_stops: Arc<ligus_runtime::turn_engine::TurnStops>,
     /// The live link request in flight (Add to my devices, code match).
     live: Mutex<Option<live_link::LiveHandle>>,
+    /// The short code on screen (Link a device), if any.
+    shown_code: Mutex<Option<live_link::ShownCode>>,
     /// A link is being redeemed here: the data dir's identity is in flux,
     /// so [`Inner::follow_disk`] leaves it alone.
     linking: std::sync::atomic::AtomicUsize,
@@ -302,6 +304,7 @@ impl RealBackend {
             ligus: Mutex::new(HashMap::new()),
             turn_stops: ligus_runtime::turn_engine::TurnStops::new(),
             live: Mutex::new(None),
+            shown_code: Mutex::new(None),
             linking: std::sync::atomic::AtomicUsize::new(0),
             unconfirmed: Mutex::new(HashMap::new()),
             redeem_cancel: std::sync::atomic::AtomicBool::new(false),
@@ -1089,6 +1092,15 @@ impl Backend for RealBackend {
 
     async fn approvals(&self, workspace: &WorkspaceId) -> Result<Vec<ApprovalRequest>> {
         self.inner.approvals(ws_uuid(workspace)?).await
+    }
+
+    async fn link_code_show(&self, workspace: &WorkspaceId) -> Result<LinkCodeView> {
+        self.inner.link_code_show(ws_uuid(workspace)?).await
+    }
+
+    async fn link_code_close(&self) -> Result<()> {
+        self.inner.link_code_close().await;
+        Ok(())
     }
 
     fn linked_person(&self) -> Option<String> {

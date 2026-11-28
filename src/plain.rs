@@ -34,7 +34,8 @@ commands (N is a number from the last list, or an id):
                        My devices > Add a computer); prints its fingerprint
   link-redeem CODE --approver-fingerprint FP  link with the code your desktop shows, after
                        checking the approving desktop's fingerprint (FP) is your desktop's
-  link-to ADDRESS      send this computer's request to the approval address your desktop shows
+  link-to CODE|ADDRESS send this computer's request to your desktop: the short code it shows
+                       (K7Q-4MX; a self-hosted relay after it) or its approval address
                        (ligusaddr1:); then compare the code: match yes|no; then link-as yes|no
   match yes|no         the code on your desktop is the same (yes) or not (no: nothing is granted)
   link-as yes|no       link as the person the workspace log verified, or link nothing
@@ -427,7 +428,8 @@ pub fn event_line(e: &Event, names: &dyn Fn(&WorkspaceId) -> String) -> Option<S
         | Event::AgentsChanged { .. }
         | Event::WorkspacesChanged
         | Event::SetupFactsChanged
-        | Event::SetupConfirming { .. } => {
+        | Event::SetupConfirming { .. }
+        | Event::LinkCode(_) => {
             return None;
         }
     })
@@ -457,6 +459,7 @@ fn live_line(rid: &str, u: &LiveLinkUpdate) -> String {
             format!("link-retrying\t{rid}\t{}", esc(format!("the relay didn't answer ({why}): trying again")))
         }
         LiveLinkUpdate::Retrying(None) => format!("link-retrying\t{rid}\t{}", esc("the relay answers again")),
+        LiveLinkUpdate::Reposted => format!("link-reposted\t{rid}\t{}", esc("the relay restarted: asked again, waiting for your desktop")),
         LiveLinkUpdate::Ended(e) => format!("link-ended\t{rid}\t{}\t{}", esc(e.describe()), esc(e.next())),
     }
 }
@@ -947,7 +950,10 @@ async fn command(b: &Arc<dyn Backend>, out: &Out, s: &Arc<Mutex<Session>>, line:
             }
             let address: String = arg.split_whitespace().collect();
             if address.is_empty() {
-                return fail("usage: link-to ADDRESS (ligusaddr1:..., from your desktop's My devices > Add a computer)".into()).await;
+                return fail(
+                    "usage: link-to CODE|ADDRESS (K7Q-4MX or ligusaddr1:..., from your desktop's My devices > Add a computer)".into(),
+                )
+                .await;
             }
             match b.link_live(&address).await {
                 Ok(LiveLinkStart::Posted { rid, request: r }) => {

@@ -3,7 +3,7 @@ source: tests/screens.rs
 expression: screen
 ---
 [NA]+1• │ 1 Chats 2 3 4 5 6 7 8(1) 9           Northwind API
-┏ Help · 1-16 of 127 · / search · esc closes ━━━━━━━━━━━━━━┓
+┏ Help · 1-16 of 128 · / search · esc closes ━━━━━━━━━━━━━━┓
 ┃Each chat is a room with people and agents. @ mentions an ┃
 ┃person; enter on a chat opens it and puts you in the compo┃
 ┃                                                          ┃

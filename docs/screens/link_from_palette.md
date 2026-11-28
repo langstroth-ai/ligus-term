@@ -17,7 +17,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
 ┃                  ┃  can then remove the old member (their messages keep their name).    ┃                  │
 ┃                  ┃                                                                      ┃                  │
 ┃                  ┃  1 Desktop: My devices > Add a computer (palette: link)              ┃ provider uses.   │
-┃                  ┃  2 Copy its approval address and paste it below                      ┃                  │
+┃                  ┃  2 Type the code it shows below (or paste its address)               ┃                  │
 ┃                  ┃  3 Check both screens show the same code                             ┃tures?”           │
 ┃                  ┃                                                                      ┃the chat first)   │
 ┃                  ┃  Older desktop? Paste this request there (c copies it):              ┃                  │

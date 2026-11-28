@@ -989,8 +989,44 @@ pub enum LiveLinkUpdate {
     },
     /// The relay didn't answer: retrying (why), or answering again (`None`).
     Retrying(Option<String>),
+    /// The relay restarted and forgot the request: posted again, waiting for
+    /// the desktop to open it.
+    Reposted,
     Ended(LiveLinkEnd),
 }
+
+/// A short code this computer shows for its workspace's approval address
+/// ("Link a device: code K7Q-4MX"): a new device of the person types it,
+/// and its request comes to their desktop's Inbox.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LinkCodeView {
+    /// `K7Q-4MX` (empty unless `Live`, `Used` or `Expired`).
+    pub code: String,
+    /// The relay, when it isn't the community relay (the new device names it).
+    pub relay: Option<String>,
+    /// Unix ms.
+    pub expires_at: i64,
+    pub state: LinkCodeState,
+    /// A passing note ("The relay restarted; the code works again.").
+    pub notice: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LinkCodeState {
+    Live,
+    /// The new device typed it: approve its request on the desktop.
+    Used,
+    Expired,
+    /// The relay has no short codes: give the new device the approval
+    /// address instead (when the relay has a mailbox).
+    NoRoutes {
+        address: Option<String>,
+    },
+    Failed(String),
+}
+
+/// What the screen says while a request is posted again after a relay restart.
+pub const RELAY_RESTARTED: &str = "The relay restarted; asking again.";
 
 /// What kind of device an approval request is from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

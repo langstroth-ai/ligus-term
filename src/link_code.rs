@@ -134,8 +134,38 @@ pub fn hh_mm(ms: i64, offset_secs: i32) -> String {
     format!("{:02}:{:02}", day / 3600, (day % 3600) / 60)
 }
 
+/// A short code the desktop shows (`K7Q-4MX`, Add a computer), typed
+/// alone or with the relay after it for a self-hosted relay
+/// (`K7Q-4MX https://relay.example.org`). The code as typed (`K7Q4MX`) and
+/// the relay, or `None` when the text isn't one.
+pub fn short_code_in(text: &str) -> Option<(String, Option<String>)> {
+    let text = text.trim();
+    let (code, relay) = match text.find("http://").or_else(|| text.find("https://")) {
+        Some(at) => (&text[..at], Some(text[at..].trim().trim_end_matches('/').to_string())),
+        None => (text, None),
+    };
+    if relay.as_deref().is_some_and(|r| r.contains(char::is_whitespace)) {
+        return None;
+    }
+    let code = ligus_core::link_code::ShortCode::parse(code)?;
+    Some((code.as_str().to_string(), relay))
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_short_code_is_read_alone_or_with_its_relay() {
+        assert_eq!(super::short_code_in(" k7q-4mx "), Some(("K7Q4MX".into(), None)));
+        assert_eq!(
+            super::short_code_in("K7Q 4MX https://relay.example.org/"),
+            Some(("K7Q4MX".into(), Some("https://relay.example.org".into())))
+        );
+        assert_eq!(super::short_code_in("K7Q4MX http://127.0.0.1:9"), Some(("K7Q4MX".into(), Some("http://127.0.0.1:9".into()))));
+        for t in ["", "K7Q4M", "ligusaddr1:abc", "ligusgrant1:abc", "K7Q4MX https://a b", "https://relay.example.org"] {
+            assert_eq!(super::short_code_in(t), None, "{t:?}");
+        }
+    }
+
     use super::*;
 
     const G: &str = "ligusgrant1:eyJ2IjoxLCJh_Zm9v-YmFy";

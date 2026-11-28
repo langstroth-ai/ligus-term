@@ -4,7 +4,7 @@ expression: screen
 ---
 [NA] [DS]• Northwind API · owner │ Chats  Workflows  Proposals  Agents  Hosts  Memory  People  Notifications 1  Settings
 ┏ Proposals ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓╭ Inject the clock into checkout tests ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-┃Inject the clock into checkout …  open 1/2 · 37m  ┃│open  by ┏ Commands · 66 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                                                             │
+┃Inject the clock into checkout …  open 1/2 · 37m  ┃│open  by ┏ Commands · 67 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                                                             │
 ┃Export orders to CSV           approved 2/2 · 1d  ┃│✓ Ada app┃›                                                                         ┃                                                             │
 ┃Bump the order schema version   applied 2/2 · 2d  ┃╰─────────┃──────────────────────────────────────────────────────────────────────────┃─────────────────────────────────────────────────────────────╯
 ┃Sign-off: inject a fake clock      open 0/1 · 4m  ┃╭ Diff · 2┃▶ Approve “Inject the clock into checkout tests”       A         Proposals┃─────────────────────────────────────────────────────────────╮

@@ -260,17 +260,20 @@ pub const COMMANDS: &[Cmd] = &[
     },
     Cmd {
         name: "link-to",
-        usage: "link-to ADDRESS",
-        about: "Ask to be added to your devices through the approval address your desktop shows (ligusaddr1:..., \
-                My devices > Add a computer > Copy; not a secret). Sends this computer's request, prints it \
+        usage: "link-to CODE|ADDRESS",
+        about: "Ask to be added to your devices through the short code your desktop shows (K7Q-4MX, My \
+                devices > Add a computer; with a self-hosted relay, its address after the code) or its \
+                approval address (ligusaddr1:..., under Other ways to link; not a secret). The code works \
+                once, for 10 minutes: it finds the approval address on the relay. Sends this computer's request, prints it \
                 and its fingerprint too (an older desktop takes it pasted), then waits. When your desktop \
                 opens it, both screens show the same 8-symbol code: answer match yes or match no. After \
                 your desktop's passkey, lt checks the approval on the workspace log and asks: link-as yes \
                 or link-as no. A relay without an approval mailbox falls back to the request and \
                 link-redeem. Line mode only (a person compares the code): one-shot exits 4. After 3 \
                 requests end without an approval in 15 minutes it stops. While the relay doesn't answer it \
-                prints link-retrying and tries again; a request never outlives its 15 minutes.",
-        prints: "link-request, link-waiting, match-code, link-matched, link-checking, link-verified, link-retrying, link-ended, ok",
+                prints link-retrying and tries again; if the relay restarts and forgets the request it \
+                prints link-reposted and asks again; a request never outlives its 15 minutes.",
+        prints: "link-request, link-waiting, match-code, link-matched, link-checking, link-verified, link-retrying, link-reposted, link-ended, ok",
         example: "printf 'link-to ligusaddr1:...\\nwait 120\\n' | lt --plain",
     },
     Cmd {
@@ -707,6 +710,7 @@ pub const RECORDS: &[(&str, &[&[&str]])] = &[
     ("link-verified", &[&["rid", "person", "workspace", "note"]]),
     ("link-ended", &[&["rid", "why", "next"]]),
     ("link-retrying", &[&["rid", "note"]]),
+    ("link-reposted", &[&["rid", "note"]]),
     ("link-arriving", &[&["until", "note"]]),
     ("link-unconfirmed", &[&["why", "next"]]),
     ("link-note", &[&["note"]]),
@@ -855,8 +859,10 @@ devices instead; it then acts as you (your name, your role, your chats).
 1. In lt: first run, answer I already use Ligus on another device. In an
    install you already use, press D in Settings or People (they say \"This
    terminal is its own member\" while it is), or type link in the palette (:).
-2. On your desktop: Settings > Profile > My devices > Add a computer. Copy its
-   approval address (ligusaddr1:..., not a secret) and paste it into lt.
+2. On your desktop: Settings > Profile > My devices > Add a computer. Type the
+   code it shows (K7Q-4MX) into lt, or paste its approval address
+   (ligusaddr1:..., under Other ways to link; not a secret). With your own
+   relay, type its address after the code (K7Q-4MX https://relay.example.org).
 3. Your desktop shows the request by itself. When it opens it, both screens
    show the same 8-symbol code (K7Q4 M9X2). Check they match, then choose Yes,
    they match in lt and Codes match on the desktop, with your passkey. A code

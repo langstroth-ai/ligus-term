@@ -25,7 +25,7 @@ expression: screen
 ┃                              ┃│                 │ cargo test -┃  can then remove the old member (their messages keep their name).    ┃                       ││                                      │
 ┃                              ┃│                 in /srv/northw┃                                                                      ┃                       ││                                      │
 ┃                              ┃│                 coder describe┃  1 Desktop: My devices > Add a computer (palette: link)              ┃                       ││                                      │
-┃                              ┃│                 Next, after th┃  2 Copy its approval address and paste it below                      ┃                       ││                                      │
+┃                              ┃│                 Next, after th┃  2 Type the code it shows below (or paste its address)               ┃                       ││                                      │
 ┃                              ┃│               ◆ proposal “Sign┃  3 Check both screens show the same code                             ┃                       ││                                      │
 ┃                              ┃│                               ┃                                                                      ┃                       ││                                      │
 ┃                              ┃│                               ┃  Older desktop? Paste this request there (c copies it):              ┃                       ││                                      │

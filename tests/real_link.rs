@@ -583,6 +583,88 @@ mod live {
         .await;
         assert_eq!(a.b.members(&beta).await.unwrap().iter().filter(|m| !m.service).count(), 1, "never a second member");
     }
+
+    /// Ana's lt shows a short code (Link a device); the laptop types it
+    /// instead of the address and its request reaches the mailbox, and
+    /// Ana's screen says the code was used. Typed again, it finds nothing.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn the_laptop_types_the_code_ana_shows() {
+        let tmp = tempfile::tempdir().unwrap();
+        let relay = serve(ligus_runtime::test_relay::router()).await;
+        let a = device(&tmp.path().join("ana"), "Ana's desktop", &relay);
+        let (ws, wsu, conn) = founded(&a, tmp.path()).await;
+        let d = desk(&a, &tmp.path().join("ana"), &relay, wsu, &conn).await;
+        let shown = a.b.link_code_show(&ws).await.unwrap();
+        assert_eq!(shown.state, LinkCodeState::Live);
+        assert_eq!(shown.code.len(), 7, "K7Q-4MX: {shown:?}");
+        assert_eq!(shown.relay.as_deref(), Some(relay.as_str()), "not the community relay: named");
+
+        // The laptop's relay is Ana's (its config): the code alone is enough.
+        let laptop = device(&tmp.path().join("laptop"), "lt on laptop", &relay);
+        let LiveLinkStart::Posted { rid, .. } = laptop.b.link_live(&shown.code.to_lowercase()).await.unwrap() else {
+            panic!("no mailbox?")
+        };
+        until("the request in the mailbox", || async {
+            list_live(&d.client, std::slice::from_ref(&d.ek)).await.unwrap().live.into_iter().find(|l| l.rid_hex() == rid)
+        })
+        .await;
+        until("Ana's screen to say it was used", || async {
+            a.events.lock().unwrap().iter().any(|e| matches!(e, Event::LinkCode(v) if v.state == LinkCodeState::Used)).then_some(())
+        })
+        .await;
+        laptop.b.link_live_cancel(&rid).await.unwrap();
+
+        // Used once: typed again (with the relay after it), a plain miss.
+        let other = device(&tmp.path().join("other"), "lt on other", &relay);
+        let e = other.b.link_live(&format!("{} {relay}", shown.code)).await.unwrap_err();
+        assert!(e.0.contains("no device is showing that code"), "{e}");
+        a.b.link_code_close().await.unwrap();
+    }
+
+    /// The relay restarts while the laptop waits: it says so, posts its
+    /// request again once a member registers the mailbox again, and keeps
+    /// its handle (the screen follows the same request).
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn a_relay_restart_while_waiting_asks_again() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (router, _clock, restart) = ligus_runtime::test_relay::router_with_restart(true);
+        let relay = serve(router).await;
+        let a = device(&tmp.path().join("ana"), "Ana's desktop", &relay);
+        let (_ws, wsu, conn) = founded(&a, tmp.path()).await;
+        let d = desk(&a, &tmp.path().join("ana"), &relay, wsu, &conn).await;
+        let laptop = device(&tmp.path().join("laptop"), "lt on laptop", &relay);
+        let LiveLinkStart::Posted { rid, .. } = laptop.b.link_live(&d.address).await.unwrap() else { panic!("no mailbox?") };
+        until("the request in the mailbox", || async {
+            list_live(&d.client, std::slice::from_ref(&d.ek)).await.unwrap().live.into_iter().find(|l| l.rid_hex() == rid)
+        })
+        .await;
+        restart.restart();
+        d.client.ensure_registered(&d.ek.key).await.unwrap();
+        update_where(&laptop, &rid, "Reposted", |u| *u == LiveLinkUpdate::Reposted).await;
+        let again = until("the request posted again", || async {
+            list_live(&d.client, std::slice::from_ref(&d.ek)).await.unwrap().live.into_iter().find(|l| l.rid_hex() != rid)
+        })
+        .await;
+        assert_ne!(again.rid_hex(), rid);
+        // Cancel by the handle ends the new request.
+        laptop.b.link_live_cancel(&rid).await.unwrap();
+        update_where(&laptop, &rid, "cancelled", |u| *u == LiveLinkUpdate::Ended(LiveLinkEnd::Cancelled)).await;
+    }
+
+    /// A relay without short codes says to paste the address instead.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn a_relay_without_short_codes_asks_for_the_address() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (router, _clock, _restart) = ligus_runtime::test_relay::router_with_restart(false);
+        let relay = serve(router).await;
+        let a = device(&tmp.path().join("ana"), "Ana's desktop", &relay);
+        let (ws, _, _) = founded(&a, tmp.path()).await;
+        let shown = a.b.link_code_show(&ws).await.unwrap();
+        assert!(matches!(&shown.state, LinkCodeState::NoRoutes { address: Some(a) } if a.starts_with("ligusaddr1:")), "{shown:?}");
+        let laptop = device(&tmp.path().join("laptop"), "lt on laptop", &relay);
+        let e = laptop.b.link_live("K7Q-4MX").await.unwrap_err();
+        assert!(e.0.contains("has no short codes yet") && e.0.contains("approval address"), "{e}");
+    }
 }
 
 /// The owner's 0.3.0 report: lt joined by invite as its own member (an

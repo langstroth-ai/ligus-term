@@ -161,9 +161,14 @@ name, your role, your chats):
 1. First run: answer **I already use Ligus on another device**. In an install you already use,
    press **D** in Settings or People (they say **This terminal is its own
    member** while it is), or type **link** in the palette (`:`).
-2. On your desktop: **Settings > Profile > My devices > Add a computer**, and
-   **Copy** its approval address (`ligusaddr1:…`, not a secret). Paste it into
-   `lt` and press **enter**: the request shows up on the desktop by itself.
+2. On your desktop: **Settings > Profile > My devices > Add a computer** shows
+   **Link a device** with a short code (`K7Q-4MX`). Type it into `lt` and press
+   **enter** (with your own relay, type its address after the code:
+   `K7Q-4MX https://relay.example.org`). The code works once, for 10 minutes,
+   and finds the desktop's approval address on the relay; you can also paste
+   that address (`ligusaddr1:…`, under **Other ways to link**). The request
+   shows up on the desktop by itself. If the relay restarts meanwhile, `lt`
+   asks again and says so.
 3. When the desktop opens it, both screens show the same 8-symbol code, framed
    in `lt` (`K7Q4 M9X2`). **Check your desktop shows the same code**, then
    choose **Yes, they match** in `lt` and confirm on the desktop with your

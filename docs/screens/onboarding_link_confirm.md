@@ -14,7 +14,7 @@ Rendered by `tests/screens.rs` (110×32, the in-memory demo backend).
                                  ┃  Make this computer one of your devices.                             ┃
           ▄▀▀▄▄   ▄▄▀▀▄          ┃                                                                      ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  1 Desktop: My devices > Add a computer (palette: link)              ┃
-        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  2 Copy its approval address and paste it below                      ┃
+        ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  2 Type the code it shows below (or paste its address)               ┃
         ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀        ┃  3 Check both screens show the same code                             ┃
      ▄▀▀▀▄▄▀▀▄▄▀▀▀▄▄▀▀▄▄▀▀▀▄     ┃                                                                      ┃
     ▀▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀ ▀▀▀▀▀▀▀▀    ┃  Older desktop? Paste this request there (c copies it):              ┃

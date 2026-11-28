@@ -307,6 +307,7 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             message(f, area, "Invite", lines, t);
         }
         Some(Overlay::Approvals { list }) => approvals(f, area, s, list.as_ref(), t),
+        Some(Overlay::LinkCode { view }) => link_code(f, area, s, view.as_ref(), t),
         Some(Overlay::Code { title, code, fingerprint, .. }) => {
             // Alone on the screen, no border in the code's lines: a mouse
             // selection takes only the code (a paste ignores the breaks).
@@ -366,6 +367,66 @@ fn approvals(
     lines.push(Line::raw(""));
     lines.push(Line::styled("r refresh · esc close", t.dim()));
     message(f, area, "Approval requests", lines, t);
+}
+
+/// Link a device: the short code, how to type it, and where it stands.
+fn link_code(
+    f: &mut Frame,
+    area: Rect,
+    s: &State,
+    view: Option<&std::result::Result<crate::backend::model::LinkCodeView, String>>,
+    t: &Theme,
+) {
+    use crate::backend::model::LinkCodeState as St;
+    let mut lines = Vec::new();
+    let mut keys = "esc close";
+    match view {
+        None => lines.push(Line::styled("Getting a code…", t.dim())),
+        Some(Err(e)) => lines.push(Line::styled(format!("✗ Couldn't get a code: {e}"), t.fg(t.bad))),
+        Some(Ok(v)) => match &v.state {
+            St::Live => {
+                lines.push(Line::styled("On the new device, choose I already use Ligus and type:", t.text()));
+                lines.push(Line::raw(""));
+                lines.push(Line::styled(format!("   {}", v.code), t.accent().add_modifier(Modifier::BOLD)));
+                lines.push(Line::raw(""));
+                if let Some(r) = &v.relay {
+                    lines.push(Line::styled(format!("with the relay {r}."), t.text()));
+                }
+                let left = ((v.expires_at - s.now) / 60_000).max(0) + 1;
+                lines.push(Line::styled(
+                    format!("It works once, for about {left} more minute{}.", if left == 1 { "" } else { "s" }),
+                    t.dim(),
+                ));
+                let relay = v.relay.as_ref().map(|r| format!(" --relay {r}")).unwrap_or_default();
+                lines.push(Line::styled(format!("In a terminal: ligus devices request --code {}{relay}", v.code), t.dim()));
+                lines.push(Line::styled("Then approve its request on your desktop or phone.", t.dim()));
+                if let Some(n) = &v.notice {
+                    lines.push(Line::styled(n.clone(), t.fg(t.warn)));
+                }
+            }
+            St::Used => {
+                lines.push(Line::styled(format!("✓ The new device has the code {}.", v.code), t.text()));
+                lines.push(Line::styled("Approve its request in your desktop's Inbox (or on your phone).", t.dim()));
+            }
+            St::Expired => {
+                lines.push(Line::styled(format!("The code {} expired.", v.code), t.dim()));
+                keys = "n new code · esc close";
+            }
+            St::NoRoutes { address } => {
+                lines.push(Line::styled("This relay has no short codes yet.", t.text()));
+                if let Some(a) = address {
+                    lines.push(Line::styled("Paste this approval address on the new device instead:", t.dim()));
+                    lines.push(Line::styled(a.clone(), t.text()));
+                } else {
+                    lines.push(Line::styled("Use Add to my devices on the new device and paste its request on your desktop.", t.dim()));
+                }
+            }
+            St::Failed(e) => lines.push(Line::styled(format!("✗ {e}"), t.fg(t.bad))),
+        },
+    }
+    lines.push(Line::raw(""));
+    lines.push(Line::styled(keys, t.dim()));
+    message(f, area, "Link a device", lines, t);
 }
 
 fn message(f: &mut Frame, area: Rect, title: &str, lines: Vec<Line>, t: &Theme) {

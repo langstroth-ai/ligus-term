@@ -102,6 +102,7 @@ fn synonyms(a: Action) -> &'static str {
         Action::LinkDevice => "link add a computer device devices my devices desktop terminal lt same person second member invited myself",
         Action::AdmitBox => "box serve worker admission",
         Action::Approvals => "approve approval requests join box computer phone code match waiting",
+        Action::ShowLinkCode => "link a device short code new computer desktop add a computer my devices type",
         Action::Invite => "invite person people",
         Action::ChatRepo => "repo repository scratch folder code checkout new scratch repo",
         Action::KeepScratch => "keep scratch repo repository move save publish",

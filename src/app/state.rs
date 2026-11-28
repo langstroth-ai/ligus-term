@@ -448,6 +448,11 @@ pub enum Overlay {
     Approvals {
         list: Option<std::result::Result<Vec<ApprovalRequest>, String>>,
     },
+    /// Link a device: the short code a new device of yours types (`None`
+    /// while it is posted; the error when it can't be).
+    LinkCode {
+        view: Option<std::result::Result<crate::backend::model::LinkCodeView, String>>,
+    },
     /// The Set up list (`u`): each guided flow and what is done.
     Setup {
         sel: usize,
