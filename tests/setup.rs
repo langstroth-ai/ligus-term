@@ -94,6 +94,91 @@ async fn the_list_shows_each_flow_and_what_is_done() {
     assert!(h.state.overlay.is_none());
 }
 
+/// The Set up Ligus rows lead the list: exactly the shared fixture's rows
+/// (the same ones the desktop, `ligus setup` and the phone render), each
+/// with its mark, title and detail, grey for what was never set up.
+#[tokio::test]
+async fn the_list_leads_with_the_set_up_ligus_rows() {
+    use ligus_runtime::setup::checklist::{Checklist, fixture};
+    let mut h = demo().await;
+    h.key(KeyCode::Char('u')).await;
+    loaded(&mut h).await;
+    let want: Checklist = serde_json::from_str(fixture::SETTLED_TEAM_CHECKLIST).unwrap();
+    assert_eq!(h.state.setup_checklist.as_ref(), Some(&want), "the shared fixture's rows");
+    let s = h.screen(W, H);
+    let mut at = 0;
+    for r in &want.rows {
+        let mark = ligus_runtime::setup::checklist::mark(r.state);
+        let line = s.lines().enumerate().skip(at).find(|(_, l)| l.contains(&format!("{mark} {}", r.title)));
+        let (i, l) = line.unwrap_or_else(|| panic!("{} in order\n{s}", r.title));
+        let head: String = r.detail.chars().take(16).collect();
+        assert!(l.contains(&head), "{}: {head}\n{l}", r.title);
+        at = i + 1;
+    }
+    assert!(s.contains("x clean up"), "{s}");
+    snap(&h, "setup_checklist", "Set up: the Set up Ligus checklist above the guided flows");
+}
+
+async fn loaded(h: &mut Harness) {
+    for _ in 0..50 {
+        if h.state.setup_checklist.is_some() {
+            return;
+        }
+        h.settle().await;
+    }
+}
+
+/// Clean up: Remove from view writes its key only after the confirm; a
+/// removal from the workspace is the desktop's and changes nothing here.
+#[tokio::test]
+async fn clean_up_hides_only_after_the_confirm() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char('u')).await;
+    loaded(&mut h).await;
+    h.key(KeyCode::Char('x')).await;
+    h.settle().await;
+    assert!(matches!(h.state.overlay, Some(Overlay::Cleanup { sel: 0, confirming: false })), "{:?}", h.state.overlay);
+    let items = h.state.setup_checklist.as_ref().unwrap().cleanup.clone();
+    let count = items.len();
+    let revoked = items.iter().position(|i| i.key.starts_with("deviceRevoked:")).unwrap();
+    let remove = items.iter().position(|i| i.key.starts_with("memberLeft:")).unwrap();
+
+    // A removal: said where it's done, nothing hidden.
+    for _ in 0..remove {
+        h.key(KeyCode::Down).await;
+    }
+    h.key(KeyCode::Enter).await;
+    h.settle().await;
+    assert!(h.state.toasts.iter().any(|t| t.text.contains("on your desktop")), "{:?}", h.state.toasts);
+    assert_eq!(h.state.setup_checklist.as_ref().unwrap().cleanup.len(), count);
+
+    // Remove from view: the confirm, declined, keeps it.
+    for _ in 0..remove {
+        h.key(KeyCode::Up).await;
+    }
+    for _ in 0..revoked {
+        h.key(KeyCode::Down).await;
+    }
+    h.key(KeyCode::Enter).await;
+    assert!(matches!(h.state.overlay, Some(Overlay::Cleanup { confirming: true, .. })));
+    snap(&h, "setup_cleanup_confirm", "Set up: Clean up asks before removing a leftover from view");
+    h.key(KeyCode::Char('n')).await;
+    h.settle().await;
+    assert_eq!(h.state.setup_checklist.as_ref().unwrap().cleanup.len(), count, "declined: nothing hidden");
+    // Accepted: hidden here, gone from the list.
+    h.key(KeyCode::Enter).await;
+    h.key(KeyCode::Char('y')).await;
+    for _ in 0..50 {
+        if h.state.setup_checklist.as_ref().unwrap().cleanup.len() < count {
+            break;
+        }
+        h.settle().await;
+    }
+    let left = &h.state.setup_checklist.as_ref().unwrap().cleanup;
+    assert_eq!(left.len(), count - 1);
+    assert!(left.iter().all(|i| !i.key.starts_with("deviceRevoked:")));
+}
+
 #[tokio::test]
 async fn the_palette_opens_a_flow_by_name() {
     let mut h = demo().await;
@@ -353,7 +438,10 @@ async fn esc_cancels_cleanly() {
     let mut h = demo().await;
     open(&mut h, 0).await;
     let fx = update(&mut h.state, Msg::Key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE)));
-    assert!(fx.iter().all(|f| matches!(f, Effect::LoadSetup(_) | Effect::LoadPendingPresence)), "nothing runs: {fx:?}");
+    assert!(
+        fx.iter().all(|f| matches!(f, Effect::LoadSetup(_) | Effect::LoadChecklist(_) | Effect::LoadPendingPresence)),
+        "nothing runs: {fx:?}"
+    );
     assert!(matches!(h.state.overlay, Some(Overlay::Setup { .. })));
 
     // While running: esc is a cancel, once.

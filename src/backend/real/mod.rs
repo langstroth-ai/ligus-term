@@ -1839,6 +1839,29 @@ impl Backend for RealBackend {
         self.call(move |i| Ok(crate::setup::form(f, &setup_ops::RealOps::new(i.clone(), ws), &inputs))).await
     }
 
+    async fn setup_checklist(&self, workspace: Option<&WorkspaceId>) -> Result<Option<crate::setup::Checklist>> {
+        let Some(ws) = workspace.map(ws_uuid).transpose()? else { return Ok(None) };
+        self.call(move |i| {
+            use ligus_runtime::setup::checklist::{self, Live, Viewer};
+            let beats = i.beats(ws);
+            let now = ligus_core::Timestamp::now();
+            let online = |h: &ligus_core::WorkspaceHost| beats.is_online(h, &now);
+            let status = |id: &str| beats.status_of(id);
+            let hidden = checklist::hidden::load(&i.cfg.data_dir);
+            i.read(ws, |svc| {
+                let live =
+                    Live { online: &online, status: &status, this_device_word: "this terminal".into(), hidden, now, ..Live::default() };
+                Ok(Some(checklist::checklist(&checklist::gather(svc, ws, &Viewer::author(svc), &live))))
+            })
+        })
+        .await
+    }
+
+    async fn setup_hide(&self, key: &str) -> Result<()> {
+        let key = key.to_string();
+        self.call(move |i| ligus_runtime::setup::checklist::hidden::set(&i.cfg.data_dir, &key, false).map(|_| ()).map_err(one_line)).await
+    }
+
     async fn setup_run(
         &self,
         workspace: Option<&WorkspaceId>,

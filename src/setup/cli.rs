@@ -296,10 +296,11 @@ impl SetupOps for Offline {
 pub fn all_help() -> String {
     let mut s = String::from(
         "Guided setup (lt setup)\n\n  \
-         lt setup                 the flows and what is done on this device (--json: ligus.checks.v1)\n  \
+         lt setup                 the Set up Ligus checklist, then the flows and what is done on this device (--json: ligus.checks.v1 with the checklist under checklist)\n  \
          lt setup FLOW [flags]    run one; --dry-run checks and writes nothing; --json prints one document\n\n  \
          In the full-screen app u (or the palette: Add an agent, Connect a tool, ...) opens the list;\n  \
          enter runs a flow one step per screen; esc cancels (a running flow undoes its own writes);\n  \
+         x opens Clean up (remove a leftover from view here; a removal is done on your desktop);\n  \
          d toggles a dry run. Secrets (a token, an admission code) are masked, kept only in memory and\n  \
          never printed or logged; on the command line they take - (stdin) or @FILE (owner-only).\n\n",
     );
@@ -373,10 +374,16 @@ pub async fn run(
         return match b.setup_status(ws.as_ref()).await {
             Ok(rows) => {
                 let rows = visible(&b, rows);
+                // The checklist is extra: one that can't be read leaves the flows.
+                let list = b.setup_checklist(ws.as_ref()).await.ok().flatten();
                 let _ = if json || p.json {
-                    writeln!(out, "{}", super::list_json(&rows))
+                    writeln!(out, "{}", super::with_checklist(super::list_json(&rows), list.as_ref()))
                 } else {
-                    write!(out, "{}", clean_text(&list_text(&rows)))
+                    let head = list
+                        .as_ref()
+                        .map(|l| format!("Set up Ligus\n\n{}\nGuided setup\n\n", super::checklist_text(l)))
+                        .unwrap_or_default();
+                    write!(out, "{}", clean_text(&format!("{head}{}", list_text(&rows))))
                 };
                 0
             }
@@ -458,10 +465,25 @@ pub async fn plain(b: &Arc<dyn Backend>, ws: Option<&WorkspaceId>, arg: &str) ->
     };
     let Some(flow) = flow else {
         return match b.setup_status(ws).await {
-            Ok(rows) => visible(b, rows)
-                .into_iter()
-                .map(|r| format!("setup\t{}\t{}\t{}\t{}", r.flow.id(), progress_word(r.progress), r.flow.title(), r.detail))
-                .collect(),
+            Ok(rows) => {
+                let list = b.setup_checklist(ws).await.ok().flatten();
+                let checks = list.iter().flat_map(|l| l.rows.iter()).map(|r| {
+                    let state = serde_json::to_value(r.state).ok().and_then(|v| v.as_str().map(str::to_string)).unwrap_or_default();
+                    format!(
+                        "checklist\t{}\t{state}\t{}\t{}",
+                        serde_json::to_value(r.id).ok().and_then(|v| v.as_str().map(str::to_string)).unwrap_or_default(),
+                        r.title,
+                        super::shown(&r.detail)
+                    )
+                });
+                checks
+                    .chain(
+                        visible(b, rows)
+                            .into_iter()
+                            .map(|r| format!("setup\t{}\t{}\t{}\t{}", r.flow.id(), progress_word(r.progress), r.flow.title(), r.detail)),
+                    )
+                    .collect()
+            }
             Err(e) => vec![format!("error\t{e}")],
         };
     };

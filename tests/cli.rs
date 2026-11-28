@@ -253,6 +253,15 @@ fn setup_json_shape_and_exit_codes() {
         ids,
         ["agent.status", "tool.status", "folder.status", "box.status", "phone.status", "invite.status", "relay.status", "device.status"]
     );
+    // The Set up Ligus checklist rides in the same document, as in ligus setup --json.
+    let list = &d["checklist"];
+    assert_eq!(list["schema"], "ligus.setup.v1");
+    let rows: Vec<&str> = list["rows"].as_array().unwrap().iter().map(|r| r["id"].as_str().unwrap()).collect();
+    assert_eq!(rows, ["you", "passkey", "device", "devices", "phone", "box", "agents", "workspace", "cleanup"]);
+    for r in list["rows"].as_array().unwrap() {
+        assert!(["done", "notSetUp", "attention"].contains(&r["state"].as_str().unwrap()), "{r}");
+    }
+    assert!(list["cleanup"].as_array().unwrap().iter().all(|i| i["key"].as_str().unwrap().contains(':')));
 
     let (mut c, _home) = lt();
     c.args(["--demo", "setup", "agent", "--harness", "claude-code", "--name", "helper", "--dry-run", "--json"]);

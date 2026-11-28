@@ -52,6 +52,13 @@ pub fn list(f: &mut Frame, area: Rect, s: &State, sel: usize, t: &Theme) {
     if waiting > 0 {
         lines.push(Line::raw(""));
     }
+    // Set up Ligus: the same rows as the desktop, `ligus setup` and the
+    // phone's Health. Read only here; each row's next step is said in words.
+    let tight = area.height < 30;
+    if let Some(list) = &s.setup_checklist {
+        checklist_lines(&mut lines, list, inner, t);
+        lines.push(Line::raw(""));
+    }
     match &s.setup_rows {
         None => lines.push(Line::styled("Looking at what is set up\u{2026}", t.dim())),
         Some(rows) => {
@@ -69,7 +76,7 @@ pub fn list(f: &mut Frame, area: Rect, s: &State, sel: usize, t: &Theme) {
                 let room = inner.saturating_sub(2 + tw + 2 + 2);
                 lines.push(Line::from(vec![mark, title, Span::styled(glyph, style), Span::styled(trunc(&r.detail, room), style)]));
             }
-            if let Some(r) = sel.checked_sub(waiting).and_then(|i| rows.get(i)) {
+            if let Some(r) = sel.checked_sub(waiting).and_then(|i| rows.get(i)).filter(|_| !tight || s.setup_checklist.is_none()) {
                 lines.push(Line::raw(""));
                 wrapped(&mut lines, r.flow.why(), inner, t.dim(), "");
             }
@@ -79,9 +86,92 @@ pub fn list(f: &mut Frame, area: Rect, s: &State, sel: usize, t: &Theme) {
     if sel < waiting {
         lines.push(Line::styled("enter wait · c cancel (nothing is written) · esc close", t.dim()));
     } else {
-        lines.push(Line::styled("enter start · esc close · every flow is safe to run again", t.dim()));
+        let cleanup = s.setup_checklist.as_ref().is_some_and(|c| !c.cleanup.is_empty());
+        let keys =
+            if cleanup { "enter start · x clean up · esc close" } else { "enter start · esc close · every flow is safe to run again" };
+        lines.push(Line::styled(keys, t.dim()));
     }
     popup(f, area, "Set up", lines, t);
+}
+
+/// The checklist rows: a mark (✓ done, ○ grey not set up, • amber wants a
+/// look; never red), the title, the detail and the row's one next step.
+fn checklist_lines(lines: &mut Vec<Line<'static>>, list: &crate::setup::Checklist, width: usize, t: &Theme) {
+    use crate::setup::RowState;
+    let tw = list.rows.iter().map(|r| r.title.width()).max().unwrap_or(0).min(14);
+    for r in &list.rows {
+        let (glyph, style) = match r.state {
+            RowState::Done => ("✓ ", t.fg(t.good)),
+            RowState::Attention => ("• ", t.fg(t.warn)),
+            RowState::NotSetUp => ("○ ", t.dim()),
+        };
+        let detail_style = if r.state == RowState::NotSetUp { t.dim() } else { t.text() };
+        let title = format!("{:<tw$}  ", trunc(&crate::setup::shown(&r.title), tw));
+        // The one next step, in lt's words (a key, a flow below, or the
+        // device that does it); the row's label when lt has none.
+        let how = r.action.as_ref().map(|a| match crate::setup::lt_short_how(&a.id) {
+            Some(h) => format!("  {h}"),
+            None => format!("  {}", a.label),
+        });
+        let room = width.saturating_sub(2 + 2 + title.width());
+        let detail = crate::setup::shown(&r.detail);
+        let mut spans = vec![Span::raw("  "), Span::styled(glyph, style), Span::styled(title, t.text())];
+        match how {
+            Some(h) => {
+                let d = trunc(&detail, room.saturating_sub(h.width().min(room / 2)).max(8));
+                let left = room.saturating_sub(d.width());
+                spans.push(Span::styled(d, detail_style));
+                spans.push(Span::styled(trunc(&h, left), t.dim()));
+            }
+            None => spans.push(Span::styled(trunc(&detail, room), detail_style)),
+        }
+        lines.push(Line::from(spans));
+    }
+}
+
+/// Set up Ligus's Clean up: one line per leftover with its one action.
+/// Remove from view asks first; a removal is done on the desktop.
+pub fn cleanup(f: &mut Frame, area: Rect, s: &State, sel: usize, confirming: bool, t: &Theme) {
+    use crate::setup::CleanupActionId;
+    let inner = (W.min(area.width)).saturating_sub(2) as usize;
+    let mut lines: Vec<Line<'static>> = vec![];
+    let items = s.setup_checklist.as_ref().map(|c| c.cleanup.as_slice()).unwrap_or(&[]);
+    if items.is_empty() {
+        lines.push(Line::styled("Nothing to clean up.", t.dim()));
+    }
+    for (i, it) in items.iter().enumerate() {
+        let on = i == sel;
+        let mark = Span::styled(if on { "› " } else { "  " }, t.accent());
+        let action = format!("  [{}]", it.action.label);
+        let detail = if it.detail.is_empty() { String::new() } else { format!(" · {}", it.detail) };
+        let text = crate::setup::shown(&format!("{}{detail}", it.label));
+        let room = inner.saturating_sub(2 + action.width());
+        lines.push(Line::from(vec![
+            mark,
+            Span::styled(trunc(&text, room), if on { t.selected() } else { t.text() }),
+            Span::styled(action, t.dim()),
+        ]));
+    }
+    lines.push(Line::raw(""));
+    match items.get(sel) {
+        Some(it) if confirming => {
+            wrapped(&mut lines, &crate::setup::shown(&it.action.confirm), inner, t.text(), "");
+            lines.push(Line::raw(""));
+            lines.push(Line::styled("y remove from view · n or esc keeps it", t.accent()));
+        }
+        Some(it) if it.action.id == CleanupActionId::Remove => {
+            wrapped(&mut lines, crate::setup::REMOVE_ON_DESKTOP, inner, t.dim(), "");
+            lines.push(Line::raw(""));
+            lines.push(Line::styled("esc back", t.dim()));
+        }
+        Some(_) => {
+            wrapped(&mut lines, "Remove from view hides it on this terminal only: nothing changes in the workspace.", inner, t.dim(), "");
+            lines.push(Line::raw(""));
+            lines.push(Line::styled("enter remove from view · esc back", t.dim()));
+        }
+        None => lines.push(Line::styled("esc back", t.dim())),
+    }
+    popup(f, area, "Clean up", lines, t);
 }
 
 /// The title column's width for a set of checks (at most 16).

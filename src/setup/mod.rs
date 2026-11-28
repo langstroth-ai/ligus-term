@@ -723,6 +723,67 @@ fn device_outcome(checks: Vec<Check>, next: Vec<String>, exit: i32, done: bool) 
     outcome_of(LtFlow::Device, &r, exit, done, false, BTreeMap::new(), FlowId::Agent)
 }
 
+// ── Set up Ligus: the checklist ─────────────────────────────────────────────
+
+/// The "Set up Ligus" rows (`ligus_runtime::setup::checklist`): the same as
+/// the desktop's Settings > Set up Ligus, `ligus setup` and the phone's
+/// Health, from the same facts.
+pub use ligus_runtime::setup::checklist::{Checklist, CleanupActionId, CleanupItem, Row as ChecklistRow, RowState};
+
+/// Where a row's one action is done from lt: a flow in the list below, or
+/// the device (or command) that can do it.
+pub fn lt_how(action: &str) -> Option<&'static str> {
+    Some(match action {
+        "profile" => "ligus profile set --name NAME, or your desktop",
+        "passkey" | "recovery" | "upgradeRules" => "on your desktop, Settings > Passkeys & keys",
+        "deviceName" => "ligus devices rename this NAME",
+        "addComputer" => "Add to my devices, below",
+        "devices" => "ligus devices list, or your desktop's My devices",
+        "addPhone" => "Add a phone, below",
+        "push" => "on your phone, Settings > Notifications",
+        "addBox" => "Add a box, below",
+        "upgradeBox" => "on the box, ligus-local upgrade",
+        "addAgent" | "agents" => "Add an agent, below",
+        "cleanup" => "x",
+        _ => return None,
+    })
+}
+
+/// [`lt_how`] short enough for the Set up list's row.
+pub fn lt_short_how(action: &str) -> Option<&'static str> {
+    Some(match action {
+        "profile" | "passkey" | "recovery" | "upgradeRules" => "on your desktop",
+        "deviceName" => "ligus devices rename",
+        "addComputer" => "Add a computer ↓",
+        "devices" => "ligus devices list",
+        "addPhone" => "Add a phone ↓",
+        "push" => "on your phone",
+        "addBox" => "Add a box ↓",
+        "upgradeBox" => "ligus-local upgrade on the box",
+        "addAgent" | "agents" => "Add an agent ↓",
+        "cleanup" => "x",
+        _ => return None,
+    })
+}
+
+/// Where a Clean up item that removes something from the workspace is done:
+/// its own passkey ceremony, on the desktop.
+pub const REMOVE_ON_DESKTOP: &str = "Remove it on your desktop: Settings > Set up Ligus > Clean up (it asks for your passkey).";
+
+/// The checklist as `lt setup` prints it.
+pub fn checklist_text(list: &Checklist) -> String {
+    ligus_runtime::setup::checklist::render_text(list, &|id| lt_how(id).map(str::to_string))
+}
+
+/// `lt setup --json`: the flows' document with the checklist under
+/// `checklist` (additive, as `ligus setup --json`).
+pub fn with_checklist(mut doc: serde_json::Value, list: Option<&Checklist>) -> serde_json::Value {
+    if let Some(l) = list {
+        doc["checklist"] = serde_json::to_value(l).unwrap_or_default();
+    }
+    doc
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

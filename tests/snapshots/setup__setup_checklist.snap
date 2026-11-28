@@ -1,0 +1,36 @@
+---
+source: tests/setup.rs
+expression: screen
+---
+[NA] [DS]• Northwind API · owner │ Chats Workflows Props Agents Hosts Memory People Notifs 1 Settings
+┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test · 1/3 ─────────────────────────────────────────────╮
+┃  ◆ Fix flaky checkout … 12m  ┃│  The checkout test fails about one run in ten. Can we stop it reading the  │
+┃  ◆ Migrate auth┏ Set up ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                │
+┃  Weekly release┃  ✓ You          Ana · picture                                            ┃                │
+┃                ┃  ✓ Passkey      2 passkeys · recovery key                                ┃                │
+┃                ┃  ✓ This device  Ana's MacBook                                            ┃ small change.  │
+┃                ┃  • My devices   this Mac, build-1, old-laptop · 1 ap…  ligus devices list┃                │
+┃                ┃  ✓ Phone        Ana's iPhone · push on                                   ┃                │
+┃                ┃  ✓ Box          box-1 · 0.4.1 (0.5.0 out)  ligus-local upgrade on the box┃                │
+┃                ┃  ✓ Agents       @coder on box-1 · @reviewer on your devices              ┃· p to review   │
+┃                ┃  ✓ Workspace    Team · rules 3 · Upgrade available  on your desktop      ┃                │
+┃                ┃  • Clean up     1 member who asked to leave · 1 device never finished…  x┃                │
+┃                ┃                                                                          ┃rovider uses.   │
+┃                ┃› Add an agent       ✓ 4 agents                                           ┃                │
+┃                ┃  Connect a tool       no tools connected                                 ┃res?”           │
+┃                ┃  Add a code folder    no repositories yet                                ┃e chat first)   │
+┃                ┃  Add a box            run it on the box                                  ┃                │
+┃                ┃  Add a phone          no phone paired                                    ┃                │
+┃                ┃  Invite a person      no invites yet                                     ┃                │
+┃                ┃  Set up a relay     ✓ https://relay.langstroth.ai                        ┃                │
+┃                ┃  Add a computer       not linked to your devices                         ┃                │
+┃                ┃                                                                          ┃                │
+┃                ┃An agent answers when you @mention it. It runs a coding CLI (Claude Code, ┃                │
+┃                ┃Codex, Copilot, Antigravity, Aider, Pi), a model gateway or hosted API a  ┃                │
+┃                ┃host offers, or a model server, on this device or on a host you choose.   ┃to review       │
+┃                ┃                                                                          ┃────────────────╯
+┃                ┃enter start · x clean up · esc close                                      ┃
+┃                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛────────────────╮
+┃                              ┃│i to write · @ mentions an agent or a person                                │
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────────────────╯
+i write  N new chat  tab pane  . actions  : commands  ? help                   peer to peer · 1 running · demo

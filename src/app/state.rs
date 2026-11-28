@@ -452,6 +452,12 @@ pub enum Overlay {
     Setup {
         sel: usize,
     },
+    /// Set up Ligus's Clean up: the leftovers, one action each. Remove from
+    /// view asks first (`confirming`); a removal is the desktop's.
+    Cleanup {
+        sel: usize,
+        confirming: bool,
+    },
     /// One flow, one step per screen (`crate::app::setup`).
     SetupFlow(Box<crate::app::setup::Wizard>),
     /// `.` on a row: the row's actions, then the view's, the destructive
@@ -756,6 +762,9 @@ pub struct State {
     pub checkout: Option<String>,
     /// The Set up list's rows; `None` while loading.
     pub setup_rows: Option<Vec<crate::setup::FlowRow>>,
+    /// The Set up Ligus checklist (`None` while loading or before a
+    /// workspace).
+    pub setup_checklist: Option<crate::setup::Checklist>,
 
     /// The toast on screen: at most one, in the status bar's centre.
     pub toasts: Vec<Toast>,
@@ -889,6 +898,7 @@ impl State {
             handoffs: vec![],
             checkout: None,
             setup_rows: None,
+            setup_checklist: None,
             toasts: vec![],
             log: vec![],
             sync_status: HashMap::new(),

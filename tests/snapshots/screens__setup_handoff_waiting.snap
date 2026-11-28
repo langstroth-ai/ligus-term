@@ -6,30 +6,30 @@ expression: screen
 ┏ Chats ━━━━━━━━━━━━━━━━━━━━━━━┓╭ Fix flaky checkout test · 1/3 ─────────────────────────────────────────────╮
 ┃  ◆ Fix flaky checkout … 12m  ┃│  The checkout test fails about one run in ten. Can we stop it reading the  │
 ┃  ◆ Migrate auth to pas… 50m  ┃│  wall clock?                                                               │
-┃  Weekly release notes    1d  ┃│                                                                            │
-┃                              ┃│@coder  via claude-code · on build-box  38m                                 │
-┃                              ┃│  Yes. The payment tests already use a fake clock, so it's a small change.  │
-┃                              ┃│  I'll propose it.                                                          │
-┃                              ┃│                                                                            │
-┃                ┏ Set up ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                │
-┃                ┃› ⧗ Waiting for your desktop or phone (code K7Q4 M9X2): Add repository “a…┃· p to review   │
-┃                ┃                                                                          ┃                │
+┃  Weekly release┏ Set up ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                │
+┃                ┃› ⧗ Waiting for your desktop or phone (code K7Q4 M9X2): Add repository “a…┃                │
+┃                ┃                                                                          ┃ small change.  │
+┃                ┃  ✓ You          Ana · picture                                            ┃                │
+┃                ┃  ✓ Passkey      2 passkeys · recovery key                                ┃                │
+┃                ┃  ✓ This device  Ana's MacBook                                            ┃                │
+┃                ┃  • My devices   this Mac, build-1, old-laptop · 1 ap…  ligus devices list┃· p to review   │
+┃                ┃  ✓ Phone        Ana's iPhone · push on                                   ┃                │
+┃                ┃  ✓ Box          box-1 · 0.4.1 (0.5.0 out)  ligus-local upgrade on the box┃                │
+┃                ┃  ✓ Agents       @coder on box-1 · @reviewer on your devices              ┃rovider uses.   │
+┃                ┃  ✓ Workspace    Team · rules 3 · Upgrade available  on your desktop      ┃                │
+┃                ┃  • Clean up     1 member who asked to leave · 1 device never finished…  x┃res?”           │
+┃                ┃                                                                          ┃e chat first)   │
 ┃                ┃  Add an agent       ✓ 4 agents                                           ┃                │
-┃                ┃  Connect a tool       no tools connected                                 ┃rovider uses.   │
+┃                ┃  Connect a tool       no tools connected                                 ┃                │
 ┃                ┃  Add a code folder    no repositories yet                                ┃                │
-┃                ┃  Add a box            run it on the box                                  ┃res?”           │
-┃                ┃  Add a phone          no phone paired                                    ┃e chat first)   │
+┃                ┃  Add a box            run it on the box                                  ┃                │
+┃                ┃  Add a phone          no phone paired                                    ┃                │
 ┃                ┃  Invite a person      no invites yet                                     ┃                │
 ┃                ┃  Set up a relay     ✓ https://relay.langstroth.ai                        ┃                │
 ┃                ┃  Add a computer       not linked to your devices                         ┃                │
-┃                ┃                                                                          ┃                │
-┃                ┃enter wait · c cancel (nothing is written) · esc close                    ┃                │
-┃                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                │
-┃                              ┃│    coder describes it as: Run the checkout tests                           │
-┃                              ┃│    Next, after the question above                                          │
-┃                              ┃│  ◆ proposal “Sign-off: inject a fake clock” · open 0/1 · p to review       │
-┃                              ┃╰────────────────────────────────────────────────────────────────────────────╯
-┃                              ┃
+┃                ┃                                                                          ┃to review       │
+┃                ┃enter wait · c cancel (nothing is written) · esc close                    ┃────────────────╯
+┃                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ┃                              ┃╭ Message the room ──────────────────────────────────────────────────────────╮
 ┃                              ┃│i to write · @ mentions an agent or a person                                │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛╰────────────────────────────────────────────────────────────────────────────╯

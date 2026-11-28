@@ -540,6 +540,19 @@ device. It is the same engine as `ligus setup` and the Ligus desktop's
 wizards, so the steps, checks, fix lines and rules are the same
 everywhere.
 
+Above the flows, **Set up Ligus** shows one line each for you, your
+passkey, this terminal's name, your other devices, your phone, a box, the
+agents and where each answers, the workspace and its rules, and Clean up:
+the same rows as the desktop's Settings > Set up Ligus, `ligus setup` and
+the phone's Health. `✓` is done, a grey `○` is something you never set up
+(never red), an amber `•` wants a look; each line names its one next step.
+`x` opens **Clean up**: the leftovers (members who asked to leave, devices
+revoked or never used, former members' hosts, old agent names), one action
+each. **Remove from view** hides one on this terminal only after you
+confirm with `y`; nothing changes in the workspace. Removing one from the
+workspace takes your passkey, on your desktop (Settings > Set up Ligus >
+Clean up).
+
 - `enter` runs a flow in a popup, one step per screen: pick a harness
   (each shows whether it is installed and signed in), type a name, take a
   model suggestion with `↑`/`↓`, tick the agents a tool may reach, switch a
@@ -577,7 +590,7 @@ On the command line, `lt setup` lists the flows and `lt setup FLOW` runs
 one, with the engine's field ids as flags, as `ligus setup` takes them:
 
 ```sh
-lt setup                                   # what is done (--json: ligus.checks.v1)
+lt setup                                   # Set up Ligus, then what is done (--json: ligus.checks.v1, with checklist)
 lt setup agent --name fixer --source codex --test-turn
 lt setup tool --id issues --kind url --url https://mcp.example.com/v1 --token - < token.txt
 lt setup folder --path ~/src/web --dry-run

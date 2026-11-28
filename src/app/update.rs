@@ -107,6 +107,10 @@ pub enum Msg {
     Edited(Result<String>),
     /// The Set up list's rows.
     SetupRows(Result<Vec<crate::setup::FlowRow>>),
+    /// The Set up Ligus checklist.
+    SetupChecklist(Result<Option<crate::setup::Checklist>>),
+    /// A Clean up item was removed from view (its key), or not.
+    SetupHidden(String, Result<()>),
     /// The passkey hand-offs left waiting in this data dir.
     PendingPresence(Result<Vec<PendingPresence>>),
     /// A resumed hand-off was confirmed and written (its summary), or not.
@@ -252,6 +256,10 @@ pub enum Effect {
     EditDraft(String),
     /// The Set up list for the workspace (or before there is one).
     LoadSetup(Option<WorkspaceId>),
+    /// The Set up Ligus checklist for the workspace.
+    LoadChecklist(Option<WorkspaceId>),
+    /// Clean up: remove this key (`kind:id`) from view on this device.
+    SetupHide(String),
     /// A flow's form for the values so far.
     SetupForm(Option<WorkspaceId>, crate::setup::LtFlow, crate::setup::SetupInputs),
     /// Run a flow (as a person). The secrets go to the engine only.
@@ -915,6 +923,23 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
                 Err(e) => s.toast(ToastKind::Error, e.0),
             }
             vec![Effect::LoadPendingPresence]
+        }
+        Msg::SetupChecklist(r) => {
+            // A checklist that can't be read leaves the flows as they are.
+            s.setup_checklist = r.ok().flatten();
+            if let Some(Overlay::Cleanup { sel, .. }) = &mut s.overlay {
+                let n = s.setup_checklist.as_ref().map_or(0, |c| c.cleanup.len());
+                *sel = (*sel).min(n.saturating_sub(1));
+            }
+            vec![]
+        }
+        Msg::SetupHidden(_, Ok(())) => {
+            s.toast(ToastKind::Ok, "Out of view on this terminal; nothing changed in the workspace".to_string());
+            vec![Effect::LoadChecklist(s.active.clone())]
+        }
+        Msg::SetupHidden(_, Err(e)) => {
+            s.toast(ToastKind::Error, format!("Couldn't remove it from view: {e}"));
+            vec![]
         }
         Msg::SetupRows(Err(e)) => {
             s.toast(ToastKind::Error, format!("Couldn't list the setup flows: {e}"));
@@ -2188,6 +2213,10 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
             crate::app::setup::list_key(s, &k, sel)
         }
         Overlay::SetupFlow(_) => crate::app::setup::flow_key(s, &k),
+        Overlay::Cleanup { sel, confirming } => {
+            let (sel, confirming) = (*sel, *confirming);
+            crate::app::setup::cleanup_key(s, &k, sel, confirming)
+        }
         Overlay::Help { scroll, query, searching } => {
             let page = (s.term.1 as usize).saturating_sub(6).max(1);
             // Typing the search: arrows still scroll, enter keeps the
