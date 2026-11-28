@@ -29,13 +29,14 @@ mod mcp;
 mod presence_wait;
 mod scratch;
 mod setup_ops;
+mod storage;
 mod term_presence;
 mod turns;
 pub mod views;
 mod watch;
 mod workflows;
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
@@ -288,8 +289,10 @@ impl RealBackend {
                 .handoff_wait(cfg.handoff_wait),
         );
         let stored_label = label::load(&cfg.data_dir);
+        let local = LocalState::load(&cfg.data_dir);
+        let _ = storage::migrate(&cfg.data_dir.join(DB_FILE), &list, &local.checkouts);
         let inner = Arc::new(Inner {
-            local: Mutex::new(LocalState::load(&cfg.data_dir)),
+            local: Mutex::new(local),
             list: Mutex::new(list),
             core: RwLock::new(None),
             presence,
@@ -1196,12 +1199,13 @@ impl Backend for RealBackend {
         .await
     }
 
-    async fn mark_read(&self, _workspace: &WorkspaceId, chat: &ChatId) -> Result<()> {
+    async fn mark_read(&self, workspace: &WorkspaceId, chat: &ChatId) -> Result<()> {
         let chat = chat.0.clone();
+        let workspace = workspace.0.clone();
         self.call(move |i| {
             {
                 let mut l = lock(&i.local);
-                l.read.insert(chat.clone(), views::ms(&Timestamp::now()));
+                l.mark_seen(&workspace, &chat, views::ms(&Timestamp::now()));
                 for n in l.notifications.iter_mut().filter(|n| n.chat.as_deref() == Some(chat.as_str())) {
                     n.read = true;
                 }
@@ -1704,7 +1708,8 @@ impl Backend for RealBackend {
 
     async fn checkout(&self, workspace: &WorkspaceId) -> Result<Option<String>> {
         let id = workspace.0.clone();
-        self.call(move |i| Ok(lock(&i.local).checkouts.get(&id).cloned())).await
+        self.call(move |i| Ok(ws_uuid(&WorkspaceId::new(id)).ok().and_then(|ws| i.workspace_folder(ws)).map(|p| p.display().to_string())))
+            .await
     }
 
     async fn repo_choices(&self, workspace: &WorkspaceId) -> Result<RepoChoices> {
@@ -1924,9 +1929,20 @@ impl Inner {
     fn chats(&self, ws: Uuid) -> Result<Vec<ChatSummary>> {
         let me = self.me();
         let channels = self.read(ws, |svc| svc.list_channels(ws)).unwrap_or_default();
+        // This workspace's read marks, and the per-chat ones from before 0.5.
+        let ws_key = ws.to_string();
         let (read, notes) = {
             let l = lock(&self.local);
-            (l.read.clone(), l.notifications.clone())
+            let marks = LocalState {
+                read: l.read.clone(),
+                read_by_workspace: l
+                    .read_by_workspace
+                    .get(&ws_key)
+                    .map(|m| BTreeMap::from([(ws_key.clone(), m.clone())]))
+                    .unwrap_or_default(),
+                ..LocalState::default()
+            };
+            (marks, l.notifications.clone())
         };
         let repos = self.read(ws, |svc| Ok(scratch::repo_views(self, svc, ws))).unwrap_or_default();
         let mut out: Vec<ChatSummary> = self
@@ -1936,7 +1952,7 @@ impl Inner {
                 let id = s.id.to_string();
                 let last = s.messages.iter().rev().find(|m| m.role != ligus_core::MessageRole::System);
                 let updated_at = last.map(|m| views::ms(&m.created_at)).unwrap_or_else(|| views::ms(&s.created_at));
-                let seen = read.get(&id).copied().unwrap_or(0);
+                let seen = read.seen(&ws_key, &id);
                 let unread = last.is_some_and(|m| views::ms(&m.created_at) > seen && m.actor_identity.as_ref().is_none_or(|a| a.id != me));
                 let view = ligus_runtime::lockdown_view::chat_lockdown(s, s.id, &me);
                 let now = (Timestamp::now().inner().unix_timestamp_nanos() / 1_000_000) as i64;
@@ -2153,6 +2169,16 @@ impl Inner {
         String::new()
     }
 
+    /// The checkout this device applies `ws`'s proposals in: the
+    /// `workspace_folders` table once lt's import ran, else lt-state.json's
+    /// `checkouts` (from before 0.5).
+    pub(crate) fn workspace_folder(&self, ws: Uuid) -> Option<PathBuf> {
+        match ligus_runtime::event_store::peek_workspace_folder(&self.db(), ws, storage::FOLDER_SOURCE) {
+            Some(row) => row,
+            None => lock(&self.local).checkouts.get(&ws.to_string()).map(PathBuf::from),
+        }
+    }
+
     /// The host beats read from `ws`'s room (a shared handle).
     pub(crate) fn beats(&self, ws: Uuid) -> ligus_runtime::HostPresence {
         lock(&self.beats).entry(ws).or_default().clone()
@@ -2171,7 +2197,15 @@ impl Inner {
             }
             None => None,
         };
-        {
+        // The `workspace_folders` table once its import ran; before that
+        // (another process held the store at every start), lt-state.json as
+        // before, and the import takes it later.
+        let in_table = match uuid::Uuid::parse_str(&workspace.0) {
+            Ok(ws) => ligus_runtime::event_store::write_workspace_folder(&self.db(), ws, storage::FOLDER_SOURCE, path.as_deref())
+                .map_err(one_line)?,
+            Err(_) => false,
+        };
+        if !in_table {
             let mut l = lock(&self.local);
             match &path {
                 Some(p) => l.checkouts.insert(workspace.0.clone(), p.clone()),

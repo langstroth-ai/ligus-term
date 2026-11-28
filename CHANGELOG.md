@@ -8,6 +8,14 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Changed
 
+- Read marks are kept per workspace (a chat's mark from before is still
+  used until you open that chat again), and the checkout this terminal
+  applies proposals in, per workspace, now lives in `ligus.db` beside the
+  desktop's and the CLI's folders. The first start copies it in once, after
+  a backup, and leaves `lt-state.json` as it was, so an older lt still finds
+  it. lt now also runs the database's other one-time upgrades at start, as
+  the desktop and the CLI do.
+
 - A turn that isn't this terminal's (an agent on another host, or someone
   else's agent while their devices are away) is never answered here after
   a wait any more; its line says where it waits. Only **Run here this

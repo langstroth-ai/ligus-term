@@ -563,7 +563,7 @@ fn host_tick(inner: &Inner, ws: Uuid, touch: bool) {
     // A proposal with a repository applies in this device's checkout of it
     // (a scratch repo's, say); one without, in lt's checkout for the
     // workspace. Nothing to do with neither.
-    let legacy = lock(&inner.local).checkouts.get(&ws.to_string()).cloned().map(std::path::PathBuf::from);
+    let legacy = inner.workspace_folder(ws);
     if legacy.is_none() && inner.read(ws, |svc| Ok(svc.store().repo_mappings(ws).unwrap_or_default().is_empty())).unwrap_or(true) {
         return;
     }
