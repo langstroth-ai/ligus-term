@@ -385,6 +385,18 @@ device and the workers: online (from heartbeats) or last seen, busy or
 idle, and their agents. Memory (`y`) shows agents' live task state and the
 workspace memory, read-only.
 
+#### Changing an agent's model or where it runs
+
+On an agent you manage, the row menu (`.`) has **Change model…** (`r`) and
+**Runs on…** (`o`). Each opens the Add an agent form for that agent with
+just that field: the models its source lists where it runs (a gateway's own
+list from its host, `auto` first when it lists one), or your own devices and
+the hosts that offer its source, each with its state and one line on what it
+means. What it asks for follows the workspace's rules: on rules 4, another
+model from the same source for your own agent needs no passkey; a move, or a
+shared agent, takes your passkey (handed to your desktop or phone) and, for a
+shared agent or someone else's host, an Admin.
+
 #### Adding an agent from this device
 
 "Add an agent" (`N`, the Agents view's primary action) opens a popup of

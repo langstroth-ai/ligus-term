@@ -59,7 +59,6 @@ pub async fn run_effect(b: Arc<dyn Backend>, fx: Effect) -> Msg {
         WithdrawApply(w, p) => Msg::ProposalUpdated(w.clone(), b.withdraw_apply(&w, &p).await),
         ArchiveProposal(w, p, on) => Msg::Shelved(w.clone(), b.archive_proposal(&w, &p, on).await),
         HideProposal(w, p, on) => Msg::Shelved(w.clone(), b.hide_proposal(&w, &p, on).await),
-        SetAgentRuntime(w, a, r) => done("Runtime changed", b.set_agent_runtime(&w, &a, &r).await),
         SetAgentAccess(w, a, everyone) => done(
             if everyone { "Everyone in the workspace can use it now" } else { "Only you can use it now" },
             b.set_agent_access(&w, &a, everyone).await,

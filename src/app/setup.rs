@@ -38,6 +38,24 @@ pub enum Stage {
     Failed(String),
 }
 
+/// What a change of an existing agent changes (its ⋯ menu: Change model…,
+/// Runs on…): the agent flow's form with `agent` set, one field shown.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AgentChange {
+    Model,
+    RunsOn,
+}
+
+impl AgentChange {
+    /// The engine field it shows.
+    pub fn field(self) -> &'static str {
+        match self {
+            AgentChange::Model => "model",
+            AgentChange::RunsOn => "runs-on",
+        }
+    }
+}
+
 /// One flow's popup.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Wizard {
@@ -72,6 +90,12 @@ pub struct Wizard {
     /// While running: the passkey confirmation being asked for ("Confirm 1
     /// of 2: Add @coder"), when the run asks for more than one.
     pub confirming: Option<String>,
+    /// Inputs the popup sends but doesn't show (the agent a change is for).
+    pub fixed: SetupInputs,
+    /// Show only this field (a change of one agent's model or host).
+    pub only: Option<&'static str>,
+    /// The popup's title instead of the flow's ("Change model for @coder").
+    pub title: Option<String>,
 }
 
 impl Wizard {
@@ -96,7 +120,27 @@ impl Wizard {
             seen: BTreeSet::new(),
             secret_for: BTreeMap::new(),
             confirming: None,
+            fixed: SetupInputs::new(),
+            only: None,
+            title: None,
         }
+    }
+
+    /// The popup for changing agent `id`'s model or where it runs.
+    pub fn change(id: &str, handle: &str, change: AgentChange) -> Self {
+        let mut w = Wizard::new(LtFlow::Engine(ligus_runtime::setup::FlowId::Agent), false);
+        w.fixed.insert("agent".into(), id.to_string());
+        w.only = Some(change.field());
+        w.title = Some(match change {
+            AgentChange::Model => format!("Change model for @{handle}"),
+            AgentChange::RunsOn => format!("Where @{handle} runs"),
+        });
+        w
+    }
+
+    /// Whether field `id` gets shown (a change shows only its one field).
+    pub fn shown(&self, id: &str) -> bool {
+        self.only.is_none_or(|o| o == id) && !self.fixed.contains_key(id)
     }
 
     /// A form arrived (the first, or a refresh with the values so far):
@@ -189,7 +233,7 @@ impl Wizard {
             .iter()
             .enumerate()
             .filter(|(_, st)| match st.kind {
-                StepKind::Input => st.fields.iter().any(|f| f.applies(&inputs)),
+                StepKind::Input => st.fields.iter().any(|f| f.applies(&inputs) && self.shown(&f.id)),
                 StepKind::Person => !st.where_.is_empty(),
                 StepKind::Verify => false,
             })
@@ -201,7 +245,7 @@ impl Wizard {
     pub fn fields(&self) -> Vec<&SetupField> {
         let (Some(form), Some(&i)) = (&self.form, self.screens().get(self.screen)) else { return vec![] };
         let inputs = self.inputs();
-        form.steps[i].fields.iter().filter(|f| f.applies(&inputs)).collect()
+        form.steps[i].fields.iter().filter(|f| f.applies(&inputs) && self.shown(&f.id)).collect()
     }
 
     pub fn focused(&self) -> Option<&SetupField> {
@@ -233,10 +277,10 @@ impl Wizard {
 
     /// Every non-secret value, for the fields that apply.
     pub fn inputs(&self) -> SetupInputs {
-        let Some(form) = &self.form else { return SetupInputs::new() };
+        let Some(form) = &self.form else { return self.fixed.clone() };
         // Choices first: the other fields' `when` reads them.
-        let mut out = SetupInputs::new();
-        for f in form.fields().filter(|f| f.when.is_none()) {
+        let mut out = self.fixed.clone();
+        for f in form.fields().filter(|f| f.when.is_none() && !self.fixed.contains_key(&f.id)) {
             if let Some(v) = self.value(f) {
                 out.insert(f.id.clone(), v);
             }
@@ -342,6 +386,14 @@ pub fn open_flow(s: &mut State, flow: LtFlow, from_list: bool) -> Vec<Effect> {
     }
     s.overlay = Some(Overlay::SetupFlow(Box::new(Wizard::new(flow, from_list))));
     vec![Effect::SetupForm(ws(s), flow, SetupInputs::new())]
+}
+
+/// Open the popup that changes agent `id`'s model or where it runs.
+pub fn open_change(s: &mut State, id: &str, handle: &str, change: AgentChange) -> Vec<Effect> {
+    let w = Wizard::change(id, handle, change);
+    let (flow, inputs) = (w.flow, w.fixed.clone());
+    s.overlay = Some(Overlay::SetupFlow(Box::new(w)));
+    vec![Effect::SetupForm(ws(s), flow, inputs)]
 }
 
 /// Close a flow's popup: back to the list when it came from there.

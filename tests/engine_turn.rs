@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 
 use axum::Router;
 use axum::routing::post;
-use ligus_core::{ModelProviderKind, WorkspaceAgent, WorkspaceRuntime, workspace_config_session_id};
+use ligus_core::workspace_config_session_id;
 use ligus_term::backend::model::*;
 use ligus_term::backend::{Backend, Event};
 use serde_json::{Value, json};
@@ -63,14 +63,14 @@ async fn an_agent_turn_uses_tools_edits_in_its_worktree_and_files_a_proposal() {
     let ws = created.workspace.id.clone();
     let wsu = Uuid::parse_str(ws.as_str()).unwrap();
 
-    // A workspace runtime on the stub model, and an agent Ana owns.
+    // The stub model as a model server this computer lists in its
+    // host.toml (a new workspace is on rules 4, where its address stays on
+    // the host), and an agent Ana owns that runs it by name.
+    let source = local_model(&model);
     let svc = a.b.service().unwrap();
     tokio::task::spawn_blocking(move || {
         let mut svc = svc.lock().unwrap();
-        let mut rt = WorkspaceRuntime::new("gw", "Lab gateway", ModelProviderKind::Custom, "test-model");
-        rt.endpoint = model;
-        svc.add_workspace_runtime(wsu, rt).unwrap();
-        let mut agent = WorkspaceAgent::new("coder", "gw");
+        let mut agent = run_agent("coder", &source);
         agent.owner_actor_id = svc.author().id.clone();
         svc.add_agent(workspace_config_session_id(wsu), wsu, agent).unwrap();
     })

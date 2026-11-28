@@ -67,7 +67,7 @@ fn subject(s: &State, a: Action) -> Option<Option<String>> {
     Some(match a {
         Approve | Reject | ApplyOnHost | WithdrawApply | ArchiveProposal | HideProposal => Some(s.selected_proposal()?.title.clone()),
         ChangeRole | RemoveMember => Some(s.selected_member()?.name.clone()),
-        ChangeRuntime | ToggleAccess => Some(format!("@{}", s.agents.get(s.agent_sel.index)?.handle)),
+        ChangeRuntime | RunsOn | ToggleAccess => Some(format!("@{}", s.agents.get(s.agent_sel.index)?.handle)),
         StartRun => match s.selected_workflow_item()? {
             WorkflowItem::Def(d) => Some(d.name.clone()),
             WorkflowItem::Run(r) => Some(s.workflows.iter().find(|d| d.id == r.workflow)?.name.clone()),

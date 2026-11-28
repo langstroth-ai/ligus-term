@@ -104,7 +104,11 @@ pub fn row_menu(s: &State) -> (String, Vec<MenuItem>) {
                 } else {
                     Allowed::No(if a.shared { "only an Admin".into() } else { "only its owner".into() })
                 };
-                items.push(item("Change its runtime…", ChangeRuntime, ctx, Allowed::Yes, Row));
+                // Change model… and Runs on…: the Add an agent form for this
+                // agent, with just that field (the engine says what each
+                // asks for).
+                items.push(item("Change model…", ChangeRuntime, ctx, manage.clone(), Row));
+                items.push(item("Runs on…", RunsOn, ctx, manage.clone(), Row));
                 let access = if a.access == "everyone" { "Only me can use it" } else { "Let everyone use it" };
                 items.push(item(access, ToggleAccess, ctx, manage, Row));
             }

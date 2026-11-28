@@ -120,7 +120,7 @@ fn check_lines(lines: &mut Vec<Line<'static>>, c: &SetupCheck, tw: usize, width:
 pub fn flow(f: &mut Frame, area: Rect, s: &State, w: &Wizard, t: &Theme) {
     let width = (W.min(area.width)).saturating_sub(2) as usize;
     let mut lines: Vec<Line<'static>> = vec![];
-    let mut title = w.flow.title().to_string();
+    let mut title = w.title.clone().unwrap_or_else(|| w.flow.title().to_string());
     let mut cursor: Option<(u16, u16)> = None;
     let here = here_action(s, w.flow);
     let footer: String = match &w.stage {
@@ -297,7 +297,7 @@ pub fn flow(f: &mut Frame, area: Rect, s: &State, w: &Wizard, t: &Theme) {
         Stage::Review => {
             lines.push(Line::styled("Ready to run", t.text().add_modifier(Modifier::BOLD)));
             let inputs = w.inputs();
-            let applies: Vec<_> = w.form.iter().flat_map(|f| f.fields()).filter(|f| f.applies(&inputs)).collect();
+            let applies: Vec<_> = w.form.iter().flat_map(|f| f.fields()).filter(|f| f.applies(&inputs) && w.shown(&f.id)).collect();
             let lw = applies.iter().map(|f| f.label.width()).max().unwrap_or(0);
             for fd in applies {
                 let v = match &fd.kind {

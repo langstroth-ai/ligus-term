@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use futures::StreamExt;
 use ligus_core::presence::soft::SoftAuthenticator;
-use ligus_core::{ModelProviderKind, WorkspaceAgent, WorkspaceRuntime, workspace_config_session_id};
+use ligus_core::workspace_config_session_id;
 use ligus_term::backend::model::*;
 use ligus_term::backend::real::{RealBackend, RealConfig};
 use ligus_term::backend::{Backend, Event};
@@ -54,21 +54,18 @@ async fn two_devices_work_together_through_a_relay() {
 
     // Seed a workspace runtime (the fake model) and an agent Ana owns. A
     // runtime change needs her passkey: the prompt goes to the browser.
+    let source = local_model(&model);
     let svc = a.b.service().unwrap();
     tokio::task::spawn_blocking(move || {
         let mut svc = svc.lock().unwrap();
-        let mut rt = WorkspaceRuntime::new("gw", "Lab gateway", ModelProviderKind::Custom, "test-model");
-        rt.endpoint = model;
-        svc.add_workspace_runtime(wsu, rt).unwrap();
-        let mut agent = WorkspaceAgent::new("coder", "gw");
+        let mut agent = run_agent("coder", &source);
         agent.owner_actor_id = svc.author().id.clone();
         svc.add_agent(workspace_config_session_id(wsu), wsu, agent).unwrap();
     })
     .await
     .unwrap();
-    assert!(a.b.agents(&ws).await.unwrap().iter().any(|x| x.handle == "coder" && x.runtime.0 == "gw"));
-    let rts = a.b.runtimes(&ws).await.unwrap();
-    assert!(rts.iter().any(|r| r.id.0 == "gw" && r.configured && r.kind == RuntimeKind::Custom));
+    // A new workspace is on rules 4: the agent carries its own run spec.
+    assert!(a.b.agents(&ws).await.unwrap().iter().any(|x| x.handle == "coder" && x.runtime.0.starts_with("run:")));
 
     // ── Invite: confirmed with the recovery words from a 0600 file.
     let words = tmp.path().join("words.txt");
@@ -309,7 +306,7 @@ async fn a_device_persists_and_cancel_is_quiet() {
     cfg.opener = Arc::new(SoftBrowser(Arc::new(SoftAuthenticator::es256())));
     cfg.cli_fallback = false;
     cfg.sync_every = Duration::from_millis(150);
-    let b = RealBackend::open(cfg.clone()).unwrap();
+    let b = open_backend(cfg.clone()).unwrap();
     // Cancel the passkey prompt: no workspace.
     let mut ev = b.events();
     let b2 = b.clone();
@@ -351,7 +348,7 @@ async fn a_device_persists_and_cancel_is_quiet() {
     b.shutdown();
     drop(b);
 
-    let again = RealBackend::open(cfg).unwrap();
+    let again = open_backend(cfg).unwrap();
     let st = again.startup().await.unwrap();
     assert_eq!(st.your_name.as_deref(), Some("Ana"));
     assert_eq!(st.workspaces.len(), 1);
@@ -377,7 +374,7 @@ async fn open_registers_the_data_dir_with_the_agent_sandbox() {
     let dir = tmp.path().join("sandboxed");
     let mut cfg = RealConfig::new(dir.clone());
     cfg.cli_fallback = false;
-    let b = RealBackend::open(cfg).unwrap();
+    let b = open_backend(cfg).unwrap();
     let denied = ligus_runtime::executor::host_paths().data_dirs;
     assert!(denied.iter().any(|d| d == &dir), "{dir:?} not in {denied:?}");
     b.shutdown();
@@ -393,7 +390,7 @@ async fn an_unusable_relay_url_is_refused_at_open() {
         let mut cfg = RealConfig::new(tmp.path().join("bad-relay"));
         cfg.cli_fallback = false;
         cfg.relay_url = Some(bad.into());
-        let r = RealBackend::open(cfg);
+        let r = open_backend(cfg);
         assert!(r.as_ref().is_err_and(|e| e.contains("LT_RELAY_URL")), "{bad}: accepted");
     }
 }
@@ -962,17 +959,17 @@ async fn a_member_leaves_and_the_founder_cant() {
     b.b.leave_workspace(&ws).await.unwrap();
     assert!(b.b.workspaces().await.unwrap().is_empty(), "forgotten here");
 
-    until("Ana to see Ben asked to leave", || async {
+    // A new workspace is on rules 4, where leaving is a removal.
+    until("Ana to see Ben gone", || async {
         let svc = a.b.service().unwrap();
         tokio::task::spawn_blocking(move || {
             let svc = svc.lock().unwrap();
             let c = svc.load_in(wsu, workspace_config_session_id(wsu)).ok()??;
-            let ben = c.members.iter().find(|m| m.actor.display_name == "Ben")?;
-            c.left.contains_key(&ben.id).then_some(())
+            (!c.members.iter().any(|m| m.actor.display_name == "Ben")).then_some(())
         })
         .await
         .unwrap()
     })
     .await;
-    assert_eq!(a.b.members(&ws).await.unwrap().len(), 2, "still a member under rules 3");
+    assert_eq!(a.b.members(&ws).await.unwrap().len(), 1, "a removal under rules 4");
 }

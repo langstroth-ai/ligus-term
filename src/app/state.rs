@@ -410,10 +410,6 @@ pub enum Overlay {
         member: MemberId,
         sel: usize,
     },
-    RuntimePicker {
-        agent: AgentId,
-        sel: usize,
-    },
     ConfirmRemove {
         member: MemberId,
         name: String,

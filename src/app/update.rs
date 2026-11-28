@@ -178,7 +178,6 @@ pub enum Effect {
     ArchiveProposal(WorkspaceId, ProposalId, bool),
     /// Hide (`true`) a proposal on this device, or show it again.
     HideProposal(WorkspaceId, ProposalId, bool),
-    SetAgentRuntime(WorkspaceId, AgentId, RuntimeId),
     /// Who may use an agent: everyone (`true`) or only its owner.
     SetAgentAccess(WorkspaceId, AgentId, bool),
     SetRole(WorkspaceId, MemberId, Role),
@@ -2515,33 +2514,6 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
                 _ => vec![],
             }
         }
-        Overlay::RuntimePicker { agent, sel } => {
-            let configured: Vec<RuntimeId> = s.runtimes.iter().filter(|r| r.configured).map(|r| r.id.clone()).collect();
-            let mut i = Sel { index: *sel };
-            if let Some(a) = nav
-                && a != Action::Select
-                && list_nav(&mut i, configured.len(), a)
-            {
-                *sel = i.index;
-                return vec![];
-            }
-            match k.code {
-                KeyCode::Esc => {
-                    s.overlay = None;
-                    vec![]
-                }
-                KeyCode::Enter => {
-                    let agent = agent.clone();
-                    let rt = configured.get(*sel).cloned();
-                    s.overlay = None;
-                    match (ws, rt) {
-                        (Some(w), Some(r)) => vec![Effect::SetAgentRuntime(w, agent, r)],
-                        _ => vec![],
-                    }
-                }
-                _ => vec![],
-            }
-        }
         Overlay::ConfirmRemove { member, .. } => match k.code {
             KeyCode::Char('y') | KeyCode::Enter => {
                 let m = member.clone();
@@ -3578,12 +3550,15 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             s.overlay = Some(Overlay::AddAgentPicker { sel: 0 });
             vec![]
         }
-        ChangeRuntime => {
-            let Some(a) = s.agents.get(s.agent_sel.index) else { return vec![] };
-            let configured: Vec<&Runtime> = s.runtimes.iter().filter(|r| r.configured).collect();
-            let sel = configured.iter().position(|r| r.id == a.runtime).unwrap_or(0);
-            s.overlay = Some(Overlay::RuntimePicker { agent: a.id.clone(), sel });
-            vec![]
+        ChangeRuntime | RunsOn => {
+            let Some(a) = s.agents.get(s.agent_sel.index).cloned() else { return vec![] };
+            if !a.can_manage {
+                let who = if a.shared { "an Admin" } else { "its owner" };
+                s.toast(ToastKind::Error, format!("Only {who} changes @{}", a.handle));
+                return vec![];
+            }
+            let change = if action == RunsOn { crate::app::setup::AgentChange::RunsOn } else { crate::app::setup::AgentChange::Model };
+            crate::app::setup::open_change(s, &a.id.0, &a.handle, change)
         }
         Toggle => {
             let Some(st) = &s.settings else { return vec![] };
