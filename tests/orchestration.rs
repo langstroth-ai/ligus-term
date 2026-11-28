@@ -20,7 +20,7 @@ use std::time::Duration;
 /// The longest a test waits for a fallback's decision: only a hung test
 /// gets there.
 use ligus_core::workflow::{GateRejectPolicy, WorkflowDefinition, WorkflowNode, WorkflowNodeKind};
-use ligus_core::{ModelProviderKind, Timestamp, WorkspaceAgent, WorkspaceHost, WorkspaceRuntime, workspace_config_session_id};
+use ligus_core::{Timestamp, WorkspaceAgent, WorkspaceHost, workspace_config_session_id};
 use ligus_runtime::box_admission::{self, JoinRequest};
 use ligus_runtime::keyring::KeySource;
 use ligus_runtime::secret_store::StoreKeyVault;
@@ -283,14 +283,12 @@ async fn lt_founds_a_deployment_admits_a_box_and_drives_a_workflow() {
     .await;
 
     // ── Agents: a runtime (the fake model) and an agent hosted on the box.
+    let source = local_model(&model);
     let builder = {
-        let model = model.clone();
         let host = bx.device().to_string();
+        let source = source.clone();
         on_service(&a, move |svc| {
-            let mut rt = WorkspaceRuntime::new("gw", "Lab gateway", ModelProviderKind::Custom, "test-model");
-            rt.endpoint = model;
-            svc.add_workspace_runtime(wsu, rt).unwrap();
-            let mut agent = WorkspaceAgent::new("builder", "gw");
+            let mut agent = run_agent("builder", &source);
             agent.host_id = host;
             let id = agent.id;
             svc.add_agent(workspace_config_session_id(wsu), wsu, agent).unwrap();
@@ -346,7 +344,11 @@ async fn lt_founds_a_deployment_admits_a_box_and_drives_a_workflow() {
     // A stage that isn't a waiting gate can't be decided.
     assert!(a.b.decide_gate(&ws, &run.id, "build", true).await.is_err());
 
-    // ── Approve the gate; the notes stage runs here (the primary runtime).
+    // ── Approve the gate; the notes stage runs here (the primary runtime:
+    // the run's chat on the same model server, by name).
+    let run_chat = Uuid::parse_str(gated.chat.as_str()).unwrap();
+    let primary = run_agent("primary", &source).runtime_id;
+    on_service(&a, move |svc| svc.set_session_runtime(run_chat, wsu, primary).unwrap()).await;
     a.b.decide_gate(&ws, &run.id, "signoff", true).await.unwrap();
     let done = until("the run to complete", || async {
         let r = a.b.runs(&ws).await.unwrap().into_iter().find(|r| r.id == run.id)?;
@@ -502,11 +504,9 @@ async fn ana_and_ben(
     let created = a.b.create_workspace("Ana", "Acme Web").await.unwrap();
     let ws = created.workspace.id.clone();
     let wsu = Uuid::parse_str(ws.as_str()).unwrap();
+    let source = local_model(&model);
     let coder = on_service(a, move |svc| {
-        let mut rt = WorkspaceRuntime::new("gw", "Lab gateway", ModelProviderKind::Custom, "test-model");
-        rt.endpoint = model;
-        svc.add_workspace_runtime(wsu, rt).unwrap();
-        let mut agent = WorkspaceAgent::new("coder", "gw");
+        let mut agent = run_agent("coder", &source);
         agent.owner_actor_id = svc.author().id.clone();
         if open {
             agent.access = ligus_core::agent::ACCESS_EVERYONE.into();
@@ -593,7 +593,24 @@ async fn run_here_this_time_runs_a_waiting_turn_once() {
     let (model, calls) = fake_model_counted().await;
     let a = device(&tmp.path().join("ana"), "lt Ana", &relay);
     let b = device(&tmp.path().join("ben"), "lt Ben", &relay);
-    let (ws, chat, _) = ana_and_ben(tmp.path(), &a, &b, model, false, Some(Uuid::new_v4().to_string())).await;
+    let (ws, chat, coder) = ana_and_ben(tmp.path(), &a, &b, model, false, None).await;
+    // @coder placed on Ben's computer, whose host record is then removed (with
+    // Ben's lt stopped, so it can't publish it again): its host is gone.
+    let wsu = Uuid::parse_str(ws.as_str()).unwrap();
+    let bd = on_service(&b, |svc| svc.device_id().to_string()).await;
+    let bd2 = bd.clone();
+    until("Ben's host record on Ana's device", || async {
+        let bd = bd2.clone();
+        on_service(&a, move |svc| svc.list_hosts(wsu).unwrap_or_default().iter().any(|h| h.id == bd)).await.then_some(())
+    })
+    .await;
+    on_service(&a, {
+        let bd = bd.clone();
+        move |svc| svc.set_agent_host(wsu, coder, &bd).unwrap()
+    })
+    .await;
+    b.b.shutdown();
+    on_service(&a, move |svc| svc.remove_host(wsu, &bd).unwrap()).await;
     let sent = a.b.send_message(&ws, &chat.id, "@coder fix the flaky test").await.unwrap();
     let note = until("the waiting line under Ana's message", || async {
         let t = a.b.transcript(&ws, &chat.id).await.unwrap();
@@ -602,10 +619,7 @@ async fn run_here_this_time_runs_a_waiting_turn_once() {
     .await;
     assert_eq!(note.kind, NoteKind::HostGone);
     assert!(note.text.contains("was removed from the workspace. Choose where @coder runs."), "{}", note.text);
-    assert!(note.run_here, "Ana's own agent, and this device runs gw");
-    // Ben's device shows no line for Ana's message, and neither runs it.
-    let tb = b.b.transcript(&ws, &chat.id).await.unwrap();
-    assert!(tb.iter().all(|m| m.note.is_none()), "{tb:?}");
+    assert!(note.run_here, "Ana's own agent, and this device runs its model server");
     tokio::time::sleep(Duration::from_secs(1)).await;
     assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0, "nothing ran on its own");
 
@@ -649,7 +663,10 @@ async fn a_computer_runs_only_its_own_persons_agents() {
     // Ana (an Owner) adds an agent of hers placed on Ben's computer.
     let bd = ben_device.clone();
     on_service(&a, move |svc| {
-        let mut agent = WorkspaceAgent::new("helper", "gw");
+        // The same model as @coder (its own run spec).
+        let coder = svc.workspace_config(wsu).unwrap().unwrap().agents().iter().find(|x| x.name == "coder").cloned().unwrap();
+        let mut agent = WorkspaceAgent::new("helper", coder.runtime_id.clone());
+        agent.run = coder.run.clone();
         agent.owner_actor_id = svc.author().id.clone();
         agent.access = ligus_core::agent::ACCESS_EVERYONE.into();
         agent.place(&bd);

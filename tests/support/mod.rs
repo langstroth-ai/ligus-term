@@ -126,7 +126,9 @@ pub fn device_with(dir: &Path, name: &str, relay: &str, tune: impl FnOnce(&mut R
     cfg.cli_fallback = false;
     cfg.beat_every = Duration::from_millis(300);
     tune(&mut cfg);
-    let b = RealBackend::open(cfg).unwrap();
+    // Opening loads this data dir's host.toml over the process's: keep the
+    // tests' model servers in it.
+    let b = open_backend(cfg).unwrap();
     let events = Arc::new(Mutex::new(Vec::new()));
     let words_file: Arc<Mutex<Option<PathBuf>>> = Arc::new(Mutex::new(None));
     let manual = Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -225,4 +227,51 @@ pub fn git(dir: &Path, args: &[&str]) -> String {
     let out = std::process::Command::new("git").arg("-C").arg(dir).args(args).output().unwrap();
     assert!(out.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&out.stderr));
     String::from_utf8_lossy(&out.stdout).trim().to_string()
+}
+
+/// The model servers tests list (see [`local_model`]), and the lock that
+/// keeps them in this process's host config while devices start (each
+/// device's start loads its own `host.toml` over it).
+static LOCAL_MODELS: Mutex<Vec<ligus_runtime::host_config::LocalSource>> = Mutex::new(Vec::new());
+
+fn restore_local_models(list: &[ligus_runtime::host_config::LocalSource]) {
+    let mut cfg = (*ligus_runtime::host_config::host()).clone();
+    for l in list {
+        if !cfg.local.iter().any(|x| x.name == l.name) {
+            cfg.local.push(l.clone());
+        }
+    }
+    ligus_runtime::host_config::install(cfg);
+    ligus_runtime::host_offers::invalidate_status();
+}
+
+/// [`RealBackend::open`], keeping the tests' model servers in this
+/// process's host config (opening loads the data dir's `host.toml` over it).
+pub fn open_backend(cfg: RealConfig) -> std::result::Result<RealBackend, String> {
+    let list = LOCAL_MODELS.lock().unwrap();
+    let b = RealBackend::open(cfg);
+    restore_local_models(&list);
+    b
+}
+
+/// A model server this machine lists in its `host.toml` (rules 4 keeps a
+/// server's address on the host that runs it): `url` under a fresh name,
+/// added to this process's host config. Returns the name agents run it by.
+#[allow(dead_code)]
+pub fn local_model(url: &str) -> String {
+    let mut list = LOCAL_MODELS.lock().unwrap();
+    let name = format!("gw-{}", list.len());
+    list.push(ligus_runtime::host_config::LocalSource { name: name.clone(), harness: "openai".into(), url: url.into() });
+    restore_local_models(&list);
+    name
+}
+
+/// An agent named `name` that runs `source`'s test model by name (its own
+/// run spec, rules 4).
+#[allow(dead_code)]
+pub fn run_agent(name: &str, source: &str) -> ligus_core::WorkspaceAgent {
+    let run = ligus_core::agent_run::AgentRun { harness: String::new(), source: source.into(), model: "test-model".into(), resolved: None };
+    let mut agent = ligus_core::WorkspaceAgent::new(name, ligus_core::agent_run::legacy_id(&run));
+    agent.run = Some(run);
+    agent
 }

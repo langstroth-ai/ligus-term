@@ -2808,8 +2808,8 @@ impl FakeOps {
 }
 
 use ligus_runtime::setup::{
-    AgentFact, FolderFact, HarnessFact, HostSourceFact, McpFact, OpsError, OpsResult, ProbeFact, RepoFact, RuntimeFact, RuntimeSpec,
-    SandboxFact, SetupOps, Surface, TestTurn,
+    AgentEdit, AgentFact, FolderFact, HarnessFact, HostSourceFact, McpFact, OpsError, OpsResult, ProbeFact, RepoFact, RuntimeFact,
+    RuntimeSpec, SandboxFact, SetupOps, Surface, TestTurn,
 };
 
 impl SetupOps for FakeOps {
@@ -2922,7 +2922,15 @@ impl SetupOps for FakeOps {
         self.with(|w| {
             w.agents
                 .iter()
-                .map(|a| AgentFact { id: agent_uuid(a.id.as_str()), name: a.handle.clone(), runtime_id: a.runtime.0.clone() })
+                .map(|a| AgentFact {
+                    id: agent_uuid(a.id.as_str()),
+                    name: a.handle.clone(),
+                    runtime_id: a.runtime.0.clone(),
+                    host_id: a.host.as_ref().map(|h| h.0.clone()).unwrap_or_default(),
+                    owner: if a.shared { String::new() } else { "me".into() },
+                    mine: !a.shared && a.can_manage,
+                    ..Default::default()
+                })
                 .collect()
         })
         .unwrap_or_default()
@@ -2964,6 +2972,28 @@ impl SetupOps for FakeOps {
     }
     fn add_agent(&mut self, name: &str, runtime_id: &str) -> OpsResult<uuid::Uuid> {
         self.add_agent_placed(name, runtime_id, "")
+    }
+    /// Change model… and Runs on… (rules 3 here: the runtime and the host).
+    fn change_agent(&mut self, agent_id: uuid::Uuid, edit: &AgentEdit) -> OpsResult<()> {
+        let runtime = edit.runtime_id.as_ref().map(|r| self.defined.get(r).cloned().unwrap_or_else(|| r.clone()));
+        let host = edit.host_id.clone();
+        let changed = self
+            .with(|w| {
+                let a = w.agents.iter_mut().find(|a| agent_uuid(a.id.as_str()) == agent_id)?;
+                if let Some(r) = &runtime {
+                    a.runtime = RuntimeId::new(r);
+                }
+                if let Some(h) = &host {
+                    a.host = (!h.is_empty()).then(|| HostId::new(h));
+                }
+                Some(())
+            })
+            .flatten();
+        if changed.is_none() {
+            return Err(OpsError::Failed("no such agent".into()));
+        }
+        self.changed(|w| Event::AgentsChanged { workspace: w });
+        Ok(())
     }
     fn add_agent_placed(&mut self, name: &str, runtime_id: &str, host_id: &str) -> OpsResult<uuid::Uuid> {
         let local = self.defined.get(runtime_id).cloned().unwrap_or_else(|| runtime_id.to_string());

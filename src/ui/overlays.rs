@@ -243,24 +243,6 @@ pub fn draw(f: &mut Frame, area: Rect, s: &State, t: &Theme) {
             let title = format!("Role for {}", m.map(|m| m.name.as_str()).unwrap_or("?"));
             picker(f, area, &title, items, *sel, "Needs your passkey.", t);
         }
-        Some(Overlay::RuntimePicker { sel, agent }) => {
-            let current = s.agents.iter().find(|a| &a.id == agent).map(|a| a.runtime.clone());
-            let items: Vec<ListItem> = s
-                .runtimes
-                .iter()
-                .filter(|r| r.configured)
-                .map(|r| {
-                    let model = r.model.clone().unwrap_or_else(|| "default".into());
-                    let now = if current.as_ref() == Some(&r.id) { " · current" } else { "" };
-                    ListItem::new(Line::from(vec![
-                        Span::styled(r.id.0.clone(), t.text()),
-                        Span::styled(format!("  {} · {model} · {}{now}", r.kind.label(), r.kind.place()), t.dim()),
-                    ]))
-                })
-                .collect();
-            let handle = s.agents.iter().find(|a| &a.id == agent).map(|a| a.handle.clone()).unwrap_or_default();
-            picker(f, area, &format!("Runtime for @{handle}"), items, *sel, "", t);
-        }
         Some(Overlay::ConfirmRemove { name, member }) => {
             let you = s.members.iter().any(|m| &m.id == member && m.you);
             let q = if you {

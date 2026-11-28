@@ -8,6 +8,17 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ### Changed
 
+- An agent's menu (`.` on it in Agents) has **Change model…** (`r`) and
+  **Runs on…** (`o`) in place of the runtime picker: the Add an agent form
+  for that agent with just that field, the models its source lists where it
+  runs, or your own devices and the hosts that offer its source with their
+  state. On a rules-4 workspace changing your own agent's model within its
+  source needs no passkey; moves and shared agents follow the workspace's
+  rules, with the passkey handed to your desktop or phone.
+- On a rules-4 workspace an agent's own run spec runs from what this
+  computer has (a CLI, a model server in `host.toml`), listed or not, and
+  **Run here this time** signs a one-turn delegation first, so the reply
+  counts on every device.
 - A turn that isn't this terminal's (an agent on another host, or someone
   else's agent while their devices are away) is never answered here after
   a wait any more; its line says where it waits. Only **Run here this

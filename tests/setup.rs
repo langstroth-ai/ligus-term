@@ -469,3 +469,38 @@ async fn a_finished_sign_in_check_refreshes_the_open_form() {
     let fx = update(&mut h.state, Msg::Event(ligus_term::backend::Event::SetupFactsChanged));
     assert!(matches!(fx.as_slice(), [Effect::SetupForm(_, f, _)] if *f == flow), "{fx:?}");
 }
+
+/// Change model… and Runs on… in an agent's menu: the Add an agent form for
+/// that agent, with only the one field, its title naming the agent.
+#[tokio::test]
+async fn an_agents_menu_changes_its_model_or_where_it_runs() {
+    let mut h = demo().await;
+    h.key(KeyCode::Char('a')).await;
+    let sel = h.state.agents.iter().position(|a| a.can_manage).expect("an agent this person manages");
+    h.state.agent_sel.index = sel;
+    let handle = h.state.agents[sel].handle.clone();
+    let (_, items) = ligus_term::app::menu::row_menu(&h.state);
+    let labels: Vec<&str> = items.iter().map(|i| i.label.as_str()).collect();
+    assert!(labels.contains(&"Change model…") && labels.contains(&"Runs on…"), "{labels:?}");
+    assert!(!labels.iter().any(|l| l.contains("runtime")), "no runtime picker: {labels:?}");
+
+    // Change model…: the agent rides along, only Model shows.
+    h.key(KeyCode::Char('r')).await;
+    formed(&mut h).await;
+    let w = wizard(&h);
+    assert_eq!(w.title.as_deref(), Some(format!("Change model for @{handle}").as_str()));
+    assert_eq!(w.only, Some("model"));
+    assert!(w.inputs().contains_key("agent"), "{:?}", w.inputs());
+    let fields: Vec<String> = w.screens().iter().flat_map(|_| w.fields()).map(|f| f.id.clone()).collect();
+    assert!(fields.iter().all(|f| f == "model"), "{fields:?}");
+    assert!(h.screen(W, H).contains(&format!("Change model for @{handle}")));
+    h.key(KeyCode::Esc).await;
+
+    // Runs on…: only where it runs.
+    h.key(KeyCode::Char('o')).await;
+    formed(&mut h).await;
+    let w = wizard(&h);
+    assert_eq!(w.title.as_deref(), Some(format!("Where @{handle} runs").as_str()));
+    assert_eq!(w.only, Some("runs-on"));
+    assert!(h.screen(W, H).contains(&format!("Where @{handle} runs")));
+}

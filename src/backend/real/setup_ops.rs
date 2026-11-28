@@ -29,7 +29,7 @@ use ligus_runtime::mcp::McpServerSpec;
 use ligus_runtime::model_catalog::ModelList;
 use ligus_runtime::setup::validate::{origin, same_origin};
 use ligus_runtime::setup::{
-    AgentFact, FolderFact, HarnessFact, HostFact, HostSourceFact, InviteFact, McpFact, OpsError, OpsResult, ProbeFact, RepoFact,
+    AgentEdit, AgentFact, FolderFact, HarnessFact, HostFact, HostSourceFact, InviteFact, McpFact, OpsError, OpsResult, ProbeFact, RepoFact,
     RuntimeFact, RuntimeSpec, SetupOps, Surface, TestTurn, service,
 };
 use uuid::Uuid;
@@ -358,6 +358,23 @@ impl SetupOps for RealOps {
             self.inner.emit(Event::AgentsChanged { workspace: WorkspaceId::new(ws.to_string()) });
         }
         Ok(id)
+    }
+    fn change_agent(&mut self, agent_id: Uuid, edit: &AgentEdit) -> OpsResult<()> {
+        // A runtime "defined" during this run is lt's own `local:` id.
+        let mut edit = edit.clone();
+        if let Some(r) = edit.runtime_id.as_mut()
+            && let Some(local) = self.defined.get(r.as_str())
+        {
+            *r = local.clone();
+        }
+        self.write(|svc, ws| service::change_agent(svc, ws, agent_id, &edit))?;
+        if let Some(ws) = self.ws {
+            self.inner.emit(Event::AgentsChanged { workspace: WorkspaceId::new(ws.to_string()) });
+        }
+        Ok(())
+    }
+    fn rules(&self) -> u32 {
+        self.read(service::rules)
     }
     fn local_servers(&self, agent_id: Uuid) -> bool {
         self.read(|svc, ws| service::local_servers(svc, ws, agent_id))

@@ -278,14 +278,34 @@ pub(crate) fn agent_resolves(i: &Inner, ws: Uuid, a: &WorkspaceAgent) -> std::re
 /// Whether this device knows runtime `id` at all (it may still lack a key).
 fn has_runtime(i: &Inner, ws: Uuid, id: &str) -> bool {
     super::detect::parse_local_id(id).is_some()
+        || spec_runtime(id, ws).is_some()
         || i.read(ws, |svc| svc.list_workspace_runtimes(ws))
             .unwrap_or_default()
             .iter()
             .any(|r| r.id == id || (r.id == "*" && !ligus_core::agent_run::is_full_spec_id(id)))
 }
 
+/// A rules-4 agent's own run spec (`run:…`) as this computer runs it: from
+/// its own offers only (a CLI it has, a model server in its `host.toml`, a
+/// gateway its operator listed), never a stand-in.
+fn spec_runtime(runtime_id: &str, ws: Uuid) -> Option<ligus_core::WorkspaceRuntime> {
+    if !ligus_core::agent_run::is_full_spec_id(runtime_id) {
+        return None;
+    }
+    let run = ligus_core::agent_run::from_legacy_id(runtime_id);
+    // What this computer has, listed on its host record or not.
+    let offers = ligus_runtime::host_offers::own_offers(ligus_runtime::host_offers::HostRole::OwnComputer, ws);
+    let gateways = ligus_runtime::model_gateway::host().offers();
+    ligus_runtime::host_offers::runtime_for_spec(&ligus_runtime::host_config::host(), ws, &run, &offers, &gateways)
+}
+
 fn resolve(i: &Inner, ws: Uuid, runtime_id: &str, fallback: bool) -> Result<(ResolvedRuntime, String)> {
     let rts = i.read(ws, |svc| svc.list_workspace_runtimes(ws))?;
+    if !rts.iter().any(|r| r.id == runtime_id)
+        && let Some(wr) = spec_runtime(runtime_id, ws)
+    {
+        return Ok((resolved(&wr, ws)?, runtime_id.to_string()));
+    }
     // A runtime of this device (`local:…`, an agent added from "Available on
     // this device"), unless a workspace runtime has that id.
     if !rts.iter().any(|r| r.id == runtime_id)
@@ -678,6 +698,12 @@ pub fn plan_run_here(i: &Inner, ws: Uuid, sid: Uuid, trigger: Uuid) -> Result<Pl
         .map_err(|why| BackendError(format!("couldn't run it here: {why}")))?;
     if let Some(note) = access_refusal(i, ws, sid, trigger, agent.as_ref())? {
         return Err(BackendError(note));
+    }
+    // Rules 4: a signed one-turn delegation lets this device's reply count
+    // on every device (a no-op below rules 4, and for an agent placed here).
+    if let Some(a) = agent.as_ref() {
+        let id = a.id;
+        i.write(ws, |svc| svc.delegate_turn(sid, ws, trigger, id))?;
     }
     if !i.write(ws, |svc| svc.claim_turn(sid, ws, trigger))? {
         return Err(BackendError("another device is answering it".into()));
