@@ -89,6 +89,8 @@ pub async fn run_effect(b: Arc<dyn Backend>, fx: Effect) -> Msg {
         }
         ConfirmLink => Msg::LinkConfirmed(b.confirm_link().await),
         LoadApprovals(w) => Msg::Approvals(w.clone(), b.approvals(&w).await),
+        ShowLinkCode(w) => Msg::LinkCodeShown(b.link_code_show(&w).await),
+        CloseLinkCode => done("", b.link_code_close().await),
         ConnectDeployment { your_name, spec } => Msg::Created(b.connect_deployment(&your_name, spec).await),
         InspectJoinRequest(r) => Msg::JoinRequestChecked(r.clone(), b.inspect_join_request(&r).await),
         AdmitBox(w, r) => Msg::Admitted(b.admit_box(&w, r.as_deref()).await),

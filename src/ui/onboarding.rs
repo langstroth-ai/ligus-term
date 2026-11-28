@@ -290,7 +290,7 @@ pub fn draw_form(f: &mut Frame, area: Rect, s: &State, form: &WorkspaceForm, t: 
 }
 
 /// Add to my devices. Before anything is sent: three steps (the desktop's
-/// approval address is pasted here), and the request itself for an older
+/// short code is typed here, or its approval address pasted), and the request itself for an older
 /// desktop. Then the live request: waiting, the code to compare, the
 /// verified person to confirm, or how it ended. The longer explanation is
 /// behind `?`. Lines are broken by hand to keep their indent.
@@ -301,13 +301,17 @@ fn draw_link<'a>(lines: &mut Vec<Line<'a>>, form: &'a WorkspaceForm, focused: bo
     if let Some(why) = form.live.as_ref().and_then(|l| l.retrying.as_ref())
         && !matches!(stage, Some(LiveStage::Ended(_)))
     {
-        lines.push(Line::styled(format!("  Can't reach the relay ({}): trying again", super::trunc(why, 48)), t.fg(t.warn)));
+        if why == crate::backend::model::RELAY_RESTARTED {
+            lines.push(Line::styled(format!("  {why}"), t.fg(t.warn)));
+        } else {
+            lines.push(Line::styled(format!("  Can't reach the relay ({}): trying again", super::trunc(why, 48)), t.fg(t.warn)));
+        }
         lines.push(Line::raw(""));
     }
     let Some(r) = &form.link else {
         lines.push(Line::styled("  Making this computer's request…", t.dim()));
         lines.push(Line::raw(""));
-        lines.push(field_line("From desktop", &form.grant, focused, w, "the approval address it shows (ligusaddr1:…)", t));
+        lines.push(field_line("From desktop", &form.grant, focused, w, "the code it shows (K7Q-4MX), or its approval address", t));
         return;
     };
     match stage {
@@ -329,7 +333,7 @@ fn draw_link<'a>(lines: &mut Vec<Line<'a>>, form: &'a WorkspaceForm, focused: bo
             lines.push(Line::raw(""));
             for (n, l) in [
                 ("1", "Desktop: My devices > Add a computer (palette: link)"),
-                ("2", "Copy its approval address and paste it below"),
+                ("2", "Type the code it shows below (or paste its address)"),
                 ("3", "Check both screens show the same code"),
             ] {
                 lines.push(Line::from(vec![Span::styled(format!("  {n} "), t.accent()), Span::styled(l, t.text())]));
@@ -405,7 +409,7 @@ fn draw_link<'a>(lines: &mut Vec<Line<'a>>, form: &'a WorkspaceForm, focused: bo
             lines.push(Line::raw(""));
         }
     }
-    lines.push(field_line("From desktop", &form.grant, focused, w, "the approval address it shows (ligusaddr1:…)", t));
+    lines.push(field_line("From desktop", &form.grant, focused, w, "the code it shows (K7Q-4MX), or its approval address", t));
     if let Some((_, c)) = checked {
         lines.push(Line::from(vec![
             Span::styled(format!("  Approved by {}'s desktop ", c.person_name), t.text()),

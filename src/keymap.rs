@@ -108,6 +108,7 @@ pub enum Action {
     SwitchWorkspace,
     AddWorkspace,
     LinkDevice,
+    ShowLinkCode,
     Approvals,
     GoChats,
     GoProposals,
@@ -218,6 +219,7 @@ pub const BINDINGS: &[Binding] = &[
     b!(Global, AddWorkspace, "add_workspace", "Create or join a workspace", ["+"]),
     b!(Global, Setup, "setup", "Set up: an agent, a tool, a folder, a box, a phone, an invite, a relay", ["u"]),
     b!(Global, LinkDevice, "link_device", "Link this computer to my devices", []),
+    b!(Global, ShowLinkCode, "show_link_code", "Link a device: show a short code your new device types (approve it on your desktop)", []),
     b!(Global, Approvals, "approvals", "Approval requests waiting in this workspace (read only: approve on your desktop or phone)", []),
     b!(
         Global,

@@ -199,6 +199,8 @@ pub const DEMO_APPROVER: &str = "2C41-88E0-1B9D-04AF-6E73";
 /// The demo's approval address (what a desktop's My devices > Add a
 /// computer copies). The demo answers any `ligusaddr1:` text; one that
 /// holds `no-mailbox` behaves like a relay without an approval mailbox.
+/// The short code the demo shows under Link a device.
+pub const DEMO_SHORT_CODE: &str = "K7Q-4MX";
 pub const DEMO_ADDRESS: &str = "ligusaddr1:eyJ2IjoxLCJyZWxheSI6Imh0dHBzOi8vcmVsYXkuZXhhbXBsZSJ9";
 /// The code both screens show in the demo.
 pub const DEMO_MATCH_CODE: &str = "K7Q4 M9X2";
@@ -1679,8 +1681,16 @@ impl Backend for FakeBackend {
 
     async fn link_live(&self, address: &str) -> Result<LiveLinkStart> {
         let address = address.trim();
-        if !address.starts_with("ligusaddr1:") || address.len() < 16 {
-            return err("not a Ligus approval address (expected ligusaddr1:...)");
+        // The demo takes any short code but ZZZ-ZZZ (nobody shows it).
+        match crate::link_code::short_code_in(address) {
+            Some((code, _)) if code == "ZZZZZZ" => {
+                return err("no device is showing that code on relay.langstroth.ai: check it, or get a new one on your desktop");
+            }
+            Some(_) => {}
+            None if !address.starts_with("ligusaddr1:") || address.len() < 16 => {
+                return err("not a short code (K7Q-4MX) or an approval address (ligusaddr1:...)");
+            }
+            None => {}
         }
         let request = self.link_request().await?;
         if address.contains("no-mailbox") {
@@ -1766,6 +1776,19 @@ impl Backend for FakeBackend {
         if w.live.as_deref() == Some(rid) {
             w.live = None;
         }
+        Ok(())
+    }
+
+    async fn link_code_show(&self, workspace: &WorkspaceId) -> Result<LinkCodeView> {
+        let now = {
+            let mut w = self.lock();
+            w.ws(workspace)?;
+            w.clock
+        };
+        Ok(LinkCodeView { code: DEMO_SHORT_CODE.into(), relay: None, expires_at: now + 10 * MIN, state: LinkCodeState::Live, notice: None })
+    }
+
+    async fn link_code_close(&self) -> Result<()> {
         Ok(())
     }
 

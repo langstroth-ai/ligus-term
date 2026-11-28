@@ -14,7 +14,7 @@ expression: screen
 ┃ [ ] Let agents ed┃  Make this computer one of your devices.                             ┃                  ┃
 ┃                  ┃                                                                      ┃                  ┃
 ┃This device       ┃  1 Desktop: My devices > Add a computer (palette: link)              ┃                  ┃
-┃  Device          ┃  2 Copy its approval address and paste it below                      ┃                  ┃
+┃  Device          ┃  2 Type the code it shows below (or paste its address)               ┃                  ┃
 ┃  Data dir        ┃  3 Check both screens show the same code                             ┃                  ┃
 ┃  Secret store    ┃                                                                      ┃                  ┃
 ┃  Backend         ┃  Older desktop? Paste this request there (c copies it):              ┃                  ┃

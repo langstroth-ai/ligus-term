@@ -1873,7 +1873,7 @@ fn add_to_my_devices_checks_the_grant_before_linking() {
     let fx = key(&mut s, KeyCode::Enter);
     assert!(fx.is_empty());
     let Phase::Onboarding(f) = &s.phase else { panic!() };
-    assert_eq!(f.error.as_deref(), Some("Paste the approval address your desktop shows"));
+    assert_eq!(f.error.as_deref(), Some("Type the code your desktop shows, or paste its approval address"));
     // A paste is checked at once: straight to who approved it.
     assert_eq!(update(&mut s, Msg::Paste("ligusgrant1:abc".into())), vec![Effect::InspectLink("ligusgrant1:abc".into())]);
     let view = LinkGrantView { person_name: "Alex".into(), workspace_name: "Acme".into(), approver_fingerprint: "2C41".into() };
@@ -2314,6 +2314,63 @@ fn live_waiting() -> State {
     update(&mut s, Msg::LiveStarted(Ok(LiveLinkStart::Posted { rid: "r1".into(), request: live_view() })));
     assert_eq!(stage(&s), Some(LiveStage::Waiting));
     s
+}
+
+/// The desktop's short code, typed (or pasted) instead of the address: the
+/// live path, with the code as typed (and the relay after it, if any).
+#[test]
+fn a_short_code_goes_the_live_way() {
+    for typed in ["k7q-4mx", "K7Q4MX https://relay.example.org"] {
+        let mut s = state();
+        s.now = 1_000_000;
+        s.phase = Phase::Onboarding(WorkspaceForm::linking(true));
+        update(&mut s, Msg::LinkRequested(Ok(live_view())));
+        for c in typed.chars() {
+            key(&mut s, KeyCode::Char(c));
+        }
+        assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::LinkLive(typed.into())], "{typed}");
+        assert_eq!(stage(&s), Some(LiveStage::Sending));
+    }
+}
+
+/// The relay restarted and lt asked again: back to waiting, and one line
+/// says why (not "can't reach the relay").
+#[test]
+fn a_reposted_request_waits_again_and_says_why() {
+    let mut s = live_waiting();
+    live(&mut s, LiveLinkUpdate::Opened(code("K7Q4 M9X2")));
+    live(&mut s, LiveLinkUpdate::Reposted);
+    assert_eq!(stage(&s), Some(LiveStage::Waiting));
+    let Phase::Onboarding(f) = &s.phase else { panic!() };
+    assert_eq!(f.live.as_ref().and_then(|l| l.retrying.as_deref()), Some(RELAY_RESTARTED));
+}
+
+/// Link a device: the code shows, a later event replaces it (used), Esc
+/// closes and takes the code back.
+#[test]
+fn link_a_device_shows_a_code_and_esc_takes_it_back() {
+    use ligus_term::app::palette::{Target, filtered};
+    let mut s = main_state();
+    let a = WorkspaceId::new("a");
+    key(&mut s, KeyCode::Char(':'));
+    typed(&mut s, "link a device");
+    let items = filtered(&s, "link a device");
+    assert_eq!(items[0].target, Target::Action(ligus_term::keymap::Action::ShowLinkCode), "{items:?}");
+    assert_eq!(key(&mut s, KeyCode::Enter), vec![Effect::ShowLinkCode(a.clone())]);
+    assert!(matches!(s.overlay, Some(Overlay::LinkCode { view: None })));
+    let view = |state| LinkCodeView { code: "K7Q-4MX".into(), relay: None, expires_at: 0, state, notice: None };
+    update(&mut s, Msg::LinkCodeShown(Ok(view(LinkCodeState::Live))));
+    assert!(matches!(&s.overlay, Some(Overlay::LinkCode { view: Some(Ok(v)) }) if v.state == LinkCodeState::Live));
+    update(&mut s, Msg::Event(Event::LinkCode(view(LinkCodeState::Used))));
+    assert!(matches!(&s.overlay, Some(Overlay::LinkCode { view: Some(Ok(v)) }) if v.state == LinkCodeState::Used));
+    assert_eq!(key(&mut s, KeyCode::Esc), vec![Effect::CloseLinkCode]);
+    assert!(s.overlay.is_none());
+    // Expired: n gets a new one.
+    key(&mut s, KeyCode::Char(':'));
+    typed(&mut s, "link a device");
+    key(&mut s, KeyCode::Enter);
+    update(&mut s, Msg::LinkCodeShown(Ok(view(LinkCodeState::Expired))));
+    assert_eq!(key(&mut s, KeyCode::Char('n')), vec![Effect::ShowLinkCode(a)]);
 }
 
 fn stage(s: &State) -> Option<LiveStage> {

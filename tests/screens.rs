@@ -207,7 +207,7 @@ async fn onboarding_add_to_my_devices_live() {
     let slow = FakeConfig { browser_delay: std::time::Duration::from_secs(3600), ..Harness::cfg() };
     let mut h = Harness::existing_account(FakeBackend::new(slow)).await;
     let screen = h.screen(W, H);
-    assert!(screen.contains("Copy its approval address") && screen.contains("Older desktop?"), "{screen}");
+    assert!(screen.contains("Type the code it shows") && screen.contains("Older desktop?"), "{screen}");
     h.send(Msg::Paste(DEMO_ADDRESS.into())).await;
     h.key(KeyCode::Enter).await;
     let screen = h.screen(W, H);

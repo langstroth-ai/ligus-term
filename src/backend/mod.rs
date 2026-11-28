@@ -160,6 +160,8 @@ pub enum Event {
         until: i64,
         why: String,
     },
+    /// The short code on screen moved on (used, expired, posted again).
+    LinkCode(LinkCodeView),
     /// A live link request moved on (`rid` names it; a stale one is ignored).
     LiveLink {
         rid: String,
@@ -238,6 +240,12 @@ pub trait Backend: Send + Sync {
     /// The live approval requests in the workspace's approval mailbox, read
     /// only: they are approved on a desktop or a phone.
     async fn approvals(&self, workspace: &WorkspaceId) -> Result<Vec<ApprovalRequest>>;
+    /// Show a short code for `workspace`'s approval address: a new device of
+    /// yours types it to link itself. Kept posted (again after a relay
+    /// restart) until it is used or expires; progress is [`Event::LinkCode`].
+    async fn link_code_show(&self, workspace: &WorkspaceId) -> Result<LinkCodeView>;
+    /// The code's screen closed: take a code nobody typed back.
+    async fn link_code_close(&self) -> Result<()>;
     /// The person this computer is a device of, once linked.
     fn linked_person(&self) -> Option<String>;
     /// Where linking stands: linked, or a request waiting for the

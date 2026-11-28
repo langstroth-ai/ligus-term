@@ -75,6 +75,7 @@ pub enum Msg {
     LinkConfirmed(Result<()>),
     /// The workspace's live approval requests (read only).
     Approvals(WorkspaceId, Result<Vec<ApprovalRequest>>),
+    LinkCodeShown(Result<crate::backend::model::LinkCodeView>),
     /// A join request read (no passkey yet): the request and its fingerprint.
     JoinRequestChecked(String, Result<JoinRequestCheck>),
     Admitted(Result<BoxAdmission>),
@@ -219,6 +220,10 @@ pub enum Effect {
     ConfirmLink,
     /// The workspace's live approval requests.
     LoadApprovals(WorkspaceId),
+    /// Show a short code for the workspace (Link a device).
+    ShowLinkCode(WorkspaceId),
+    /// Its screen closed: take the code back.
+    CloseLinkCode,
     ConnectDeployment {
         your_name: String,
         spec: DeploymentSpec,
@@ -688,6 +693,12 @@ fn update_inner(s: &mut State, msg: Msg) -> Vec<Effect> {
             }
             vec![]
         }
+        Msg::LinkCodeShown(r) => {
+            if let Some(Overlay::LinkCode { view }) = &mut s.overlay {
+                *view = Some(r.map_err(|e| e.0));
+            }
+            vec![]
+        }
         Msg::Approvals(w, r) => {
             if s.active.as_ref() == Some(&w)
                 && let Some(Overlay::Approvals { list }) = &mut s.overlay
@@ -1057,6 +1068,13 @@ fn upsert_proposal(s: &mut State, ws: &WorkspaceId, p: Proposal) {
 fn event(s: &mut State, e: Event) -> Vec<Effect> {
     match e {
         Event::LiveLink { rid, update } => live_event(s, &rid, update),
+        Event::LinkCode(v) => {
+            if let Some(Overlay::LinkCode { view }) = &mut s.overlay {
+                // A notice stays only until the next change.
+                *view = Some(Ok(v));
+            }
+            vec![]
+        }
         Event::LinkWaiting { until, why } => {
             if let Some(f) = link_form(s)
                 && f.busy
@@ -1771,6 +1789,10 @@ fn live_event(s: &mut State, rid: &str, update: LiveLinkUpdate) -> Vec<Effect> {
         }
         LiveLinkUpdate::Checking => l.stage = LiveStage::Checking,
         LiveLinkUpdate::Retrying(why) => l.retrying = why,
+        LiveLinkUpdate::Reposted => {
+            l.stage = LiveStage::Waiting;
+            l.retrying = Some(crate::backend::model::RELAY_RESTARTED.into());
+        }
         LiveLinkUpdate::Verified { person, workspace } => l.stage = LiveStage::Confirm { person, workspace, yes: false, busy: false },
         LiveLinkUpdate::Ended(e) => {
             l.retrying = None;
@@ -1983,12 +2005,14 @@ fn submit_form(s: &mut State, your_name: Option<String>) -> Vec<Effect> {
     if form.mode == FormMode::Link {
         let typed = form.grant.text.trim().to_string();
         if typed.is_empty() {
-            form.error = Some("Paste the approval address your desktop shows".into());
+            form.error = Some("Type the code your desktop shows, or paste its approval address".into());
             return vec![];
         }
         let compact: String = typed.split_whitespace().collect();
-        // The approval address: the live path (code match).
-        if compact.starts_with("ligusaddr1:") {
+        // The approval address, or the short code that finds it: the live
+        // path (code match).
+        let short = crate::link_code::short_code_in(&typed).is_some();
+        if compact.starts_with("ligusaddr1:") || short {
             form.error = None;
             if live_in_flight(form).is_some() {
                 return vec![];
@@ -1996,7 +2020,7 @@ fn submit_form(s: &mut State, your_name: Option<String>) -> Vec<Effect> {
             form.live = Some(LiveLink { rid: None, stage: LiveStage::Sending, retrying: None });
             form.live_unavailable = false;
             form.link_checked = None;
-            return vec![Effect::LinkLive(compact)];
+            return vec![Effect::LinkLive(if short { typed } else { compact })];
         }
         let grant = match crate::link_code::grant_in(&typed) {
             crate::link_code::Pasted::Grant(g) => g,
@@ -2395,6 +2419,18 @@ fn overlay_key(s: &mut State, k: KeyEvent) -> Vec<Effect> {
             FormOutcome::LinkInstead => link_instead(s),
             FormOutcome::None => link_effects(f),
             out => link_code_outcome(s, out),
+        },
+        Overlay::LinkCode { view } => match k.code {
+            KeyCode::Char('n') if matches!(view, Some(Ok(v)) if v.state == crate::backend::model::LinkCodeState::Expired) => {
+                let Some(w) = ws else { return vec![] };
+                s.overlay = Some(Overlay::LinkCode { view: None });
+                vec![Effect::ShowLinkCode(w)]
+            }
+            KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q') => {
+                s.overlay = None;
+                vec![Effect::CloseLinkCode]
+            }
+            _ => vec![],
         },
         Overlay::Approvals { .. } => match k.code {
             KeyCode::Char('r') => {
@@ -3217,6 +3253,14 @@ fn main_action(s: &mut State, action: Action) -> Vec<Effect> {
             };
             s.overlay = Some(Overlay::Approvals { list: None });
             vec![Effect::LoadApprovals(w)]
+        }
+        ShowLinkCode => {
+            let Some(w) = ws else {
+                s.toast(ToastKind::Info, "Open a workspace first");
+                return vec![];
+            };
+            s.overlay = Some(Overlay::LinkCode { view: None });
+            vec![Effect::ShowLinkCode(w)]
         }
         LeaveWorkspace => {
             let Some(w) = ws else {

@@ -16,6 +16,11 @@
 //!    log)?" Yes records the link exactly as the paste path does; No puts
 //!    everything back. Either way the request is deleted from the relay.
 //!
+//! The desktop's short code (`K7Q-4MX`, typed instead of the address) is
+//! resolved to the address first ([`Inner::address_of_code`]). If the relay
+//! restarts and forgets the request, it is posted again (up to three times)
+//! and the screen says so.
+//!
 //! One live request at a time; a new one ends the last.
 
 use std::sync::Arc;
@@ -35,7 +40,10 @@ use uuid::Uuid;
 
 use super::link::PreparedLink;
 use super::{Inner, lock, one_line};
-use crate::backend::model::{ApprovalKind, ApprovalRequest, Linked, LiveLinkEnd, LiveLinkStart, LiveLinkUpdate, MatchCodeView};
+use crate::backend::model::{
+    ApprovalKind, ApprovalRequest, LinkCodeState, LinkCodeView, Linked, LiveLinkEnd, LiveLinkStart, LiveLinkUpdate, MatchCodeView,
+};
+use ligus_runtime::approval_mailbox::{CodeState, LinkCodeOffer};
 use crate::backend::{BackendError, Event, Result, WorkspaceId, err};
 
 /// What the person said, sent to the request's task.
@@ -156,11 +164,45 @@ fn post_error(e: RequesterError) -> BackendError {
     }
 }
 
+/// Times a request is posted again after relay restarts.
+const MAX_REPOSTS: usize = 3;
+
+/// A short code that found no address, in one line.
+fn code_error(e: MailboxError, relay: &str) -> BackendError {
+    let host = relay.split("://").nth(1).unwrap_or(relay).trim_end_matches('/').to_string();
+    BackendError(match e {
+        MailboxError::NoRoutes => {
+            format!("{host} has no short codes yet: paste the approval address your desktop shows instead (Add a computer > Other ways to link)")
+        }
+        MailboxError::CodeUnknown => format!(
+            "no device is showing that code on {host}: check it, or get a new one on your desktop (with your own relay, type its address after the code)"
+        ),
+        MailboxError::Malformed => "the relay's answer for that code didn't check out, so nothing was sent: get a new code".into(),
+        MailboxError::Unreachable(why) => format!("the relay couldn't be reached ({why}): check the network and try again"),
+        other => other.to_string(),
+    })
+}
+
 impl Inner {
-    /// Post this computer's link request to `address` and drive it in the
-    /// background; progress is [`Event::LiveLink`].
+    /// The approval address behind a short code (`K7Q-4MX`, optionally
+    /// followed by the relay it is on), or the pasted address itself.
+    pub(crate) async fn address_of_code(&self, typed: &str) -> Result<ApprovalAddress> {
+        let Some((code, relay)) = crate::link_code::short_code_in(typed) else { return parse_address(typed) };
+        let code = ligus_core::link_code::ShortCode::parse(&code).ok_or_else(|| BackendError("that isn't a short code".into()))?;
+        let relay = relay
+            .or_else(|| self.cfg.relay_url.clone().filter(|r| ligus_runtime::workspace_invite::usable_relay_url(r)))
+            .unwrap_or_else(|| ligus_core::COMMUNITY_RELAY_URL.to_string());
+        let client = MailboxClient::new(&relay);
+        let a = ligus_runtime::approval_mailbox::resolve_link_code(&client, &code, true).await.map_err(|e| code_error(e, &relay))?;
+        // The same checks as a pasted address.
+        parse_address(&a.encode())
+    }
+
+    /// Post this computer's link request to `address` (or the address
+    /// behind the short code typed there) and drive it in the background;
+    /// progress is [`Event::LiveLink`].
     pub(crate) async fn link_live(self: &Arc<Self>, address: &str) -> Result<LiveLinkStart> {
-        let address = parse_address(address)?;
+        let address = self.address_of_code(address).await?;
         if let Some(h) = lock(&self.live).take() {
             let _ = h.cmd.send(Cmd::Cancel);
         }
@@ -183,7 +225,8 @@ impl Inner {
         let (tx, rx) = mpsc::unbounded_channel();
         *lock(&self.live) = Some(LiveHandle { rid: rid.clone(), cmd: tx });
         let me = self.clone();
-        tokio::spawn(async move { Drive { inner: me, req, request, device, rx }.run().await });
+        let handle = rid.clone();
+        tokio::spawn(async move { Drive { inner: me, handle, req, request, device, rx }.run().await });
         Ok(LiveLinkStart::Posted { rid, request: view })
     }
 
@@ -261,9 +304,117 @@ impl Inner {
     }
 }
 
+/// The short code this computer shows (Link a device): which showing it
+/// is, and what takes it back.
+pub(crate) struct ShownCode {
+    showing: u64,
+    offer: Arc<tokio::sync::Mutex<LinkCodeOffer>>,
+    client: MailboxClient,
+    used: bool,
+}
+
+/// How often a shown code is checked.
+const CODE_CHECK_SECS: u64 = 3;
+
+fn code_view(offer: &LinkCodeOffer, state: LinkCodeState, notice: Option<String>) -> LinkCodeView {
+    let community = ligus_core::link_code::relay_salt(offer.relay()) == ligus_core::link_code::relay_salt(ligus_core::COMMUNITY_RELAY_URL);
+    LinkCodeView {
+        code: offer.code().shown(),
+        relay: (!community).then(|| offer.relay().to_string()),
+        expires_at: offer.expires_at(),
+        state,
+        notice,
+    }
+}
+
+impl Inner {
+    /// Show a short code for `ws`'s approval address and keep it posted
+    /// until it is used, expires or the screen closes.
+    pub(crate) async fn link_code_show(self: &Arc<Self>, ws: Uuid) -> Result<LinkCodeView> {
+        self.link_code_close().await;
+        let saved = self.saved(ws)?;
+        let Some(relay) = saved.relay().map(str::to_string) else { return err("this workspace has no relay: a new device can't reach it") };
+        let src = self.key_source(&saved)?;
+        let epochs = self.read(ws, move |svc| svc.approval_epoch_keys(ws, &src))?;
+        let pin = self.read(ws, move |svc| svc.founder_pin_hex(ws))?.ok_or_else(|| BackendError("this workspace has no founder pin here yet".into()))?;
+        let client = MailboxClient::new(&relay).with_auth(saved.secrets.token.clone());
+        let offer = match LinkCodeOffer::post(&client, ws, &pin, &epochs).await {
+            Ok(o) => o,
+            Err(MailboxError::NoRoutes) => {
+                let address = ligus_runtime::approval_mailbox::current_address(&client, ws, &pin, &epochs).await.ok().map(|a| a.encode());
+                return Ok(LinkCodeView { code: String::new(), relay: None, expires_at: 0, state: LinkCodeState::NoRoutes { address }, notice: None });
+            }
+            Err(e) => return Err(BackendError(e.to_string())),
+        };
+        let view = code_view(&offer, LinkCodeState::Live, None);
+        let offer = Arc::new(tokio::sync::Mutex::new(offer));
+        let showing = {
+            let mut shown = lock(&self.shown_code);
+            let showing = shown.as_ref().map_or(1, |s| s.showing + 1);
+            *shown = Some(ShownCode { showing, offer: offer.clone(), client: client.clone(), used: false });
+            showing
+        };
+        let me = self.clone();
+        tokio::spawn(async move { me.keep_code(showing, offer, client, pin, epochs).await });
+        Ok(view)
+    }
+
+    async fn keep_code(
+        self: Arc<Self>,
+        showing: u64,
+        offer: Arc<tokio::sync::Mutex<LinkCodeOffer>>,
+        client: MailboxClient,
+        pin: String,
+        epochs: Vec<ligus_runtime::approval_mailbox::EpochKey>,
+    ) {
+        let current = |me: &Inner| lock(&me.shown_code).as_ref().is_some_and(|s| s.showing == showing);
+        let mut trouble = false;
+        loop {
+            tokio::time::sleep(Duration::from_secs(CODE_CHECK_SECS)).await;
+            if !current(&self) {
+                return;
+            }
+            let mut o = offer.lock().await;
+            let (state, notice, done) = match o.check(&client, &pin, &epochs).await {
+                Ok(CodeState::Live) if !trouble => continue,
+                Ok(CodeState::Live) => (LinkCodeState::Live, None, false),
+                Ok(CodeState::Reposted) => (LinkCodeState::Live, Some("The relay restarted; the code works again.".to_string()), false),
+                Ok(CodeState::Used) => (LinkCodeState::Used, None, true),
+                Ok(CodeState::Expired) => (LinkCodeState::Expired, None, true),
+                Err(e) if e.retryable() => (LinkCodeState::Live, Some(format!("Can't reach the relay right now ({e}). Still trying…")), false),
+                Err(e) => (LinkCodeState::Failed(e.to_string()), None, true),
+            };
+            trouble = notice.as_deref().is_some_and(|n| n.starts_with("Can't reach"));
+            if !current(&self) {
+                return;
+            }
+            if matches!(state, LinkCodeState::Used) {
+                if let Some(s) = lock(&self.shown_code).as_mut() {
+                    s.used = true;
+                }
+            }
+            self.emit(Event::LinkCode(code_view(&o, state, notice)));
+            if done {
+                return;
+            }
+        }
+    }
+
+    /// Take a shown code nobody typed back.
+    pub(crate) async fn link_code_close(&self) {
+        let Some(s) = lock(&self.shown_code).take() else { return };
+        if !s.used {
+            let _ = s.offer.lock().await.withdraw(&s.client).await;
+        }
+    }
+}
+
 /// One live request's task.
 struct Drive {
     inner: Arc<Inner>,
+    /// The first request's rid: the screen and the commands keep using it
+    /// when the request is posted again after a relay restart.
+    handle: String,
     req: Requester,
     request: LinkRequest,
     device: Uuid,
@@ -272,7 +423,7 @@ struct Drive {
 
 impl Drive {
     fn emit(&self, update: LiveLinkUpdate) {
-        self.inner.emit(Event::LiveLink { rid: self.req.rid_hex(), update });
+        self.inner.emit(Event::LiveLink { rid: self.handle.clone(), update });
     }
 
     /// The request is over: delete it from the relay, say why, let go.
@@ -281,7 +432,7 @@ impl Drive {
         if let Some(w) = why {
             self.emit(LiveLinkUpdate::Ended(w));
         }
-        let rid = self.req.rid_hex();
+        let rid = self.handle.clone();
         let mut live = lock(&self.inner.live);
         if live.as_ref().is_some_and(|h| h.rid == rid) {
             *live = None;
@@ -294,6 +445,7 @@ impl Drive {
         let mut acked = false;
         let mut retry = Retry::new();
         let started = tokio::time::Instant::now();
+        let mut restarts = 0;
         loop {
             // Never silently forever: past the request's life it is over,
             // even when the relay never said so.
@@ -346,6 +498,20 @@ impl Drive {
                     }
                     continue;
                 }
+                // The relay forgot the request (it restarted): post it again.
+                Err(RequesterError::Mailbox(e)) if ligus_runtime::approval_mailbox::relay_forgot(&e) && restarts < MAX_REPOSTS => {
+                    restarts += 1;
+                    self.emit(LiveLinkUpdate::Reposted);
+                    match self.repost(started).await {
+                        Ok(r) => {
+                            let mut old = std::mem::replace(&mut self.req, r);
+                            let _ = old.settle().await;
+                            (said_yes, offered, acked) = (false, false, false);
+                            continue;
+                        }
+                        Err(e) => return self.end(Some(LiveLinkEnd::Refused(e.0))).await,
+                    }
+                }
                 Err(RequesterError::Mailbox(MailboxError::RequestUnknown)) => return self.end(Some(LiveLinkEnd::Expired)).await,
                 Err(e) => return self.end(Some(LiveLinkEnd::Refused(e.to_string()))).await,
             };
@@ -362,6 +528,33 @@ impl Drive {
                     RequesterEvent::Aborted { .. } => return self.end(Some(LiveLinkEnd::EndedByDesktop)).await,
                     RequesterEvent::CodeExpired | RequesterEvent::RequestExpired => return self.end(Some(LiveLinkEnd::Expired)).await,
                 }
+            }
+        }
+    }
+
+    /// Post the same link request again to the same address, waiting while
+    /// the relay's mailbox comes back (a member's device registers it again).
+    async fn repost(&mut self, started: tokio::time::Instant) -> Result<Requester> {
+        let address = self.req.address().clone();
+        loop {
+            if let Ok(Cmd::Cancel) = self.rx.try_recv() {
+                return err("cancelled");
+            }
+            let ids = self.inner.identity_store();
+            let signer = Signer::Ed25519(ids.device_keypair(self.device).map_err(one_line)?);
+            let ka = ids.key_agreement(self.device).map_err(one_line)?;
+            let spec = RequestSpec { kind: MatchKind::Computer, code: self.request.encode(), signer, ka: Some(ka) };
+            match Requester::post(MailboxClient::new(&address.relay), &address, spec, Some(&self.inner.cfg.data_dir)).await {
+                Ok(mut r) => {
+                    r.allow_relay_override(relay_override().is_some());
+                    return Ok(r);
+                }
+                Err(RequesterError::Mailbox(e))
+                    if (ligus_runtime::approval_mailbox::relay_forgot(&e) || e.retryable()) && started.elapsed() < REQUEST_LIFE =>
+                {
+                    tokio::time::sleep(Duration::from_secs(POLL_SECS)).await;
+                }
+                Err(e) => return Err(post_error(e)),
             }
         }
     }

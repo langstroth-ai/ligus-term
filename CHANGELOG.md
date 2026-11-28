@@ -6,6 +6,17 @@ ligustica). Versions follow [semver](https://semver.org); releases are on
 
 ## Unreleased
 
+### Added
+
+- **Add to my devices takes the desktop's short code.** Type the code
+  **Add a computer** shows (`K7Q-4MX`; with your own relay, its address after
+  the code) instead of pasting the approval address; `link-to K7Q-4MX` in
+  plain mode. A relay without short codes says to paste the address. If the
+  relay restarts while lt waits, it asks again (`link-reposted` in plain
+  mode). **Link a device: show a code** in the palette shows a code for a new
+  device of yours to type; its request goes to your desktop's Inbox. Needs
+  the matching Ligus and relay releases.
+
 ### Changed
 
 - A turn that isn't this terminal's (an agent on another host, or someone
